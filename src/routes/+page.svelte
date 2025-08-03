@@ -2,13 +2,39 @@
     import { discoveredPeersStore, peerIdStore } from '$lib/p2p.js'
     import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js'
     import { formatPeerId } from '$lib/utils'
+    import ConsentModal from '$lib/ConsentModal.svelte'
 
-    let toastMessage
+    let toastMessage = null
     let __APP_VERSION__
     let loading
-    let error
-    let inputText
-    let myPeerId
+    let error = null
+    let inputText = ''
+    let myPeerId = null
+    
+    // Modal state
+    let showModal = true
+    let checkboxes = {
+        relayConnection: {
+            label: "I understand that this todo application is a demo app and will connect to a relay node",
+            checked: false
+        },
+        dataVisibility: {
+            label: "I understand that the relay may store the entered data, making it visible to other users for demo purposes",
+            checked: false
+        },
+        globalDatabase: {
+            label: "I understand that this todo application works with one global unencrypted database for all users which is visible to others testing this app simultaneously",
+            checked: false
+        },
+        replicationTesting: {
+            label: "I understand that I need to open a second browser or mobile device with the same web address to test the replication functionality",
+            checked: false
+        }
+    }
+    
+    const handleModalClose = () => {
+        showModal = false
+    }
   
     const handleAddTodo = async () => {
         if (!inputText || inputText.trim() === '') return
@@ -62,6 +88,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="A simple peer-to-peer TODO list app using OrbitDB, IPFS and libp2">
   </svelte:head>
+  
+  <!-- Welcome Modal -->
+  <ConsentModal 
+    bind:show={showModal}
+    title="Simple-Todo-Example"
+    description="This is a web application that:"
+    features={[
+        "Does not store any cookies or perform any tracking",
+        "Does not store any data in your browser's storage",
+        "Stores data temporarily in your browser's memory only",
+        "Does not use any application or database server for entered or personal data",
+        "Connects to at least one relay server (in this demo, only 1 relay server)",
+        "The relay server may cache your entered data, making it visible to other users",
+        "For decentralization purposes, this web app is hosted on the IPFS network"
+    ]}
+    bind:checkboxes
+    proceedButtonText="Proceed to Test the App"
+    disabledButtonText="Please check all boxes to continue"
+  />
   
   <main class="container mx-auto p-6 max-w-4xl">
     <h1 class="text-3xl font-bold mb-6 text-center">P2P TODO List</h1>

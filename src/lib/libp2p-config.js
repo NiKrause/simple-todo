@@ -5,7 +5,6 @@ import { webSockets } from '@libp2p/websockets'
 import { webRTC } from '@libp2p/webrtc'
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2'
 import { identify } from '@libp2p/identify'
-// import { ping } from '@libp2p/ping'
 import { dcutr } from '@libp2p/dcutr'
 import { autoNAT } from '@libp2p/autonat'
 import { gossipsub } from '@chainsafe/libp2p-gossipsub'
@@ -22,8 +21,9 @@ const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discove
 
 // Determine which relay address to use based on environment
 const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development'
-
-const RELAY_BOOTSTRAP_ADDR = isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_BOOTSTRAP_ADDR_PROD
+console.log('isDevelopment', isDevelopment)
+const RELAY_BOOTSTRAP_ADDR = (isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_BOOTSTRAP_ADDR_PROD).split(',').map(addr => addr.trim())
+console.log('RELAY_BOOTSTRAP_ADDR', RELAY_BOOTSTRAP_ADDR)
 
 export async function createLibp2pConfig(privateKey = null) {
   // Get fixed peer ID from environment variable
@@ -79,7 +79,7 @@ export async function createLibp2pConfig(privateKey = null) {
     ],
     services: {
       identify: identify(),
-      bootstrap: bootstrap({list: [RELAY_BOOTSTRAP_ADDR]}),
+      bootstrap: bootstrap({list: RELAY_BOOTSTRAP_ADDR}),
     //   ping: ping(),
       dcutr: dcutr(),
       autonat: autoNAT(),
