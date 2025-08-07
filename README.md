@@ -9,7 +9,7 @@ A decentralized, peer-to-peer todo application built with **libp2p**, **IPFS**, 
 
 ## 🎯 What is this?
 
-This is a **client-side only** todo application that operates entirely in your browser without any traditional server infrastructure. It connects directly to other browsers or mobile devices through peer-to-peer connections, creating a truly decentralized experience.
+This is a **client-side only** local-first peer-to-peer todo application that operates entirely in your browser without any traditional server infrastructure. It connects directly to other browsers or mobile devices through peer-to-peer connections, creating a truly decentralized experience.
 
 ### Key Features
 
