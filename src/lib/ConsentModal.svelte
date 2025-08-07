@@ -8,12 +8,12 @@
         "Stores data temporarily in your browser's memory only",
         "Does not use any application or database server for entered or personal data",
         "Connects to at least one relay server and other browser or mobile device directly for peer-to-peer communication",
-        "The relay server may cache your entered data, making it visible to other users",
+        "The relay server may cache your entered data, making it visible to other users in the internet",
         "For decentralization purposes, this web app is hosted on the IPFS network"
     ]
     export let checkboxes = {
         relayConnection: {
-            label: "I understand that this todo application is a demo app and will connect to a relay node",
+            label: "I understand that this todo application is a demo app and will connect to a relay node and other browser or mobile devices directly running this app",
             checked: false
         },
         dataVisibility: {

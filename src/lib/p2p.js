@@ -75,7 +75,7 @@ console.log(`✅ Helia created`)
 
 console.log('🛬 Creating OrbitDB instance...')
 orbitdb = await createOrbitDB({ ipfs: helia, id: 'simple-todo-app'})
-todoDB = await orbitdb.open('todos', {
+todoDB = await orbitdb.open('simple-todos', {
     type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
     create: true, // Allows the database to be created if it doesn't exist
     sync: true, // Enables automatic synchronization with other peers
