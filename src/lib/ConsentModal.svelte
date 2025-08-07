@@ -1,6 +1,6 @@
 <script>
     export let show = true
-    export let title = "Simple-Todo-Example"
+    export let title = "Simple-Todo-Example v" + __APP_VERSION__
     export let description = "This is a web application that:"
     export let features = [
         "Does not store any cookies or perform any tracking",
