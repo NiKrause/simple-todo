@@ -1,38 +1,78 @@
-# sv
+# Simple Todo - Peer-to-Peer Demo App
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A decentralized, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
-## Creating a project
+## 🚀 Live Demo
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **HTTP**: https://simple-todo.le-space.de
+- **IPFS**: https://ipfs.dweb.link/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
 
-```sh
-# create a new project in the current directory
-npx sv create
+## 🎯 What is this?
 
-# create a new project in my-app
-npx sv create my-app
-```
+This is a **client-side only** todo application that operates entirely in your browser without any traditional server infrastructure. It connects directly to other browsers or mobile devices through peer-to-peer connections, creating a truly decentralized experience.
 
-## Developing
+### Key Features
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+- ✅ **No Server Required** - Runs entirely in your browser
+- ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC
+- ✅ **Global Shared Database** - All users share the same OrbitDB database
+- ✅ **Real-time Synchronization** - Changes appear instantly across all peers
+- ✅ **Dynamic Identity** - Fresh peer ID generated on each load
 
-```sh
+## 🎯 How to Test
+
+1. **Open Two Browser Windows** - You need at least two browser instances
+2. **Load the Same URL** - Both browsers should load the same application URL
+3. **Accept Consent** - Check all consent boxes in both browsers
+4. **Wait for Connection** - The app will automatically discover and connect peers
+5. **Add Todos** - Create todos in one browser and watch them appear in the other
+
+## 🎯 Documentation
+
+For a comprehensive guide on how this app works, implementation details, and step-by-step tutorials, see:
+
+**[ TUTORIAL.md](./TUTORIAL.md)**
+
+The tutorial covers:
+- Detailed explanation of libp2p, IPFS, and OrbitDB
+- Step-by-step implementation guide
+- Architecture overview
+- Testing procedures
+- Troubleshooting guide
+- Security considerations
+
+## 🛠️ Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```sh
+# Build for production
 npm run build
 ```
 
-You can preview the production build with `npm run preview`.
+## 🔧 Technologies Used
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+- **libp2p** - Peer-to-peer networking stack
+- **IPFS** - Distributed file system (via Helia)
+- **OrbitDB** - Decentralized database
+- **Svelte** - Frontend framework
+- **WebRTC** - Direct browser-to-browser communication
+
+## ⚠️ Important Notes
+
+- This is a **demo application** for educational purposes
+- Data is stored in a **global unencrypted database** visible to all users
+- **No privacy protection** - all data is publicly visible
+- **Not suitable for production use** without additional security measures
+
+## 📄 License
+
+This project is open source and available under the [LICENSE](./LICENSE) file.
+
+---
+
+**Built with ❤️ using Web3 technologies**
