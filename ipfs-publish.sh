@@ -22,6 +22,14 @@
 # 4. (Optional) If you want to publish under a DNSLink, ensure your DNS provider
 #    points the desired domain TXT record to your IPNS key.
 #
+#    To verify the DNSLink TXT record with dig (replace with your domain if needed):
+#      dig +short TXT _dnslink.$IPNS_NAME
+#    Or query a specific resolver:
+#      dig @1.1.1.1 +short TXT _dnslink.$IPNS_NAME
+#    Expected output contains one of:
+#      "dnslink=/ipns/$IPNS_KEY"
+#      "dnslink=/ipfs/<CID>"
+#
 # -----------------------------------------------------------------------------
 # Configurable variables
 IPNS_KEY="k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs"
