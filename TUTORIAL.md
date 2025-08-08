@@ -22,7 +22,7 @@ This tutorial will guide you through building a decentralized, local-first, peer
 
 ### What is this app?
 
-This is a **client side only** todo application that operates entirely in your browser without any traditional server infrastructure. It connects directly to other browsers or mobile devices through peer-to-peer connections, creating a true peer-to-peer experience. In between two browser peers signaling nodes connect browser peers which then connect directly via WebRTC. The signaling or relay nodes also providing storage for cases when two peers aren't online at the same time. Once the browsers are communicating peer-to-peer the signaling/relay node can be switched off!
+This is a **client side only** todo application that operates entirely in your browser without any traditional server infrastructure. It connects directly to other browsers or mobile devices, creating a real-time peer-to-peer experience. Signaling nodes connect browser peers which then upgrade to WebRTC. The signaling or relay nodes are also providing storage for cases when two peers aren't online at the same time. Once the browsers are communicating peer-to-peer the signaling/relay node can be switched off!
 
 **Key Characteristics:**
 - **No Server Required**: Runs entirely in your browser
@@ -77,7 +77,7 @@ Browser A ←→ Relay Node ←→ Browser B
 
 1. **Initialization**: Each browser creates a libp2p node with a unique peer ID
 2. **Discovery**: Peers discover each other through pubsub and relay nodes
-3. **Connection**: Direct WebRTC connections are established between peers
+3. **Connection**: Direct WebRTC connections are established between peers or alternatively via relay connections of firewall doesn't allow it
 4. **Database Sync**: OrbitDB automatically synchronizes data across all connected peers
 5. **Real-time Updates**: Changes in one browser immediately appear in others
 
@@ -85,15 +85,15 @@ Browser A ←→ Relay Node ←→ Browser B
 
 - **Dynamic Peer IDs**: Each app load generates a new peer ID
 - **No Persistence**: Peer identity is not stored between sessions
-- **Anonymous**: No user authentication or registration required
+- **Anonymous**: No user authentication or registration required (data is stored in your browser)
 - **Temporary**: All data exists only while peers are connected
 
 ## Prerequisites
 
-- Node.js (v18 or higher)
 - A modern browser (Chrome, Firefox, Safari, Edge)
 - Basic knowledge of JavaScript and Svelte
 - Two browser windows/tabs for testing
+- Node.js (v18 or higher) for relay node setup
 
 ## Project Setup
 
@@ -147,7 +147,7 @@ simple-todo/
 1. **P2P Network Layer** (`src/lib/p2p.js`)
    - Handles peer discovery and connections
    - Manages libp2p node lifecycle
-   - Coordinates with OrbitDB
+   - Coordinates with Helia (IPFS) & OrbitDB
 
 2. **Database Actions** (`src/lib/db-actions.js`)
    - CRUD operations for todos
@@ -178,9 +178,9 @@ export async function createLibp2pConfig(privateKey = null) {
       listen: [
         '/p2p-circuit',    // Circuit relay for NAT traversal
         "/webrtc",         // Direct browser-to-browser
-        "/webtransport",   // Modern transport protocol
-        "/wss",           // Secure WebSocket
-        "/ws"             // WebSocket
+        "/webtransport",   // Modern transport protocol (not used in our example)
+        "/wss",           // Secure WebSocket 
+        "/ws"             // WebSocket (used with auto-tls)
       ]
     },
     transports: [
@@ -249,7 +249,7 @@ todoDB = await orbitdb.open('todos', {
     type: 'keyvalue',                    // Key-value database type
     create: true,                        // Create if doesn't exist
     sync: true,                          // Enable synchronization
-    AccessController: IPFSAccessController({write: ["*"]}) // Allow all peers to write
+    AccessController: IPFSAccessController({write: ["*"]}) // Allow all peers to write to this db! 
 });
 
 console.log('✅ Database opened successfully with OrbitDBAccessController:', {
@@ -263,8 +263,8 @@ await initializeDatabase(orbitdb, todoDB)
 ```
 
 **Important Notes:**
-- Each app load generates a new peer ID
-- The database is shared globally among all users
+- Each app load generates a new peer ID and identity which is not reused!
+- The database is shared globally among all users in browsers and also pinned on the relay
 - `write: ["*"]` allows any peer to write to the database
 - `sync: true` enables automatic data synchronization
 
@@ -571,102 +571,6 @@ For production use, consider implementing:
 4. **Private Networks**: Create private peer networks
 5. **Data Privacy**: Implement data anonymization or deletion
 
-## Advanced Features
-
-### Peer Assignment
-
-The app supports assigning todos to specific peers:
-
-```javascript
-// Assign a todo to a specific peer
-export async function updateTodoAssignee(todoId, assignee) {
-  const todoDB = get(todoDBStore)
-  
-  try {
-    const existingTodo = await todoDB.get(todoId)
-    if (!existingTodo) {
-      console.error('❌ Todo not found:', todoId)
-      return false
-    }
-    
-    const todoData = existingTodo.value || existingTodo
-    
-    const updatedTodo = {
-      ...todoData,
-      assignee: assignee,
-      updatedAt: new Date().toISOString()
-    }
-    
-    await todoDB.put(todoId, updatedTodo)
-    console.log('✅ Todo assignee updated:', todoId, assignee)
-    return true
-  } catch (error) {
-    console.error('❌ Error updating todo assignee:', error)
-    return false
-  }
-}
-```
-
-### Derived Stores
-
-The app provides derived stores for filtering data:
-
-```javascript
-// Get todos by assignee
-export function getTodosByAssignee(assignee) {
-  return derived(todosStore, $todos => 
-    $todos.filter(todo => todo.assignee === assignee)
-  )
-}
-
-// Get todos by completion status
-export function getTodosByStatus(completed) {
-  return derived(todosStore, $todos => 
-    $todos.filter(todo => todo.completed === completed)
-  )
-}
-
-// Get todos created by a specific peer
-export function getTodosByCreator(creatorId) {
-  return derived(todosStore, $todos => 
-    $todos.filter(todo => todo.createdBy === creatorId)
-  )
-}
-```
-
-### Database Management
-
-The app includes database management functions:
-
-```javascript
-// Delete the current database
-export async function deleteCurrentDatabase() {
-  const todoDB = get(todoDBStore)
-  const orbitdb = get(orbitdbStore)
-  
-  if (!todoDB || !orbitdb) {
-    console.error('❌ Database not available')
-    return false
-  }
-  
-  try {
-    console.log('🗑️ Deleting current database...')
-    await todoDB.drop()
-    console.log('✅ Database dropped from OrbitDB')
-    
-    // Clear the stores
-    todoDBStore.set(null)
-    todosStore.set([])
-    
-    console.log('✅ Database recreated successfully')
-    return true
-  } catch (error) {
-    console.error('❌ Error deleting database:', error)
-    return false
-  }
-}
-```
-
 ## Troubleshooting
 
 ### Common Issues
@@ -679,9 +583,11 @@ export async function deleteCurrentDatabase() {
 
 **Solutions:**
 - Check if relay server is running and accessible
-- Ensure both browsers are on the same network
+- Ensure both browsers are on the same network (when relay is in your network)
 - Check browser console for connection errors
-- Verify firewall settings allow WebRTC connections
+- Verify corporate, mobile provider, hotel firewalls settings of allow WebRTC connections
+- Use a different relay
+- Use different transport
 
 **Debug Steps:**
 ```javascript
