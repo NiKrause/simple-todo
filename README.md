@@ -1,28 +1,29 @@
-# Simple Todo - Peer-to-Peer Demo App
+# Simple Todo - Local-First Peer-to-Peer Demo App
 
-A decentralized, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
+A decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
 ## 🚀 Live Demo
 
 - **HTTP**: https://simple-todo.le-space.de
-- **IPFS**: https://ipfs.dweb.link/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
+- **IPFS (dweb.link)**: https://dweb.link/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
+- **IPFS (le-space)**: https://ipfs.le-space.de/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
 
 ## 🎯 What is this?
 
-This is a **client-side only** local-first peer-to-peer todo application that operates entirely in your browser without any traditional server infrastructure. It connects directly to other browsers or mobile devices through peer-to-peer connections, creating a truly decentralized experience.
+This is a **browser only** local-first peer-to-peer todo application that operates without any traditional server infrastructure. It connects directly to other browsers and mobile devices through peer-to-peer connections, creating a truly decentralized experience.
 
 ### Key Features
 
 - ✅ **No Server Required** - Runs entirely in your browser
-- ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC
-- ✅ **Global Shared Database** - All users share the same OrbitDB database
+- ✅ **Local Data** - data is stored in your browsers level storage and replicated via OrbitBB and IPFS
+- ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of signaling nodes)
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
 - ✅ **Dynamic Identity** - Fresh peer ID generated on each load
 
 ## 🎯 How to Test
 
-1. **Open Two Browser Windows** - You need at least two browser instances
-2. **Load the Same URL** - Both browsers should load the same application URL
+1. **Open Two Browser Windows** - You need at least two browser instances, a mobile or ask another distant person to open the app
+2. **Load the Same URL** - all app users should load the same app URL
 3. **Accept Consent** - Check all consent boxes in both browsers
 4. **Wait for Connection** - The app will automatically discover and connect peers
 5. **Add Todos** - Create todos in one browser and watch them appear in the other
