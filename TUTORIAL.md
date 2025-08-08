@@ -1,4 +1,4 @@
-# Building a Peer-to-Peer Todo App with libp2p, IPFS, and OrbitDB
+# Building a simple Local-First Peer-to-Peer Todo App with libp2p, IPFS, and OrbitDB
 
 ## Table of Contents
 
@@ -18,16 +18,15 @@
 
 ## Introduction
 
-This tutorial will guide you through building a decentralized, peer-to-peer todo application that demonstrates the power of modern Web3 technologies. The app is built using **libp2p** for peer-to-peer networking, **IPFS** for distributed storage, and **OrbitDB** for decentralized database management.
+This tutorial will guide you through building a decentralized, local-first, peer-to-peer todo application that demonstrates the power of modern Web3 technologies. The app is built using **libp2p** for peer-to-peer networking, **IPFS** for distributed storage, and **OrbitDB** for decentralized database management.
 
 ### What is this app?
 
-This is a **client-side only** todo application that operates entirely in your browser without any traditional server infrastructure. It connects directly to other browsers or mobile devices through peer-to-peer connections, creating a truly decentralized experience.
+This is a **client side only** todo application that operates entirely in your browser without any traditional server infrastructure. It connects directly to other browsers or mobile devices through peer-to-peer connections, creating a true peer-to-peer experience. In between two browser peers signaling nodes connect browser peers which then connect directly via WebRTC. The signaling or relay nodes also providing storage for cases when two peers aren't online at the same time. Once the browsers are communicating peer-to-peer the signaling/relay node can be switched off!
 
 **Key Characteristics:**
 - **No Server Required**: Runs entirely in your browser
-- **Peer-to-Peer Communication**: Browsers connect directly via WebRTC
-- **Global Shared Database**: All users share the same OrbitDB database
+- **Peer-to-Peer Communication**: Browsers connect & communicate directly via WebRTC (via a signaling nodes - we are researching possibilities to connect without them)
 - **Relay Node**: A relay server helps peers discover each other and acts as a data pinner
 - **Dynamic Identity**: Each time you load the app, a new peer ID is generated
 
