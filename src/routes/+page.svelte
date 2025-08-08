@@ -84,15 +84,15 @@
   {/if}
   
   <svelte:head>
-    <title>P2P TODO List {__APP_VERSION__}</title>
+    <title>Simple TODO Example {__APP_VERSION__}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="A simple peer-to-peer TODO list app using OrbitDB, IPFS and libp2">
+    <meta name="description" content="A simple local-first peer-to-peer TODO list app using OrbitDB, IPFS and libp2p">
   </svelte:head>
   
   <!-- Welcome Modal -->
   <ConsentModal 
     bind:show={showModal}
-    title="Simple-Todo-Example"
+    title="Simple TODO Example"
     description="This is a web application that:"
     features={[
         "Does not store any cookies or perform any tracking",
@@ -109,7 +109,7 @@
   />
   
   <main class="container mx-auto p-6 max-w-4xl">
-    <h1 class="text-3xl font-bold mb-6 text-center">P2P TODO List</h1>
+    <h1 class="text-3xl font-bold mb-6 text-center">Simple TODO Example {__APP_VERSION__}</h1>
   
     {#if loading}
       <div class="text-center py-8">
