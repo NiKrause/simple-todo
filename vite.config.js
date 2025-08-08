@@ -36,6 +36,6 @@ export default defineConfig({
 		protocolImports: true,
 	  })],
 	  define: {
-		'process.env.VERSION': JSON.stringify(pkg.version)
+		__APP_VERSION__: JSON.stringify(pkg.version),
 	  }
 });
