@@ -1,4 +1,4 @@
-# Simple Todo - A ocal-First Peer-to-Peer Demo App
+# Simple Todo - A Local-First Peer-to-Peer Demo App
 
 A decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 

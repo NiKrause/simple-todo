@@ -26,7 +26,7 @@ This is a **client side only** todo application that operates entirely in your b
 
 **Key Characteristics:**
 - **No Server Required**: Runs entirely in your browser
-- **Peer-to-Peer Communication**: Browsers connect & communicate directly via WebRTC (via a signaling nodes - we are researching possibilities to connect without them)
+- **Peer-to-Peer Communication**: Browsers connect & communicate directly via WebRTC (via a signaling nodes)
 - **Relay Node**: A relay server helps peers discover each other and acts as a data pinner
 - **Dynamic Identity**: Each time you load the app, a new peer ID is generated
 
@@ -35,7 +35,7 @@ This is a **client side only** todo application that operates entirely in your b
 To test this application, you need to:
 1. **Open Two Browser Windows**: You need at least two browser instances
 2. **Same URL**: Both browsers should load the same application URL
-3. **Relay Server**: A relay node must be running for peer discovery
+3. **Relay Server**: A relay node must be running for peer discovery (in dev mode only - not included in this repo)
 4. **Accept Consent**: Check all consent boxes in both browsers before testing
 
 ## Key Technologies Explained
@@ -43,7 +43,7 @@ To test this application, you need to:
 ### **libp2p**
 - A modular networking stack for peer-to-peer applications
 - Handles peer discovery, connection management, and data transport
-- Supports multiple transport protocols (WebRTC, WebSockets, Circuit Relay)
+- Supports multiple transport protocols (WebRTC, WebSockets, Webtransport, Circuit Relay,...)
 - Enables direct browser-to-browser communication
 - Provides pubsub (publish/subscribe) for peer discovery
 
@@ -51,7 +51,7 @@ To test this application, you need to:
 - A distributed file system for storing and sharing data
 - Provides content-addressed storage (data is identified by its hash)
 - Enables decentralized data distribution
-- In this app, IPFS is used through Helia (the new JavaScript implementation)
+- In this app, IPFS is used through Helia (the new JavaScript former js-ipfs implementation)
 - Handles data pinning and replication
 
 ### **OrbitDB**
@@ -67,7 +67,7 @@ To test this application, you need to:
 
 ```markdown:TUTORIAL.md
 <code_block_to_apply_changes_from>
-```
+```mermaid
 Browser A ←→ Relay Node ←→ Browser B
     ↓           ↓           ↓
   OrbitDB ←→ IPFS ←→ OrbitDB
