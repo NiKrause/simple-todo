@@ -6,7 +6,7 @@
     import SocialIcons from '$lib/SocialIcons.svelte'
 
     let toastMessage = null
-    let __APP_VERSION__
+    // let __APP_VERSION__
     let error = null
     let inputText = ''
     let myPeerId = null
