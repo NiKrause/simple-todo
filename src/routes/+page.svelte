@@ -1,12 +1,11 @@
 <script>
-    import { discoveredPeersStore, peerIdStore } from '$lib/p2p.js'
+    import { discoveredPeersStore, peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js'
     import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js'
     import { formatPeerId } from '$lib/utils'
     import ConsentModal from '$lib/ConsentModal.svelte'
 
     let toastMessage = null
     let __APP_VERSION__
-    let loading
     let error = null
     let inputText = ''
     let myPeerId = null
@@ -32,8 +31,15 @@
         }
     }
     
-    const handleModalClose = () => {
+    const handleModalClose = async () => {
         showModal = false
+        // Initialize P2P after user consent
+        try {
+            await initializeP2P()
+        } catch (err) {
+            error = `Failed to initialize P2P: ${err.message}`
+            console.error('P2P initialization failed:', err)
+        }
     }
   
     const handleAddTodo = async () => {
@@ -106,20 +112,22 @@
     bind:checkboxes
     proceedButtonText="Proceed to Test the App"
     disabledButtonText="Please check all boxes to continue"
+    on:proceed={handleModalClose}
   />
   
   <main class="container mx-auto p-6 max-w-4xl">
     <h1 class="text-3xl font-bold mb-6 text-center">Simple TODO Example {__APP_VERSION__}</h1>
   
-    {#if loading}
+    {#if $initializationStore.isInitializing}
       <div class="text-center py-8">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
         <p class="mt-4 text-gray-600">Initializing P2P connection...</p>
+        <p class="mt-2 text-xs text-gray-400">Please wait while we set up the network...</p>
         <p class="mt-2 text-xs text-gray-400">v{__APP_VERSION__}</p>
       </div>
-    {:else if error}
+    {:else if error || $initializationStore.error}
       <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-        Error: {error}
+        Error: {error || $initializationStore.error}
       </div>
     {:else}
       <!-- Add TODO Form -->

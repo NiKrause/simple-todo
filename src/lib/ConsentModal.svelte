@@ -1,4 +1,8 @@
 <script>
+    import { createEventDispatcher } from 'svelte'
+    
+    const dispatch = createEventDispatcher()
+    
     export let show = true
     export let title = "Simple-Todo-Example v" + __APP_VERSION__
     export let description = "This is a web application that:"
@@ -39,6 +43,7 @@
     const handleProceed = () => {
         if (allCheckboxesChecked) {
             show = false
+            dispatch('proceed')
         }
     }
     

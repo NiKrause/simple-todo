@@ -7,44 +7,6 @@ import { createLibp2pConfig } from './libp2p-config.js'
 import { formatPeerId } from './utils.js'
 import { initializeDatabase } from './db-actions.js'
 
-// Define the peer object type
-const createPeerObject = (peerId, transports = ['webrtc']) => ({
-  peerId,
-  transports
-})
-
-// Helper function to extract transport protocols from multiaddrs
-/**
- * @param {any[]} multiaddrs - Array of multiaddr objects
- * @returns {string[]} Array of transport protocol names
- */
-const extractTransportsFromMultiaddrs = (multiaddrs) => {
-  const transports = new Set()
-  
-  multiaddrs.forEach((multiaddr) => {
-    const addrStr = multiaddr.toString()
-    
-    // Extract transport protocols from multiaddr string
-    if (addrStr.includes('/webrtc')) {
-      transports.add('webrtc')
-    }
-    if (addrStr.includes('/ws') || addrStr.includes('/wss')) {
-      transports.add('websocket')
-    }
-    if (addrStr.includes('/webtransport')) {
-      transports.add('webtransport')
-    }
-    if (addrStr.includes('/p2p-circuit')) {
-      transports.add('circuit-relay')
-    }
-    if (addrStr.includes('/tcp/') && (addrStr.includes('/ws') || addrStr.includes('/wss'))) {
-      transports.add('websocket')
-    }
-  })
-  
-  return Array.from(transports)
-}
-
 export const discoveredPeersStore = writable([]) 
 let currentPeers = []
 discoveredPeersStore.subscribe(peers => {
@@ -52,6 +14,13 @@ discoveredPeersStore.subscribe(peers => {
 })
       
 export const peerIdStore = writable(null)
+
+// Add initialization state store
+export const initializationStore = writable({ 
+  isInitializing: false, 
+  isInitialized: false, 
+  error: null 
+})
 
 let libp2p = null
 let helia = null
@@ -62,34 +31,67 @@ let todoDB = null
 
 let discoveredPeersInfo = new Map()
 
-const config = await createLibp2pConfig()
-libp2p = await createLibp2p(config)
-console.log(`✅ libp2p node created`)
-setupPeerDiscoveryHandlers(libp2p)
-peerId = libp2p.peerId.toString()
-console.log(`✅ peerId is ${peerId}`)
-peerIdStore.set(peerId)
-
-helia = await createHelia({libp2p})
-console.log(`✅ Helia created`)
-
-console.log('🛬 Creating OrbitDB instance...')
-orbitdb = await createOrbitDB({ ipfs: helia, id: 'simple-todo-app'})
-todoDB = await orbitdb.open('simple-todos', {
-    type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
-    create: true, // Allows the database to be created if it doesn't exist
-    sync: true, // Enables automatic synchronization with other peers
-    AccessController: IPFSAccessController({write: ["*"]}) //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
-});
+/**
+ * Initialize the P2P network after user consent
+ * This function should be called only after the user has accepted the consent modal
+ */
+export async function initializeP2P() {
+  console.log('🚀 Starting P2P initialization after user consent...')
   
-console.log('✅ Database opened successfully with OrbitDBAccessController:', {
-        address: todoDB.address,
-        type: todoDB.type,
-        accessController: todoDB.access
-});
-
-// Initialize database stores and actions
-await initializeDatabase(orbitdb, todoDB)
+  try {
+    // Set initialization state
+    initializationStore.set({ isInitializing: true, isInitialized: false, error: null })
+    
+    // Create libp2p configuration and node
+    const config = await createLibp2pConfig()
+    libp2p = await createLibp2p(config)
+    console.log(`✅ libp2p node created`)
+    
+    // Set up peer discovery handlers
+    setupPeerDiscoveryHandlers(libp2p)
+    
+    // Get and set peer ID
+    peerId = libp2p.peerId.toString()
+    console.log(`✅ peerId is ${peerId}`)
+    peerIdStore.set(peerId)
+    
+    // Create Helia (IPFS) instance
+    helia = await createHelia({libp2p})
+    console.log(`✅ Helia created`)
+    
+    // Create OrbitDB instance
+    console.log('🛬 Creating OrbitDB instance...')
+    orbitdb = await createOrbitDB({ ipfs: helia, id: 'simple-todo-app'})
+    todoDB = await orbitdb.open('simple-todos', {
+        type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
+        create: true, // Allows the database to be created if it doesn't exist
+        sync: true, // Enables automatic synchronization with other peers
+        AccessController: IPFSAccessController({write: ["*"]}) //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
+    });
+      
+    console.log('✅ Database opened successfully with OrbitDBAccessController:', {
+            address: todoDB.address,
+            type: todoDB.type,
+            accessController: todoDB.access
+    });
+    
+    // Initialize database stores and actions
+    await initializeDatabase(orbitdb, todoDB)
+    
+    // Mark initialization as complete
+    initializationStore.set({ isInitializing: false, isInitialized: true, error: null })
+    console.log('🎉 P2P initialization completed successfully!')
+    
+  } catch (error) {
+    console.error('❌ Failed to initialize P2P:', error)
+    initializationStore.set({ 
+      isInitializing: false, 
+      isInitialized: false, 
+      error: error.message 
+    })
+    throw error
+  }
+}
 
 
 
@@ -200,4 +202,42 @@ export function setupPeerDiscoveryHandlers(node) {
       
       console.log('📊 Updated peer list after disconnect')
     })
+}
+
+// Define the peer object type
+const createPeerObject = (peerId, transports = ['webrtc']) => ({
+  peerId,
+  transports
+})
+
+// Helper function to extract transport protocols from multiaddrs
+/**
+ * @param {any[]} multiaddrs - Array of multiaddr objects
+ * @returns {string[]} Array of transport protocol names
+ */
+const extractTransportsFromMultiaddrs = (multiaddrs) => {
+  const transports = new Set()
+  
+  multiaddrs.forEach((multiaddr) => {
+    const addrStr = multiaddr.toString()
+    
+    // Extract transport protocols from multiaddr string
+    if (addrStr.includes('/webrtc')) {
+      transports.add('webrtc')
+    }
+    if (addrStr.includes('/ws') || addrStr.includes('/wss')) {
+      transports.add('websocket')
+    }
+    if (addrStr.includes('/webtransport')) {
+      transports.add('webtransport')
+    }
+    if (addrStr.includes('/p2p-circuit')) {
+      transports.add('circuit-relay')
+    }
+    if (addrStr.includes('/tcp/') && (addrStr.includes('/ws') || addrStr.includes('/wss'))) {
+      transports.add('websocket')
+    }
+  })
+  
+  return Array.from(transports)
 }
