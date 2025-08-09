@@ -11,7 +11,7 @@ const json = readFileSync(file, 'utf8');
 const pkg = JSON.parse(json);
 
 // Create build date
-const buildDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+const buildDate = new Date().toISOString().split('T')[0]+' '+new Date().toLocaleTimeString(); // YYYY-MM-DD HH:MM:SS format
 
 export default defineConfig({
 	plugins: [
