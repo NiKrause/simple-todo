@@ -10,6 +10,9 @@ const file = fileURLToPath(new URL('package.json', import.meta.url));
 const json = readFileSync(file, 'utf8');
 const pkg = JSON.parse(json);
 
+// Create build date
+const buildDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+
 export default defineConfig({
 	plugins: [
 		tailwindcss(), 
@@ -37,5 +40,6 @@ export default defineConfig({
 	  })],
 	  define: {
 		__APP_VERSION__: JSON.stringify(pkg.version),
+		__BUILD_DATE__: JSON.stringify(buildDate),
 	  }
 });

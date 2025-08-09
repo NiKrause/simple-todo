@@ -6,7 +6,6 @@
     import SocialIcons from '$lib/SocialIcons.svelte'
 
     let toastMessage = null
-    // let __APP_VERSION__
     let error = null
     let inputText = ''
     let myPeerId = null
@@ -118,12 +117,12 @@
   
   <main class="container mx-auto p-6 max-w-4xl">
     <!-- Header with title and social icons -->
-    <header class="flex items-center justify-between mb-6">
+    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
       <div class="flex-1">
-        <h1 class="text-3xl font-bold text-gray-800">Simple TODO Example</h1>
-        <p class="text-sm text-gray-500 mt-1">v{__APP_VERSION__} • Decentralized P2P Todo App</p>
+        <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Simple TODO Example</h1>
+        <p class="text-sm text-gray-500 mt-1">v{__APP_VERSION__} [{__BUILD_DATE__}] • A Basic Local-First Peer-To-Peer </p>
       </div>
-      <div class="flex-shrink-0">
+      <div class="flex-shrink-0 self-start sm:self-auto">
         <SocialIcons size="w-5 h-5" className="" />
       </div>
     </header>
@@ -133,7 +132,7 @@
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
         <p class="mt-4 text-gray-600">Initializing P2P connection...</p>
         <p class="mt-2 text-xs text-gray-400">Please wait while we set up the network...</p>
-        <p class="mt-2 text-xs text-gray-400">v{__APP_VERSION__}</p>
+        <p class="mt-2 text-xs text-gray-400">v{__APP_VERSION__} [{__BUILD_DATE__}]</p>
       </div>
     {:else if error || $initializationStore.error}
       <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">

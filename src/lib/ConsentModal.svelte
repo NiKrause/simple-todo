@@ -4,7 +4,7 @@
     const dispatch = createEventDispatcher()
     
     export let show = true
-    export let title = "Simple-Todo-Example v" + __APP_VERSION__
+    export let title = "Simple-Todo-Example v" + __APP_VERSION__ + " [" + __BUILD_DATE__ + "]"
     export let description = "This is a web application that:"
     export let features = [
         "Does not store any cookies or perform any tracking",
@@ -61,7 +61,8 @@
     <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div class="p-6">
-                <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">{title} v{__APP_VERSION__}</h1>
+                <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">{title}</h1>
+                <h3 class="text-sm text-gray-500 mt-1 text-center">v{__APP_VERSION__} [{__BUILD_DATE__}]</h3>
                 
                 <div class="space-y-4 mb-6">
                     <p class="text-gray-700">{description}</p>

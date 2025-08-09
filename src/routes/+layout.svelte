@@ -6,7 +6,7 @@
 </script>
 
 <svelte:head>
-  <title>Simple TODO List {__APP_VERSION__}</title>
+  <title>Simple TODO List {__APP_VERSION__} [{__BUILD_DATE__}]</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="A simple local-first peer-to-peer TODO list application using OrbitDB, IPFS and libp2p. No servers, no tracking, truly decentralized." />
   <meta name="author" content="Nico Krause" />
@@ -15,7 +15,7 @@
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://simple-todo.le-space.de/" />
-  <meta property="og:title" content="Simple TODO Example - Decentralized P2P Todo App" />
+  <meta property="og:title" content="Simple TODO Example - A Basic Local-First Peer-To-Peer " />
   <meta property="og:description" content="Experience the future of productivity apps! A completely decentralized todo list that runs entirely in your browser using OrbitDB, IPFS, and libp2p. No servers, no tracking, just peer-to-peer collaboration." />
   <meta property="og:image" content="https://simple-todo.le-space.de/og-image.png" />
   <meta property="og:image:alt" content="Simple TODO Example - P2P network visualization with technology stack" />
@@ -27,7 +27,7 @@
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image" />
   <meta property="twitter:url" content="https://simple-todo.le-space.de/" />
-  <meta property="twitter:title" content="Simple TODO Example - Decentralized P2P Todo App" />
+  <meta property="twitter:title" content="Simple TODO Example - A Basic Local-First Peer-To-Peer " />
   <meta property="twitter:description" content="Experience the future of productivity apps! A completely decentralized todo list using OrbitDB, IPFS, and libp2p. No servers, just P2P collaboration." />
   <meta property="twitter:image" content="https://simple-todo.le-space.de/og-image.png" />
   <meta property="twitter:image:alt" content="Simple TODO Example - P2P network visualization with technology stack" />
@@ -47,7 +47,7 @@
   <meta name="googlebot" content="index, follow" />
   
   <!-- Schema.org markup for Google+ -->
-  <meta itemprop="name" content="Simple TODO Example - Decentralized P2P Todo App" />
+  <meta itemprop="name" content="Simple TODO Example - A Basic Local-First Peer-To-Peer " />
   <meta itemprop="description" content="A simple local-first peer-to-peer TODO list application using OrbitDB, IPFS and libp2p. No servers, no tracking, truly decentralized." />
   <meta itemprop="image" content="https://simple-todo.le-space.de/og-image.png" />
 </svelte:head>

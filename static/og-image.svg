@@ -32,7 +32,7 @@
   
   <!-- Subtitle -->
   <text x="600" y="250" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-family="Arial, sans-serif" font-size="28">
-    Decentralized P2P Todo App
+    A Basic Local-First Peer-To-Peer 
   </text>
   
   <!-- P2P Network Visualization -->

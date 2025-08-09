@@ -1,5 +1,5 @@
 {
-  "name": "Simple TODO Example - Decentralized P2P Todo App",
+  "name": "Simple TODO Example - A Basic Local-First Peer-To-Peer ",
   "short_name": "P2P Todo",
   "description": "A simple local-first peer-to-peer TODO list app using OrbitDB, IPFS and libp2p",
   "start_url": "/",
