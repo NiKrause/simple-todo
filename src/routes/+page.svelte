@@ -1,9 +1,12 @@
 <script>
+    import { onMount } from 'svelte'
     import { discoveredPeersStore, peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js'
     import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js'
     import { formatPeerId } from '$lib/utils'
     import ConsentModal from '$lib/ConsentModal.svelte'
     import SocialIcons from '$lib/SocialIcons.svelte'
+
+    const CONSENT_KEY = `consentAccepted@${__APP_VERSION__}`
 
     let toastMessage = null
     let error = null
@@ -12,6 +15,7 @@
     
     // Modal state
     let showModal = true
+    let rememberDecision = false
     let checkboxes = {
         relayConnection: {
             label: "I understand that this todo application is a demo app and will connect to a relay node",
@@ -33,7 +37,13 @@
     
     const handleModalClose = async () => {
         showModal = false
-        // Initialize P2P after user consent
+        try {
+            if (rememberDecision) {
+                localStorage.setItem(CONSENT_KEY, 'true')
+            }
+        } catch (e) {
+            // ignore storage errors
+        }
         try {
             await initializeP2P()
         } catch (err) {
@@ -41,7 +51,18 @@
             console.error('P2P initialization failed:', err)
         }
     }
-  
+
+    onMount(async () => {
+        try {
+            if (localStorage.getItem(CONSENT_KEY) === 'true') {
+                showModal = false
+                await initializeP2P()
+            }
+        } catch {
+            // ignore storage errors
+        }
+    })
+
     const handleAddTodo = async () => {
         if (!inputText || inputText.trim() === '') return
         
@@ -95,25 +116,29 @@
     <meta name="description" content="A simple local-first peer-to-peer TODO list app using OrbitDB, IPFS and libp2p">
   </svelte:head>
   
-  <!-- Welcome Modal -->
-  <ConsentModal 
-    bind:show={showModal}
-    title="Simple TODO Example"
-    description="This is a web application that:"
-    features={[
-        "Does not store any cookies or perform any tracking",
-        "Does not store any data in your browser's storage",
-        "Stores data temporarily in your browser's memory only",
-        "Does not use any application or database server for entered or personal data",
-        "Connects to at least one relay server (in this demo, only 1 relay server)",
-        "The relay server may cache your entered data, making it visible to other users",
-        "For decentralization purposes, this web app is hosted on the IPFS network"
-    ]}
-    bind:checkboxes
-    proceedButtonText="Proceed to Test the App"
-    disabledButtonText="Please check all boxes to continue"
-    on:proceed={handleModalClose}
-  />
+  <!-- Only render the modal when needed -->
+  {#if showModal}
+    <ConsentModal 
+      bind:show={showModal}
+      title="Simple TODO Example"
+      description="This is a web application that:"
+      features={[
+          "Does not store any cookies or perform any tracking",
+          "Does not store any data in your browser's storage",
+          "Stores data temporarily in your browser's memory only",
+          "Does not use any application or database server for entered or personal data",
+          "Connects to at least one relay server (in this demo, only 1 relay server)",
+          "The relay server may cache your entered data, making it visible to other users",
+          "For decentralization purposes, this web app is hosted on the IPFS network"
+      ]}
+      bind:checkboxes
+      bind:rememberDecision
+      rememberLabel="Don't show this again on this device"
+      proceedButtonText="Proceed to Test the App"
+      disabledButtonText="Please check all boxes to continue"
+      on:proceed={handleModalClose}
+    />
+  {/if}
   
   <main class="container mx-auto p-6 max-w-4xl">
     <!-- Header with title and social icons -->

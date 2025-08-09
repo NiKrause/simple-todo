@@ -35,10 +35,11 @@
     }
     export let proceedButtonText = "Continue"
     export let disabledButtonText = "Please check all boxes to continue"
+
+    export let rememberDecision = false
+    export let rememberLabel = "Don't show this again on this device"
+
     $: allCheckboxesChecked = Object.values(checkboxes).every(item => item.checked)
-    // const allCheckboxesChecked = () => {
-    //     return Object.values(checkboxes).every(item => item.checked)
-    // }
     
     const handleProceed = () => {
         if (allCheckboxesChecked) {
@@ -48,10 +49,8 @@
     }
     
     const handleCheckboxChange = (key, checked) => {
-        console.log('clicked', key, checked)
         if (checkboxes[key]) {
             checkboxes[key].checked = checked
-            // Force reactivity by reassigning the entire object
             checkboxes = { ...checkboxes }
         }
     }
@@ -93,8 +92,20 @@
                         </label>
                     {/each}
                 </div>
+
+                <!-- NEW: Remember decision -->
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <label class="flex items-start space-x-3 cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            bind:checked={rememberDecision}
+                            class="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                        />
+                        <span class="text-gray-700">{rememberLabel}</span>
+                    </label>
+                </div>
                 
-                <div class="flex justify-center">
+                <div class="flex justify-center mt-6">
                     <button 
                         on:click={handleProceed}
                         disabled={!allCheckboxesChecked}
