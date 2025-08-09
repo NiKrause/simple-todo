@@ -120,7 +120,7 @@
     <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
       <div class="flex-1">
         <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Simple TODO Example</h1>
-        <p class="text-sm text-gray-500 mt-1">v{__APP_VERSION__} [{__BUILD_DATE__}] • A Basic Local-First Peer-To-Peer </p>
+        <p class="text-sm text-gray-500 mt-1">• A Basic Local-First Peer-To-Peer PWA with IPFS and OrbitDB v{__APP_VERSION__} [{__BUILD_DATE__}] </p>
       </div>
       <div class="flex-shrink-0 self-start sm:self-auto">
         <SocialIcons size="w-5 h-5" className="" />
