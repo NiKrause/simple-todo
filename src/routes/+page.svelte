@@ -3,6 +3,7 @@
     import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js'
     import { formatPeerId } from '$lib/utils'
     import ConsentModal from '$lib/ConsentModal.svelte'
+    import SocialIcons from '$lib/SocialIcons.svelte'
 
     let toastMessage = null
     let __APP_VERSION__
@@ -116,7 +117,16 @@
   />
   
   <main class="container mx-auto p-6 max-w-4xl">
-    <h1 class="text-3xl font-bold mb-6 text-center">Simple TODO Example {__APP_VERSION__}</h1>
+    <!-- Header with title and social icons -->
+    <header class="flex items-center justify-between mb-6">
+      <div class="flex-1">
+        <h1 class="text-3xl font-bold text-gray-800">Simple TODO Example</h1>
+        <p class="text-sm text-gray-500 mt-1">v{__APP_VERSION__} • Decentralized P2P Todo App</p>
+      </div>
+      <div class="flex-shrink-0">
+        <SocialIcons size="w-5 h-5" className="" />
+      </div>
+    </header>
   
     {#if $initializationStore.isInitializing}
       <div class="text-center py-8">
