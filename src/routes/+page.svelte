@@ -1,6 +1,6 @@
 <script>
     import { onMount } from 'svelte'
-    import { discoveredPeersStore, peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js'
+    import { peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js'
     import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js'
     import ConsentModal from '$lib/ConsentModal.svelte'
     import SocialIcons from '$lib/SocialIcons.svelte'
@@ -11,6 +11,7 @@
     import TodoList from '$lib/TodoList.svelte'
     import ConnectedPeers from '$lib/ConnectedPeers.svelte'
     import PeerIdCard from '$lib/PeerIdCard.svelte'
+    import { libp2pStore } from '$lib/p2p.js'
 
     const CONSENT_KEY = `consentAccepted@${__APP_VERSION__}`
 
@@ -107,6 +108,8 @@
     // Subscribe to the peerIdStore
     $: myPeerId = $peerIdStore
 
+    let connectedPeersRef
+
   </script>
   
   <ToastNotification message={toastMessage} type={toastType} />
@@ -181,7 +184,10 @@
       <!-- P2P Status -->
       <div class="grid md:grid-cols-2 gap-6">
         <!-- Connected Peers -->
-        <ConnectedPeers peers={$discoveredPeersStore} />
+        <ConnectedPeers 
+          bind:this={connectedPeersRef}
+          libp2p={$libp2pStore}
+        />
   
         <!-- My Identity -->
         <PeerIdCard peerId={myPeerId} />
