@@ -11,6 +11,7 @@
     import TodoList from '$lib/TodoList.svelte'
     import ConnectedPeers from '$lib/ConnectedPeers.svelte'
     import PeerIdCard from '$lib/PeerIdCard.svelte'
+    import StorachaIntegration from '$lib/StorachaIntegration.svelte'
     import { libp2pStore } from '$lib/p2p.js'
 
     const CONSENT_KEY = `consentAccepted@${__APP_VERSION__}`
@@ -192,6 +193,9 @@
         <!-- My Identity -->
         <PeerIdCard peerId={myPeerId} />
       </div>
+
+      <!-- Storacha Integration -->
+      <StorachaIntegration />
   
       {/if}
     </main>
