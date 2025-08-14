@@ -32,8 +32,44 @@
     // Clean up any existing listeners
     cleanup()
     
+    // Check for existing connections first
+    checkExistingConnections()
+    
     // Set up peer discovery handlers
     setupPeerDiscoveryHandlers()
+  }
+
+  function checkExistingConnections() {
+    if (!libp2p) return
+    
+    console.log('🔍 Checking for existing connections...')
+    const allConnections = libp2p.getConnections()
+    
+    allConnections.forEach(connection => {
+      const peerIdStr = connection.remotePeer.toString()
+      
+      // Skip if already in our peers list
+      if (currentPeers.some(peer => peer.peerId === peerIdStr)) {
+        return
+      }
+      
+      console.log('🔗 Found existing connection to:', formatPeerId(peerIdStr))
+      
+      // Extract transports from the connection
+      const transports = extractTransportsFromConnection(connection)
+      
+      // Add to peers list
+      peers.update(peers => [...peers, { 
+        peerId: peerIdStr, 
+        transports: transports.length > 0 ? transports : ['websocket'] // fallback
+      }])
+      
+      // Track connection transports
+      if (!peerConnectionTransports.has(peerIdStr)) {
+        peerConnectionTransports.set(peerIdStr, new Map())
+      }
+      peerConnectionTransports.get(peerIdStr).set(connection.id, new Set(transports))
+    })
   }
   
   function setupPeerDiscoveryHandlers() {
