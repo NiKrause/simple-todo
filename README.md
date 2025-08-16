@@ -28,19 +28,23 @@ This is a **browser only** local-first peer-to-peer todo application that operat
 4. **Wait for Connection** - The app will automatically discover and connect peers
 5. **Add Todos** - Create todos in one browser and watch them appear in the other
 
-## 🎯 Documentation
+## 📚 Documentation
 
-For a comprehensive guide on how this app works, implementation details, and step-by-step tutorials, see:
+For comprehensive guides on how this app works, implementation details, and reusable components:
 
-**[ TUTORIAL.md](./TUTORIAL.md)**
+**[📖 Tutorial](./docs/TUTORIAL.md)**
 
 The tutorial covers:
 - Detailed explanation of libp2p, IPFS, and OrbitDB
-- Step-by-step implementation guide
+- Step-by-Step implementation guide
 - Architecture overview
 - Testing procedures
 - Troubleshooting guide
 - Security considerations
+
+**[🔧 Reusable Components](./docs/)**
+
+- **[StorachaIntegration](./docs/StorachaIntegration.md)** - Complete Storacha/Web3.Storage integration component for backing up OrbitDB databases to decentralized storage
 
 ## 🛠️ Quick Start
 
