@@ -35,6 +35,7 @@ For comprehensive guides on how this app works, implementation details, and reus
 **[📖 Tutorial](./docs/TUTORIAL.md)**
 
 The tutorial covers:
+
 - Detailed explanation of libp2p, IPFS, and OrbitDB
 - Step-by-Step implementation guide
 - Architecture overview
@@ -44,7 +45,11 @@ The tutorial covers:
 
 **[🔧 Reusable Components](./docs/)**
 
+- **ConsentModal** (to be enhanced with toggles)
+- **ConnectedPeers**
 - **[StorachaIntegration](./docs/StorachaIntegration.md)** - Complete Storacha/Web3.Storage integration component for backing up OrbitDB databases to decentralized storage
+- **IdentityProvider**
+- **EnhancedOrbitDBAccessController** (writable to all once a day)
 
 ## 🛠️ Quick Start
 

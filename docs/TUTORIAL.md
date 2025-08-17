@@ -26,6 +26,7 @@ This tutorial will guide you through building a decentralized, local-first, peer
 This is a **client side only** todo application that operates entirely in your browser without any traditional server infrastructure. It connects directly to other browsers or mobile devices, creating a real-time peer-to-peer experience. Signaling nodes connect browser peers which then upgrade to WebRTC. The signaling or relay nodes are also providing storage for cases when two peers aren't online at the same time. Once the browsers are communicating peer-to-peer the signaling/relay node can be switched off!
 
 **Key Characteristics:**
+
 - **No Server Required**: Runs entirely in your browser
 - **Peer-to-Peer Communication**: Browsers connect & communicate directly via WebRTC (via a signaling nodes)
 - **Relay Node**: A relay server helps peers discover each other and acts as a data pinner
@@ -34,6 +35,7 @@ This is a **client side only** todo application that operates entirely in your b
 ### Important Testing Requirements
 
 To test this application, you need to:
+
 1. **Open Two Browser Windows**: You need at least two browser instances
 2. **Same URL**: Both browsers should load the same application URL
 3. **Relay Server**: A relay node must be running for peer discovery (in dev mode only - not included in this repo)
@@ -42,6 +44,7 @@ To test this application, you need to:
 ## Key Technologies Explained
 
 ### **libp2p**
+
 - A modular networking stack for peer-to-peer applications
 - Handles peer discovery, connection management, and data transport
 - Supports multiple transport protocols (WebRTC, WebSockets, Webtransport, Circuit Relay,...)
@@ -49,6 +52,7 @@ To test this application, you need to:
 - Provides pubsub (publish/subscribe) for peer discovery
 
 ### **IPFS (InterPlanetary File System)**
+
 - A distributed file system for storing and sharing data
 - Provides content-addressed storage (data is identified by its hash)
 - Enables decentralized data distribution
@@ -56,6 +60,7 @@ To test this application, you need to:
 - Handles data pinning and replication
 
 ### **OrbitDB**
+
 - A decentralized database built on top of IPFS
 - Provides different database types (key-value, document, feed, etc.)
 - Handles data replication and synchronization between peers
@@ -102,23 +107,23 @@ The project uses these key dependencies:
 
 ```json
 {
-  "dependencies": {
-    "@chainsafe/libp2p-gossipsub": "^14.1.1",
-    "@chainsafe/libp2p-noise": "^16.1.4",
-    "@chainsafe/libp2p-yamux": "^7.0.4",
-    "@libp2p/autonat": "^2.0.37",
-    "@libp2p/bootstrap": "^11.0.46",
-    "@libp2p/circuit-relay-v2": "^3.2.23",
-    "@libp2p/crypto": "^5.1.7",
-    "@libp2p/dcutr": "^2.0.37",
-    "@libp2p/identify": "^3.0.38",
-    "@libp2p/pubsub-peer-discovery": "^11.0.2",
-    "@libp2p/webrtc": "^5.2.23",
-    "@libp2p/websockets": "^9.2.18",
-    "@orbitdb/core": "^3.0.2",
-    "helia": "^5.5.0",
-    "libp2p": "^2.9.0"
-  }
+	"dependencies": {
+		"@chainsafe/libp2p-gossipsub": "^14.1.1",
+		"@chainsafe/libp2p-noise": "^16.1.4",
+		"@chainsafe/libp2p-yamux": "^7.0.4",
+		"@libp2p/autonat": "^2.0.37",
+		"@libp2p/bootstrap": "^11.0.46",
+		"@libp2p/circuit-relay-v2": "^3.2.23",
+		"@libp2p/crypto": "^5.1.7",
+		"@libp2p/dcutr": "^2.0.37",
+		"@libp2p/identify": "^3.0.38",
+		"@libp2p/pubsub-peer-discovery": "^11.0.2",
+		"@libp2p/webrtc": "^5.2.23",
+		"@libp2p/websockets": "^9.2.18",
+		"@orbitdb/core": "^3.0.2",
+		"helia": "^5.5.0",
+		"libp2p": "^2.9.0"
+	}
 }
 ```
 
@@ -160,6 +165,7 @@ simple-todo/
   - Node/npm available for build/version
 
 - **Usage**
+
   ```bash
   ./ipfs-publish.sh
   ```
@@ -207,68 +213,76 @@ The app uses several mechanisms for peer discovery:
 ```javascript
 // Handle peer discovery events
 node.addEventListener('peer:discovery', async (event) => {
-  const { id: peerId, multiaddrs } = event.detail
-  const peerIdStr = peerId?.toString()
-  
-  console.log(' Peer discovered:', formatPeerId(peerIdStr), 'Addresses:', multiaddrs.map(ma => ma.toString()))
-  
-  // Skip if we've already discovered this peer
-  if (currentPeers.some(peer => peer.peerId === peerIdStr)) {
-    console.log('⏭️ Peer already discovered, skipping:', formatPeerId(peerIdStr))
-    return
-  }
-  
-  // Extract transport protocols from multiaddrs
-  const detectedTransports = extractTransportsFromMultiaddrs(multiaddrs)
-  
-  // Store peer info for later use
-  discoveredPeersInfo.set(peerIdStr, {
-    peerId: peerIdStr,
-    transports: detectedTransports,
-    multiaddrs: multiaddrs
-  })
-  
-  // Attempt to connect to discovered peer
-  try {
-    console.log(' Attempting to dial discovered peer:', formatPeerId(peerIdStr))
-    const connection = await node.dial(peerId)
-    if (connection) {
-      console.log('✅ Successfully connected to peer:', formatPeerId(peerIdStr))
-    }
-  } catch (error) {
-    console.warn('❌ Failed to connect to discovered peer:', formatPeerId(peerIdStr), 'Error:', error.message)
-    discoveredPeersInfo.delete(peerIdStr)
-  }
-})
+	const { id: peerId, multiaddrs } = event.detail;
+	const peerIdStr = peerId?.toString();
+
+	console.log(
+		' Peer discovered:',
+		formatPeerId(peerIdStr),
+		'Addresses:',
+		multiaddrs.map((ma) => ma.toString())
+	);
+
+	// Skip if we've already discovered this peer
+	if (currentPeers.some((peer) => peer.peerId === peerIdStr)) {
+		console.log('⏭️ Peer already discovered, skipping:', formatPeerId(peerIdStr));
+		return;
+	}
+
+	// Extract transport protocols from multiaddrs
+	const detectedTransports = extractTransportsFromMultiaddrs(multiaddrs);
+
+	// Store peer info for later use
+	discoveredPeersInfo.set(peerIdStr, {
+		peerId: peerIdStr,
+		transports: detectedTransports,
+		multiaddrs: multiaddrs
+	});
+
+	// Attempt to connect to discovered peer
+	try {
+		console.log(' Attempting to dial discovered peer:', formatPeerId(peerIdStr));
+		const connection = await node.dial(peerId);
+		if (connection) {
+			console.log('✅ Successfully connected to peer:', formatPeerId(peerIdStr));
+		}
+	} catch (error) {
+		console.warn(
+			'❌ Failed to connect to discovered peer:',
+			formatPeerId(peerIdStr),
+			'Error:',
+			error.message
+		);
+		discoveredPeersInfo.delete(peerIdStr);
+	}
+});
 
 // Handle successful peer connections
 node.addEventListener('peer:connect', (event) => {
-  const peerId = event.detail
-  const peerIdStr = peerId?.toString()
-  
-  console.log('🔗 Peer connected:', formatPeerId(peerIdStr))
-  
-  // Add to connected peers store
-  const storedPeerInfo = discoveredPeersInfo.get(peerIdStr)
-  if (storedPeerInfo) {
-    const peerObject = createPeerObject(peerIdStr, storedPeerInfo.transports)
-    discoveredPeersStore.update(peers => [...peers, peerObject])
-    discoveredPeersInfo.delete(peerIdStr)
-  }
-})
+	const peerId = event.detail;
+	const peerIdStr = peerId?.toString();
+
+	console.log('🔗 Peer connected:', formatPeerId(peerIdStr));
+
+	// Add to connected peers store
+	const storedPeerInfo = discoveredPeersInfo.get(peerIdStr);
+	if (storedPeerInfo) {
+		const peerObject = createPeerObject(peerIdStr, storedPeerInfo.transports);
+		discoveredPeersStore.update((peers) => [...peers, peerObject]);
+		discoveredPeersInfo.delete(peerIdStr);
+	}
+});
 
 // Handle peer disconnections
 node.addEventListener('peer:disconnect', (event) => {
-  const { id: peerId } = event.detail
-  const peerIdStr = peerId?.toString()
-  
-  console.log('🔌 Peer disconnected:', formatPeerId(peerIdStr))
-  
-  // Remove from connected peers store
-  discoveredPeersStore.update(peers => 
-    peers.filter(peer => peer.peerId !== peerIdStr)
-  )
-})
+	const { id: peerId } = event.detail;
+	const peerIdStr = peerId?.toString();
+
+	console.log('🔌 Peer disconnected:', formatPeerId(peerIdStr));
+
+	// Remove from connected peers store
+	discoveredPeersStore.update((peers) => peers.filter((peer) => peer.peerId !== peerIdStr));
+});
 ```
 
 ### Step 5: Data Synchronization
@@ -278,50 +292,50 @@ OrbitDB handles automatic data synchronization:
 ```javascript
 // Set up database event listeners
 function setupDatabaseListeners(todoDB) {
-  if (!todoDB) return
-  
-  // Listen for new entries being added
-  todoDB.events.on('join', async (address, entry, heads) => {
-    console.log(' New entry added:', entry)
-    await loadTodos()
-  })
-  
-  // Listen for entries being updated
-  todoDB.events.on('update', async (address, entry, heads) => {
-    console.log('🔄 Entry updated:', entry)
-    await loadTodos()
-  })
+	if (!todoDB) return;
+
+	// Listen for new entries being added
+	todoDB.events.on('join', async (address, entry, heads) => {
+		console.log(' New entry added:', entry);
+		await loadTodos();
+	});
+
+	// Listen for entries being updated
+	todoDB.events.on('update', async (address, entry, heads) => {
+		console.log('🔄 Entry updated:', entry);
+		await loadTodos();
+	});
 }
 
 // Load all todos from the database
 async function loadTodos() {
-  const todoDB = get(todoDBStore)
-  if (!todoDB) return
-  
-  try {
-    const allTodos = await todoDB.all()
-    
-    // Convert to array format
-    const todosArray = allTodos.map((todo, index) => {
-      return {
-        id: todo.hash,
-        key: todo.key,
-        ...todo.value
-      }
-    })
-    
-    // Sort by creation date (newest first)
-    const sortedTodos = todosArray.sort((a, b) => {
-      const dateA = new Date(a.createdAt || 0)
-      const dateB = new Date(b.createdAt || 0)
-      return dateB - dateA
-    })
-    
-    todosStore.set(sortedTodos)
-    console.log('📋 Loaded todos:', sortedTodos.length)
-  } catch (error) {
-    console.error('❌ Error loading todos:', error)
-  }
+	const todoDB = get(todoDBStore);
+	if (!todoDB) return;
+
+	try {
+		const allTodos = await todoDB.all();
+
+		// Convert to array format
+		const todosArray = allTodos.map((todo, index) => {
+			return {
+				id: todo.hash,
+				key: todo.key,
+				...todo.value
+			};
+		});
+
+		// Sort by creation date (newest first)
+		const sortedTodos = todosArray.sort((a, b) => {
+			const dateA = new Date(a.createdAt || 0);
+			const dateB = new Date(b.createdAt || 0);
+			return dateB - dateA;
+		});
+
+		todosStore.set(sortedTodos);
+		console.log('📋 Loaded todos:', sortedTodos.length);
+	} catch (error) {
+		console.error('❌ Error loading todos:', error);
+	}
 }
 ```
 
@@ -376,14 +390,16 @@ The relay node serves multiple purposes:
 
 ```javascript
 // Development relay (local)
-const RELAY_BOOTSTRAP_ADDR_DEV = '/ip4/127.0.0.1/tcp/4001/ws/p2p/12D3KooWAJjbRkp8FPF5MKgMU53aUTxWkqvDrs4zc1VMbwRwfsbE'
+const RELAY_BOOTSTRAP_ADDR_DEV =
+	'/ip4/127.0.0.1/tcp/4001/ws/p2p/12D3KooWAJjbRkp8FPF5MKgMU53aUTxWkqvDrs4zc1VMbwRwfsbE';
 
 // Production relay (remote)
-const RELAY_BOOTSTRAP_ADDR_PROD = '/dns4/91-99-67-170.k51qzi5uqu5dl6dk0zoaocksijnghdrkxir5m4yfcodish4df6re6v3wbl6njf.libp2p.direct/tcp/4002/wss/p2p/12D3KooWPJYEZSwfmRL9SHehYAeQKEbCvzFu7vtKWb6jQfMSMb8W'
+const RELAY_BOOTSTRAP_ADDR_PROD =
+	'/dns4/91-99-67-170.k51qzi5uqu5dl6dk0zoaocksijnghdrkxir5m4yfcodish4df6re6v3wbl6njf.libp2p.direct/tcp/4002/wss/p2p/12D3KooWPJYEZSwfmRL9SHehYAeQKEbCvzFu7vtKWb6jQfMSMb8W';
 
 // Determine which relay to use
-const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development'
-const RELAY_BOOTSTRAP_ADDR = isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_BOOTSTRAP_ADDR_PROD
+const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development';
+const RELAY_BOOTSTRAP_ADDR = isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_BOOTSTRAP_ADDR_PROD;
 ```
 
 ### Relay Node Functions
@@ -425,10 +441,12 @@ For production use, consider implementing:
 #### 1. Peers Not Connecting
 
 **Symptoms:**
+
 - No peers appear in the "Connected Peers" section
 - Console shows connection errors
 
 **Solutions:**
+
 - Check if relay server is running and accessible
 - Ensure both browsers are on the same network (when relay is in your network)
 - Check browser console for connection errors
@@ -437,83 +455,90 @@ For production use, consider implementing:
 - Use different transport
 
 **Debug Steps:**
+
 ```javascript
 // Check relay connection
-console.log('Relay address:', RELAY_BOOTSTRAP_ADDR)
+console.log('Relay address:', RELAY_BOOTSTRAP_ADDR);
 
 // Check peer discovery
 node.addEventListener('peer:discovery', (event) => {
-  console.log('Discovery event:', event.detail)
-})
+	console.log('Discovery event:', event.detail);
+});
 
 // Check connection attempts
 node.addEventListener('peer:connect', (event) => {
-  console.log('Connect event:', event.detail)
-})
+	console.log('Connect event:', event.detail);
+});
 ```
 
 #### 2. Data Not Syncing
 
 **Symptoms:**
+
 - Todos added in one browser don't appear in others
 - Database shows empty or inconsistent state
 
 **Solutions:**
+
 - Verify OrbitDB is properly initialized
 - Check database access controller settings
 - Ensure peers are successfully connected
 - Check for database permission errors
 
 **Debug Steps:**
+
 ```javascript
 // Check database state
-const todoDB = get(todoDBStore)
-console.log('Database address:', todoDB.address)
-console.log('Database type:', todoDB.type)
-console.log('Access controller:', todoDB.access)
+const todoDB = get(todoDBStore);
+console.log('Database address:', todoDB.address);
+console.log('Database type:', todoDB.type);
+console.log('Access controller:', todoDB.access);
 
 // Check database events
 todoDB.events.on('join', (address, entry, heads) => {
-  console.log('Join event:', { address, entry, heads })
-})
+	console.log('Join event:', { address, entry, heads });
+});
 
 todoDB.events.on('update', (address, entry, heads) => {
-  console.log('Update event:', { address, entry, heads })
-})
+	console.log('Update event:', { address, entry, heads });
+});
 ```
 
 #### 3. Performance Issues
 
 **Symptoms:**
+
 - Slow peer discovery
 - Delayed data synchronization
 - High memory usage
 
 **Solutions:**
+
 - Reduce pubsub interval for faster discovery
 - Optimize database queries
 - Monitor memory usage
 - Check network connectivity
 
 **Optimization Tips:**
+
 ```javascript
 // Faster peer discovery
 pubsubPeerDiscovery({
-  interval: 2000, // Reduce from 5000ms
-  topics: PUBSUB_TOPICS,
-  listenOnly: false,
-  emitSelf: true
-})
+	interval: 2000, // Reduce from 5000ms
+	topics: PUBSUB_TOPICS,
+	listenOnly: false,
+	emitSelf: true
+});
 
 // Optimize database loading
 async function loadTodos() {
-  const allTodos = await todoDB.all()
-  // Process in chunks for large datasets
-  const chunkSize = 100
-  for (let i = 0; i < allTodos.length; i += chunkSize) {
-    const chunk = allTodos.slice(i, i + chunkSize)
-    // Process chunk
-  }
+	const allTodos = await todoDB.all();
+	// Process in chunks for large datasets
+	const chunkSize = 100;
+	for (let i = 0; i < allTodos.length; i += chunkSize) {
+		const chunk = allTodos.slice(i, i + chunkSize);
+		// Process chunk
+	}
 }
 ```
 
@@ -532,19 +557,19 @@ Use these commands in the browser console for debugging:
 
 ```javascript
 // Check current peers
-console.log('Connected peers:', $discoveredPeersStore)
+console.log('Connected peers:', $discoveredPeersStore);
 
 // Check database state
-console.log('Todos:', $todosStore)
+console.log('Todos:', $todosStore);
 
 // Check peer ID
-console.log('My peer ID:', $peerIdStore)
+console.log('My peer ID:', $peerIdStore);
 
 // Force database reload
-await loadTodos()
+await loadTodos();
 
 // Delete database (for testing)
-await deleteCurrentDatabase()
+await deleteCurrentDatabase();
 ```
 
 ## Conclusion
