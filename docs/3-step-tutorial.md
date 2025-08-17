@@ -21,8 +21,16 @@ Build a fully decentralized, peer-to-peer todo application in just **3 copy-past
 
 **Quick Start**: Use the automation script to build the entire app:
 
+## 🛠️ Quick Start
+
 ```bash
-node tutorial-01.js
+# Clone repository
+git clone https://github.com/NiKrause/simple-todo.git
+# checkout simple-todo branch
+git checkout simple-todo
+
+# run (like this you don't need to cut and past anything)
+./tutorial-01.js 
 ```
 
 This script will:
@@ -31,13 +39,17 @@ This script will:
 3. Copy all code files from this repository
 4. Start the development server
 
+Alternatively, you can do all of this with your own hands:
+
+
+
 ## 🚀 Step 1: Project Setup & Dependencies
 
 ### Create the project structure:
 
 ```bash
-mkdir p2p-todo-app
-cd p2p-todo-app
+npx sv create p2p-todo-demo
+cd p2p-todo-demo
 ```
 
 ### Required Files:
