@@ -26,6 +26,7 @@ Build a fully decentralized, peer-to-peer todo application in just **3 copy-past
 ```bash
 # Clone repository
 git clone https://github.com/NiKrause/simple-todo.git
+
 # checkout simple-todo branch
 git checkout simple-todo
 
@@ -155,6 +156,7 @@ You just built a **fully decentralized todo application** with:
 
 ## 🔧 Next Steps
 
+- **Deploy your own Signaling/Node or Pinning-Relay** with libp2p
 - **Add authentication** with libp2p keypairs
 - **Implement private rooms** with access control
 - **Add file attachments** using IPFS

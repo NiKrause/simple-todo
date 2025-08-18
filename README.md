@@ -36,7 +36,6 @@ For comprehensive guides on how this app works, implementation details, and reus
 
 The tutorial covers:
 
-- Detailed explanation of libp2p, IPFS, and OrbitDB
 - Step-by-Step implementation guide
 - Architecture overview
 - Testing procedures
@@ -45,23 +44,18 @@ The tutorial covers:
 
 **[🔧 Reusable Components](./docs/)**
 
-- **ConsentModal** (to be enhanced with toggles)
-- **ConnectedPeers**
 - **[StorachaIntegration](./docs/StorachaIntegration.md)** - Complete Storacha/Web3.Storage integration component for backing up OrbitDB databases to decentralized storage
-- **IdentityProvider**
-- **EnhancedOrbitDBAccessController** (writable to all once a day)
 
 ## 🛠️ Quick Start
 
 ```bash
-# Install dependencies
-npm install
+# Clone repository
+git clone https://github.com/NiKrause/simple-todo.git
+# checkout simple-todo branch
+git checkout simple-todo
 
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
+# run (like this you don't need to cut and past anything)
+./tutorial-01.js 
 ```
 
 ## 🔧 Technologies Used
@@ -85,4 +79,3 @@ This project is open source and available under the [LICENSE](./LICENSE) file.
 
 ---
 
-**Built with ❤️ using Web3 technologies**
