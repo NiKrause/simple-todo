@@ -35,7 +35,7 @@ For comprehensive guides on how this app works, implementation details, and reus
 **[📖 Tutorial](./docs/TUTORIAL.md)**
 
 The tutorial covers:
-- Detailed explanation of libp2p, IPFS, and OrbitDB
+
 - Step-by-Step implementation guide
 - Architecture overview
 - Testing procedures
@@ -49,14 +49,13 @@ The tutorial covers:
 ## 🛠️ Quick Start
 
 ```bash
-# Install dependencies
-npm install
+# Clone repository
+git clone https://github.com/NiKrause/simple-todo.git
+# checkout simple-todo branch
+git checkout simple-todo
 
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
+# run (like this you don't need to cut and past anything)
+./tutorial-01.js 
 ```
 
 ## 🔧 Technologies Used
@@ -80,4 +79,3 @@ This project is open source and available under the [LICENSE](./LICENSE) file.
 
 ---
 
-**Built with ❤️ using Web3 technologies**
