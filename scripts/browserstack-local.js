@@ -3,13 +3,8 @@
  * BrowserStack Local tunnel management script
  */
 
-import { spawn } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import 'dotenv/config';
 import browserstack from 'browserstack-local';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 class BrowserStackLocal {
   constructor() {
@@ -118,9 +113,116 @@ if (action === 'start') {
     console.error('Failed to stop BrowserStack Local:', error);
     process.exit(1);
   });
+} else if (action === 'sessions') {
+  checkActiveSessions().catch((error) => {
+    console.error('Failed to check active sessions:', error);
+    process.exit(1);
+  });
+} else if (action === 'check') {
+  isTestRunningOnBrowserStack().then((isRunning) => {
+    console.log('Tests running on BrowserStack:', isRunning);
+  }).catch((error) => {
+    console.error('Failed to check BrowserStack status:', error);
+    process.exit(1);
+  });
 } else {
-  console.log('Usage: node browserstack-local.js [start|stop]');
+  console.log('Usage: node browserstack-local.js [start|stop|sessions|check]');
   process.exit(1);
+}
+
+async function getActiveBrowserStackSessions() {
+  const username = process.env.BROWSERSTACK_USERNAME;
+  const accessKey = process.env.BROWSERSTACK_ACCESS_KEY;
+  
+  if (!username || !accessKey) {
+    throw new Error('BrowserStack credentials not found');
+  }
+
+  const auth = Buffer.from(`${username}:${accessKey}`).toString('base64');
+  
+  try {
+    const response = await fetch('https://api.browserstack.com/automate/sessions.json?status=running', {
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`BrowserStack API error: ${response.status}`);
+    }
+    
+    const sessions = await response.json();
+    return sessions;
+  } catch (error) {
+    console.error('Failed to fetch BrowserStack sessions:', error);
+    return null;
+  }
+}
+
+async function isTestRunningOnBrowserStack(buildName = null) {
+  try {
+    const sessions = await getActiveBrowserStackSessions();
+    
+    if (!sessions || !Array.isArray(sessions)) {
+      return false;
+    }
+    
+    // If no specific build name, check if any sessions are running
+    if (!buildName) {
+      return sessions.length > 0;
+    }
+    
+    // Check for sessions matching the specific build
+    return sessions.some(session => 
+      session.build_name === buildName || 
+      session.build_name === process.env.BROWSERSTACK_BUILD_NAME
+    );
+  } catch (error) {
+    console.error('Error checking BrowserStack sessions:', error);
+    return false;
+  }
+}
+
+async function getCurrentBuildSessions() {
+  const buildName = process.env.BROWSERSTACK_BUILD_NAME;
+  
+  if (!buildName) {
+    console.log('No BROWSERSTACK_BUILD_NAME set');
+    return [];
+  }
+  
+  try {
+    const sessions = await getActiveBrowserStackSessions();
+    
+    if (!sessions) {
+      return [];
+    }
+    
+    return sessions.filter(session => session.build_name === buildName);
+  } catch (error) {
+    console.error('Error fetching current build sessions:', error);
+    return [];
+  }
+}
+
+async function checkActiveSessions() {
+  const sessions = await getActiveBrowserStackSessions();
+  console.log(`Active BrowserStack sessions: ${sessions ? sessions.length : 0}`);
+  
+  if (sessions && sessions.length > 0) {
+    sessions.forEach((session, index) => {
+      console.log(`Session ${index + 1}:`, {
+        id: session.hashed_id,
+        browser: `${session.browser} ${session.browser_version}`,
+        os: `${session.os} ${session.os_version}`,
+        status: session.status,
+        build: session.build_name
+      });
+    });
+  }
+  
+  return sessions;
 }
 
 export default BrowserStackLocal;

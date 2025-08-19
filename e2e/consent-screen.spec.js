@@ -1,5 +1,35 @@
 import { test, expect } from '@playwright/test';
 
+async function getActiveBrowserStackSessions() {
+  const username = process.env.BROWSERSTACK_USERNAME;
+  const accessKey = process.env.BROWSERSTACK_ACCESS_KEY;
+  
+  if (!username || !accessKey) {
+    throw new Error('BrowserStack credentials not found');
+  }
+
+  const auth = Buffer.from(`${username}:${accessKey}`).toString('base64');
+  
+  try {
+    const response = await fetch('https://api.browserstack.com/automate/sessions.json?status=running', {
+      headers: {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`BrowserStack API error: ${response.status}`);
+    }
+    
+    const sessions = await response.json();
+    return sessions;
+  } catch (error) {
+    console.error('Failed to fetch BrowserStack sessions:', error);
+    return null;
+  }
+}
+
 test.describe('Consent Screen', () => {
   test('should display consent modal and allow proceeding after checking all boxes', async ({ page }) => {
     // Navigate to the app - use deployed URL for BrowserStack, baseURL for local

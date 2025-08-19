@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import 'dotenv/config';
 
 // BrowserStack configuration
 const BS_LOCAL_ENABLED = process.env.BROWSERSTACK_BUILD_NAME ? true : false;
@@ -14,7 +15,9 @@ const browserstackCapabilities = {
 	'browserstack.projectName': 'simple-todo-consent-screen-tests',
 	'browserstack.debug': 'true',
 	'browserstack.console': 'verbose',
-	'browserstack.networkLogs': 'true'
+	'browserstack.networkLogs': 'true',
+	'browserstack.local': 'true',  // Enable local tunnel
+	'browserstack.localIdentifier': BS_BUILD_NAME || 'simple-todo-local'
 };
 
 export default defineConfig({
