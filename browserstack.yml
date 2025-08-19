@@ -1,0 +1,77 @@
+# =============================
+# Set BrowserStack Credentials
+# =============================
+userName: ${BROWSERSTACK_USERNAME}
+accessKey: ${BROWSERSTACK_ACCESS_KEY}
+
+# ======================
+# BrowserStack Reporting
+# ======================
+projectName: Simple Todo Consent Screen Tests
+buildName: Consent Screen Cross-Browser Tests
+buildIdentifier: '#${BUILD_NUMBER}'
+
+# =======================================
+# Platforms (Browsers / Devices to test)
+# =======================================
+platforms:
+  - os: Windows
+    osVersion: 11
+    browserName: chrome
+    browserVersion: latest
+  - os: Windows
+    osVersion: 11
+    browserName: playwright-firefox
+    browserVersion: latest
+  - os: Windows
+    osVersion: 11
+    browserName: edge
+    browserVersion: latest
+  - os: OS X
+    osVersion: Monterey
+    browserName: chrome
+    browserVersion: latest
+  - os: OS X
+    osVersion: Monterey
+    browserName: playwright-firefox
+    browserVersion: latest
+  - os: OS X
+    osVersion: Monterey
+    browserName: playwright-webkit
+    browserVersion: latest
+  # Linux platform removed - not supported by BrowserStack with Playwright
+  - osVersion: 12.0
+    deviceName: Samsung Galaxy S22
+    browserName: chrome
+    realMobile: true
+  - osVersion: 16
+    deviceName: iPhone 14
+    browserName: safari
+    realMobile: true
+
+# =======================
+# Parallels per Platform
+# =======================
+parallelsPerPlatform: 2
+
+# ==========================================
+# BrowserStack Local
+# (For localhost, staging/private websites)
+# ==========================================
+browserstackLocal: false  # We're using deployed URL
+
+# ===================
+# Framework & Source
+# ===================
+framework: playwright
+source: simple-todo-consent-tests:v1.0.0
+
+# ===================
+# Debugging features
+# ===================
+debug: true
+networkLogs: true
+consoleLogs: errors
+
+# Test Observability
+testObservability: true
