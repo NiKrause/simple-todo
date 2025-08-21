@@ -70,7 +70,10 @@ jobs:
     - name: Run Playwright Tests on ${{ matrix.browser.name }}
       run: |
         echo "🚀 Testing on ${{ matrix.browser.name }}"
-        pnpm exec playwright test --config=playwright.browserstack.config.js --project="${{ matrix.browser.name }}"
+        echo "Build Name: $BROWSERSTACK_BUILD_NAME"
+        echo "Username: $BROWSERSTACK_USERNAME"
+        echo "Project: ${{ matrix.browser.name }}"
+        pnpm exec browserstack-node-sdk playwright test --config=playwright.browserstack.config.js --project="${{ matrix.browser.name }}"
       env:
         CI: true
         BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}

@@ -30,6 +30,15 @@ async function getActiveBrowserStackSessions() {
   }
 }
 
+test.afterEach(async ({ page }, testInfo) => {
+  const status = testInfo.status === 'passed' ? 'passed' : 'failed';
+  const reason = testInfo.status === 'passed' ? 'Test completed successfully' : testInfo.error?.message || 'Test failed';
+  
+  await page.evaluate(() => {
+    window.browserstack_executor = { action: 'setSessionStatus', arguments: { status, reason } };
+  });
+});
+
 test.describe('Consent Screen', () => {
   test('should display consent modal and allow proceeding after checking all boxes', async ({ page }) => {
     // Navigate to the app - use deployed URL for BrowserStack, baseURL for local
