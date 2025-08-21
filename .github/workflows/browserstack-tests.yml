@@ -67,15 +67,15 @@ jobs:
         case ${{ matrix.batch }} in
           1)
             # Desktop browsers - Windows & Linux
-            pnpm exec playwright test --project="Chrome Windows" --project="Firefox Windows" --project="Edge Windows" --project="Chrome Linux"
+            pnpm run test:browserstack -- --project="Chrome Windows" --project="Firefox Windows" --project="Edge Windows" --project="Chrome Linux"
             ;;
           2)
             # Desktop browsers - macOS & Opera
-            pnpm exec playwright test --project="Chrome macOS" --project="Firefox macOS" --project="Safari macOS" --project="Opera Windows"
+            pnpm run test:browserstack -- --project="Chrome macOS" --project="Firefox macOS" --project="Safari macOS" --project="Opera Windows"
             ;;
           3)
             # Mobile browsers
-            pnpm exec playwright test --project="iPhone Safari" --project="Android Chrome"
+            pnpm run test:browserstack -- --project="iPhone Safari" --project="Android Chrome"
             ;;
         esac
       env:
