@@ -147,7 +147,7 @@ jobs:
   # Job to combine and report results
   report-results:
     runs-on: ubuntu-latest
-    needs: [browserstack-tests, local-tests]
+    needs: [browserstack-tests]
     if: always()
     
     steps:
