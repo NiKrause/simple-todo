@@ -41,14 +41,26 @@ platforms:
     browserName: safari  # Changed from playwright-webkit
     browserVersion: latest
   # Linux platform removed - not supported by BrowserStack with Playwright
-  # - osVersion: 12.0
-  #   deviceName: Samsung Galaxy S22
-  #   browserName: chrome
-  #   realMobile: true
-  # - osVersion: 16
-  #   deviceName: iPhone 14
-  #   browserName: safari
-  #   realMobile: true
+  - osVersion: 16.0
+    deviceName: Samsung Galaxy S22
+    browserName: chrome
+    realMobile: true
+  - osVersion: 15.0
+    deviceName: Samsung Galaxy S22
+    browserName: chrome
+    realMobile: true
+  - osVersion: 14.0
+    deviceName: Samsung Galaxy S22
+    browserName: chrome
+    realMobile: true
+  - osVersion: 26
+    deviceName: iPhone 17
+    browserName: safari
+    realMobile: true
+  - osVersion: 18.0 #iPhone 16 2024
+    deviceName: iPhone 16
+    browserName: safari
+    realMobile: true
 
 # =======================
 # Parallels per Platform
