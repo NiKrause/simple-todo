@@ -27,24 +27,40 @@ jobs:
     
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
-    
-    - name: Install Playwright browsers
-      run: pnpm exec playwright install --with-deps
-    
+
+    # Remote run on BrowserStack does not need local browser installs
+    # - name: Install Playwright browsers
+    #   run: pnpm exec playwright install --with-deps
+
+    - name: Verify BrowserStack credentials are present
+      shell: bash
+      run: |
+        if [ -z "${BROWSERSTACK_USERNAME}" ] || [ -z "${BROWSERSTACK_ACCESS_KEY}" ]; then
+          echo "Missing BrowserStack secrets. Please set BROWSERSTACK_USERNAME and BROWSERSTACK_ACCESS_KEY in repo secrets."
+          exit 1
+        fi
+      env:
+        BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+        BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+
     - name: Build application
       run: pnpm run build
-    
+
+    # Optional: verify your target URL is reachable (uncomment if hitting prod)
+    # - name: Check app URL is reachable
+    #   run: |
+    #     curl -fsSL --max-time 10 https://simple-todo.le-space.de/ > /dev/null
+
     - name: Run BrowserStack Tests
-      run: |
-        echo "🚀 Running BrowserStack tests across all configured platforms"
-        echo "Build Name: $BROWSERSTACK_BUILD_NAME"
-        echo "Username: $BROWSERSTACK_USERNAME"
-        pnpm exec browserstack-node-sdk playwright test
       env:
         CI: true
         BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
         BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
-        BROWSERSTACK_BUILD_NAME: "simple-todo-consent-${{ github.sha }}"
+        BROWSERSTACK_BUILD_NAME: simple-todo-consent-${{ github.run_number }}-${{ github.sha }}
+      run: |
+        echo "🚀 Running BrowserStack tests across all configured platforms"
+        echo "Build Name: $BROWSERSTACK_BUILD_NAME"
+        pnpm exec browserstack-node-sdk playwright test
     
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -126,28 +142,15 @@ jobs:
     
     - name: Report summary
       run: |
-        echo "# Test Results Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "## BrowserStack Tests" >> $GITHUB_STEP_SUMMARY
-        
-        if [ -d "all-results/browserstack-test-results" ]; then
-          echo "- ✅ BrowserStack tests completed" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "- ❌ BrowserStack tests failed or not found" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "## Local Tests" >> $GITHUB_STEP_SUMMARY
-        if [ -d "all-results/local-test-results" ]; then
-          echo "- ✅ Local tests completed" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "- ❌ Local tests failed" >> $GITHUB_STEP_SUMMARY
-        fi
-        
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "## Tested Platforms (BrowserStack)" >> $GITHUB_STEP_SUMMARY
-        echo "- Chrome, Firefox, Safari on macOS Sequoia" >> $GITHUB_STEP_SUMMARY
-        echo "- Safari on iPhone 16 (iOS 18) and iPhone 17 (iOS 26)" >> $GITHUB_STEP_SUMMARY
-        echo "- Chrome on Samsung Galaxy S22 (Android 14, 15, 16)" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Note**: All platforms are tested in parallel as defined in browserstack.yml"
+        {
+          echo "# Test Results Summary"
+          echo
+          if [ -d "all-results/browserstack-test-results" ]; then
+            echo "- ✅ BrowserStack tests artifact uploaded"
+          else
+            echo "- ❌ BrowserStack tests failed or artifact missing"
+          fi
+          echo
+          echo "## Tested Platforms (as defined in browserstack.yml)"
+          echo "- Desktop and mobile matrices per your config"
+        } >> "$GITHUB_STEP_SUMMARY"
