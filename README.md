@@ -10,12 +10,12 @@ A decentralized, local-first, peer-to-peer todo application built with **libp2p*
 
 ## 🎯 What is this?
 
-This is a **browser only** local-first peer-to-peer todo application that operates without any traditional server infrastructure. It connects directly to other browsers and mobile devices through peer-to-peer connections, creating a truly decentralized experience.
+This is a **browser only** local-first peer-to-peer todo application that operates without any traditional server infrastructure. It connects directly to other browsers and mobile devices through peer-to-peer connections, creating a truly decentralized experience. So far a LibP2P signaling node is necessary to connect the peers and in this version it also stores the todo's since this browser version works with MemoryStorage only instead of local IPFSStorage (e.g. LevelBlockstore).   
 
 ### Key Features
 
-- ✅ **No Server Required** - Runs entirely in your browser
-- ✅ **Local Data** - data is stored in your browsers level storage and replicated via OrbitBB and IPFS
+- ✅ **No Server Required** - Runs entirely in your browser 
+- ✅ **Local Data** - data is stored in your browsers level storage and replicated via OrbitDB and IPFS
 - ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of signaling nodes)
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
 - ✅ **Dynamic Identity** - Fresh peer ID generated on each load
