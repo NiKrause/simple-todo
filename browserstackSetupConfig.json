@@ -1,0 +1,53 @@
+userName: nicokrause_e7ZdSC
+accessKey: Y4dYUsBFz5cWEHa5inCP
+projectName: Simple Todo Consent Screen Tests
+buildName: Consent Screen Cross-Browser Tests
+buildIdentifier: '#8'
+platforms:
+  - os: Windows
+    osVersion: 11
+    browserName: chrome
+    browserVersion: latest
+  - os: Windows
+    osVersion: 11
+    browserName: playwright-firefox
+    browserVersion: latest
+  - os: Windows
+    osVersion: 11
+    browserName: edge
+    browserVersion: latest
+  - os: OS X
+    osVersion: Monterey
+    browserName: chrome
+    browserVersion: latest
+  - os: OS X
+    osVersion: Monterey
+    browserName: playwright-firefox
+    browserVersion: latest
+  - os: OS X
+    osVersion: Monterey
+    browserName: playwright-webkit
+    browserVersion: latest
+  - osVersion: 12
+    deviceName: Samsung Galaxy S22
+    browserName: chrome
+    realMobile: true
+  - osVersion: 16
+    deviceName: iPhone 14
+    browserName: safari
+    realMobile: true
+parallelsPerPlatform: 2
+browserstackLocal: false
+framework: playwright
+source: simple-todo-consent-tests:v1.0.0
+debug: true
+networkLogs: true
+consoleLogs: errors
+testObservability: true
+testContextOptions:
+  skipSessionStatus: false
+  skipSessionName: false
+logDir: /Users/nandi/Documents/projekte/DecentraSol/simple-todo/log
+browserStackLocalOptions:
+  skipBinaryInitialisation: false
+proxySettings: {}

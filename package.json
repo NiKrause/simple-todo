@@ -15,11 +15,11 @@
 		"test:unit": "vitest",
 		"test": "pnpm run test:unit -- --run && pnpm run test:e2e",
 		"test:e2e": "playwright test",
-		"test:browserstack": "BROWSERSTACK_BUILD_NAME=local-test playwright test",
-		"test:browserstack:tunnel": "node scripts/browserstack-local.js start & sleep 5 && BROWSERSTACK_BUILD_NAME=tunnel-test playwright test; pkill -f browserstack-local",
+		"test:browserstack": "npx browserstack-node-sdk playwright test --config=playwright.browserstack.config.js",
+		"test:browserstack:tunnel": "node scripts/browserstack-local.js start & sleep 5 && npx browserstack-node-sdk playwright test --config=playwright.browserstack.config.js; pkill -f browserstack-local",
 		"test:browserstack:local": "node scripts/browserstack-local.js start",
 		"test:consent": "playwright test e2e/consent-screen.spec.js",
-		"test:consent:browserstack": "BROWSERSTACK_BUILD_NAME=consent-test playwright test e2e/consent-screen.spec.js"
+		"test:consent:browserstack": "npx browserstack-node-sdk playwright test e2e/consent-screen.spec.js --config=playwright.browserstack.config.js"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
@@ -33,6 +33,7 @@
 		"@tailwindcss/vite": "^4.0.0",
 		"@vitest/browser": "^3.2.3",
 		"browserstack-local": "^1.5.8",
+		"browserstack-node-sdk": "^1.41.1",
 		"dotenv": "^17.2.1",
 		"eslint": "^9.18.0",
 		"eslint-config-prettier": "^10.0.1",
