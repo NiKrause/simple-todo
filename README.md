@@ -1,5 +1,13 @@
 # Simple Todo - A Local-First Peer-to-Peer Demo App
 
+[![BrowserStack Tests](https://github.com/NiKrause/simple-todo/actions/workflows/browserstack-tests.yml/badge.svg)](https://github.com/NiKrause/simple-todo/actions/workflows/browserstack-tests.yml)
+[![Svelte](https://img.shields.io/badge/Svelte-5.0.0-FF3E00?style=flat&logo=svelte&logoColor=white)](https://svelte.dev/)
+[![libp2p](https://img.shields.io/badge/libp2p-2.9.0-6B46C1?style=flat&logo=ipfs&logoColor=white)](https://libp2p.io/)
+[![Helia](https://img.shields.io/badge/Helia-5.5.0-65C2CB?style=flat&logo=ipfs&logoColor=white)](https://helia.io/)
+[![OrbitDB](https://img.shields.io/badge/OrbitDB-3.0.2-4A90E2?style=flat&logo=orbit&logoColor=white)](https://orbitdb.org/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
+[![IPFS](https://img.shields.io/badge/IPFS-Enabled-65C2CB?style=flat&logo=ipfs&logoColor=white)](https://ipfs.tech/)
+
 A decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
 ## 🚀 Live Demo
