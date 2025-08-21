@@ -10,20 +10,20 @@ A decentralized, local-first, peer-to-peer todo application built with **libp2p*
 
 ## 🎯 What is this?
 
-This is a **browser only** local-first peer-to-peer todo application that operates without any traditional server infrastructure. It connects directly to other browsers and mobile devices through peer-to-peer connections, creating a truly decentralized experience. So far a LibP2P signaling node is necessary to connect the peers and in this version it also stores the todo's since this browser version works with MemoryStorage only instead of local IPFSStorage (e.g. LevelBlockstore).   
+This is a **browser-only** local-first peer-to-peer todo application that operates without any traditional server infrastructure. It connects directly to other browsers and mobile devices through peer-to-peer connections, creating a truly decentralized experience. So far, a LibP2P signaling node is necessary to connect the peers, and in this version it also stores the todos since this browser version works with MemoryStorage only instead of local IPFSStorage (e.g. LevelBlockstore).
 
 ### Key Features
 
 - ✅ **No Server Required** - Runs entirely in your browser 
-- ✅ **Local Data** - data is stored in your browsers level storage and replicated via OrbitDB and IPFS
+- ✅ **Local Data** - Data is stored in your browser's level storage and replicated via OrbitDB and IPFS
 - ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of signaling nodes)
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
 - ✅ **Dynamic Identity** - Fresh peer ID generated on each load
 
 ## 🎯 How to Test
 
-1. **Open Two Browser Windows** - You need at least two browser instances, a mobile or ask another distant person to open the app
-2. **Load the Same URL** - all app users should load the same app URL
+1. **Open Two Browser Windows** - You need at least two browser instances, a mobile device, or ask another distant person to open the app
+2. **Load the Same URL** - All app users should load the same app URL
 3. **Accept Consent** - Check all consent boxes in both browsers
 4. **Wait for Connection** - The app will automatically discover and connect peers
 5. **Add Todos** - Create todos in one browser and watch them appear in the other
@@ -54,7 +54,7 @@ git clone https://github.com/NiKrause/simple-todo.git
 # checkout simple-todo branch
 git checkout simple-todo
 
-# run (like this you don't need to cut and past anything)
+# run (like this you don't need to cut and paste anything)
 ./tutorial-01.js 
 ```
 
