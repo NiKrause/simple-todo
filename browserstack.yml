@@ -80,6 +80,11 @@ framework: playwright
 source: simple-todo-consent-tests:v1.0.0
 
 # ===================
+# Test Configuration
+# ===================
+testDir: e2e
+
+# ===================
 # Debugging features
 # ===================
 debug: true
