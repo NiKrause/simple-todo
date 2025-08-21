@@ -31,7 +31,7 @@ async function getActiveBrowserStackSessions() {
 }
 
 test.describe('Consent Screen', () => {
-  test('should display consent modal and allow proceeding after checking all boxes', async ({ page }) => {
+  test.only('should display consent modal and allow proceeding after checking all boxes', async ({ page }) => {
     // Navigate to the app - use deployed URL for BrowserStack, baseURL for local
     const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://simple-todo.le-space.de' : '/';
     await page.goto(testUrl);

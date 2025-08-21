@@ -19,9 +19,10 @@ platforms:
     osVersion: 11
     browserName: chrome
     browserVersion: latest
+    # Add explicit channel specification
   - os: Windows
     osVersion: 11
-    browserName: playwright-firefox
+    browserName: firefox  # Changed from playwright-firefox
     browserVersion: latest
   - os: Windows
     osVersion: 11
@@ -33,11 +34,11 @@ platforms:
     browserVersion: latest
   - os: OS X
     osVersion: Monterey
-    browserName: playwright-firefox
+    browserName: firefox  # Changed from playwright-firefox
     browserVersion: latest
   - os: OS X
     osVersion: Monterey
-    browserName: playwright-webkit
+    browserName: safari  # Changed from playwright-webkit
     browserVersion: latest
   # Linux platform removed - not supported by BrowserStack with Playwright
   - osVersion: 12.0

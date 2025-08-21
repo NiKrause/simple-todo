@@ -11,12 +11,6 @@ jobs:
   browserstack-tests:
     runs-on: ubuntu-latest
     
-    strategy:
-      fail-fast: false
-      matrix:
-        # Test in smaller batches to avoid overwhelming BrowserStack
-        batch: [1, 2, 3]
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -54,41 +48,32 @@ jobs:
     - name: Build application
       run: pnpm run build
     
-    - name: Start application server
+    - name: Verify deployed app accessibility
       run: |
-        pnpm run preview &
-        # Wait for server to be ready
-        npx wait-on http://localhost:4173 --timeout 60000
-      env:
-        CI: true
+        # Test that the deployed app is accessible
+        curl -I https://simple-todo.le-space.de || {
+          echo "Warning: Deployed app not accessible"
+          exit 1
+        }
     
-    - name: Run BrowserStack tests - Batch ${{ matrix.batch }}
-      run: |
-        case ${{ matrix.batch }} in
-          1)
-            # Desktop browsers - Windows & Linux
-            pnpm run test:browserstack -- --project="Chrome Windows" --project="Firefox Windows" --project="Edge Windows" --project="Chrome Linux"
-            ;;
-          2)
-            # Desktop browsers - macOS & Opera
-            pnpm run test:browserstack -- --project="Chrome macOS" --project="Firefox macOS" --project="Safari macOS" --project="Opera Windows"
-            ;;
-          3)
-            # Mobile browsers
-            pnpm run test:browserstack -- --project="iPhone Safari" --project="Android Chrome"
-            ;;
-        esac
+    - name: Setup BrowserStack Environment
+      uses: browserstack/github-actions/setup-env@master
+      with:
+        username: ${{ secrets.BROWSERSTACK_USERNAME }}
+        access-key: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        build-name: "simple-todo-consent-${{ github.sha }}"
+        project-name: "Simple Todo Consent Screen Tests"
+    
+    - name: Run Playwright Tests on BrowserStack
+      run: pnpm exec playwright test --config=playwright.browserstack.config.js
       env:
-        BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
-        BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
-        BROWSERSTACK_BUILD_NAME: "simple-todo-consent-${{ github.sha }}-batch-${{ matrix.batch }}"
         CI: true
     
     - name: Upload test results
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: browserstack-results-batch-${{ matrix.batch }}
+        name: browserstack-results
         path: |
           test-results/
           playwright-report/
@@ -98,7 +83,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: playwright-report-batch-${{ matrix.batch }}
+        name: playwright-report
         path: playwright-report/
         retention-days: 30
 
@@ -176,13 +161,11 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "## BrowserStack Tests" >> $GITHUB_STEP_SUMMARY
         
-        for batch in 1 2 3; do
-          if [ -d "all-results/browserstack-results-batch-$batch" ]; then
-            echo "- ✅ Batch $batch completed" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- ❌ Batch $batch failed or not found" >> $GITHUB_STEP_SUMMARY
-          fi
-        done
+        if [ -d "all-results/browserstack-results" ]; then
+          echo "- ✅ BrowserStack tests completed" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- ❌ BrowserStack tests failed or not found" >> $GITHUB_STEP_SUMMARY
+        fi
         
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "## Local Tests" >> $GITHUB_STEP_SUMMARY
@@ -193,12 +176,11 @@ jobs:
         fi
         
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "## Tested Browsers" >> $GITHUB_STEP_SUMMARY
-        echo "- Chrome on Windows 11, macOS Monterey, Linux Ubuntu 20.04" >> $GITHUB_STEP_SUMMARY
+        echo "## Tested Browsers (BrowserStack)" >> $GITHUB_STEP_SUMMARY
+        echo "- Chrome on Windows 11, macOS Monterey" >> $GITHUB_STEP_SUMMARY
         echo "- Firefox on Windows 11, macOS Monterey" >> $GITHUB_STEP_SUMMARY
         echo "- Edge on Windows 11" >> $GITHUB_STEP_SUMMARY
-        echo "- Opera on Windows 11" >> $GITHUB_STEP_SUMMARY
         echo "- Safari on macOS Monterey, iPhone 14" >> $GITHUB_STEP_SUMMARY
         echo "- Chrome on Android (Samsung Galaxy S22)" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Note**: Brave browser testing requires local setup as it's not available on standard BrowserStack plans."
+        echo "**Note**: All browsers are tested in parallel as defined in browserstack.yml"

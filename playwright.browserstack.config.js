@@ -17,14 +17,6 @@ export default defineConfig({
     trace: 'on-first-retry'
   },
 
-  // Simple project config - SDK handles browser capabilities
-  projects: [
-    {
-      name: 'browserstack',
-      use: {
-        // BrowserStack SDK will inject all the browser-specific capabilities
-        // No need to define browserstack.* capabilities here
-      },
-    },
-  ],
+  // BrowserStack SDK handles browser selection via browserstack.yml
+  // No projects needed here
 });

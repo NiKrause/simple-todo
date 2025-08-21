@@ -91,7 +91,7 @@ importers:
         specifier: ^9.18.0
         version: 9.33.0
       '@playwright/test':
-        specifier: ^1.49.1
+        specifier: ^1.53.0
         version: 1.55.0
       '@sveltejs/adapter-static':
         specifier: ^3.0.8
@@ -118,7 +118,7 @@ importers:
         specifier: ^1.5.8
         version: 1.5.8
       browserstack-node-sdk:
-        specifier: ^1.41.1
+        specifier: 1.41.1
         version: 1.41.1(encoding@0.1.13)
       dotenv:
         specifier: ^17.2.1
@@ -7736,7 +7736,9 @@ snapshots:
       metro-runtime: 0.83.1
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.81.0': {}
 
@@ -8099,7 +8101,7 @@ snapshots:
 
   '@types/node-fetch@2.6.13':
     dependencies:
-      '@types/node': 22.17.2
+      '@types/node': 24.3.0
       form-data: 4.0.4
 
   '@types/node@22.17.2':
@@ -8133,7 +8135,7 @@ snapshots:
 
   '@types/stream-buffers@3.0.7':
     dependencies:
-      '@types/node': 22.17.2
+      '@types/node': 24.3.0
 
   '@types/tough-cookie@4.0.5': {}
 
@@ -8866,7 +8868,7 @@ snapshots:
   buffer@4.9.2:
     dependencies:
       base64-js: 1.5.1
-      ieee754: 1.1.13
+      ieee754: 1.2.1
       isarray: 1.0.0
 
   buffer@5.7.1:
