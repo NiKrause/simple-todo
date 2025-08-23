@@ -25,31 +25,14 @@
 	// Modal state
 	let showModal = true;
 	let rememberDecision = false;
-	let checkboxes = {
-		relayConnection: {
-			label:
-				'I understand that this todo application is a demo app and will connect to a relay node',
-			checked: false
-		},
-		dataVisibility: {
-			label:
-				'I understand that the relay may store the entered data, making it visible to other users for demo purposes',
-			checked: false
-		},
-		globalDatabase: {
-			label:
-				'I understand that this todo application works with one global unencrypted database for all users which is visible to others testing this app simultaneously',
-			checked: false
-		},
-		replicationTesting: {
-			label:
-				'I understand that I need to open a second browser or mobile device with the same web address to test the replication functionality',
-			checked: false
-		}
-	};
 
-	const handleModalClose = async () => {
+	const handleModalClose = async (event) => {
 		showModal = false;
+
+		// Extract preferences from the event detail
+		const preferences = event?.detail || {};
+		console.log('🔧 DEBUG: Received preferences from ConsentModal:', preferences);
+
 		try {
 			if (rememberDecision) {
 				localStorage.setItem(CONSENT_KEY, 'true');
@@ -57,8 +40,10 @@
 		} catch {
 			// ignore storage errors
 		}
+
 		try {
-			await initializeP2P();
+			// Pass the preferences to initializeP2P
+			await initializeP2P(preferences);
 		} catch (err) {
 			error = `Failed to initialize P2P: ${err.message}`;
 			console.error('P2P initialization failed:', err);
@@ -69,7 +54,13 @@
 		try {
 			if (localStorage.getItem(CONSENT_KEY) === 'true') {
 				showModal = false;
-				await initializeP2P();
+				// When auto-initializing, use default preferences
+				console.log('🔧 DEBUG: Auto-initializing with default preferences');
+				await initializeP2P({
+					enablePersistentStorage: true,
+					enableNetworkConnection: true,
+					enablePeerConnections: true
+				});
 			}
 		} catch {
 			// ignore storage errors
@@ -135,17 +126,7 @@
 	<ConsentModal
 		bind:show={showModal}
 		title="Simple TODO Example"
-		description="This is a web application that:"
-		features={[
-			'Does not store any cookies or perform any tracking',
-			"Does not store any data in your browser's storage",
-			"Stores data temporarily in your browser's memory only",
-			'Does not use any application or database server for entered or personal data',
-			'Connects to at least one relay server (in this demo, only 1 relay server)',
-			'The relay server may cache your entered data, making it visible to other users',
-			'For decentralization purposes, this web app is hosted on the IPFS network'
-		]}
-		bind:checkboxes
+		description="A local-first peer-to-peer web application demo"
 		bind:rememberDecision
 		rememberLabel="Don't show this again on this device"
 		proceedButtonText="Proceed to Test the App"

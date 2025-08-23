@@ -28,25 +28,58 @@ const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discove
 // Determine which relay address to use based on environment
 const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development';
 console.log('isDevelopment', isDevelopment);
-const RELAY_BOOTSTRAP_ADDR = (isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_BOOTSTRAP_ADDR_PROD)
+export const RELAY_BOOTSTRAP_ADDR = (isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_BOOTSTRAP_ADDR_PROD)
 	.split(',')
 	.map((addr) => addr.trim());
 console.log('RELAY_BOOTSTRAP_ADDR', RELAY_BOOTSTRAP_ADDR);
 
-export async function createLibp2pConfig(privateKey = null) {
+export async function createLibp2pConfig(options = {}) {
+	const { privateKey = null, enablePeerConnections = true, enableNetworkConnection = true } = options;
+	
 	// Get fixed peer ID from environment variable
 	const testPeerId = import.meta.env.VITE_TEST_PEER_ID;
+	let finalPrivateKey = privateKey;
 
-	if (testPeerId && !privateKey) {
+	if (testPeerId && !finalPrivateKey) {
 		try {
-			privateKey = privateKeyFromProtobuf(uint8ArrayFromString(testPeerId, 'hex'));
+			finalPrivateKey = privateKeyFromProtobuf(uint8ArrayFromString(testPeerId, 'hex'));
 		} catch (error) {
 			console.warn('Invalid test peer ID, generating random key:', error);
 		}
 	}
 
+	// Configure peer discovery based on enablePeerConnections
+	const peerDiscoveryServices = [];
+	if (enablePeerConnections && enableNetworkConnection) {
+		peerDiscoveryServices.push(
+			pubsubPeerDiscovery({
+				interval: 5000, // More frequent broadcasting
+				topics: PUBSUB_TOPICS, // Configurable topics
+				listenOnly: false,
+				emitSelf: true // Enable even when no peers are present initially
+			})
+		);
+	}
+
+	// Configure services based on network connection preference
+	const services = {
+		identify: identify(),
+		//   ping: ping(),
+		dcutr: dcutr(),
+		autonat: autoNAT(),
+		pubsub: gossipsub({
+			emitSelf: true, // Enable to see our own messages
+			allowPublishToZeroTopicPeers: true
+		})
+	};
+
+	// Only add bootstrap service if network connections are enabled
+	if (enableNetworkConnection) {
+		services.bootstrap = bootstrap({ list: RELAY_BOOTSTRAP_ADDR });
+	}
+
 	return {
-		...(privateKey && { privateKey }),
+		...(finalPrivateKey && { privateKey: finalPrivateKey }),
 		addresses: {
 			listen: ['/p2p-circuit', '/webrtc', '/webtransport', '/wss', '/ws']
 		},
@@ -71,28 +104,11 @@ export async function createLibp2pConfig(privateKey = null) {
 			denyOutboundUpgradedConnection: () => false
 		},
 		streamMuxers: [yamux()],
-		peerDiscovery: [
-			pubsubPeerDiscovery({
-				interval: 5000, // More frequent broadcasting
-				topics: PUBSUB_TOPICS, // Configurable topics
-				listenOnly: false,
-				emitSelf: true // Enable even when no peers are present initially
-			})
-		],
-		services: {
-			identify: identify(),
-			bootstrap: bootstrap({ list: RELAY_BOOTSTRAP_ADDR }),
-			//   ping: ping(),
-			dcutr: dcutr(),
-			autonat: autoNAT(),
-			pubsub: gossipsub({
-				emitSelf: true, // Enable to see our own messages
-				allowPublishToZeroTopicPeers: true
-			})
-		}
+		peerDiscovery: peerDiscoveryServices,
+		services
 	};
 }
 
 // Usage example:
-// const config = await createLibp2pConfig()
+// const config = await createLibp2pConfig({ enablePeerConnections: true, enableNetworkConnection: true, privateKey: null })
 // const libp2p = await createLibp2p(config)
