@@ -110,28 +110,7 @@
 						? __BUILD_DATE__
 						: 'dev'}]
 				</h3>
-				<p class="text-gray-700">&nbsp;</p>
-				<div class="mb-6 space-y-4">
-					<p class="text-gray-700">{description}</p>
-					<div class="flex flex-wrap gap-4 justify-center items-center p-4 bg-gray-50 rounded-lg">
-						{#each features as feature, index (index)}
-							<div class="group relative">
-								<div class="flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-md hover:shadow-lg transition-shadow cursor-help">
-									<svelte:component 
-										this={featureIcons[index].icon} 
-										class="w-6 h-6 {featureIcons[index].color}" 
-									/>
-								</div>
-								<!-- Tooltip -->
-								<div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none w-64 text-center z-10">
-									{feature}
-									<!-- Arrow -->
-									<div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-								</div>
-							</div>
-						{/each}
-					</div>
-				</div>
+
 
 				<!-- Data Storage and Network Connection Options -->
 				<div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -255,7 +234,28 @@
 						</div>
 					</div>
 				{/if}
-
+				<p class="text-gray-700">&nbsp;</p>
+				<div class="mb-6 space-y-4">
+					<p class="text-gray-700">{description}</p>
+					<div class="flex flex-wrap gap-4 justify-center items-center p-4 bg-gray-50 rounded-lg">
+						{#each features as feature, index (index)}
+							<div class="group relative">
+								<div class="flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-md hover:shadow-lg transition-shadow cursor-help">
+									<svelte:component 
+										this={featureIcons[index].icon} 
+										class="w-6 h-6 {featureIcons[index].color}" 
+									/>
+								</div>
+								<!-- Tooltip -->
+								<div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none w-64 text-center z-10">
+									{feature}
+									<!-- Arrow -->
+									<div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
 				<!-- Consent Checkboxes -->
 				<div class="mb-6 space-y-4">
 					<p class="font-medium text-gray-700">Please confirm by checking the following boxes:</p>
