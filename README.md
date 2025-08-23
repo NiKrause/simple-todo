@@ -1,4 +1,4 @@
-# Simple Todo - A Local-First Peer-to-Peer Demo App
+# Simple Todo - A Local-First Peer-to-Peer Demo App (in Svelte)
 
 A decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
@@ -44,7 +44,8 @@ The tutorial covers:
 
 **[🔧 Reusable Components](./docs/)**
 
-- **[StorachaIntegration](./docs/StorachaIntegration.md)** - Complete Storacha/Web3.Storage integration component for backing up OrbitDB databases to decentralized storage
+- **[StorachaIntegration](./docs/StorachaIntegration.md)** - Storacha/Web3.Storage integration component for backing up OrbitDB databases to decentralized storage
+- **[ConsentModal](./docs/ConsentModal.md)** A privacy related consent component for P2P network initialization with configurable data storage and connection preferences.
 
 ## 🛠️ Quick Start
 

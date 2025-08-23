@@ -239,14 +239,14 @@
 								</svg>
 							</div>
 							<div>
-								<h3 class="text-sm font-medium text-red-800">No Data Available</h3>
+								<h3 class="text-sm font-medium text-red-800">No storage and no network connection</h3>
 								<div class="mt-2 text-sm text-red-700">
 									<p>
-										With both browser storage disabled and network connection disabled, you will not be able to see any todo data. 
-										The application will be empty, will not store permanently and doesn't connect to other peers or relay's. 
-										Please enable either browser storage or network connection to use the application.
+										With both browser storage disabled and network connection disabled, you will not be able to see any previously stored todo data nor any todo's replicated from other peers. 
+										The application will start empty and will not store permanently. It will not connect to other peers for peer-to-peer replications.
+										Please enable either browser storage or network connection to use the application if that is not your intention.
 										<br>
-										If you only enabling browser storage, you can later synchronize with other peers!
+										 E.g. If you only enabling browser storage now, you can continue working on your todo list in offline mode and synchronize it later with other peers!
 										<br>
 										If you disable browser storage and enable network connection the app will synchronize with other peers first before you can add any todos
 									</p>
@@ -261,7 +261,7 @@
 					<p class="font-medium text-gray-700">Please confirm by checking the following boxes:</p>
 
 					{#each Object.entries(checkboxes) as [key, item] (key)}
-						<label class="flex cursor-pointer items-start space-x-3 {noDataAvailable ? 'opacity-50' : ''}">
+						<label class="flex cursor-pointer items-start space-x-3">
 							<input
 								type="checkbox"
 								checked={item.checked}
