@@ -57,14 +57,14 @@
   
   <!-- Technology badges -->
   <rect x="200" y="550" width="120" height="40" rx="20" fill="rgba(255,255,255,0.2)"/>
-  <text x="260" y="575" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">OrbitDB</text>
+  <text x="260" y="575" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">libp2p</text>
   
   <rect x="350" y="550" width="100" height="40" rx="20" fill="rgba(255,255,255,0.2)"/>
-  <text x="400" y="575" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">libp2p</text>
+  <text x="400" y="575" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">IPFS (Helia)</text>
   
   <rect x="480" y="550" width="80" height="40" rx="20" fill="rgba(255,255,255,0.2)"/>
-  <text x="520" y="575" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">IPFS</text>
+  <text x="520" y="575" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">OrbitDb</text>
   
   <rect x="800" y="550" width="200" height="40" rx="20" fill="rgba(255,255,255,0.2)"/>
-  <text x="900" y="575" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">No Servers Required</text>
+  <text x="900" y="575" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">Storacha</text>
 </svg>
