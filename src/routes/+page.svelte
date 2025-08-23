@@ -25,12 +25,17 @@
 	// Modal state
 	let showModal = true;
 	let rememberDecision = false;
+    let preferences = {
+        enablePersistentStorage: true,
+        enableNetworkConnection: true,
+        enablePeerConnections: true
+    };
 
 	const handleModalClose = async (event) => {
 		showModal = false;
 
 		// Extract preferences from the event detail
-		const preferences = event?.detail || {};
+		preferences = event?.detail || {};
 		console.log('🔧 DEBUG: Received preferences from ConsentModal:', preferences);
 
 		try {
@@ -45,7 +50,7 @@
 			// Pass the preferences to initializeP2P
 			await initializeP2P(preferences);
 		} catch (err) {
-			error = `Failed to initialize P2P: ${err.message}`;
+			error = `Failed to initialize P2P or OrbitDB: ${err.message}`;
 			console.error('P2P initialization failed:', err);
 		}
 	};
@@ -154,8 +159,8 @@
 
 	{#if $initializationStore.isInitializing}
 		<LoadingSpinner
-			message="Initializing P2P connection..."
-			submessage="Please wait while we set up the network..."
+			message={preferences.enableNetworkConnection ? "Initializing P2P connection..." : "Opening OrbitDB database..."}
+			submessage={$initializationStore.enableNetworkConnection ? "Please wait while we set up the network..." : "Please wait while we open the database..."}
 			version="{typeof __APP_VERSION__ !== 'undefined'
 				? __APP_VERSION__
 				: '0.0.0'} [{typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]"

@@ -51,6 +51,7 @@ export async function createLibp2pConfig(options = {}) {
 	// Configure peer discovery based on enablePeerConnections
 	const peerDiscoveryServices = [];
 	if (enablePeerConnections && enableNetworkConnection) {
+		console.log("🔍 Enabling pubsub peer discovery");
 		peerDiscoveryServices.push(
 			pubsubPeerDiscovery({
 				interval: 5000, // More frequent broadcasting
@@ -64,34 +65,44 @@ export async function createLibp2pConfig(options = {}) {
 	// Configure services based on network connection preference
 	const services = {
 		identify: identify(),
-		//   ping: ping(),
-		dcutr: dcutr(),
-		autonat: autoNAT(),
 		pubsub: gossipsub({
 			emitSelf: true, // Enable to see our own messages
 			allowPublishToZeroTopicPeers: true
 		})
+		//   ping: ping(),
 	};
-
 	// Only add bootstrap service if network connections are enabled
 	if (enableNetworkConnection) {
+		console.log("🔍 Enabling bootstrap, pubsub, autonat, dcutr services");
 		services.bootstrap = bootstrap({ list: RELAY_BOOTSTRAP_ADDR });
+		// services.pubsub = gossipsub({
+		// 	emitSelf: true, // Enable to see our own messages
+		// 	allowPublishToZeroTopicPeers: true
+		// })
+		services.autonat = autoNAT()
+		services.dcutr = dcutr()
+
 	}
 
 	return {
 		...(finalPrivateKey && { privateKey: finalPrivateKey }),
 		addresses: {
-			listen: ['/p2p-circuit', '/webrtc', '/webtransport', '/wss', '/ws']
+			listen: enableNetworkConnection 
+				? ['/p2p-circuit', '/webrtc', '/webtransport', '/wss', '/ws']
+				: ['/webrtc'] // Only local WebRTC when network connection is disabled
 		},
-		transports: [
-			webSockets({
-				filter: filters.all
-			}),
-			webRTC(),
-			circuitRelayTransport({
-				discoverRelays: 1
-			})
-		],
+		transports: enableNetworkConnection
+			? [
+				webSockets({
+					filter: filters.all
+				}),
+				webRTC(),
+				circuitRelayTransport({
+					discoverRelays: 1
+				})
+			]
+			: [ webRTC(),		
+				circuitRelayTransport({ discoverRelays: 1})], // Only WebRTC transport when network connection is disabled
 		connectionEncrypters: [noise()],
 		connectionGater: {
 			denyDialMultiaddr: () => false,
@@ -105,6 +116,15 @@ export async function createLibp2pConfig(options = {}) {
 		},
 		streamMuxers: [yamux()],
 		peerDiscovery: peerDiscoveryServices,
+		// peerDiscovery: [
+		// 	pubsubPeerDiscovery({
+		// 		interval: 5000, // More frequent broadcasting
+		// 		topics: PUBSUB_TOPICS, // Configurable topics
+		// 		listenOnly: false,
+		// 		emitSelf: true // Enable even when no peers are present initially
+		// 	})
+		// ],
+		// 
 		services
 	};
 }

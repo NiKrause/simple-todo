@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 
 import { createLibp2p } from 'libp2p';
 import { createHelia } from 'helia';
-import { createOrbitDB, IPFSAccessController } from '@orbitdb/core';
+import { createOrbitDB, IPFSAccessController, MemoryStorage } from '@orbitdb/core';
 import { createLibp2pConfig, RELAY_BOOTSTRAP_ADDR } from './libp2p-config.js';
 import { initializeDatabase } from './db-actions.js';
 import { LevelBlockstore } from 'blockstore-level';
@@ -12,11 +12,14 @@ import { LevelDatastore } from 'datastore-level';
 export const libp2pStore = writable(null);
 export const peerIdStore = writable(null);
 
+// Export OrbitDB instance for backup/restore operations
+export const orbitDBStore = writable(null);
+
 // Add initialization state store
 export const initializationStore = writable({
-	isInitializing: false,
-	isInitialized: false,
-	error: null
+isInitializing: false,
+isInitialized: false,
+error: null
 });
 
 let libp2p = null;
@@ -74,6 +77,7 @@ export async function initializeP2P(preferences = {}) {
 			enablePeerConnections, 
 			enableNetworkConnection 
 		});
+		
 		libp2p = await createLibp2p(config);
 		libp2pStore.set(libp2p); // Make available to plugins
 		console.log(`✅ libp2p node created with network connection: ${enableNetworkConnection ? 'enabled' : 'disabled'}, peer connections: ${enablePeerConnections ? 'enabled' : 'disabled'}`);
@@ -92,43 +96,62 @@ export async function initializeP2P(preferences = {}) {
 			const datastore = new LevelDatastore('./helia-data');
 			heliaConfig = { libp2p, blockstore, datastore };
 		} else {
-			console.log('💾 Initializing Helia with in-memory storage...');
+			console.log('💾 Initializing Helia with explicit in-memory storage...');
+			//TODO can we initialize Helia with dummy brokers and dummy content routers which return immediately nothing?
+			// heliaConfig = { libp2p }
 		}
 
 		helia = await createHelia(heliaConfig);
 		console.log(`✅ Helia created with ${enablePersistentStorage ? 'persistent' : 'in-memory'} storage`);
 
-		// Create OrbitDB instance
-		console.log('🛬 Creating OrbitDB instance...');
-		orbitdb = await createOrbitDB({ 
-			ipfs: helia, 
-			id: 'simple-todo-app',
-			// Pass storage preferences to OrbitDB if needed
-		});
-		
+	// Create OrbitDB instance
+	console.log('🛬 Creating OrbitDB instance...');
+	orbitdb = await createOrbitDB({ 
+		ipfs: helia, 
+		id: 'simple-todo-app',
+		// Pass storage preferences to OrbitDB if needed
+	});
+	
+	// Make OrbitDB instance available to other components
+	orbitDBStore.set(orbitdb);
+	const headsStorage = await MemoryStorage();
+	const entryStorage = await MemoryStorage();
+
+	if(!enablePersistentStorage && !enableNetworkConnection) { //if we have no network and no persistent storage, we use in-memory storage
 		todoDB = await orbitdb.open('simple-todos', {
 			type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
 			create: true, // Allows the database to be created if it doesn't exist
-			sync: enablePeerConnections, // Only enable sync if peer connections are allowed
+			sync: enableNetworkConnection, // Only enable sync if peer connections are allowed
+			headsStorage,
+			entryStorage,
+			AccessController: !enableNetworkConnection ? IPFSAccessController({ write: ['*'] }) : null //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
+		});
+	} else {
+		todoDB = await orbitdb.open('simple-todos', {
+			type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
+			create: true, // Allows the database to be created if it doesn't exist
+			sync: enableNetworkConnection, // Only enable sync if peer connections are allowed
 			AccessController: IPFSAccessController({ write: ['*'] }) //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
 		});
+	}
+		// console.log('🔍 TodoDB records:', (await todoDB.all()).length);
 
 		console.log('✅ Database opened successfully with OrbitDBAccessController:', {
 			address: todoDB.address,
 			type: todoDB.type,
 			accessController: todoDB.access,
-			syncEnabled: enablePeerConnections,
+			syncEnabled: enableNetworkConnection,
 			networkConnectionEnabled: enableNetworkConnection
 		});
 
 		// Initialize database stores and actions
-		await initializeDatabase(orbitdb, todoDB);
+		await initializeDatabase(orbitdb, todoDB, preferences);
 
 		// Mark initialization as complete
 		initializationStore.set({ isInitializing: false, isInitialized: true, error: null });
 		console.log('🎉 P2P initialization completed successfully!');
 	} catch (error) {
-		console.error('❌ Failed to initialize P2P:', error);
+		console.error('❌ Failed to initialize OrbitDB:', error);
 		initializationStore.set({
 			isInitializing: false,
 			isInitialized: false,

@@ -70,14 +70,6 @@
 	// Reactive statement to check if both storage and network are disabled
 	$: noDataAvailable = !enablePersistentStorage && !enableNetworkConnection;
 	
-	// Reset checkboxes when no data is available
-	$: if (noDataAvailable) {
-		Object.keys(checkboxes).forEach(key => {
-			checkboxes[key].checked = false;
-		});
-		checkboxes = { ...checkboxes };
-	}
-
 	$: allCheckboxesChecked = Object.values(checkboxes).every((item) => item.checked);
 
 	const handleProceed = () => {
@@ -92,7 +84,7 @@
 	};
 
 	const handleCheckboxChange = (key, checked) => {
-		if (checkboxes[key] && !noDataAvailable) {
+		if (checkboxes[key]) {
 			checkboxes[key].checked = checked;
 			checkboxes = { ...checkboxes };
 		}
@@ -127,7 +119,7 @@
 							<div class="text-gray-700">
 								<div class="font-medium">Browser Storage (Default = Local-First)</div>
 								<div class="text-sm text-gray-600">
-									Stores data in your browser's storage in order to remember your own data
+									Stores data in your browser's storage in order to remember data between sessions
 								</div>
 							</div>
 						</label>
@@ -265,7 +257,6 @@
 							<input
 								type="checkbox"
 								checked={item.checked}
-								disabled={noDataAvailable}
 								on:click={(e) => {
 									const target = e.target;
 									if (target && target instanceof HTMLInputElement) {
@@ -294,10 +285,11 @@
 				<div class="mt-6 flex justify-center">
 					<button
 						on:click={handleProceed}
-						disabled={!allCheckboxesChecked || noDataAvailable}
+						disabled={!allCheckboxesChecked}
 						class="rounded-md bg-blue-500 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:hover:bg-gray-300"
 					>
-						{noDataAvailable ? 'Cannot proceed - no data available' : allCheckboxesChecked ? proceedButtonText : disabledButtonText}
+					{proceedButtonText}
+						<!-- {noDataAvailable ? 'Cannot proceed - no data available' : allCheckboxesChecked ? proceedButtonText : disabledButtonText} -->
 					</button>
 				</div>
 			</div>

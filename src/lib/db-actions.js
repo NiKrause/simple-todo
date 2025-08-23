@@ -12,12 +12,14 @@ export const todosStore = writable([]);
 export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
 
 // Initialize database and load existing todos
-export async function initializeDatabase(orbitdb, todoDB) {
+export async function initializeDatabase(orbitdb, todoDB, preferences) {
 	orbitdbStore.set(orbitdb);
 	todoDBStore.set(todoDB);
 
-	// Load existing todos
-	await loadTodos();
+	// Load existing todos if no storge is enabled and no network we don't need to load anything
+	if (preferences.enablePersistentStorage || preferences.enableNetworkConnection) {
+		await loadTodos();
+	}
 
 	// Set up event listeners for database changes
 	setupDatabaseListeners(todoDB);
@@ -25,6 +27,7 @@ export async function initializeDatabase(orbitdb, todoDB) {
 
 // Load all todos from the database
 async function loadTodos() {
+	console.log('🔍 Loading todos...');
 	const todoDB = get(todoDBStore);
 	if (!todoDB) return;
 
@@ -68,7 +71,7 @@ function setupDatabaseListeners(todoDB) {
 	});
 
 	// Listen for entries being updated
-	todoDB.events.on('update', async (address, entry) => {
+	todoDB.events.on('update', async (entry) => {
 		console.log('🔄 Entry updated:', entry);
 		await loadTodos();
 	});
@@ -76,6 +79,7 @@ function setupDatabaseListeners(todoDB) {
 
 // Add a new todo
 export async function addTodo(text, assignee = null) {
+	console.log('🔍 Adding todo:', text);	
 	const todoDB = get(todoDBStore);
 	const myPeerId = get(peerIdStore);
 
@@ -99,8 +103,11 @@ export async function addTodo(text, assignee = null) {
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
 		};
-
+		console.log('🔍 Todo:', todo);
 		await todoDB.put(todoId, todo);
+		console.log('🔍 Todo added:', todoId);
+		// Add this line to manually refresh the UI:
+		await loadTodos(); 
 		console.log('✅ Todo added:', todoId);
 		return true;
 	} catch (error) {
