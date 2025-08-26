@@ -2,7 +2,7 @@ name: BrowserStack Cross-Browser Tests
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, tutorial]
   pull_request:
     branches: [ main ]
   workflow_dispatch:  # Allow manual triggering
