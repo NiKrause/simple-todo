@@ -21,7 +21,7 @@ class TutorialAutomator {
             // Step 1: Config files
             ['package.json', 'package.json'],
             ['vite.config.js', 'vite.config.js'],
-            ['tailwind.config.js', 'tailwind.config.js'],
+            // ['tailwind.config.js', 'tailwind.config.js'],
             ['src/app.css', 'src/app.css'],
             ['.env.example', '.env'], // Copy .env.example to .env
             
@@ -32,7 +32,7 @@ class TutorialAutomator {
             ['src/lib/utils.js', 'src/lib/utils.js'],
             
             // Step 3: UI Components - Core
-            ['src/lib/ConsentModal.svelte', 'src/lib/ConsentModal.svelte'],
+            // ['src/lib/ConsentModal.svelte', 'src/lib/ConsentModal.svelte'],
             ['src/lib/LoadingSpinner.svelte', 'src/lib/LoadingSpinner.svelte'],
             ['src/lib/ErrorAlert.svelte', 'src/lib/ErrorAlert.svelte'],
             ['src/lib/ToastNotification.svelte', 'src/lib/ToastNotification.svelte'],
