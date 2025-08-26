@@ -49,8 +49,6 @@ class TutorialAutomator {
             // Step 3: UI Components - Additional (optional)
             ['src/lib/PeerIdCard.svelte', 'src/lib/PeerIdCard.svelte'],
             ['src/lib/SocialIcons.svelte', 'src/lib/SocialIcons.svelte'],
-            ['src/lib/StorachaIntegration.svelte', 'src/lib/StorachaIntegration.svelte'],
-            ['src/lib/storacha-backup.js', 'src/lib/storacha-backup.js'],
             
             // Step 3: App Structure
             ['src/routes/+layout.js', 'src/routes/+layout.js'],
@@ -241,8 +239,6 @@ class TutorialAutomator {
         
         const step3Files = [
             // Core components
-            'src/lib/ConsentModal.svelte',
-            'src/lib/LoadingSpinner.svelte',
             'src/lib/ErrorAlert.svelte',
             'src/lib/ToastNotification.svelte',
             // Todo components
@@ -255,8 +251,6 @@ class TutorialAutomator {
             // Additional components (optional)
             'src/lib/PeerIdCard.svelte',
             'src/lib/SocialIcons.svelte',
-            'src/lib/StorachaIntegration.svelte',
-            'src/lib/storacha-backup.js',
             // App structure
             'src/routes/+layout.js',
             'src/routes/+layout.svelte',

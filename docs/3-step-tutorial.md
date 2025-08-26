@@ -103,8 +103,6 @@ Create these Svelte components:
 
 - **🆔 Peer ID Card**: [`src/lib/PeerIdCard.svelte`](./src/lib/PeerIdCard.svelte) - Display peer identity
 - **🌐 Social Icons**: [`src/lib/SocialIcons.svelte`](./src/lib/SocialIcons.svelte) - Social media links
-- **☁️ Storacha Integration**: [`src/lib/StorachaIntegration.svelte`](./src/lib/StorachaIntegration.svelte) - Cloud backup integration
-- **💾 Storacha Backup**: [`src/lib/storacha-backup.js`](./src/lib/storacha-backup.js) - Backup functionality
 
 ### App Structure:
 

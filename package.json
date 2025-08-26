@@ -14,12 +14,7 @@
 		"lint": "prettier --check . && eslint .",
 		"test:unit": "vitest",
 		"test": "pnpm run test:unit -- --run && pnpm run test:e2e",
-		"test:e2e": "playwright test",
-		"test:browserstack": "BROWSERSTACK_BUILD_NAME=local-test playwright test",
-		"test:browserstack:tunnel": "node scripts/browserstack-local.js start & sleep 5 && BROWSERSTACK_BUILD_NAME=tunnel-test playwright test; pkill -f browserstack-local",
-		"test:browserstack:local": "node scripts/browserstack-local.js start",
-		"test:consent": "playwright test e2e/consent-screen.spec.js",
-		"test:consent:browserstack": "BROWSERSTACK_BUILD_NAME=consent-test playwright test e2e/consent-screen.spec.js"
+		"test:e2e": "playwright test"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
@@ -32,7 +27,6 @@
 		"@tailwindcss/typography": "^0.5.15",
 		"@tailwindcss/vite": "^4.0.0",
 		"@vitest/browser": "^3.2.3",
-		"browserstack-local": "^1.5.8",
 		"dotenv": "^17.2.1",
 		"eslint": "^9.18.0",
 		"eslint-config-prettier": "^10.0.1",
@@ -55,7 +49,10 @@
 	"pnpm": {
 		"onlyBuiltDependencies": [
 			"esbuild"
-		]
+		],
+		"overrides": {
+			"ms": "2.1.3"
+		}
 	},
 	"dependencies": {
 		"@chainsafe/libp2p-gossipsub": "^14.1.1",
@@ -72,10 +69,6 @@
 		"@libp2p/webrtc": "^5.2.23",
 		"@libp2p/websockets": "^9.2.18",
 		"@orbitdb/core": "^3.0.2",
-		"@ucanto/core": "^10.4.0",
-		"@ucanto/principal": "^9.0.2",
-		"@web3-storage/capabilities": "^18.1.0",
-		"@web3-storage/w3up-client": "^17.2.0",
 		"buffer": "^6.0.3",
 		"helia": "^5.5.0",
 		"libp2p": "^2.9.0",

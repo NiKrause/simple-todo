@@ -44,7 +44,7 @@ The tutorial covers:
 
 **[🔧 Reusable Components](./docs/)**
 
-- **[StorachaIntegration](./docs/StorachaIntegration.md)** - Complete Storacha/Web3.Storage integration component for backing up OrbitDB databases to decentralized storage
+See the docs folder for detailed implementation guides and component documentation.
 
 ## 🛠️ Quick Start
 

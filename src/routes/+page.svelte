@@ -3,7 +3,6 @@
 	import { onMount } from 'svelte';
 	import { peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js';
 	import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
-	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
 	import ToastNotification from '$lib/ToastNotification.svelte';
 	import LoadingSpinner from '$lib/LoadingSpinner.svelte';
@@ -12,67 +11,20 @@
 	import TodoList from '$lib/TodoList.svelte';
 	import ConnectedPeers from '$lib/ConnectedPeers.svelte';
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
-	import StorachaIntegration from '$lib/StorachaIntegration.svelte';
 	import { libp2pStore } from '$lib/p2p.js';
-
-	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
 
 	let toastMessage = null;
 	let toastType = 'default';
 	let error = null;
 	let myPeerId = null;
 
-	// Modal state
-	let showModal = true;
-	let rememberDecision = false;
-	let checkboxes = {
-		relayConnection: {
-			label:
-				'I understand that this todo application is a demo app and will connect to a relay node',
-			checked: false
-		},
-		dataVisibility: {
-			label:
-				'I understand that the relay may store the entered data, making it visible to other users for demo purposes',
-			checked: false
-		},
-		globalDatabase: {
-			label:
-				'I understand that this todo application works with one global unencrypted database for all users which is visible to others testing this app simultaneously',
-			checked: false
-		},
-		replicationTesting: {
-			label:
-				'I understand that I need to open a second browser or mobile device with the same web address to test the replication functionality',
-			checked: false
-		}
-	};
 
-	const handleModalClose = async () => {
-		showModal = false;
-		try {
-			if (rememberDecision) {
-				localStorage.setItem(CONSENT_KEY, 'true');
-			}
-		} catch {
-			// ignore storage errors
-		}
+	onMount(async () => {
 		try {
 			await initializeP2P();
 		} catch (err) {
 			error = `Failed to initialize P2P: ${err.message}`;
 			console.error('P2P initialization failed:', err);
-		}
-	};
-
-	onMount(async () => {
-		try {
-			if (localStorage.getItem(CONSENT_KEY) === 'true') {
-				showModal = false;
-				await initializeP2P();
-			}
-		} catch {
-			// ignore storage errors
 		}
 	});
 
@@ -130,29 +82,6 @@
 	/>
 </svelte:head>
 
-<!-- Only render the modal when needed -->
-{#if showModal}
-	<ConsentModal
-		bind:show={showModal}
-		title="Simple TODO Example"
-		description="This is a web application that:"
-		features={[
-			'Does not store any cookies or perform any tracking',
-			"Does not store any data in your browser's storage",
-			"Stores data temporarily in your browser's memory only",
-			'Does not use any application or database server for entered or personal data',
-			'Connects to at least one relay server (in this demo, only 1 relay server)',
-			'The relay server may cache your entered data, making it visible to other users',
-			'For decentralization purposes, this web app is hosted on the IPFS network'
-		]}
-		bind:checkboxes
-		bind:rememberDecision
-		rememberLabel="Don't show this again on this device"
-		proceedButtonText="Proceed to Test the App"
-		disabledButtonText="Please check all boxes to continue"
-		on:proceed={handleModalClose}
-	/>
-{/if}
 
 <main class="container mx-auto max-w-4xl p-6">
 	<!-- Header with title and social icons -->
@@ -201,7 +130,5 @@
 			<PeerIdCard peerId={myPeerId} />
 		</div>
 
-		<!-- Storacha Integration -->
-		<StorachaIntegration />
 	{/if}
 </main>

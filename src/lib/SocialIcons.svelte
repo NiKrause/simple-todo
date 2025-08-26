@@ -11,6 +11,7 @@
 		rel="noopener noreferrer"
 		class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-900"
 		title="GitHub (/NiKrause/simple-todo)"
+		aria-label="Visit GitHub repository"
 	>
 		<svg class={size} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 			<path
@@ -28,6 +29,7 @@
 		rel="noopener noreferrer"
 		class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-blue-500"
 		title="X (@NicoKrauseX)"
+		aria-label="Visit X (Twitter) profile"
 	>
 		<svg class={size} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 			<path
@@ -43,6 +45,7 @@
 		rel="noopener noreferrer"
 		class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-blue-700"
 		title="LinkedIn (/in/nicokrause)"
+		aria-label="Visit LinkedIn profile"
 	>
 		<svg class={size} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 			<path

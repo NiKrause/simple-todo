@@ -2,7 +2,6 @@
 	import { createEventDispatcher } from 'svelte';
 	import { formatPeerId } from './utils.js';
 
-	export let id;
 	export let text;
 	export let completed = false;
 	export let assignee = null;
