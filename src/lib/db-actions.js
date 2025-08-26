@@ -79,7 +79,7 @@ function setupDatabaseListeners(todoDB) {
 
 // Add a new todo
 export async function addTodo(text, assignee = null) {
-	console.log('🔍 Adding todo:', text);	
+	console.log('🔍 Adding todo:', text);
 	const todoDB = get(todoDBStore);
 	const myPeerId = get(peerIdStore);
 
@@ -107,7 +107,7 @@ export async function addTodo(text, assignee = null) {
 		await todoDB.put(todoId, todo);
 		console.log('🔍 Todo added:', todoId);
 		// Add this line to manually refresh the UI:
-		await loadTodos(); 
+		await loadTodos();
 		console.log('✅ Todo added:', todoId);
 		return true;
 	} catch (error) {

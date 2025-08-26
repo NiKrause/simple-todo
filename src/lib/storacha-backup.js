@@ -4,10 +4,10 @@
  * Uses the orbitdb-storacha-bridge library from npm
  */
 
-import { 
-  backupDatabase, 
-  restoreDatabaseFromSpace,
-  listStorachaSpaceFiles,
+import {
+	backupDatabase,
+	restoreDatabaseFromSpace,
+	listStorachaSpaceFiles
 } from 'orbitdb-storacha-bridge';
 
 // Note: These are equivalent:
@@ -177,11 +177,11 @@ export async function backupTodoDatabase(storachaKey, storachaProof) {
 	try {
 		const todoDB = get(todoDBStore);
 		const orbitdb = get(orbitDBStore);
-		
+
 		if (!todoDB) {
 			throw new Error('No todo database available');
 		}
-		
+
 		if (!orbitdb) {
 			throw new Error('No OrbitDB instance available');
 		}
@@ -197,7 +197,7 @@ export async function backupTodoDatabase(storachaKey, storachaProof) {
 
 		if (backupResult.success) {
 			console.log('🎉 Backup completed successfully!');
-			
+
 			return {
 				success: true,
 				manifestCID: backupResult.manifestCID,
@@ -213,7 +213,6 @@ export async function backupTodoDatabase(storachaKey, storachaProof) {
 		} else {
 			throw new Error(backupResult.error);
 		}
-
 	} catch (error) {
 		console.error('❌ Backup failed:', error.message);
 		return {
@@ -232,7 +231,7 @@ export async function restoreFromStorachaSpace(storachaKey, storachaProof) {
 
 	try {
 		const orbitdb = get(orbitDBStore);
-		
+
 		if (!orbitdb) {
 			throw new Error('No OrbitDB instance available');
 		}
@@ -248,7 +247,7 @@ export async function restoreFromStorachaSpace(storachaKey, storachaProof) {
 			console.log('🎉 Restore completed successfully!');
 			console.log(`📊 Entries recovered: ${restoreResult.entriesRecovered}`);
 			console.log(`📍 Database address: ${restoreResult.address}`);
-			
+
 			return {
 				success: true,
 				database: restoreResult.database,
@@ -266,7 +265,6 @@ export async function restoreFromStorachaSpace(storachaKey, storachaProof) {
 		} else {
 			throw new Error(restoreResult.error);
 		}
-
 	} catch (error) {
 		console.error('❌ Restore failed:', error.message);
 		return {
@@ -290,7 +288,7 @@ export async function listStorachaFiles(storachaKey, storachaProof) {
 		});
 
 		console.log(`✅ Found ${spaceFiles.length} files`);
-		
+
 		return spaceFiles;
 	} catch (error) {
 		console.error('❌ Failed to list space files:', error);
@@ -323,7 +321,7 @@ function loadCredentialsForRestore() {
 	try {
 		const key = localStorage.getItem('storacha_key');
 		const proof = localStorage.getItem('storacha_proof');
-		
+
 		if (key && proof) {
 			return { key, proof };
 		}

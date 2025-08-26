@@ -28,14 +28,20 @@ const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discove
 // Determine which relay address to use based on environment
 const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development';
 console.log('isDevelopment', isDevelopment);
-export const RELAY_BOOTSTRAP_ADDR = (isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_BOOTSTRAP_ADDR_PROD)
+export const RELAY_BOOTSTRAP_ADDR = (
+	isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_BOOTSTRAP_ADDR_PROD
+)
 	.split(',')
 	.map((addr) => addr.trim());
 console.log('RELAY_BOOTSTRAP_ADDR', RELAY_BOOTSTRAP_ADDR);
 
 export async function createLibp2pConfig(options = {}) {
-	const { privateKey = null, enablePeerConnections = true, enableNetworkConnection = true } = options;
-	
+	const {
+		privateKey = null,
+		enablePeerConnections = true,
+		enableNetworkConnection = true
+	} = options;
+
 	// Get fixed peer ID from environment variable
 	const testPeerId = import.meta.env.VITE_TEST_PEER_ID;
 	let finalPrivateKey = privateKey;
@@ -51,7 +57,7 @@ export async function createLibp2pConfig(options = {}) {
 	// Configure peer discovery based on enablePeerConnections
 	const peerDiscoveryServices = [];
 	if (enablePeerConnections && enableNetworkConnection) {
-		console.log("🔍 Enabling pubsub peer discovery");
+		console.log('🔍 Enabling pubsub peer discovery');
 		peerDiscoveryServices.push(
 			pubsubPeerDiscovery({
 				interval: 5000, // More frequent broadcasting
@@ -73,36 +79,34 @@ export async function createLibp2pConfig(options = {}) {
 	};
 	// Only add bootstrap service if network connections are enabled
 	if (enableNetworkConnection) {
-		console.log("🔍 Enabling bootstrap, pubsub, autonat, dcutr services");
+		console.log('🔍 Enabling bootstrap, pubsub, autonat, dcutr services');
 		services.bootstrap = bootstrap({ list: RELAY_BOOTSTRAP_ADDR });
 		// services.pubsub = gossipsub({
 		// 	emitSelf: true, // Enable to see our own messages
 		// 	allowPublishToZeroTopicPeers: true
 		// })
-		services.autonat = autoNAT()
-		services.dcutr = dcutr()
-
+		services.autonat = autoNAT();
+		services.dcutr = dcutr();
 	}
 
 	return {
 		...(finalPrivateKey && { privateKey: finalPrivateKey }),
 		addresses: {
-			listen: enableNetworkConnection 
+			listen: enableNetworkConnection
 				? ['/p2p-circuit', '/webrtc', '/webtransport', '/wss', '/ws']
 				: ['/webrtc'] // Only local WebRTC when network connection is disabled
 		},
 		transports: enableNetworkConnection
 			? [
-				webSockets({
-					filter: filters.all
-				}),
-				webRTC(),
-				circuitRelayTransport({
-					discoverRelays: 1
-				})
-			]
-			: [ webRTC(),		
-				circuitRelayTransport({ discoverRelays: 1})], // Only WebRTC transport when network connection is disabled
+					webSockets({
+						filter: filters.all
+					}),
+					webRTC(),
+					circuitRelayTransport({
+						discoverRelays: 1
+					})
+				]
+			: [webRTC(), circuitRelayTransport({ discoverRelays: 1 })], // Only WebRTC transport when network connection is disabled
 		connectionEncrypters: [noise()],
 		connectionGater: {
 			denyDialMultiaddr: () => false,
@@ -124,7 +128,7 @@ export async function createLibp2pConfig(options = {}) {
 		// 		emitSelf: true // Enable even when no peers are present initially
 		// 	})
 		// ],
-		// 
+		//
 		services
 	};
 }

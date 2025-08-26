@@ -94,8 +94,10 @@
 
 		// Set up progress event listeners
 		bridge.on('uploadProgress', (progress) => {
-			console.log(`Upload Progress: ${progress.current}/${progress.total} (${progress.percentage}%)`);
-			
+			console.log(
+				`Upload Progress: ${progress.current}/${progress.total} (${progress.percentage}%)`
+			);
+
 			progressType = 'upload';
 			progressCurrent = progress.current;
 			progressTotal = progress.total;
@@ -103,7 +105,7 @@
 			progressCurrentBlock = progress.currentBlock;
 			progressError = progress.error;
 			showProgress = true;
-			
+
 			// Update status text
 			if (progress.error) {
 				status = `Upload error: ${progress.error.message}`;
@@ -115,8 +117,10 @@
 		});
 
 		bridge.on('downloadProgress', (progress) => {
-			console.log(`Download Progress: ${progress.current}/${progress.total} (${progress.percentage}%)`);
-			
+			console.log(
+				`Download Progress: ${progress.current}/${progress.total} (${progress.percentage}%)`
+			);
+
 			progressType = 'download';
 			progressCurrent = progress.current;
 			progressTotal = progress.total;
@@ -124,7 +128,7 @@
 			progressCurrentBlock = progress.currentBlock;
 			progressError = progress.error;
 			showProgress = true;
-			
+
 			// Update status text
 			if (progress.error) {
 				status = `Download error: ${progress.error.message}`;
@@ -350,13 +354,13 @@
 		showBackups = false;
 		clearForms();
 		clearStoredCredentials(); // Clear stored credentials on logout
-		
+
 		// Clean up bridge
 		if (bridge) {
 			bridge.removeAllListeners();
 			bridge = null;
 		}
-		
+
 		resetProgress();
 		showMessage('Logged out successfully');
 	}
@@ -446,9 +450,9 @@
 		status = 'Preparing backup...';
 
 		try {
-			console.log('🚀 Starting backup with real progress tracking...',$todoDBStore);
-			
-			const result = await bridge.backup($orbitDBStore,$todoDBStore.address);
+			console.log('🚀 Starting backup with real progress tracking...', $todoDBStore);
+
+			const result = await bridge.backup($orbitDBStore, $todoDBStore.address);
 
 			if (result.success) {
 				showMessage(
@@ -544,35 +548,33 @@
 			console.log('🔄 Starting direct restore from Storacha space with real progress tracking...');
 			console.log('OrbitDB instance:', $orbitDBStore);
 
-			const result = await bridge.restoreFromSpace($orbitDBStore,{forceFallback: true}); //since we can't use the same db for backup and restore
+			const result = await bridge.restoreFromSpace($orbitDBStore, { forceFallback: true }); //since we can't use the same db for backup and restore
 			console.log('Restore result:', result);
 
 			if (result.success) {
 				showMessage(
 					`Database restored successfully! ${result.entriesRecovered} entries recovered from Storacha space`
 				);
-				
+
 				console.log('🎉 Direct restore completed:', result);
-				
+
 				// Refresh the current todo list
 				const currentAddress = $orbitDBStore.address;
 				const restoredAddress = result.database.address;
 
 				if (currentAddress !== restoredAddress) {
 					console.log('🔄 Different database address - replacing current database');
-					
+
 					// Re-initialize the database connection with the new database
-					await initializeDatabase($orbitDBStore, result.database, 
-					{
-						enablePersistentStorage: false, 
-						enableNetworkConnection: false,    
+					await initializeDatabase($orbitDBStore, result.database, {
+						enablePersistentStorage: false,
+						enableNetworkConnection: false,
 						enablePeerConnections: false
 					});
-					
+
 					// Load todos
 					await loadTodos();
 				}
-
 			} else {
 				showMessage(`Restore failed: ${result.error}`, 'error');
 			}
@@ -626,12 +628,12 @@
 				showMessage(
 					`Database restored successfully! ${result.entriesRecovered} entries recovered from backup created on ${new Date(selectedBackup.timestamp).toLocaleString()}`
 				);
-				
+
 				console.log('🎉 Restore completed:', result);
-				
+
 				// Close modal and reset state
 				closeRestoreModal();
-				
+
 				// Refresh the current todo list by reloading the page
 				// This ensures the UI shows the restored data
 				const currentAddress = $orbitDBStore.address;
@@ -639,19 +641,17 @@
 
 				if (currentAddress !== restoredAddress) {
 					console.log('🔄 Different database address - replacing current database');
-					
+
 					// Re-initialize the database connection with the new database
-    				await initializeDatabase($orbitDBStore, result.database, 
-					{
-						enablePersistentStorage: false, 
-						enableNetworkConnection: false, 
+					await initializeDatabase($orbitDBStore, result.database, {
+						enablePersistentStorage: false,
+						enableNetworkConnection: false,
 						enablePeerConnections: false
 					});
-					
+
 					// Load todos
 					await loadTodos();
 				}
-
 			} else {
 				showMessage(`Restore failed: ${result.error}`, 'error');
 			}
@@ -758,8 +758,10 @@
 				</div>
 				{#if progressCurrentBlock}
 					<div class="mt-1 font-mono text-xs text-purple-600 dark:text-purple-400">
-						{progressType === 'upload' ? 'Current block hash:' : 'Current CID:'} 
-						{progressType === 'upload' ? progressCurrentBlock.hash?.slice(0, 16) : progressCurrentBlock.storachaCID?.slice(0, 16)}...
+						{progressType === 'upload' ? 'Current block hash:' : 'Current CID:'}
+						{progressType === 'upload'
+							? progressCurrentBlock.hash?.slice(0, 16)
+							: progressCurrentBlock.storachaCID?.slice(0, 16)}...
 					</div>
 				{/if}
 				{#if progressError}
@@ -1062,8 +1064,10 @@
 
 <!-- Restore Modal -->
 {#if showRestoreModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-		<div class="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800">
+	<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
+		<div
+			class="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
+		>
 			<!-- Modal Header -->
 			<div class="mb-4 flex items-center justify-between">
 				<h3 class="text-lg font-semibold text-gray-800 dark:text-white">
@@ -1073,7 +1077,7 @@
 				<button
 					on:click={closeRestoreModal}
 					disabled={restoreInProgress}
-					class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-50"
+					class="text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
 				>
 					<X class="h-5 w-5" />
 				</button>
@@ -1090,7 +1094,16 @@
 						{#each backups as backup (backup.cid)}
 							<div
 								class="cursor-pointer rounded border bg-gray-50 p-4 transition-colors hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600"
+								role="button"
+								tabindex="0"
 								on:click={() => selectBackupForRestore(backup)}
+								on:keydown={(e) => {
+									if (e.key === 'Enter' || e.key === ' ') {
+										e.preventDefault();
+										selectBackupForRestore(backup);
+									}
+								}}
+								aria-label="Select backup from {formatDate(backup.timestamp)}"
 							>
 								<div class="flex items-center justify-between">
 									<div class="flex-1">
@@ -1113,7 +1126,9 @@
 			{:else}
 				<!-- Restore Confirmation -->
 				<div>
-					<div class="mb-4 rounded-md border border-yellow-300 bg-yellow-100 p-4 dark:border-yellow-600 dark:bg-yellow-900/30">
+					<div
+						class="mb-4 rounded-md border border-yellow-300 bg-yellow-100 p-4 dark:border-yellow-600 dark:bg-yellow-900/30"
+					>
 						<div class="flex items-start space-x-2">
 							<AlertCircle class="mt-0.5 h-4 w-4 text-yellow-600 dark:text-yellow-400" />
 							<div>
@@ -1121,16 +1136,15 @@
 									Warning: Database Restore
 								</h4>
 								<p class="text-sm text-yellow-700 dark:text-yellow-300">
-									This action will replace your current database with the selected backup. Your current todos will be lost.
+									This action will replace your current database with the selected backup. Your
+									current todos will be lost.
 								</p>
 							</div>
 						</div>
 					</div>
 
 					<div class="mb-6 rounded-md border bg-gray-50 p-4 dark:bg-gray-700">
-						<h4 class="mb-2 text-sm font-medium text-gray-800 dark:text-white">
-							Backup Details:
-						</h4>
+						<h4 class="mb-2 text-sm font-medium text-gray-800 dark:text-white">Backup Details:</h4>
 						<div class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
 							<div>Database: {selectedBackup.databaseName}</div>
 							<div>Created: {formatDate(selectedBackup.timestamp)}</div>
@@ -1156,7 +1170,7 @@
 						<button
 							on:click={cancelRestore}
 							disabled={restoreInProgress}
-							class="rounded-md bg-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 disabled:opacity-50"
+							class="rounded-md bg-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-400 disabled:opacity-50 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
 						>
 							Cancel
 						</button>

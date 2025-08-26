@@ -25,11 +25,11 @@
 	// Modal state
 	let showModal = true;
 	let rememberDecision = false;
-    let preferences = {
-        enablePersistentStorage: true,
-        enableNetworkConnection: true,
-        enablePeerConnections: true
-    };
+	let preferences = {
+		enablePersistentStorage: true,
+		enableNetworkConnection: true,
+		enablePeerConnections: true
+	};
 
 	const handleModalClose = async (event) => {
 		showModal = false;
@@ -159,8 +159,12 @@
 
 	{#if $initializationStore.isInitializing}
 		<LoadingSpinner
-			message={preferences.enableNetworkConnection ? "Initializing P2P connection..." : "Opening OrbitDB database..."}
-			submessage={$initializationStore.enableNetworkConnection ? "Please wait while we set up the network..." : "Please wait while we open the database..."}
+			message={preferences.enableNetworkConnection
+				? 'Initializing P2P connection...'
+				: 'Opening OrbitDB database...'}
+			submessage={$initializationStore.enableNetworkConnection
+				? 'Please wait while we set up the network...'
+				: 'Please wait while we open the database...'}
 			version="{typeof __APP_VERSION__ !== 'undefined'
 				? __APP_VERSION__
 				: '0.0.0'} [{typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]"

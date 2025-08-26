@@ -1,12 +1,7 @@
 <script>
 	/* eslint-disable no-undef */
 	import { createEventDispatcher } from 'svelte';
-	import { 
-		Shield, 
-		Database, 
-		Globe, 
-		Server 
-	} from 'lucide-svelte';
+	import { Shield, Database, Globe, Server } from 'lucide-svelte';
 
 	const dispatch = createEventDispatcher();
 
@@ -35,10 +30,10 @@
 
 	// Storage preference toggle
 	export let enablePersistentStorage = true;
-	
-	// Network connection toggle  
+
+	// Network connection toggle
 	export let enableNetworkConnection = true;
-	
+
 	// Peer connection toggle (only relevant when network is enabled)
 	export let enablePeerConnections = true;
 
@@ -63,13 +58,12 @@
 		}
 	};
 	export let proceedButtonText = 'Continue';
-	export let disabledButtonText = 'Please check all boxes to continue';
 	export let rememberLabel = "Don't show this again on this device";
 	export let rememberDecision = false;
 
 	// Reactive statement to check if both storage and network are disabled
 	$: noDataAvailable = !enablePersistentStorage && !enableNetworkConnection;
-	
+
 	$: allCheckboxesChecked = Object.values(checkboxes).every((item) => item.checked);
 
 	const handleProceed = () => {
@@ -103,7 +97,6 @@
 						: 'dev'}]
 				</h3>
 
-
 				<!-- Data Storage and Network Connection Options -->
 				<div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
 					<!-- Data Storage Options -->
@@ -123,7 +116,7 @@
 								</div>
 							</div>
 						</label>
-						
+
 						<label class="flex cursor-pointer items-start space-x-3">
 							<input
 								type="radio"
@@ -134,7 +127,8 @@
 							<div class="text-gray-700">
 								<div class="font-medium">Memory Only (No Local-First)</div>
 								<div class="text-sm text-gray-600">
-									Does NOT store any data in your browser's storage - data will be loaded from other peers if network is connected
+									Does NOT store any data in your browser's storage - data will be loaded from other
+									peers if network is connected
 								</div>
 							</div>
 						</label>
@@ -143,7 +137,7 @@
 					<!-- Network Connection Options -->
 					<div class="space-y-4 rounded-lg border border-gray-200 p-4">
 						<h3 class="font-medium text-gray-800">Network Connection Preference</h3>
-						
+
 						<label class="flex cursor-pointer items-start space-x-3">
 							<input
 								type="radio"
@@ -154,32 +148,39 @@
 							<div class="text-gray-700">
 								<div class="font-medium">Connect to a relay node (Default)</div>
 								<div class="text-sm text-gray-600">
-									Connects to relay node as a precondition for peer-to-peer communication with other browsers. 
-									<span class="font-medium text-orange-600">The relay server may cache your entered data, making it visible to other users in the internet.</span>
+									Connects to relay node as a precondition for peer-to-peer communication with other
+									browsers.
+									<span class="font-medium text-orange-600"
+										>The relay server may cache your entered data, making it visible to other users
+										in the internet.</span
+									>
 								</div>
 							</div>
 						</label>
-										<!-- Peer Connection Options (only shown when network is enabled) -->
-										{#if enableNetworkConnection}
-										<div class="ml-6 mt-4 space-y-3 border-l-2 border-blue-200 pl-4">
-											<h4 class="text-sm font-medium text-gray-700">Peer Connection Settings</h4>
-											
-											<label class="flex cursor-pointer items-start space-x-3">
-												<input
-													type="checkbox"
-													bind:checked={enablePeerConnections}
-													class="mt-1 h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
-												/>
-												<div class="text-gray-700">
-													<div class="text-sm font-medium">Connect to Other Browsers & Mobile Devices</div>
-													<div class="text-xs text-gray-600">
-														Allows direct peer-to-peer connections with other browsers and mobile devices for real-time data synchronization. 
-														Unchecking this will only connect to relay servers without establishing direct peer connections.
-													</div>
-												</div>
-											</label>
+						<!-- Peer Connection Options (only shown when network is enabled) -->
+						{#if enableNetworkConnection}
+							<div class="mt-4 ml-6 space-y-3 border-l-2 border-blue-200 pl-4">
+								<h4 class="text-sm font-medium text-gray-700">Peer Connection Settings</h4>
+
+								<label class="flex cursor-pointer items-start space-x-3">
+									<input
+										type="checkbox"
+										bind:checked={enablePeerConnections}
+										class="mt-1 h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
+									/>
+									<div class="text-gray-700">
+										<div class="text-sm font-medium">
+											Connect to Other Browsers & Mobile Devices
 										</div>
-									{/if}
+										<div class="text-xs text-gray-600">
+											Allows direct peer-to-peer connections with other browsers and mobile devices
+											for real-time data synchronization. Unchecking this will only connect to relay
+											servers without establishing direct peer connections.
+										</div>
+									</div>
+								</label>
+							</div>
+						{/if}
 
 						<label class="flex cursor-pointer items-start space-x-3">
 							<input
@@ -191,12 +192,11 @@
 							<div class="text-gray-700">
 								<div class="font-medium">Offline Mode</div>
 								<div class="text-sm text-gray-600">
-									Does not connect to the network or relay node (and cannot connect to other browsers nor can replicate data between other users)
+									Does not connect to the network or relay node (and cannot connect to other
+									browsers nor can replicate data between other users)
 								</div>
 							</div>
 						</label>
-
-		
 					</div>
 				</div>
 
@@ -206,20 +206,31 @@
 						<div class="flex items-start space-x-3">
 							<div class="flex-shrink-0">
 								<svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-									<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+									<path
+										fill-rule="evenodd"
+										d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+										clip-rule="evenodd"
+									/>
 								</svg>
 							</div>
 							<div>
-								<h3 class="text-sm font-medium text-red-800">No storage and no network connection</h3>
+								<h3 class="text-sm font-medium text-red-800">
+									No storage and no network connection
+								</h3>
 								<div class="mt-2 text-sm text-red-700">
 									<p>
-										With both browser storage disabled and network connection disabled, you will not be able to see any previously stored todo data nor any todo's replicated from other peers. 
-										The application will start empty and will not store permanently. It will not connect to other peers for peer-to-peer replications.
-										Please enable either browser storage or network connection to use the application if that is not your intention.
-										<br>
-										 E.g. If you only enabling browser storage now, you can continue working on your todo list in offline mode and synchronize it later with other peers!
-										<br>
-										If you disable browser storage and enable network connection the app will synchronize with other peers first before you can add any todos
+										With both browser storage disabled and network connection disabled, you will not
+										be able to see any previously stored todo data nor any todo's replicated from
+										other peers. The application will start empty and will not store permanently. It
+										will not connect to other peers for peer-to-peer replications. Please enable
+										either browser storage or network connection to use the application if that is
+										not your intention.
+										<br />
+										E.g. If you only enabling browser storage now, you can continue working on your todo
+										list in offline mode and synchronize it later with other peers!
+										<br />
+										If you disable browser storage and enable network connection the app will synchronize
+										with other peers first before you can add any todos
 									</p>
 								</div>
 							</div>
@@ -229,20 +240,26 @@
 				<p class="text-gray-700">&nbsp;</p>
 				<div class="mb-6 space-y-4">
 					<p class="text-gray-700">{description}</p>
-					<div class="flex flex-wrap gap-4 justify-center items-center p-4 bg-gray-50 rounded-lg">
+					<div class="flex flex-wrap items-center justify-center gap-4 rounded-lg bg-gray-50 p-4">
 						{#each features as feature, index (index)}
 							<div class="group relative">
-								<div class="flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-md hover:shadow-lg transition-shadow cursor-help">
-									<svelte:component 
-										this={featureIcons[index].icon} 
-										class="w-6 h-6 {featureIcons[index].color}" 
+								<div
+									class="flex h-12 w-12 cursor-help items-center justify-center rounded-full bg-white shadow-md transition-shadow hover:shadow-lg"
+								>
+									<svelte:component
+										this={featureIcons[index].icon}
+										class="h-6 w-6 {featureIcons[index].color}"
 									/>
 								</div>
 								<!-- Tooltip -->
-								<div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none w-64 text-center z-10">
+								<div
+									class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-64 -translate-x-1/2 transform rounded-lg bg-gray-900 px-3 py-2 text-center text-sm text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+								>
 									{feature}
 									<!-- Arrow -->
-									<div class="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+									<div
+										class="absolute top-full left-1/2 h-0 w-0 -translate-x-1/2 transform border-t-4 border-r-4 border-l-4 border-transparent border-t-gray-900"
+									></div>
 								</div>
 							</div>
 						{/each}
@@ -288,7 +305,7 @@
 						disabled={!allCheckboxesChecked}
 						class="rounded-md bg-blue-500 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:hover:bg-gray-300"
 					>
-					{proceedButtonText}
+						{proceedButtonText}
 						<!-- {noDataAvailable ? 'Cannot proceed - no data available' : allCheckboxesChecked ? proceedButtonText : disabledButtonText} -->
 					</button>
 				</div>

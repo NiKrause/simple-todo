@@ -31,18 +31,17 @@ git clone https://github.com/NiKrause/simple-todo.git
 git checkout simple-todo
 
 # run (like this you don't need to cut and past anything)
-./tutorial-01.js 
+./tutorial-01.js
 ```
 
 This script will:
+
 1. Create a SvelteKit project
 2. Install all P2P dependencies
 3. Copy all code files from this repository
 4. Start the development server
 
 Alternatively, you can do all of this with your own hands:
-
-
 
 ## 🚀 Step 1: Project Setup & Dependencies
 

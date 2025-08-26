@@ -56,7 +56,7 @@ git clone https://github.com/NiKrause/simple-todo.git
 git checkout simple-todo
 
 # run (like this you don't need to cut and past anything)
-./tutorial-01.js 
+./tutorial-01.js
 ```
 
 ## 🔧 Technologies Used
@@ -79,4 +79,3 @@ git checkout simple-todo
 This project is open source and available under the [LICENSE](./LICENSE) file.
 
 ---
-
