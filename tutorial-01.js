@@ -58,7 +58,6 @@ class TutorialAutomator {
             // Configuration files (optional)
             ['svelte.config.js', 'svelte.config.js'],
             ['eslint.config.js', 'eslint.config.js'],
-            ['vitest-setup-client.js', 'vitest-setup-client.js']
         ]);
     }
 
