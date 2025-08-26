@@ -113,7 +113,7 @@ class TutorialAutomator {
             process.chdir(projectName);
             
             console.log('\n📦 Adding SvelteKit add-ons...');
-            const addCommand = 'npx sv add prettier eslint vitest=usages:unit,component playwright tailwindcss=plugins:typography,form sveltekit-adapter=adapter:static --install pnpm --no-git-check ';
+            const addCommand = 'npx sv add prettier eslint playwright tailwindcss=plugins:typography,form sveltekit-adapter=adapter:static --install pnpm --no-git-check ';
             console.log(`🔧 Running: ${addCommand}`);
             execSync(addCommand, { stdio: 'inherit' });
             
@@ -256,8 +256,7 @@ class TutorialAutomator {
             'src/routes/+page.svelte',
             // Config files (optional)
             'svelte.config.js',
-            'eslint.config.js',
-            'vitest-setup-client.js'
+            'eslint.config.js'
         ];
         
         const copiedCount = await this.copyFilesWithPrompt(step3Files, 'Step 3');

@@ -114,7 +114,6 @@ Create these Svelte components:
 
 - **📝 Svelte Config**: [`svelte.config.js`](./svelte.config.js) - SvelteKit configuration
 - **🔧 ESLint Config**: [`eslint.config.js`](./eslint.config.js) - Code linting rules
-- **🧪 Vitest Setup**: [`vitest-setup-client.js`](./vitest-setup-client.js) - Test environment setup
 
 ## 🚀 Run Your P2P Todo App
 
