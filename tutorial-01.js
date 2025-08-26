@@ -250,6 +250,9 @@ class TutorialAutomator {
             // Additional components (optional)
             'src/lib/PeerIdCard.svelte',
             'src/lib/SocialIcons.svelte',
+            'src/lib/LoadingSpinner.svelte',
+            'src/lib/ErrorAlert.svelte',
+            'src/lib/ToastNotification.svelte',
             // App structure
             'src/routes/+layout.js',
             'src/routes/+layout.svelte',

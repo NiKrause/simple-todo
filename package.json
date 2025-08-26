@@ -13,8 +13,12 @@
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
 		"test": "pnpm run test:e2e",
+		"test:ui": "playwright test --ui",
 		"test:e2e": "playwright test",
-		"test:p2p": "playwright test e2e/p2p-todo.spec.js"
+		"test:p2p": "playwright test e2e/p2p-todo.spec.js",
+		"test:webrtc": "playwright test e2e/webrtc-test.spec.js",
+		"test:webrtc:local": "playwright test e2e/webrtc-test.spec.js --project=chromium",
+		"test:webrtc:browserstack": "BROWSERSTACK_BUILD_NAME=webrtc-test-$(date +%s) playwright test e2e/webrtc-test.spec.js"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
