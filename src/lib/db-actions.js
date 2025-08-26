@@ -26,7 +26,7 @@ export async function initializeDatabase(orbitdb, todoDB, preferences) {
 }
 
 // Load all todos from the database
-async function loadTodos() {
+export async function loadTodos() {
 	console.log('🔍 Loading todos...');
 	const todoDB = get(todoDBStore);
 	if (!todoDB) return;

@@ -109,7 +109,6 @@ export async function initializeP2P(preferences = {}) {
 	orbitdb = await createOrbitDB({ 
 		ipfs: helia, 
 		id: 'simple-todo-app',
-		// Pass storage preferences to OrbitDB if needed
 	});
 	
 	// Make OrbitDB instance available to other components
@@ -121,10 +120,10 @@ export async function initializeP2P(preferences = {}) {
 		todoDB = await orbitdb.open('simple-todos', {
 			type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
 			create: true, // Allows the database to be created if it doesn't exist
-			sync: enableNetworkConnection, // Only enable sync if peer connections are allowed
+			// sync: enableNetworkConnection, // Only enable sync if peer connections are allowed
 			headsStorage,
 			entryStorage,
-			AccessController: !enableNetworkConnection ? IPFSAccessController({ write: ['*'] }) : null //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
+			// AccessController: !enableNetworkConnection ? IPFSAccessController({ write: ['*'] }) : null //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
 		});
 	} else {
 		todoDB = await orbitdb.open('simple-todos', {
@@ -134,15 +133,9 @@ export async function initializeP2P(preferences = {}) {
 			AccessController: IPFSAccessController({ write: ['*'] }) //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
 		});
 	}
-		// console.log('🔍 TodoDB records:', (await todoDB.all()).length);
+		console.log('🔍 TodoDB records:', (await todoDB.all()).length);
 
-		console.log('✅ Database opened successfully with OrbitDBAccessController:', {
-			address: todoDB.address,
-			type: todoDB.type,
-			accessController: todoDB.access,
-			syncEnabled: enableNetworkConnection,
-			networkConnectionEnabled: enableNetworkConnection
-		});
+		console.log('✅ Database opened successfully with OrbitDBAccessController:',todoDB);
 
 		// Initialize database stores and actions
 		await initializeDatabase(orbitdb, todoDB, preferences);
