@@ -28,7 +28,7 @@ Build a fully decentralized, peer-to-peer todo application in just **3 copy-past
 git clone https://github.com/NiKrause/simple-todo.git
 
 # checkout simple-todo branch
-git checkout simple-todo
+git checkout tutorial
 
 # run (like this you don't need to cut and past anything)
 ./tutorial-01.js 
@@ -83,7 +83,6 @@ Create these Svelte components:
 
 ### Core Components:
 
-- **🚪 Consent Modal**: [`src/lib/ConsentModal.svelte`](./src/lib/ConsentModal.svelte) (120 lines) - P2P connection consent with checkboxes
 - **⏳ Loading Spinner**: [`src/lib/LoadingSpinner.svelte`](./src/lib/LoadingSpinner.svelte) (31 lines) - Network initialization feedback
 - **❌ Error Alert**: [`src/lib/ErrorAlert.svelte`](./src/lib/ErrorAlert.svelte) (57 lines) - Error display with dismiss option
 - **🔔 Toast Notifications**: [`src/lib/ToastNotification.svelte`](./src/lib/ToastNotification.svelte) (40 lines) - Success/error messages
@@ -127,9 +126,7 @@ Open http://localhost:5173 in **two browser windows** and watch the magic happen
 
 You just built a **fully decentralized todo application** with:
 
-- **~990 lines of code** (vs thousands for traditional apps)
 - **No servers** - runs entirely in browsers
-- **No databases** - uses OrbitDB for distributed storage
 - **Real-time P2P sync** - changes appear instantly across devices
 - **Works offline** - data persists locally, syncs when reconnected
 
