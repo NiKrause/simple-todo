@@ -2,6 +2,18 @@
 
 A decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
+## 🏗️ Network Architecture
+
+![Local-First P2P Network Architecture](docs/p2p-network-diagram.svg)
+
+**Architecture Highlights:**
+- **Direct P2P Connections**: WebRTC connections between all devices (Alice, Bob, Peter)
+- **Relay/Signaling Network**: Distributed relay nodes for NAT traversal, peer discovery, and IPFS pinning
+- **Local OrbitDB Storage**: Each device maintains offline-capable local storage
+- **Multi-Transport Support**: WebSocket, WebTransport, and WebRTC protocols
+
+*For detailed network architecture documentation, see [docs/p2p-network-diagram.md](docs/p2p-network-diagram.md)*
+
 ## 🚀 Live Demo
 
 - **HTTP**: https://simple-todo.le-space.de

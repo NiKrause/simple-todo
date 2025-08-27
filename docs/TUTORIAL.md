@@ -184,6 +184,27 @@ simple-todo/
 
 ## Architecture Overview
 
+### Network Architecture Diagram
+
+The following diagram illustrates the complete network architecture of our local-first peer-to-peer todo application:
+
+![Local-First P2P Network Architecture](p2p-network-diagram.svg)
+
+**Key Architecture Elements:**
+
+- **Direct P2P Connections**: Alice, Bob, and Peter connect directly via WebRTC for real-time data synchronization
+- **Relay/Signaling Network**: 5 interconnected relay nodes facilitate NAT traversal, peer discovery, and IPFS pinning
+- **Local Storage**: Each device maintains local OrbitDB storage for offline capability
+- **Multiple Transport Protocols**: WebSocket, WebTransport, and WebRTC for flexible connectivity
+- **IPFS Integration**: Distributed storage and content addressing through Helia
+
+**Data Flow:**
+- Each device maintains local storage with OrbitDB
+- OrbitDB changes replicate across connected peers in real-time  
+- Relay/Signaling nodes facilitate NAT traversal, peer discovery and IPFS pinning
+
+For a detailed breakdown of the network architecture, see [Network Architecture Documentation](p2p-network-diagram.md).
+
 ### Core Components
 
 1. **P2P Network Layer** (`src/lib/p2p.js`)
