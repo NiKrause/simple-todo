@@ -125,63 +125,63 @@
   <!-- Relay Network Cloud -->
   <g transform="translate(350, 140)">
     <ellipse cx="150" cy="75" rx="200" ry="110" fill="#F0F9FF" stroke="#0369A1" stroke-width="3" stroke-dasharray="8,4"/>
-    <text x="150" y="75" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#0369A1">Relay Network</text>
+    <text x="150" y="75" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#0369A1">Relay/Signaling Libp2p network</text>
   </g>
 
   <!-- Relay Nodes -->
   <!-- Relay Node 1 -->
-  <g transform="translate(350, 170)">
+  <g transform="translate(350, 150)">
     <circle cx="25" cy="25" r="20" fill="url(#relayGradient)"/>
     <text x="25" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">R1</text>
   </g>
 
   <!-- Relay Node 2 -->
-  <g transform="translate(500, 150)">
+  <g transform="translate(500, 140)">
     <circle cx="25" cy="25" r="20" fill="url(#relayGradient)"/>
     <text x="25" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">R2</text>
   </g>
 
   <!-- Relay Node 3 -->
-  <g transform="translate(650, 170)">
+  <g transform="translate(650, 150)">
     <circle cx="25" cy="25" r="20" fill="url(#relayGradient)"/>
     <text x="25" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">R3</text>
   </g>
 
   <!-- Relay Node 4 -->
-  <g transform="translate(450, 230)">
+  <g transform="translate(450, 220)">
     <circle cx="25" cy="25" r="20" fill="url(#relayGradient)"/>
     <text x="25" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">R4</text>
   </g>
 
   <!-- Relay Node 5 -->
-  <g transform="translate(550, 230)">
+  <g transform="translate(550, 220)">
     <circle cx="25" cy="25" r="20" fill="url(#relayGradient)"/>
     <text x="25" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="white">R5</text>
   </g>
 
   <!-- Connections between relay nodes -->
-  <line x1="375" y1="195" x2="525" y2="175" stroke="#10B981" stroke-width="2"/>
-  <line x1="525" y1="175" x2="675" y2="195" stroke="#10B981" stroke-width="2"/>
-  <line x1="375" y1="195" x2="475" y2="255" stroke="#10B981" stroke-width="2"/>
-  <line x1="525" y1="175" x2="475" y2="255" stroke="#10B981" stroke-width="2"/>
-  <line x1="525" y1="175" x2="575" y2="255" stroke="#10B981" stroke-width="2"/>
-  <line x1="675" y1="195" x2="575" y2="255" stroke="#10B981" stroke-width="2"/>
-  <line x1="475" y1="255" x2="575" y2="255" stroke="#10B981" stroke-width="2"/>
+  <line x1="375" y1="175" x2="525" y2="165" stroke="#10B981" stroke-width="2"/>
+  <line x1="525" y1="165" x2="675" y2="175" stroke="#10B981" stroke-width="2"/>
+  <line x1="375" y1="175" x2="475" y2="245" stroke="#10B981" stroke-width="2"/>
+  <line x1="525" y1="165" x2="475" y2="245" stroke="#10B981" stroke-width="2"/>
+  <line x1="525" y1="165" x2="575" y2="245" stroke="#10B981" stroke-width="2"/>
+  <line x1="675" y1="175" x2="575" y2="245" stroke="#10B981" stroke-width="2"/>
+  <line x1="475" y1="245" x2="575" y2="245" stroke="#10B981" stroke-width="2"/>
 
   <!-- Connections from devices to relay nodes -->
   <!-- Alice connections -->
-  <line x1="270" y1="250" x2="375" y2="195" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
-  <line x1="270" y1="270" x2="475" y2="255" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="270" y1="250" x2="375" y2="175" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="270" y1="270" x2="475" y2="245" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
   <text x="280" y="280" font-family="Arial, sans-serif" font-size="10" fill="#666">WebRTC/WebSocket</text>
 
   <!-- Bob connections -->
-  <line x1="730" y1="250" x2="675" y2="195" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
-  <line x1="730" y1="270" x2="575" y2="255" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="730" y1="250" x2="675" y2="175" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="730" y1="270" x2="575" y2="245" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
   <text x="720" y="210" font-family="Arial, sans-serif" font-size="10" fill="#666">WebRTC/WebSocket</text>
 
   <!-- Peter connections -->
-  <line x1="500" y1="500" x2="525" y2="175" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
-  <line x1="500" y1="500" x2="475" y2="255" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="500" y1="500" x2="525" y2="165" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
+  <line x1="500" y1="500" x2="475" y2="245" stroke="#666" stroke-width="2" marker-end="url(#arrowhead)"/>
   <text x="570" y="360" font-family="Arial, sans-serif" font-size="10" fill="#666">WebRTC</text>
   <text x="570" y="375" font-family="Arial, sans-serif" font-size="10" fill="#666">WebSocket</text>
   <text x="570" y="390" font-family="Arial, sans-serif" font-size="10" fill="#666">WebTransport</text>
