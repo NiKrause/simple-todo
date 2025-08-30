@@ -13,6 +13,7 @@
 	import ConnectedPeers from '$lib/ConnectedPeers.svelte';
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
 	import StorachaIntegration from '$lib/StorachaIntegration.svelte';
+	import StorachaTest from '$lib/StorachaTest.svelte';
 	import { libp2pStore } from '$lib/p2p.js';
 
 	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
@@ -193,5 +194,8 @@
 
 		<!-- Storacha Integration -->
 		<StorachaIntegration />
+
+		<!-- Storacha Test Suite -->
+		<StorachaTest />
 	{/if}
 </main>

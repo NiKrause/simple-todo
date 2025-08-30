@@ -118,7 +118,8 @@ export async function initializeP2P(preferences = {}) {
 		console.log('🛬 Creating OrbitDB instance...');
 		orbitdb = await createOrbitDB({
 			ipfs: helia,
-			id: 'simple-todo-app'
+			id: 'simple-todo-app',
+			directory: './orbitdb'
 		});
 
 		// Make OrbitDB instance available to other components

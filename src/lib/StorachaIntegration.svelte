@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import {
 		Cloud,
-		Database,
 		Upload,
 		Plus,
 		List,
@@ -12,22 +11,25 @@
 		Loader2,
 		AlertCircle,
 		CheckCircle,
-		Download,
-		X,
-		ArrowRight
+		Download
 	} from 'lucide-svelte';
 	import {
 		initializeStorachaClient,
 		createStorachaAccount,
 		listSpaces,
-		createSpace,
-		listBackups,
-		downloadBackupMetadata
+		createSpace
 	} from './storacha-backup.js';
-	import { OrbitDBStorachaBridge } from 'orbitdb-storacha-bridge';
+	import { OrbitDBStorachaBridge, restoreDatabaseFromSpace } from 'orbitdb-storacha-bridge';
 	import { todosStore } from './db-actions.js';
-	import { initializationStore, orbitDBStore } from './p2p.js';
+	import { initializationStore, orbitDBStore, libp2pStore, peerIdStore } from './p2p.js';
 	import { initializeDatabase, loadTodos, todoDBStore } from './db-actions.js';
+	// Add imports for creating fresh instances
+	import { createLibp2p } from 'libp2p';
+	import { createHelia } from 'helia';
+	import { createOrbitDB } from '@orbitdb/core';
+	import { createLibp2pConfig } from './libp2p-config.js';
+	import { LevelBlockstore } from 'blockstore-level';
+	import { LevelDatastore } from 'datastore-level';
 
 	// Component state
 	let showStoracha = false;
@@ -70,15 +72,8 @@
 
 	// Data state
 	let spaces = [];
-	let backups = [];
-	let showSpaces = false;
-	let showBackups = false;
 
-	// Restore state
-	let showRestoreModal = false;
-	let selectedBackup = null;
-	let showRestoreConfirm = false;
-	let restoreInProgress = false;
+
 
 	// Progress tracking functions
 	function initializeBridge(storachaKey, storachaProof) {
@@ -349,9 +344,6 @@
 		client = null;
 		currentSpace = null;
 		spaces = [];
-		backups = [];
-		showSpaces = false;
-		showBackups = false;
 		clearForms();
 		clearStoredCredentials(); // Clear stored credentials on logout
 
@@ -374,7 +366,6 @@
 
 		try {
 			spaces = await listSpaces(client);
-			showSpaces = true;
 		} catch (err) {
 			showMessage(`Failed to load spaces: ${err.message}`, 'error');
 		} finally {
@@ -458,10 +449,6 @@
 				showMessage(
 					`Backup completed! ${result.blocksUploaded}/${result.blocksTotal} blocks uploaded`
 				);
-				// Auto-refresh backups list if it's open
-				if (showBackups) {
-					await loadBackups();
-				}
 			} else {
 				showMessage(result.error, 'error');
 			}
@@ -474,49 +461,7 @@
 		}
 	}
 
-	// Load backups
-	async function loadBackups() {
-		if (!client) return;
 
-		isLoading = true;
-		status = 'Loading backups...';
-
-		try {
-			backups = await listBackups(client);
-			showBackups = true;
-		} catch (err) {
-			showMessage(`Failed to load backups: ${err.message}`, 'error');
-		} finally {
-			isLoading = false;
-			status = '';
-		}
-	}
-
-	// View backup details
-	async function viewBackupDetails(backup) {
-		isLoading = true;
-		status = 'Loading backup details...';
-
-		try {
-			const metadata = await downloadBackupMetadata(backup.cid);
-
-			// Show backup details in alert for now
-			const details = [
-				`Database: ${metadata.databaseInfo.name}`,
-				`Created: ${new Date(metadata.timestamp).toLocaleString()}`,
-				`Blocks: ${Object.values(metadata.blockSummary).reduce((a, b) => a + b, 0)}`,
-				`Manifest CID: ${metadata.databaseInfo.manifestCID}`,
-				`App Version: ${metadata.appInfo.version}`
-			].join('\n');
-
-			alert(`Backup Details:\n\n${details}`);
-		} catch (err) {
-			showMessage(`Failed to load backup details: ${err.message}`, 'error');
-		} finally {
-			isLoading = false;
-			status = '';
-		}
-	}
 
 	// Format date
 	function formatDate(dateString) {
@@ -528,141 +473,7 @@
 		return space.name === 'Unnamed Space' ? `Space ${space.did.slice(-8)}` : space.name;
 	}
 
-	// Direct restore from Storacha space with progress tracking
-	async function handleDirectRestore() {
-		if (!bridge) {
-			showMessage('Please log in first', 'error');
-			return;
-		}
 
-		if (!$orbitDBStore) {
-			showMessage('OrbitDB is not initialized yet', 'error');
-			return;
-		}
-
-		isLoading = true;
-		resetProgress();
-		status = 'Preparing restore...';
-
-		try {
-			console.log('🔄 Starting direct restore from Storacha space with real progress tracking...');
-			console.log('OrbitDB instance:', $orbitDBStore);
-
-			const result = await bridge.restoreFromSpace($orbitDBStore, { forceFallback: true }); //since we can't use the same db for backup and restore
-			console.log('Restore result:', result);
-
-			if (result.success) {
-				showMessage(
-					`Database restored successfully! ${result.entriesRecovered} entries recovered from Storacha space`
-				);
-
-				console.log('🎉 Direct restore completed:', result);
-
-				// Refresh the current todo list
-				const currentAddress = $orbitDBStore.address;
-				const restoredAddress = result.database.address;
-
-				if (currentAddress !== restoredAddress) {
-					console.log('🔄 Different database address - replacing current database');
-
-					// Re-initialize the database connection with the new database
-					await initializeDatabase($orbitDBStore, result.database, {
-						enablePersistentStorage: false,
-						enableNetworkConnection: false,
-						enablePeerConnections: false
-					});
-
-					// Load todos
-					await loadTodos();
-				}
-			} else {
-				showMessage(`Restore failed: ${result.error}`, 'error');
-			}
-		} catch (err) {
-			showMessage(`Restore failed: ${err.message}`, 'error');
-		} finally {
-			isLoading = false;
-			status = '';
-			resetProgress();
-		}
-	}
-
-	function closeRestoreModal() {
-		showRestoreModal = false;
-		selectedBackup = null;
-		showRestoreConfirm = false;
-		restoreInProgress = false;
-	}
-
-	function selectBackupForRestore(backup) {
-		selectedBackup = backup;
-		showRestoreConfirm = true;
-	}
-
-	function cancelRestore() {
-		selectedBackup = null;
-		showRestoreConfirm = false;
-	}
-
-	async function confirmRestore() {
-		if (!selectedBackup || !$orbitDBStore || !bridge) {
-			showMessage('Unable to restore: missing backup, OrbitDB instance, or bridge', 'error');
-			return;
-		}
-
-		restoreInProgress = true;
-		resetProgress();
-		status = 'Preparing restore from backup...';
-
-		try {
-			console.log('🔄 Starting restore process with real progress tracking...');
-			console.log('Selected backup:', selectedBackup);
-			console.log('OrbitDB instance:', $orbitDBStore);
-
-			// For specific backup restore, we'll use the restoreFromSpace method
-			// The bridge should handle finding the specific backup by CID
-			const result = await bridge.restoreFromSpace($orbitDBStore);
-			console.log('Restore result:', result);
-
-			if (result.success) {
-				showMessage(
-					`Database restored successfully! ${result.entriesRecovered} entries recovered from backup created on ${new Date(selectedBackup.timestamp).toLocaleString()}`
-				);
-
-				console.log('🎉 Restore completed:', result);
-
-				// Close modal and reset state
-				closeRestoreModal();
-
-				// Refresh the current todo list by reloading the page
-				// This ensures the UI shows the restored data
-				const currentAddress = $orbitDBStore.address;
-				const restoredAddress = result.database.address;
-
-				if (currentAddress !== restoredAddress) {
-					console.log('🔄 Different database address - replacing current database');
-
-					// Re-initialize the database connection with the new database
-					await initializeDatabase($orbitDBStore, result.database, {
-						enablePersistentStorage: false,
-						enableNetworkConnection: false,
-						enablePeerConnections: false
-					});
-
-					// Load todos
-					await loadTodos();
-				}
-			} else {
-				showMessage(`Restore failed: ${result.error}`, 'error');
-			}
-		} catch (err) {
-			showMessage(`Restore failed: ${err.message}`, 'error');
-		} finally {
-			restoreInProgress = false;
-			status = '';
-			resetProgress();
-		}
-	}
 
 	// Auto-login on component mount
 	onMount(async () => {
@@ -682,6 +493,131 @@
 			console.log('🔒 No stored credentials found, user needs to login manually');
 		}
 	});
+
+
+
+	async function restoreFromSpace() {
+		if (!$orbitDBStore) {
+			showMessage('OrbitDB not initialized. Please wait for initialization to complete.', 'error');
+			return;
+		}
+
+		isLoading = true;
+		resetProgress();
+		status = 'Preparing restore...';
+
+		try {
+			console.log('🔄 Starting restore from Storacha space with fresh OrbitDB instance...');
+
+			// Get Storacha credentials
+			const storachaKey = localStorage.getItem('storacha_key') || '';
+			const storachaProof = localStorage.getItem('storacha_proof') || '';
+
+			if (!storachaKey || !storachaProof) {
+				throw new Error('Storacha credentials not found. Please login to Storacha first.');
+			}
+
+			// Step 1: Create fresh instances for restore
+			status = 'Creating fresh OrbitDB instance for restore...';
+			console.log('🔧 Creating fresh OrbitDB instance for restore...');
+
+			// Create unique libp2p config
+			const config = await createLibp2pConfig({
+				enablePeerConnections: false,
+				enableNetworkConnection: false,
+				enablePersistentStorage: true
+			});
+
+			// Create fresh libp2p instance
+			const newLibp2p = await createLibp2p(config);
+			console.log('✅ Fresh libp2p instance created');
+
+			// Create fresh Helia instance with persistent initializeDatabasestorage
+			console.log('🗄️ Initializing fresh Helia with persistent storage...');
+			const blockstore = new LevelBlockstore(`./helia-blocks-restore-${Date.now()}`);
+			const datastore = new LevelDatastore(`./helia-data-restore-${Date.now()}`);
+			const newHelia = await createHelia({ libp2p: newLibp2p, blockstore, datastore });
+			console.log('✅ Fresh Helia instance created');
+
+			// Create fresh OrbitDB instance
+			const newOrbitDB = await createOrbitDB({
+				ipfs: newHelia,
+				id: `restored-instance-${Date.now()}`
+			});
+			console.log('✅ Fresh OrbitDB instance created:', newOrbitDB.id);
+
+			// Step 2: Restore from Storacha backup
+			status = 'Restoring database from Storacha backup...';
+			console.log('🔄 Restoring database from Storacha backup...');
+
+			const result = await restoreDatabaseFromSpace(newOrbitDB, {
+				storachaKey,
+				storachaProof,
+				timeout: 60000
+			});
+			console.log('Restore result:', result);
+
+			if (result.success) {
+				// Step 3: Replace the current instances with the restored ones
+				status = 'Replacing current database with restored data...';
+				console.log('🔄 Replacing current database with restored data...');
+
+				// Close existing instances (if any)
+				try {
+					if ($todoDBStore) {
+						await $todoDBStore.close();
+					}
+				} catch (closeError) {
+					console.warn('⚠️ Error closing existing database:', closeError);
+				}
+
+				// Update the stores with new instances
+				libp2pStore.set(newLibp2p);
+				peerIdStore.set(newLibp2p.peerId.toString());
+				orbitDBStore.set(newOrbitDB);
+
+				// Initialize database with the restored database
+				await initializeDatabase(newOrbitDB, result.database, {
+					enablePersistentStorage: true,
+					enableNetworkConnection: true,
+					enablePeerConnections: true
+				});
+
+				// Load todos from the restored database
+				await loadTodos();
+
+				showMessage(
+					`Database restored successfully! ${result.entriesRecovered} entries recovered from Storacha space. Fresh OrbitDB instance created.`
+				);
+
+				console.log('🎉 Restore completed with fresh instance:', {
+					newOrbitDBId: newOrbitDB.id,
+					newPeerId: newLibp2p.peerId.toString(),
+					restoredAddress: result.database.address,
+					entriesRecovered: result.entriesRecovered
+				});
+
+			} else {
+				// If restore failed, cleanup the new instances
+				try {
+					await newOrbitDB.stop();
+					await newHelia.stop();
+					await newLibp2p.stop();
+				} catch (cleanupError) {
+					console.warn('⚠️ Error cleaning up failed restore instances:', cleanupError);
+				}
+				showMessage(`Restore failed: ${result.error}`, 'error');
+			}
+
+		} catch (error) {
+			console.error('❌ Restore failed:', error);
+			showMessage(`Restore failed: ${error.message}`, 'error');
+		} finally {
+			isLoading = false;
+			status = '';
+			resetProgress();
+		}
+	}
 </script>
 
 <div
@@ -910,16 +846,7 @@
 				</div>
 
 				<!-- Action Buttons -->
-				<div class="grid grid-cols-1 gap-3 md:grid-cols-4">
-					<button
-						on:click={loadSpaces}
-						disabled={isLoading}
-						class="flex items-center justify-center space-x-2 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-					>
-						<List class="h-4 w-4" />
-						<span>Manage Spaces</span>
-					</button>
-
+				<div class="grid grid-cols-1 gap-3 md:grid-cols-2">
 					<button
 						on:click={handleBackup}
 						disabled={isLoading || !$initializationStore.isInitialized || $todosStore.length === 0}
@@ -930,16 +857,7 @@
 					</button>
 
 					<button
-						on:click={loadBackups}
-						disabled={isLoading}
-						class="flex items-center justify-center space-x-2 rounded-md bg-purple-600 px-4 py-2 text-white transition-colors hover:bg-purple-700 disabled:opacity-50"
-					>
-						<Database class="h-4 w-4" />
-						<span>View Backups</span>
-					</button>
-
-					<button
-						on:click={handleDirectRestore}
+						on:click={restoreFromSpace}
 						disabled={isLoading || !$initializationStore.isInitialized}
 						class="flex items-center justify-center space-x-2 rounded-md bg-orange-600 px-4 py-2 text-white transition-colors hover:bg-orange-700 disabled:opacity-50"
 					>
@@ -949,7 +867,6 @@
 				</div>
 
 				<!-- Spaces Management -->
-				{#if showSpaces}
 					<div class="rounded-md border bg-white p-4 dark:bg-gray-700">
 						<h4
 							class="text-md mb-3 flex items-center space-x-2 font-medium text-gray-800 dark:text-white"
@@ -1012,174 +929,14 @@
 							</div>
 						{/if}
 					</div>
-				{/if}
 
-				<!-- Backups List -->
-				{#if showBackups}
-					<div class="rounded-md border bg-white p-4 dark:bg-gray-700">
-						<h4
-							class="text-md mb-3 flex items-center space-x-2 font-medium text-gray-800 dark:text-white"
-						>
-							<Database class="h-4 w-4" />
-							<span>Backups ({backups.length})</span>
-						</h4>
 
-						{#if backups.length === 0}
-							<div class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-								No backups found
-							</div>
-						{:else}
-							<div class="max-h-60 space-y-2 overflow-y-auto">
-								{#each backups as backup (backup.cid)}
-									<div
-										class="flex items-center justify-between rounded border bg-gray-50 p-3 dark:bg-gray-600"
-									>
-										<div class="flex-1">
-											<div class="text-sm font-medium text-gray-800 dark:text-white">
-												{backup.databaseName}
-											</div>
-											<div class="text-xs text-gray-500 dark:text-gray-400">
-												{formatDate(backup.timestamp)} • {backup.blockCount} blocks
-											</div>
-											<div class="font-mono text-xs text-gray-400 dark:text-gray-500">
-												{backup.cid.slice(0, 32)}...
-											</div>
-										</div>
-										<button
-											on:click={() => viewBackupDetails(backup)}
-											class="px-2 py-1 text-sm text-blue-600 transition-colors hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-										>
-											Details
-										</button>
-									</div>
-								{/each}
-							</div>
-						{/if}
-					</div>
-				{/if}
 			</div>
 		{/if}
 	{/if}
 </div>
 
-<!-- Restore Modal -->
-{#if showRestoreModal}
-	<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
-		<div
-			class="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 dark:bg-gray-800"
-		>
-			<!-- Modal Header -->
-			<div class="mb-4 flex items-center justify-between">
-				<h3 class="text-lg font-semibold text-gray-800 dark:text-white">
-					<Download class="mr-2 inline h-5 w-5" />
-					Restore Database from Backup
-				</h3>
-				<button
-					on:click={closeRestoreModal}
-					disabled={restoreInProgress}
-					class="text-gray-500 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:text-gray-200"
-				>
-					<X class="h-5 w-5" />
-				</button>
-			</div>
 
-			{#if !showRestoreConfirm}
-				<!-- Backup Selection -->
-				<div>
-					<p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-						Select a backup to restore. This will replace your current database content.
-					</p>
-
-					<div class="max-h-96 space-y-3 overflow-y-auto">
-						{#each backups as backup (backup.cid)}
-							<div
-								class="cursor-pointer rounded border bg-gray-50 p-4 transition-colors hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600"
-								role="button"
-								tabindex="0"
-								on:click={() => selectBackupForRestore(backup)}
-								on:keydown={(e) => {
-									if (e.key === 'Enter' || e.key === ' ') {
-										e.preventDefault();
-										selectBackupForRestore(backup);
-									}
-								}}
-								aria-label="Select backup from {formatDate(backup.timestamp)}"
-							>
-								<div class="flex items-center justify-between">
-									<div class="flex-1">
-										<div class="text-sm font-medium text-gray-800 dark:text-white">
-											{backup.databaseName}
-										</div>
-										<div class="text-xs text-gray-500 dark:text-gray-400">
-											Created: {formatDate(backup.timestamp)}
-										</div>
-										<div class="text-xs text-gray-500 dark:text-gray-400">
-											{backup.blockCount} blocks • {backup.cid.slice(0, 20)}...
-										</div>
-									</div>
-									<ArrowRight class="h-4 w-4 text-gray-400" />
-								</div>
-							</div>
-						{/each}
-					</div>
-				</div>
-			{:else}
-				<!-- Restore Confirmation -->
-				<div>
-					<div
-						class="mb-4 rounded-md border border-yellow-300 bg-yellow-100 p-4 dark:border-yellow-600 dark:bg-yellow-900/30"
-					>
-						<div class="flex items-start space-x-2">
-							<AlertCircle class="mt-0.5 h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-							<div>
-								<h4 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-									Warning: Database Restore
-								</h4>
-								<p class="text-sm text-yellow-700 dark:text-yellow-300">
-									This action will replace your current database with the selected backup. Your
-									current todos will be lost.
-								</p>
-							</div>
-						</div>
-					</div>
-
-					<div class="mb-6 rounded-md border bg-gray-50 p-4 dark:bg-gray-700">
-						<h4 class="mb-2 text-sm font-medium text-gray-800 dark:text-white">Backup Details:</h4>
-						<div class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
-							<div>Database: {selectedBackup.databaseName}</div>
-							<div>Created: {formatDate(selectedBackup.timestamp)}</div>
-							<div>Blocks: {selectedBackup.blockCount}</div>
-							<div class="font-mono text-xs">CID: {selectedBackup.cid}</div>
-						</div>
-					</div>
-
-					<div class="flex space-x-3">
-						<button
-							on:click={confirmRestore}
-							disabled={restoreInProgress}
-							class="flex flex-1 items-center justify-center space-x-2 rounded-md bg-orange-600 px-4 py-2 text-white transition-colors hover:bg-orange-700 disabled:opacity-50"
-						>
-							{#if restoreInProgress}
-								<Loader2 class="h-4 w-4 animate-spin" />
-								<span>Restoring...</span>
-							{:else}
-								<Download class="h-4 w-4" />
-								<span>Confirm Restore</span>
-							{/if}
-						</button>
-						<button
-							on:click={cancelRestore}
-							disabled={restoreInProgress}
-							class="rounded-md bg-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-400 disabled:opacity-50 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
-						>
-							Cancel
-						</button>
-					</div>
-				</div>
-			{/if}
-		</div>
-	</div>
-{/if}
 
 <style>
 	/* Custom scrollbar for webkit browsers */
