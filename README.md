@@ -1,5 +1,14 @@
 # Simple Todo - A Local-First Peer-to-Peer Demo App (in Svelte)
 
+<div align="center">
+  <img src="static/libp2p.png" alt="libp2p" height="30">
+  <img src="static/ipfs.png" alt="IPFS" height="30">
+  <img src="static/helia.svg" alt="Helia" height="30">
+  <img src="static/orbitdb.png" alt="OrbitDB" height="30">
+  <img src="static/filecoin.svg" alt="Filecoin" height="30">
+  <img src="static/storacha-logo.jpeg" alt="Storacha" height="30">
+</div>
+
 A decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
 - **Direct P2P Connections**: WebRTC connections between all devices (Alice, Bob, Peter)
