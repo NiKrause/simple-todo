@@ -43,6 +43,8 @@ export default defineConfig({
 			// PWA configuration optimized for mobile browsers and IndexedDB
 			registerType: 'autoUpdate',
 			workbox: {
+				// Increase the maximum file size limit to 5MB to handle large P2P libraries
+				maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
 				// Use network-first strategy to avoid interfering with OrbitDB/libp2p
 				runtimeCaching: [
 					{
