@@ -1,7 +1,7 @@
 test-results
 node_modules
 coverage
-orbitdb*
+orbitdb*/
 p2p-todo-demo
 
 # Output
