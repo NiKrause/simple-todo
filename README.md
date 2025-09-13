@@ -1,12 +1,12 @@
 # Simple Todo - A Local-First Peer-to-Peer Demo App (in Svelte)
 
 <div align="center">
-  <img src="static/libp2p.png" alt="libp2p" height="30">
-  <img src="static/ipfs.png" alt="IPFS" height="30">
-  <img src="static/helia.svg" alt="Helia" height="30">
-  <img src="static/orbitdb.png" alt="OrbitDB" height="30">
-  <img src="static/filecoin.svg" alt="Filecoin" height="30">
-  <img src="static/storacha-logo.jpeg" alt="Storacha" height="30">
+  <a href="https://libp2p.io/" target="_blank"><img src="static/libp2p.png" alt="libp2p" height="50"></a>
+  <a href="https://ipfs.tech/" target="_blank"><img src="static/ipfs.png" alt="IPFS" height="50"></a>
+  <a href="https://helia.io/" target="_blank"><img src="static/helia.svg" alt="Helia" height="50"></a>
+  <a href="https://orbitdb.org/" target="_blank"><img src="static/orbitdb.png" alt="OrbitDB" height="50"></a>
+  <a href="https://filecoin.io/" target="_blank"><img src="static/filecoin.svg" alt="Filecoin" height="50"></a>
+  <a href="https://storacha.network/" target="_blank"><img src="static/storacha-logo.jpeg" alt="Storacha" height="50"></a>
 </div>
 
 A decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
