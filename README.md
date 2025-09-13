@@ -2,17 +2,11 @@
 
 A decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
-## 🏗️ Network Architecture
-
-![Local-First P2P Network Architecture](docs/p2p-network-diagram.svg)
-
-**Architecture Highlights:**
 - **Direct P2P Connections**: WebRTC connections between all devices (Alice, Bob, Peter)
-- **Relay/Signaling Network**: Distributed relay nodes for NAT traversal, peer discovery, and IPFS pinning
-- **Local OrbitDB Storage**: Each device maintains offline-capable local storage
+- **Relay/Signaling Network**: Relay nodes for NAT traversal, peer discovery, and IPFS pinning 
+- **Local OrbitDB Storage**: Each device maintains offline-capable via the browsers indexdb
 - **Multi-Transport Support**: WebSocket, WebTransport, and WebRTC protocols
-
-*For detailed network architecture documentation, see [docs/p2p-network-diagram.md](docs/p2p-network-diagram.md)*
+- **Storacha/Filecoin Integration with UCAN-Auth:** Backup & restore todo lists via Storacha gateway to Filecoin decentralized storage
 
 ## 🚀 Live Demo
 
@@ -20,12 +14,17 @@ A decentralized, local-first, peer-to-peer todo application built with **libp2p*
 - **IPFS (dweb.link)**: https://dweb.link/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
 - **IPFS (le-space)**: https://ipfs.le-space.de/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
 
+## 🏗️ Network Architecture
+
+![Local-First P2P Network Architecture](docs/p2p-network-diagram.svg)
+
+
+
 ## 🎯 What is this?
 
 This is a **browser only** local-first peer-to-peer todo application that operates without any traditional server infrastructure. It connects directly to other browsers and mobile devices through peer-to-peer connections, creating a truly decentralized experience.
 
 ### Key Features
-
 - ✅ **No Server Required** - Runs entirely in your browser
 - ✅ **Local Data** - data is stored in your browsers level storage and replicated via OrbitBB and IPFS
 - ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of signaling nodes)
@@ -54,10 +53,23 @@ The tutorial covers:
 - Troubleshooting guide
 - Security considerations
 
-**[🔧 Reusable Components](./docs/)**
+**[🔧 AI-Friendly Component Reference](./docs/)**
 
-- **[StorachaIntegration](./docs/StorachaIntegration.md)** - Storacha/Web3.Storage integration component for backing up OrbitDB databases to decentralized storage
-- **[ConsentModal](./docs/ConsentModal.md)** A privacy related consent component for P2P network initialization with configurable data storage and connection preferences.
+This codebase contains production-ready, reusable components for building decentralized P2P applications. Key components for AI analysis and reuse:
+
+- **[ConsentModal.svelte](./src/lib/ConsentModal.svelte)** - A comprehensive privacy consent component that manages user preferences for data storage (persistent vs session), network connectivity, and P2P connections. Features configurable checkboxes, storage toggles, and handles GDPR-style consent flow for decentralized applications.
+
+- **[StorachaIntegration.svelte](./src/lib/StorachaIntegration.svelte)** - Complete Web3 storage integration component providing UCAN-based authentication, space management, and backup/restore functionality for OrbitDB databases to Storacha/Filecoin. Includes progress tracking, error handling, and space usage monitoring.
+
+- **[storacha-backup.js](./src/lib/storacha-backup.js)** - Core backup/restore utility module that bridges OrbitDB with Storacha cloud storage. Provides functions for client initialization, space management, database backup/restore operations, and UCAN delegation handling for decentralized storage workflows.
+
+- **[p2p.js](./src/lib/p2p.js)** - Core P2P network initialization module that handles libp2p node creation, Helia (IPFS) setup, and OrbitDB database initialization. Manages user consent preferences for storage persistence, network connectivity, and peer connections. Includes comprehensive error handling, mobile-aware storage fallbacks, and initialization state management.
+
+- **[db-actions.js](./src/lib/db-actions.js)** - Database operations module providing CRUD functionality for OrbitDB-based todo management. Features reactive Svelte stores, real-time database synchronization, event listeners for database changes, and comprehensive todo lifecycle management (add, delete, toggle completion, assignment).
+
+- **[libp2p-config.js](./src/lib/libp2p-config.js)** - LibP2P network configuration module with environment-aware relay selection, multi-transport support (WebRTC, WebSockets, Circuit Relay), peer discovery via gossipsub, and configurable network preferences. Supports both development and production relay configurations with comprehensive connection management.
+
+These components demonstrate patterns for: P2P consent management, Web3 storage integration, OrbitDB backup strategies, UCAN authentication flows, libp2p network configuration, decentralized database operations, and privacy-compliant P2P initialization.
 
 ## 🛠️ Quick Start
 
