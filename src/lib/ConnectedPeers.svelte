@@ -1,8 +1,9 @@
 <script>
-	import { onDestroy } from 'svelte';
-	import { writable } from 'svelte/store';
-	import { formatPeerId } from './utils.js';
-	import TransportBadge from './TransportBadge.svelte';
+    import { onDestroy } from 'svelte';
+    import { writable } from 'svelte/store';
+    import { formatPeerId } from './utils.js';
+    import TransportBadge from './TransportBadge.svelte';
+    import { systemToasts } from './toast-store.js';
 
 	// Plugin interface - only needs libp2p instance
 	export let libp2p = null;
@@ -124,6 +125,9 @@
 
 			if (!peerIdStr) return;
 
+			console.log(`✅ Connected to peer ${peerIdStr}`);
+			systemToasts.showPeerConnected(peerIdStr);
+
 			// Add to peers list if not already there
 			const existingPeer = currentPeers.find((peer) => peer.peerId === peerIdStr);
 			if (!existingPeer) {
@@ -141,6 +145,9 @@
 			const peerIdStr = peerId?.toString();
 
 			if (!peerIdStr) return;
+
+			console.log(`❌ Disconnected from peer ${peerIdStr}`);
+			systemToasts.showPeerDisconnected(peerIdStr);
 
 			peers.update((peers) => peers.filter((peer) => peer.peerId !== peerIdStr));
 			discoveredPeersInfo.delete(peerIdStr);

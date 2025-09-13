@@ -1,11 +1,12 @@
 <script>
 	/* eslint-disable no-undef */
 	import { onMount } from 'svelte';
-	import { peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js';
-	import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
+	import { fade, fly } from 'svelte/transition';
+	import { peerIdStore, initializeP2P, initializationStore, libp2pStore } from '$lib/p2p.js';
+	import { todosStore, addTodo, deleteTodo, toggleTodoComplete, todoDBStore, initializeDatabase, loadTodos, orbitdbStore } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
-	import ToastNotification from '$lib/ToastNotification.svelte';
+import SystemToast from '$lib/SystemToast.svelte';
 	import LoadingSpinner from '$lib/LoadingSpinner.svelte';
 	import ErrorAlert from '$lib/ErrorAlert.svelte';
 	import AddTodoForm from '$lib/AddTodoForm.svelte';
@@ -13,13 +14,11 @@
 	import ConnectedPeers from '$lib/ConnectedPeers.svelte';
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
 	import StorachaIntegration from '$lib/StorachaIntegration.svelte';
-	import StorachaTest from '$lib/StorachaTest.svelte';
-	import { libp2pStore } from '$lib/p2p.js';
+	import { Cloud } from 'lucide-svelte';
+    import { toastStore } from '$lib/toast-store.js';
 
 	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
 
-	let toastMessage = null;
-	let toastType = 'default';
 	let error = null;
 	let myPeerId = null;
 
@@ -31,6 +30,10 @@
 		enableNetworkConnection: true,
 		enablePeerConnections: true
 	};
+
+	// Storacha integration state
+	let showStorachaIntegration = false;
+
 
 	const handleModalClose = async (event) => {
 		showModal = false;
@@ -73,38 +76,31 @@
 		}
 	});
 
-	function showToast(message, type = 'default') {
-		toastMessage = message;
-		toastType = type;
-		setTimeout(() => {
-			toastMessage = null;
-		}, 3000);
-	}
 
 	const handleAddTodo = async (event) => {
 		const success = await addTodo(event.detail.text);
 		if (success) {
-			showToast('✅ Todo added successfully!', 'success');
+			toastStore.show('✅ Todo added successfully!', 'success');
 		} else {
-			showToast('❌ Failed to add todo', 'error');
+			toastStore.show('❌ Failed to add todo', 'error');
 		}
 	};
 
 	const handleDelete = async (event) => {
 		const success = await deleteTodo(event.detail.key);
 		if (success) {
-			showToast('🗑️ Todo deleted successfully!', 'success');
+			toastStore.show('🗑️ Todo deleted successfully!', 'success');
 		} else {
-			showToast('❌ Failed to delete todo', 'error');
+			toastStore.show('❌ Failed to delete todo', 'error');
 		}
 	};
 
 	const handleToggleComplete = async (event) => {
 		const success = await toggleTodoComplete(event.detail.key);
 		if (success) {
-			showToast('✅ Todo status updated!', 'success');
+			toastStore.show('✅ Todo status updated!', 'success');
 		} else {
-			showToast('❌ Failed to update todo', 'error');
+			toastStore.show('❌ Failed to update todo', 'error');
 		}
 	};
 
@@ -112,9 +108,70 @@
 	$: myPeerId = $peerIdStore;
 
 	let connectedPeersRef;
+
+	// Custom restore event handler for debugging
+	const handleRestoreComplete = async (event) => {
+		console.log('🔄 Restore event received:', event.detail);
+		const { success, orbitdb, database, message } = event.detail;
+
+		if (success) {
+			console.log('🎉 Restore successful, updating application databases...');
+			console.log('🔍 New OrbitDB instance:', orbitdb);
+			console.log('🔍 New database instance:', database);
+
+			// Check if the restored database has entries
+			const restoredEntries = await database.all();
+			console.log('🔍 Restored database entries:', restoredEntries.length, restoredEntries);
+
+			// Manually update the stores
+			orbitdbStore.set(orbitdb);
+			todoDBStore.set(database);
+
+			// Force reload of todos from the new database
+			await loadTodos();
+
+			toastStore.show(`✅ Restore completed! ${restoredEntries.length} todos loaded.`, 'success');
+		} else {
+			console.error('❌ Restore failed:', message);
+			toastStore.show(`❌ Restore failed: ${message}`, 'error');
+		}
+	};
+
+	// Add debugging to monitor store changes
+	$: if ($orbitdbStore) {
+		console.log('🔍 OrbitDB store changed:', $orbitdbStore.id || 'no-id');
+	}
+
+	$: if ($todoDBStore) {
+		console.log('🔍 TodoDB store changed:', $todoDBStore.address || 'no-address');
+	}
+
+	$: if ($todosStore) {
+		console.log('🔍 Todos store changed:', $todosStore.length, 'todos');
+	}
+
+	// Manual database debugging - expose to window for console debugging
+	if (typeof window !== 'undefined') {
+		window.debugDatabase = async () => {
+			console.log('🔍 Current OrbitDB store:', $orbitdbStore?.id);
+			console.log('🔍 Current TodoDB store:', $todoDBStore?.address);
+			if ($todoDBStore) {
+				const entries = await $todoDBStore.all();
+				console.log('🔍 Current database entries:', entries.length, entries);
+			}
+			console.log('🔍 Current todos store:', $todosStore.length, $todosStore);
+		};
+
+		window.forceReloadTodos = async () => {
+			console.log('🔄 Force reloading todos...');
+			await loadTodos();
+			console.log('🔄 Reload complete');
+		};
+
+	}
 </script>
 
-<ToastNotification message={toastMessage} type={toastType} />
+<SystemToast />
 
 <svelte:head>
 	<title
@@ -192,10 +249,40 @@
 			<PeerIdCard peerId={myPeerId} />
 		</div>
 
-		<!-- Storacha Integration -->
-		<StorachaIntegration />
 
-		<!-- Storacha Test Suite -->
+		<!-- Storacha Test Suite - Temporarily disabled
 		<StorachaTest />
+		-->
+
 	{/if}
 </main>
+
+<!-- Floating Storacha Button & Panel - Always Available -->
+<!-- Floating Cloud Button -->
+<button
+	on:click={() => showStorachaIntegration = !showStorachaIntegration}
+	class="fixed bottom-6 right-6 z-[10000] flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-300 {showStorachaIntegration ? 'rotate-180' : ''}"
+	title={showStorachaIntegration ? 'Hide Cloud Backup' : 'Open Storacha Gateway Integration for Decentralized Filecoin Storage Backup'}
+	aria-label={showStorachaIntegration ? 'Hide Storacha cloud backup integration' : 'Open Storacha cloud backup integration'}
+>
+	<Cloud class="h-6 w-6 transition-transform duration-300" />
+</button>
+
+<!-- Floating Storacha Integration Panel -->
+{#if showStorachaIntegration}
+	<!-- Backdrop overlay -->
+	<div 
+		class="fixed inset-0 z-[9998] bg-black/10 backdrop-blur-[1px]"
+		on:click={() => showStorachaIntegration = false}
+		transition:fade={{ duration: 200 }}
+	></div>
+	
+	<!-- Floating panel -->
+	<div 
+		class="fixed bottom-24 right-6 z-[9999] w-96 max-w-[calc(100vw-3rem)] md:bottom-24 md:right-6 sm:bottom-20 sm:right-4 sm:w-80"
+		transition:fly={{ x: 100, duration: 300 }}
+	>
+	>
+		<StorachaIntegration />
+	</div>
+{/if}

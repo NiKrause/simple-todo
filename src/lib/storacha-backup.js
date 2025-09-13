@@ -18,6 +18,7 @@ import * as Client from '@web3-storage/w3up-client';
 import { StoreMemory } from '@web3-storage/w3up-client/stores/memory';
 import { Signer } from '@web3-storage/w3up-client/principal/ed25519';
 import * as Proof from '@web3-storage/w3up-client/proof';
+import * as Delegation from '@ucanto/core/delegation';
 import { get } from 'svelte/store';
 import { todoDBStore } from './db-actions.js';
 // Import orbitDBStore from p2p.js for consistency with the rest of the codebase
@@ -53,33 +54,47 @@ export async function initializeStorachaClient(storachaKey, storachaProof) {
 }
 
 /**
- * Create new Storacha account with email
+ * Initialize Storacha client with UCAN delegation
  */
-export async function createStorachaAccount(email) {
+export async function initializeStorachaClientWithUCAN(ucanToken, recipientKey) {
 	try {
-		console.log('🌟 Creating new Storacha account with email:', email);
+		console.log('🔐 Initializing Storacha client with UCAN...');
 
-		const client = await Client.create();
-
-		// Generate login with email
-		const account = await client.login(email);
-
-		console.log('✅ Account created successfully!');
-		console.log('📧 Please check your email for verification link');
-
-		return {
-			success: true,
-			message:
-				'Please check your email and click the verification link. Then come back and use the "Login with existing credentials" option.',
-			client,
-			account
+		// Parse recipient identity from JSON archive
+		const recipientKeyData = JSON.parse(recipientKey);
+		const fixedArchive = {
+			id: recipientKeyData.id,
+			keys: {
+				[recipientKeyData.id]: new Uint8Array(
+					Object.values(recipientKeyData.keys[recipientKeyData.id])
+				)
+			}
 		};
+
+		const recipientPrincipal = Signer.from(fixedArchive);
+		const store = new StoreMemory();
+		const client = await Client.create({
+			principal: recipientPrincipal,
+			store
+		});
+
+		// Parse delegation token
+		const delegationBytes = Buffer.from(ucanToken, 'base64');
+		const delegation = await Delegation.extract(delegationBytes);
+
+		if (!delegation.ok) {
+			throw new Error('Failed to extract delegation from token');
+		}
+
+		// Add space using delegation
+		const space = await client.addSpace(delegation.ok);
+		await client.setCurrentSpace(space.did());
+
+		console.log(`✅ Storacha client initialized with UCAN space: ${space.did()}`);
+		return client;
 	} catch (error) {
-		console.error('❌ Failed to create account:', error);
-		return {
-			success: false,
-			error: error.message
-		};
+		console.error('❌ Failed to initialize Storacha client with UCAN:', error);
+		throw error;
 	}
 }
 
@@ -188,10 +203,15 @@ export async function backupTodoDatabase(storachaKey, storachaProof) {
 
 		console.log(`📍 Database: ${todoDB.address}`);
 
-		// Use the working bridge backup function directly!
-		const backupResult = await backupDatabase(orbitdb, todoDB.address, {
+		// Create bridge instance for progress tracking
+		const { OrbitDBStorachaBridge } = await import('orbitdb-storacha-bridge');
+		const bridge = new OrbitDBStorachaBridge({
 			storachaKey,
-			storachaProof,
+			storachaProof
+		});
+
+		// Use the bridge backup method for progress tracking
+		const backupResult = await bridge.backup(orbitdb, todoDB.address, {
 			timeout: 60000
 		});
 
@@ -236,10 +256,15 @@ export async function restoreFromStorachaSpace(storachaKey, storachaProof) {
 			throw new Error('No OrbitDB instance available');
 		}
 
-		// Use the working bridge restore function directly!
-		const restoreResult = await restoreDatabaseFromSpace(orbitdb, {
+		// Create bridge instance for progress tracking
+		const { OrbitDBStorachaBridge } = await import('orbitdb-storacha-bridge');
+		const bridge = new OrbitDBStorachaBridge({
 			storachaKey,
-			storachaProof,
+			storachaProof
+		});
+
+		// Use the bridge restore method for progress tracking
+		const restoreResult = await bridge.restoreFromSpace(orbitdb, {
 			timeout: 60000
 		});
 
@@ -348,6 +373,135 @@ export async function downloadBackupMetadata(cid) {
 		return metadata;
 	} catch (error) {
 		console.error('❌ Failed to download backup metadata:', error);
+		throw error;
+	}
+}
+
+/**
+ * Get space usage information with optional detailed analysis
+ */
+export async function getSpaceUsage(client, detailed = false) {
+	try {
+		console.log('📊 Getting space usage information...');
+
+		const result = await client.capability.upload.list({ size: 1000 });
+		const uploads = result.results || [];
+
+		if (uploads.length === 0) {
+			return {
+				totalFiles: 0,
+				lastUploadDate: null,
+				oldestUploadDate: null,
+				uploads: [],
+				backupFiles: 0,
+				blockFiles: 0,
+				otherFiles: 0,
+				analyzed: false
+			};
+		}
+
+		// Sort by date to find oldest and newest
+		const sortedUploads = uploads.sort((a, b) => new Date(b.insertedAt) - new Date(a.insertedAt));
+		
+		const lastUploadDate = sortedUploads[0].insertedAt;
+		const oldestUploadDate = sortedUploads[sortedUploads.length - 1].insertedAt;
+
+		let backupFiles = 0;
+		let blockFiles = 0;
+		let otherFiles = 0;
+		const processedUploads = [];
+
+		if (detailed && uploads.length <= 50) {
+			// Only do detailed analysis for smaller numbers of files to avoid performance issues
+			console.log('🔍 Performing detailed file type analysis...');
+			
+			// Analyze up to first 20 files to get a sample
+			const samplesToAnalyze = uploads.slice(0, 20);
+			
+			for (const upload of samplesToAnalyze) {
+				const cid = upload.root.toString();
+				let fileType = 'block'; // Default assumption
+				
+				try {
+					// Quick check - try to fetch first few bytes
+					const response = await fetch(`https://w3s.link/ipfs/${cid}`, {
+						headers: { 'Range': 'bytes=0-512' }, // Smaller range
+						signal: AbortSignal.timeout(3000) // 3 second timeout
+					});
+					
+					if (response.ok) {
+						const text = await response.text();
+						
+						// Check if it looks like JSON backup metadata
+						if (text.trim().startsWith('{') && (text.includes('backupVersion') || text.includes('simple-todo'))) {
+							fileType = 'backup';
+						}
+					}
+				} catch (error) {
+					// Keep default 'block' type
+				}
+				
+				if (fileType === 'backup') backupFiles++;
+				else if (fileType === 'block') blockFiles++;
+				else otherFiles++;
+				
+				processedUploads.push({
+					cid,
+					uploadedAt: upload.insertedAt,
+					size: upload.size || null,
+					type: fileType
+				});
+			}
+			
+			// For remaining files, just estimate based on patterns
+			const remaining = uploads.length - samplesToAnalyze.length;
+			if (remaining > 0) {
+				// Assume remaining files are mostly blocks since backups are rare
+				blockFiles += remaining;
+				
+				// Add remaining files without detailed analysis
+				for (let i = samplesToAnalyze.length; i < uploads.length; i++) {
+					const upload = uploads[i];
+					processedUploads.push({
+						cid: upload.root.toString(),
+						uploadedAt: upload.insertedAt,
+						size: upload.size || null,
+						type: 'block'
+					});
+				}
+			}
+			
+			console.log(`✅ Analyzed ${uploads.length} files: ${backupFiles} backups, ${blockFiles} blocks, ${otherFiles} other`);
+		} else {
+			// Fast mode: just return basic info without detailed analysis
+			blockFiles = uploads.length; // Assume most are blocks
+			backupFiles = 0; // We'll estimate this is very small
+			otherFiles = 0;
+			
+			for (const upload of uploads) {
+				processedUploads.push({
+					cid: upload.root.toString(),
+					uploadedAt: upload.insertedAt,
+					size: upload.size || null,
+					type: 'unknown'
+				});
+			}
+			
+			console.log(`✅ Space contains ${uploads.length} files (fast mode)`);
+		}
+
+		return {
+			totalFiles: uploads.length,
+			lastUploadDate,
+			oldestUploadDate,
+			uploads: processedUploads,
+			backupFiles,
+			blockFiles,
+			otherFiles,
+			analyzed: detailed && uploads.length <= 50
+		};
+	} catch (error) {
+		console.error('❌ Failed to get space usage:', error);
 		throw error;
 	}
 }

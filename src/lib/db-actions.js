@@ -1,5 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import { peerIdStore } from './p2p.js';
+import { systemToasts } from './toast-store.js';
 
 // Store for OrbitDB instances
 export const orbitdbStore = writable(null);
@@ -29,21 +30,41 @@ export async function initializeDatabase(orbitdb, todoDB, preferences) {
 export async function loadTodos() {
 	console.log('🔍 Loading todos...');
 	const todoDB = get(todoDBStore);
-	if (!todoDB) return;
+	if (!todoDB) {
+		console.warn('⚠️ TodoDB not available, skipping load');
+		return;
+	}
+
+	// Show loading toast
+	systemToasts.showLoadingTodos();
 
 	try {
+		console.log('🔍 Calling todoDB.all()...');
 		const allTodos = await todoDB.all();
 		console.log('🔍 Raw database entries:', allTodos); // Add this debug log
 
 		// Handle both array and object structures
 		let todosArray;
-		todosArray = allTodos.map((todo) => {
+		if (!Array.isArray(allTodos)) {
+			logMobileError('loadTodos', new Error('Expected array from todoDB.all()'), { 
+				actualType: typeof allTodos,
+				value: allTodos
+			});
+			return;
+		}
+		
+		todosArray = allTodos.map((todo, index) => {
+			if (!todo || typeof todo !== 'object') {
+				console.warn(`⚠️ Invalid todo at index ${index}:`, todo);
+				return null;
+			}
+			
 			return {
 				id: todo.hash,
 				key: todo.key,
 				...todo.value // Access the nested value property
 			};
-		});
+		}).filter(Boolean); // Remove null entries
 
 		// Sort by createdAt descending (newest first)
 		const sortedTodos = todosArray.sort((a, b) => {
@@ -55,8 +76,14 @@ export async function loadTodos() {
 		todosStore.set(sortedTodos);
 		console.log('todos', sortedTodos);
 		console.log('📋 Loaded todos:', sortedTodos.length);
+		
+		// Show success toast with todo count
+		systemToasts.showTodosLoaded(sortedTodos.length);
 	} catch (error) {
-		console.error('❌ Error loading todos:', error);
+		logMobileError('loadTodos', error, {
+			todoDBAddress: todoDB?.address,
+			todoDBType: typeof todoDB
+		});
 	}
 }
 

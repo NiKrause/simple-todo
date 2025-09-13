@@ -6,7 +6,6 @@
 		Plus,
 		List,
 		Key,
-		Mail,
 		LogOut,
 		Loader2,
 		AlertCircle,
@@ -15,9 +14,10 @@
 	} from 'lucide-svelte';
 	import {
 		initializeStorachaClient,
-		createStorachaAccount,
+		initializeStorachaClientWithUCAN,
 		listSpaces,
-		createSpace
+		createSpace,
+		getSpaceUsage
 	} from './storacha-backup.js';
 	import { OrbitDBStorachaBridge, restoreDatabaseFromSpace } from 'orbitdb-storacha-bridge';
 	import { todosStore } from './db-actions.js';
@@ -32,7 +32,7 @@
 	import { LevelDatastore } from 'datastore-level';
 
 	// Component state
-	let showStoracha = false;
+	let showStoracha = true; // Start expanded by default
 	let isLoading = false;
 	let status = '';
 	let error = null;
@@ -59,33 +59,61 @@
 	const STORAGE_KEYS = {
 		STORACHA_KEY: 'storacha_key',
 		STORACHA_PROOF: 'storacha_proof',
+		UCAN_TOKEN: 'storacha_ucan_token',
+		RECIPIENT_KEY: 'storacha_recipient_key',
+		AUTH_METHOD: 'storacha_auth_method',
 		AUTO_LOGIN: 'storacha_auto_login'
 	};
 
 	// Form state
-	let showCreateForm = false;
 	let showCredentialsForm = false;
-	let email = '';
+	let authMethod = 'credentials'; // 'credentials' or 'ucan'
 	let storachaKey = '';
 	let storachaProof = '';
+	let ucanToken = '';
+	let recipientKey = '';
 	let newSpaceName = '';
 
 	// Data state
 	let spaces = [];
+	let spaceUsage = null; // Will contain file count and last upload info
 
 
 
 	// Progress tracking functions
-	function initializeBridge(storachaKey, storachaProof) {
+	function initializeBridge(authMethod, authData) {
 		if (bridge) {
 			// Remove existing listeners
 			bridge.removeAllListeners();
 		}
 
-		bridge = new OrbitDBStorachaBridge({
-			storachaKey,
-			storachaProof
-		});
+		const bridgeOptions = {};
+		
+		if (authMethod === 'credentials') {
+			bridgeOptions.storachaKey = authData.key;
+			bridgeOptions.storachaProof = authData.proof;
+		} else if (authMethod === 'ucan') {
+			// UCAN authentication support
+			if (!client) {
+				throw new Error('UCAN client is required but not available');
+			}
+			
+			bridgeOptions.ucanClient = client;
+			
+			// Get current space DID if available
+			try {
+				const currentSpace = client.currentSpace();
+				if (currentSpace) {
+					bridgeOptions.spaceDID = currentSpace.did();
+				}
+			} catch (error) {
+				console.warn('Could not get current space DID:', error.message);
+			}
+		} else {
+			throw new Error(`Bridge with ${authMethod} authentication not yet implemented`);
+		}
+
+		bridge = new OrbitDBStorachaBridge(bridgeOptions);
 
 		// Set up progress event listeners
 		bridge.on('uploadProgress', (progress) => {
@@ -148,12 +176,20 @@
 	}
 
 	// LocalStorage functions
-	function saveCredentials(key, proof) {
+	function saveCredentials(method, data) {
 		try {
-			console.log('💾 Saving credentials to localStorage...');
-			localStorage.setItem(STORAGE_KEYS.STORACHA_KEY, key);
-			localStorage.setItem(STORAGE_KEYS.STORACHA_PROOF, proof);
+			console.log(`💾 Saving ${method} credentials to localStorage...`);
+			localStorage.setItem(STORAGE_KEYS.AUTH_METHOD, method);
 			localStorage.setItem(STORAGE_KEYS.AUTO_LOGIN, 'true');
+			
+			if (method === 'credentials') {
+				localStorage.setItem(STORAGE_KEYS.STORACHA_KEY, data.key);
+				localStorage.setItem(STORAGE_KEYS.STORACHA_PROOF, data.proof);
+			} else if (method === 'ucan') {
+				localStorage.setItem(STORAGE_KEYS.UCAN_TOKEN, data.ucanToken);
+				localStorage.setItem(STORAGE_KEYS.RECIPIENT_KEY, data.recipientKey);
+			}
+			
 			console.log('✅ Credentials saved successfully');
 		} catch (err) {
 			console.warn('❌ Failed to save credentials to localStorage:', err);
@@ -163,16 +199,31 @@
 	function loadCredentials() {
 		try {
 			console.log('📖 Checking localStorage for credentials...');
-			const key = localStorage.getItem(STORAGE_KEYS.STORACHA_KEY);
-			const proof = localStorage.getItem(STORAGE_KEYS.STORACHA_PROOF);
+			const method = localStorage.getItem(STORAGE_KEYS.AUTH_METHOD) || 'credentials';
 			const autoLogin = localStorage.getItem(STORAGE_KEYS.AUTO_LOGIN);
 
-			if (key && proof && autoLogin === 'true') {
-				console.log('✅ Valid credentials found!');
-				return { key, proof };
-			} else {
-				console.log('❌ No valid credentials found');
+			if (autoLogin !== 'true') {
+				console.log('❌ Auto-login disabled');
+				return null;
 			}
+
+			if (method === 'credentials') {
+				const key = localStorage.getItem(STORAGE_KEYS.STORACHA_KEY);
+				const proof = localStorage.getItem(STORAGE_KEYS.STORACHA_PROOF);
+				if (key && proof) {
+					console.log('✅ Valid credentials found!');
+					return { method, key, proof };
+				}
+			} else if (method === 'ucan') {
+				const ucanToken = localStorage.getItem(STORAGE_KEYS.UCAN_TOKEN);
+				const recipientKey = localStorage.getItem(STORAGE_KEYS.RECIPIENT_KEY);
+				if (ucanToken && recipientKey) {
+					console.log('✅ Valid UCAN credentials found!');
+					return { method, ucanToken, recipientKey };
+				}
+			}
+			
+			console.log('❌ No valid credentials found');
 		} catch (err) {
 			console.warn('❌ Failed to load credentials from localStorage:', err);
 		}
@@ -181,9 +232,9 @@
 
 	function clearStoredCredentials() {
 		try {
-			localStorage.removeItem(STORAGE_KEYS.STORACHA_KEY);
-			localStorage.removeItem(STORAGE_KEYS.STORACHA_PROOF);
-			localStorage.removeItem(STORAGE_KEYS.AUTO_LOGIN);
+			Object.values(STORAGE_KEYS).forEach(key => {
+				localStorage.removeItem(key);
+			});
 		} catch (err) {
 			console.warn('Failed to clear credentials from localStorage:', err);
 		}
@@ -207,39 +258,12 @@
 
 	// Clear forms
 	function clearForms() {
-		showCreateForm = false;
 		showCredentialsForm = false;
-		email = '';
 		storachaKey = '';
 		storachaProof = '';
+		ucanToken = '';
+		recipientKey = '';
 		newSpaceName = '';
-	}
-
-	// Login with email
-	async function handleEmailLogin() {
-		if (!email.trim()) {
-			showMessage('Please enter your email address', 'error');
-			return;
-		}
-
-		isLoading = true;
-		status = 'Creating account...';
-
-		try {
-			const result = await createStorachaAccount(email.trim());
-
-			if (result.success) {
-				showMessage(result.message);
-				clearForms();
-			} else {
-				showMessage(result.error, 'error');
-			}
-		} catch (err) {
-			showMessage(`Failed to create account: ${err.message}`, 'error');
-		} finally {
-			isLoading = false;
-			status = '';
-		}
 	}
 
 	// Login with credentials
@@ -287,7 +311,7 @@
 			client = await initializeStorachaClient(keyToUse, proofToUse);
 
 			// Initialize the bridge with credentials
-			initializeBridge(keyToUse, proofToUse);
+			initializeBridge('credentials', { key: keyToUse, proof: proofToUse });
 
 			// For credential-based login, check current space instead of accounts
 			currentSpace = client.currentSpace();
@@ -297,7 +321,7 @@
 
 				// Save credentials for future auto-login (only if not already stored)
 				if (!useStoredCredentials) {
-					saveCredentials(keyToUse, proofToUse);
+					saveCredentials('credentials', { key: keyToUse, proof: proofToUse });
 					showMessage('Successfully logged in to Storacha! Credentials saved for auto-login.');
 				} else {
 					showMessage('Successfully auto-logged in to Storacha!');
@@ -314,7 +338,7 @@
 					isLoggedIn = true;
 
 					if (!useStoredCredentials) {
-						saveCredentials(keyToUse, proofToUse);
+						saveCredentials('credentials', { key: keyToUse, proof: proofToUse });
 						showMessage('Successfully logged in to Storacha! Credentials saved for auto-login.');
 					} else {
 						showMessage('Successfully auto-logged in to Storacha!');
@@ -338,12 +362,77 @@
 		}
 	}
 
+	// Login with UCAN
+	async function handleUCANLogin(useStoredCredentials = false) {
+		console.log('🚀 handleUCANLogin called with useStoredCredentials =', useStoredCredentials);
+
+		let tokenToUse = ucanToken.trim();
+		let keyToUse = recipientKey.trim();
+
+		// If using stored credentials, load them
+		if (useStoredCredentials) {
+			console.log('🔄 Loading stored UCAN credentials for auto-login...');
+			const stored = loadCredentials();
+			if (!stored || stored.method !== 'ucan') {
+				console.log('⚠️ UCAN auto-login failed: no stored credentials');
+				showMessage('No stored UCAN credentials found', 'error');
+				return;
+			}
+			tokenToUse = stored.ucanToken;
+			keyToUse = stored.recipientKey;
+			console.log('✅ Loaded stored UCAN credentials successfully');
+		} else {
+			console.log('🎫 Manual UCAN login with form credentials');
+		}
+
+		if (!tokenToUse || !keyToUse) {
+			showMessage('Please provide both UCAN token and recipient key', 'error');
+			return;
+		}
+
+		isLoading = true;
+		status = useStoredCredentials ? 'Auto-logging in with UCAN...' : 'Logging in with UCAN...';
+
+		try {
+			client = await initializeStorachaClientWithUCAN(tokenToUse, keyToUse);
+
+			// Initialize the bridge with UCAN support
+			initializeBridge('ucan', { ucanToken: tokenToUse, recipientKey: keyToUse });
+
+			currentSpace = client.currentSpace();
+			if (currentSpace) {
+				isLoggedIn = true;
+
+				if (!useStoredCredentials) {
+					saveCredentials('ucan', { ucanToken: tokenToUse, recipientKey: keyToUse });
+					showMessage('Successfully logged in to Storacha with UCAN! Credentials saved for auto-login.');
+				} else {
+					showMessage('Successfully auto-logged in to Storacha with UCAN!');
+				}
+
+				clearForms();
+				await loadSpaces();
+			} else {
+				throw new Error('Failed to authenticate with UCAN - no space found');
+			}
+		} catch (err) {
+			showMessage(`UCAN login failed: ${err.message}`, 'error');
+			if (useStoredCredentials) {
+				clearStoredCredentials();
+			}
+		} finally {
+			isLoading = false;
+			status = '';
+		}
+	}
+
 	// Logout
 	function handleLogout() {
 		isLoggedIn = false;
 		client = null;
 		currentSpace = null;
 		spaces = [];
+		spaceUsage = null; // Clear space usage info
 		clearForms();
 		clearStoredCredentials(); // Clear stored credentials on logout
 
@@ -357,6 +446,19 @@
 		showMessage('Logged out successfully');
 	}
 
+	// Load space usage information
+	async function loadSpaceUsage() {
+		if (!client) return;
+
+		try {
+			spaceUsage = await getSpaceUsage(client);
+			console.log('📊 Space usage loaded:', spaceUsage);
+		} catch (err) {
+			console.warn('⚠️ Failed to load space usage info:', err.message);
+			spaceUsage = null;
+		}
+	}
+
 	// Load spaces
 	async function loadSpaces() {
 		if (!client) return;
@@ -366,6 +468,8 @@
 
 		try {
 			spaces = await listSpaces(client);
+			// Also load space usage information
+			await loadSpaceUsage();
 		} catch (err) {
 			showMessage(`Failed to load spaces: ${err.message}`, 'error');
 		} finally {
@@ -468,6 +572,22 @@
 		return new Date(dateString).toLocaleString();
 	}
 
+	// Format relative time for space usage
+	function formatRelativeTime(dateString) {
+		if (!dateString) return 'Never';
+		
+		const date = new Date(dateString);
+		const now = new Date();
+		const diffInSeconds = Math.floor((now - date) / 1000);
+		
+		if (diffInSeconds < 60) return 'Just now';
+		if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+		if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+		if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+		if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)} months ago`;
+		return `${Math.floor(diffInSeconds / 31536000)} years ago`;
+	}
+
 	// Format space name
 	function formatSpaceName(space) {
 		return space.name === 'Unnamed Space' ? `Space ${space.did.slice(-8)}` : space.name;
@@ -482,9 +602,21 @@
 		// Try to auto-login with stored credentials (but don't show error for first-time users)
 		const stored = loadCredentials();
 		if (stored) {
-			console.log('🔐 Found stored Storacha credentials, attempting auto-login...');
+			console.log(`🔐 Found stored ${stored.method} credentials, attempting auto-login...`);
+			
+			// Set the auth method and form values from stored credentials
+			authMethod = stored.method;
+			
 			try {
-				await handleCredentialsLogin(true);
+				if (stored.method === 'credentials') {
+					storachaKey = stored.key;
+					storachaProof = stored.proof;
+					await handleCredentialsLogin(true);
+				} else if (stored.method === 'ucan') {
+					ucanToken = stored.ucanToken;
+					recipientKey = stored.recipientKey;
+					await handleUCANLogin(true);
+				}
 			} catch (err) {
 				console.warn('⚠️ Auto-login failed, clearing stored credentials:', err);
 				clearStoredCredentials();
@@ -496,7 +628,8 @@
 
 
 
-	async function restoreFromSpace() {
+	// Fallback-only restore (more reliable but loses some metadata)
+	async function restoreFromSpaceFallback() {
 		if (!$orbitDBStore) {
 			showMessage('OrbitDB not initialized. Please wait for initialization to complete.', 'error');
 			return;
@@ -504,141 +637,151 @@
 
 		isLoading = true;
 		resetProgress();
-		status = 'Preparing restore...';
+		status = 'Preparing fallback restore...';
 
 		try {
-			console.log('🔄 Starting restore from Storacha space with fresh OrbitDB instance...');
+			console.log('🔄 Starting fallback-only restore from Storacha space...');
 
-			// Get Storacha credentials
-			const storachaKey = localStorage.getItem('storacha_key') || '';
-			const storachaProof = localStorage.getItem('storacha_proof') || '';
-
-			if (!storachaKey || !storachaProof) {
+			// Get Storacha credentials based on authentication method
+			const stored = loadCredentials();
+			if (!stored) {
 				throw new Error('Storacha credentials not found. Please login to Storacha first.');
 			}
 
-			// Step 1: Create fresh instances for restore
-			status = 'Creating fresh OrbitDB instance for restore...';
-			console.log('🔧 Creating fresh OrbitDB instance for restore...');
+			// Clean up existing database before restore to prevent conflicts
+			status = 'Cleaning up existing database...';
+			console.log('🧹 Cleaning up existing database before restore...');
+			
+			try {
+				// Close and clean up existing todo database
+				if ($todoDBStore) {
+					console.log('📥 Closing existing todo database...');
+					await $todoDBStore.close();
+					todoDBStore.set(null);
+				}
+				
+				// Try to drop any existing databases with common names
+				const commonNames = ['simple-todos', 'test-todos', 'restored-todos'];
+				for (const dbName of commonNames) {
+					try {
+						const existingDB = await $orbitDBStore.open(dbName, { type: 'keyvalue' });
+						console.log(`🗑️ Dropping existing database '${dbName}':`, existingDB.address);
+						await existingDB.drop();
+						await existingDB.close();
+					} catch (dropError) {
+						console.log(`ℹ️ No existing '${dbName}' database to drop`);
+					}
+				}
+				
+			} catch (cleanupError) {
+				console.warn('⚠️ Cleanup warning (continuing anyway):', cleanupError.message);
+			}
+			
+			// Use the current OrbitDB instance for fallback restore with progress tracking
+			status = 'Starting fallback restore...';
+			console.log('🔄 Using fallback restore method with current OrbitDB instance...');
 
-			// Create unique libp2p config
-			const config = await createLibp2pConfig({
-				enablePeerConnections: false,
-				enableNetworkConnection: false,
-				enablePersistentStorage: true
+			// Initialize bridge for progress tracking if not already initialized
+			if (!bridge) {
+				initializeBridge(stored.method, stored);
+			}
+
+			// Use unique database name to prevent conflicts
+			const uniqueDbName = `restored-todos-${Date.now()}`;
+			console.log('🆆 Using unique database name:', uniqueDbName);
+			
+			// Use fallback reconstruction directly (as requested)
+			const result = await bridge.restoreFromSpace($orbitDBStore, {
+				timeout: 180000, // 3 minutes timeout for fallback reconstruction
+				forceFallback: true, // Force fallback reconstruction (works reliably)
+				fallbackDatabaseName: uniqueDbName,
+				dbConfig: {
+					type: 'keyvalue',
+					create: true
+				}
 			});
 
-			// Create fresh libp2p instance
-			const newLibp2p = await createLibp2p(config);
-			console.log('✅ Fresh libp2p instance created');
-
-			// Create fresh Helia instance with persistent initializeDatabasestorage
-			console.log('🗄️ Initializing fresh Helia with persistent storage...');
-			const blockstore = new LevelBlockstore(`./helia-blocks-restore-${Date.now()}`);
-			const datastore = new LevelDatastore(`./helia-data-restore-${Date.now()}`);
-			const newHelia = await createHelia({ libp2p: newLibp2p, blockstore, datastore });
-			console.log('✅ Fresh Helia instance created');
-
-			// Create fresh OrbitDB instance
-			const newOrbitDB = await createOrbitDB({
-				ipfs: newHelia,
-				id: `restored-instance-${Date.now()}`
-			});
-			console.log('✅ Fresh OrbitDB instance created:', newOrbitDB.id);
-
-			// Step 2: Restore from Storacha backup
-			status = 'Restoring database from Storacha backup...';
-			console.log('🔄 Restoring database from Storacha backup...');
-
-			const result = await restoreDatabaseFromSpace(newOrbitDB, {
-				storachaKey,
-				storachaProof,
-				timeout: 60000
-			});
-			console.log('Restore result:', result);
+			console.log('Fallback restore result:', result);
 
 			if (result.success) {
-				// Step 3: Replace the current instances with the restored ones
-				status = 'Replacing current database with restored data...';
-				console.log('🔄 Replacing current database with restored data...');
-
-				// Close existing instances (if any)
-				try {
-					if ($todoDBStore) {
-						await $todoDBStore.close();
-					}
-				} catch (closeError) {
-					console.warn('⚠️ Error closing existing database:', closeError);
-				}
-
-				// Update the stores with new instances
-				libp2pStore.set(newLibp2p);
-				peerIdStore.set(newLibp2p.peerId.toString());
-				orbitDBStore.set(newOrbitDB);
-
-				// Initialize database with the restored database
-				await initializeDatabase(newOrbitDB, result.database, {
-					enablePersistentStorage: true,
-					enableNetworkConnection: true,
-					enablePeerConnections: true
-				});
+				// Update the todo database store with the restored database
+				todoDBStore.set(result.database);
 
 				// Load todos from the restored database
 				await loadTodos();
 
 				showMessage(
-					`Database restored successfully! ${result.entriesRecovered} entries recovered from Storacha space. Fresh OrbitDB instance created.`
+					`Restore completed! ${result.entriesRecovered} entries recovered to database '${uniqueDbName}'.`
 				);
 
-				console.log('🎉 Restore completed with fresh instance:', {
-					newOrbitDBId: newOrbitDB.id,
-					newPeerId: newLibp2p.peerId.toString(),
+				console.log('🎉 Fallback restore completed:', {
 					restoredAddress: result.database.address,
-					entriesRecovered: result.entriesRecovered
+					entriesRecovered: result.entriesRecovered,
+					method: result.method
 				});
-
 			} else {
-				// If restore failed, cleanup the new instances
-				try {
-					await newOrbitDB.stop();
-					await newHelia.stop();
-					await newLibp2p.stop();
-				} catch (cleanupError) {
-					console.warn('⚠️ Error cleaning up failed restore instances:', cleanupError);
-				}
-				showMessage(`Restore failed: ${result.error}`, 'error');
+				showMessage(`Fallback restore failed: ${result.error}`, 'error');
 			}
 
 		} catch (error) {
-			console.error('❌ Restore failed:', error);
-			showMessage(`Restore failed: ${error.message}`, 'error');
+			console.error('❌ Fallback restore failed:', error);
+			showMessage(`Fallback restore failed: ${error.message}`, 'error');
 		} finally {
 			isLoading = false;
 			status = '';
 			resetProgress();
 		}
 	}
+
 </script>
 
 <div
-	class="mt-6 rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 dark:border-gray-600 dark:from-gray-700 dark:to-gray-600"
+	class="rounded-xl border border-blue-200/50 bg-white/95 backdrop-blur-sm shadow-2xl ring-1 ring-black/5 dark:border-gray-600/50 dark:bg-gray-800/95 dark:ring-white/10 p-4 max-h-[70vh] overflow-y-auto"
+	style="backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);"
 >
 	<!-- Header -->
-	<div class="mb-4 flex items-center justify-between">
+	<div class="mb-4 flex items-center justify-between border-b border-gray-200/50 pb-3 dark:border-gray-700/50">
 		<div class="flex items-center space-x-2">
-			<Cloud class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-			<h3 class="text-lg font-semibold text-gray-800 dark:text-white">Storacha Integration</h3>
+			<div class="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 p-2">
+				<Cloud class="h-5 w-5 text-white" />
+			</div>
+			<div>
+				<h3 class="text-lg font-semibold text-gray-800 dark:text-white">Decentralized Storage</h3>
+				<p class="text-xs text-gray-500 dark:text-gray-400">Storacha Integration</p>
+			</div>
 		</div>
 
 		<button
 			on:click={() => (showStoracha = !showStoracha)}
-			class="text-blue-600 transition-colors hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+			class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+			title={showStoracha ? 'Collapse' : 'Expand'}
 		>
-			{showStoracha ? 'Hide' : 'Show'}
+			<svg class="h-4 w-4 transform transition-transform duration-200 {showStoracha ? 'rotate-180' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+			</svg>
 		</button>
 	</div>
 
 	{#if showStoracha}
+		<!-- OrbitDB Initialization Status -->
+		{#if !$initializationStore.isInitialized}
+			<div
+				class="mb-4 rounded-md border border-yellow-300 bg-yellow-100 p-3 dark:border-yellow-600 dark:bg-yellow-900/30"
+			>
+				<div class="flex items-center space-x-2">
+					<Loader2 class="h-4 w-4 animate-spin text-yellow-600 dark:text-yellow-400" />
+					<div class="text-sm">
+						<div class="font-medium text-yellow-800 dark:text-yellow-200">
+							Database Not Ready
+						</div>
+						<div class="text-yellow-700 dark:text-yellow-300">
+							OrbitDB is still initializing. You can login to Storacha, but backup/restore will be disabled until initialization completes.
+						</div>
+					</div>
+				</div>
+			</div>
+		{/if}
+
 		<!-- Status Messages -->
 		{#if error}
 			<div
@@ -662,16 +805,6 @@
 			</div>
 		{/if}
 
-		{#if status}
-			<div
-				class="mb-4 rounded-md border border-blue-300 bg-blue-100 p-3 dark:border-blue-600 dark:bg-blue-900/30"
-			>
-				<div class="flex items-center space-x-2">
-					<Loader2 class="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
-					<span class="text-sm text-blue-700 dark:text-blue-300">{status}</span>
-				</div>
-			</div>
-		{/if}
 
 		<!-- Progress Bar -->
 		{#if showProgress}
@@ -715,19 +848,25 @@
 					Connect to Storacha to backup your todos to decentralized storage
 				</div>
 
-				<div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-					<button
-						on:click={() => {
-							clearForms();
-							showCreateForm = true;
-						}}
-						disabled={isLoading}
-						class="flex items-center justify-center space-x-2 rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 disabled:opacity-50"
-					>
-						<Mail class="h-4 w-4" />
-						<span>Create New Account</span>
-					</button>
+				<!-- Authentication Method Toggle -->
+				<div class="flex justify-center mb-4">
+					<div class="rounded-lg border bg-gray-100 p-1 dark:bg-gray-700">
+						<button
+							on:click={() => authMethod = 'credentials'}
+							class="px-4 py-2 rounded-md text-sm transition-colors {authMethod === 'credentials' ? 'bg-blue-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}"
+						>
+							🔑 Credentials
+						</button>
+						<button
+							on:click={() => authMethod = 'ucan'}
+							class="px-4 py-2 rounded-md text-sm transition-colors {authMethod === 'ucan' ? 'bg-blue-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}"
+						>
+							🎫 UCAN
+						</button>
+					</div>
+				</div>
 
+				<div class="flex justify-center">
 					<button
 						on:click={() => {
 							clearForms();
@@ -737,77 +876,82 @@
 						class="flex items-center justify-center space-x-2 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
 					>
 						<Key class="h-4 w-4" />
-						<span>Login with Credentials</span>
+						<span>Login with {authMethod === 'credentials' ? 'Credentials' : 'UCAN'}</span>
 					</button>
 				</div>
 
-				<!-- Create Account Form -->
-				{#if showCreateForm}
-					<div class="rounded-md border bg-white p-4 dark:bg-gray-700">
-						<h4 class="text-md mb-3 font-medium text-gray-800 dark:text-white">
-							Create New Storacha Account
-						</h4>
-						<div class="space-y-3">
-							<input
-								bind:value={email}
-								type="email"
-								placeholder="Enter your email address"
-								class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-							/>
-							<div class="flex space-x-2">
-								<button
-									on:click={handleEmailLogin}
-									disabled={isLoading || !email.trim()}
-									class="flex-1 rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 disabled:opacity-50"
-								>
-									{isLoading ? 'Creating...' : 'Create Account'}
-								</button>
-								<button
-									on:click={clearForms}
-									class="rounded-md bg-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
-								>
-									Cancel
-								</button>
-							</div>
-						</div>
-					</div>
-				{/if}
-
-				<!-- Credentials Form -->
+				<!-- Authentication Forms -->
 				{#if showCredentialsForm}
 					<div class="rounded-md border bg-white p-4 dark:bg-gray-700">
-						<h4 class="text-md mb-3 font-medium text-gray-800 dark:text-white">
-							Login with Storacha Credentials
-						</h4>
-						<div class="space-y-3">
-							<input
-								bind:value={storachaKey}
-								type="password"
-								placeholder="Storacha Private Key"
-								class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-							/>
-							<textarea
-								bind:value={storachaProof}
-								placeholder="Storacha Proof (delegation)"
-								rows="3"
-								class="w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-xs text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-							></textarea>
-							<div class="flex space-x-2">
-								<button
-									on:click={() => handleCredentialsLogin()}
-									disabled={isLoading || !storachaKey.trim() || !storachaProof.trim()}
-									class="flex-1 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-								>
-									{isLoading ? 'Logging in...' : 'Login'}
-								</button>
-								<button
-									on:click={clearForms}
-									class="rounded-md bg-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
-								>
-									Cancel
-								</button>
+						{#if authMethod === 'credentials'}
+							<!-- Credentials Form -->
+							<h4 class="text-md mb-3 font-medium text-gray-800 dark:text-white">
+								Storacha Key & Proof
+							</h4>
+							<div class="space-y-3">
+								<input
+									bind:value={storachaKey}
+									type="password"
+									placeholder="Private Key (MgCZ9...)"
+									class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+								/>
+								<textarea
+									bind:value={storachaProof}
+									placeholder="Proof/Delegation (uCAIS...)"
+									rows="3"
+									class="w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-xs text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+								></textarea>
+								<div class="flex space-x-2">
+									<button
+										on:click={() => handleCredentialsLogin()}
+										disabled={isLoading || !storachaKey.trim() || !storachaProof.trim()}
+										class="flex-1 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+									>
+										{isLoading ? 'Logging in...' : 'Login'}
+									</button>
+									<button
+										on:click={clearForms}
+										class="rounded-md bg-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
+									>
+										Cancel
+									</button>
+								</div>
 							</div>
-						</div>
+						{:else}
+							<!-- UCAN Form -->
+							<h4 class="text-md mb-3 font-medium text-gray-800 dark:text-white">
+								UCAN Delegation
+							</h4>
+							<div class="space-y-3">
+								<textarea
+									bind:value={ucanToken}
+									placeholder="UCAN Token (Base64 encoded, eyJh...)"
+									rows="3"
+									class="w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-xs text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+								></textarea>
+								<textarea
+									bind:value={recipientKey}
+									placeholder='Recipient Key (JSON: did:key with keys object)'
+									rows="3"
+									class="w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-xs text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+								></textarea>
+								<div class="flex space-x-2">
+									<button
+										on:click={() => handleUCANLogin()}
+										disabled={isLoading || !ucanToken.trim() || !recipientKey.trim()}
+										class="flex-1 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+									>
+										{isLoading ? 'Logging in...' : 'Login'}
+									</button>
+									<button
+										on:click={clearForms}
+										class="rounded-md bg-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
+									>
+										Cancel
+									</button>
+								</div>
+							</div>
+						{/if}
 					</div>
 				{/if}
 			</div>
@@ -846,34 +990,119 @@
 				</div>
 
 				<!-- Action Buttons -->
-				<div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+				<div class="space-y-3">
+					<!-- Backup Button -->
 					<button
 						on:click={handleBackup}
 						disabled={isLoading || !$initializationStore.isInitialized || $todosStore.length === 0}
-						class="flex items-center justify-center space-x-2 rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+						class="w-full flex items-center justify-center space-x-2 rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 disabled:opacity-50"
 					>
 						<Upload class="h-4 w-4" />
 						<span>Backup Database</span>
 					</button>
 
+					<!-- Restore Button -->
 					<button
-						on:click={restoreFromSpace}
+						on:click={restoreFromSpaceFallback}
 						disabled={isLoading || !$initializationStore.isInitialized}
-						class="flex items-center justify-center space-x-2 rounded-md bg-orange-600 px-4 py-2 text-white transition-colors hover:bg-orange-700 disabled:opacity-50"
+						class="w-full flex items-center justify-center space-x-2 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+						title="Restore database from Storacha backup"
 					>
 						<Download class="h-4 w-4" />
-						<span>Restore Database</span>
+						<span>Restore</span>
 					</button>
 				</div>
 
 				<!-- Spaces Management -->
 					<div class="rounded-md border bg-white p-4 dark:bg-gray-700">
-						<h4
-							class="text-md mb-3 flex items-center space-x-2 font-medium text-gray-800 dark:text-white"
-						>
-							<List class="h-4 w-4" />
-							<span>Spaces ({spaces.length})</span>
-						</h4>
+						<div class="mb-3 flex items-center justify-between">
+							<h4 class="flex items-center space-x-2 font-medium text-gray-800 dark:text-white">
+								<List class="h-4 w-4" />
+								<span>Spaces ({spaces.length})</span>
+							</h4>
+							<div class="flex items-center space-x-1">
+								<button
+									on:click={loadSpaceUsage}
+									disabled={isLoading}
+									class="rounded p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-300"
+									title="Refresh space usage"
+								>
+									<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+									</svg>
+								</button>
+								{#if spaceUsage && spaceUsage.totalFiles <= 50 && !spaceUsage.analyzed}
+									<button
+										on:click={async () => { spaceUsage = await getSpaceUsage(client, true); }}
+										disabled={isLoading}
+										class="rounded p-1 text-blue-500 transition-colors hover:bg-blue-100 hover:text-blue-700 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
+										title="Analyze file types"
+									>
+										<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+										</svg>
+									</button>
+								{/if}
+							</div>
+						</div>
+
+						<!-- Space Usage Information -->
+						{#if spaceUsage}
+							<div class="mb-4 rounded border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-800">
+								<div class="flex items-center justify-between text-sm">
+									<div class="flex items-center space-x-2">
+										<div class="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+											<span class="text-xs font-bold text-blue-600 dark:text-blue-400">{spaceUsage.totalFiles}</span>
+										</div>
+										<span class="font-medium text-gray-700 dark:text-gray-300">
+											file{spaceUsage.totalFiles !== 1 ? 's' : ''} stored
+										</span>
+									</div>
+									{#if spaceUsage.lastUploadDate}
+										<div class="text-gray-500 dark:text-gray-400">
+											Last upload: {formatRelativeTime(spaceUsage.lastUploadDate)}
+										</div>
+									{/if}
+								</div>
+								
+								<!-- File Type Breakdown -->
+								{#if spaceUsage.totalFiles > 0}
+									<div class="mt-2 grid grid-cols-3 gap-2 text-xs">
+										{#if spaceUsage.backupFiles > 0}
+											<div class="flex items-center space-x-1">
+												<div class="h-2 w-2 rounded-full bg-green-500"></div>
+												<span class="text-gray-600 dark:text-gray-400">{spaceUsage.backupFiles} backup{spaceUsage.backupFiles !== 1 ? 's' : ''}</span>
+											</div>
+										{/if}
+										{#if spaceUsage.blockFiles > 0}
+											<div class="flex items-center space-x-1">
+												<div class="h-2 w-2 rounded-full bg-blue-500"></div>
+												<span class="text-gray-600 dark:text-gray-400">{spaceUsage.blockFiles} data block{spaceUsage.blockFiles !== 1 ? 's' : ''}</span>
+											</div>
+										{/if}
+										{#if spaceUsage.otherFiles > 0}
+											<div class="flex items-center space-x-1">
+												<div class="h-2 w-2 rounded-full bg-gray-500"></div>
+												<span class="text-gray-600 dark:text-gray-400">{spaceUsage.otherFiles} other</span>
+											</div>
+										{/if}
+									</div>
+									
+									<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+										{#if spaceUsage.oldestUploadDate && spaceUsage.oldestUploadDate !== spaceUsage.lastUploadDate}
+											Oldest upload: {formatRelativeTime(spaceUsage.oldestUploadDate)}<br/>
+										{/if}
+										<em>Note: Each backup creates many data blocks</em>
+									</div>
+								{/if}
+							</div>
+						{:else if spaceUsage === null && isLoggedIn}
+							<div class="mb-4 rounded border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-600 dark:bg-yellow-900/30">
+								<div class="text-sm text-yellow-700 dark:text-yellow-300">
+									Space usage information unavailable
+								</div>
+							</div>
+						{/if}
 
 						<!-- Create New Space -->
 						<div class="mb-4 flex space-x-2">
