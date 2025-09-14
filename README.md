@@ -10,11 +10,8 @@
 </div>
 A basic decentralized, local-first, peer-to-peer todo application built with ***libp2p***, ***IPFS***, and ***OrbitDB***. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
-## 🛡️ **Why Local-First P2P Matters**
+> **Unstoppable** - This application demonstrates technology that continues operating even when cloud providers fail, governments attempt censorship, or software vendors shut down their services. Your data and functionality remain under your control, distributed across a resilient peer-to-peer network between your business partners. Imagine traditional software which was sold on a compact disc in the past - once installed it could never be stopped. A USP which should convince every client around the globe.
 
-> **Unstoppable by Design** - This application demonstrates technology that continues operating even when cloud providers fail, governments attempt censorship, or software vendors shut down their services. Your data and functionality remain under your control, distributed across a resilient peer-to-peer network between your business partners. Imagine traditional software which was sold on a compact disc in the past - once installed it could never be stopped. A USP which should convince every client around the globe.
-
-**🚫 No More Service Shutdowns** • **🌐 Censorship Resistant** • **💪 Vendor Independent** • **⚡ Always Available**
 
 ---
 
@@ -73,7 +70,7 @@ The tutorial covers:
 
 **[🔧 AI-Friendly Component Reference](./docs/)**
 
-This codebase contains production-ready, reusable components for building decentralized P2P applications. Key components for AI analysis and reuse:
+This codebase contains reusable components for building decentralized P2P applications. Key components for AI analysis and reuse:
 
 - **[ConsentModal.svelte](./src/lib/ConsentModal.svelte)** - A comprehensive privacy consent component that manages user preferences for data storage (persistent vs session), network connectivity, and P2P connections. Features configurable checkboxes, storage toggles, and handles GDPR-style consent flow for decentralized applications.
 
