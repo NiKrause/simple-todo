@@ -12,7 +12,7 @@ A basic decentralized, local-first, peer-to-peer todo application built with **l
 
 ## 🛡️ **Why Local-First P2P Matters**
 
-> **Unstoppable by Design** - This application demonstrates technology that continues operating even when cloud providers fail, governments attempt censorship, or software vendors shut down their services. Your data and functionality remain under your control, distributed across a resilient peer-to-peer network between your business partners. Imagine traditional software which was sold on a compact disc in the past - once installed it could never be stopped.
+> **Unstoppable by Design** - This application demonstrates technology that continues operating even when cloud providers fail, governments attempt censorship, or software vendors shut down their services. Your data and functionality remain under your control, distributed across a resilient peer-to-peer network between your business partners. Imagine traditional software which was sold on a compact disc in the past - once installed it could never be stopped. A USP which should convince every clients around the globe.
 
 **🚫 No More Service Shutdowns** • **🌐 Censorship Resistant** • **💪 Vendor Independent** • **⚡ Always Available**
 
