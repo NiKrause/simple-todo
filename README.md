@@ -18,8 +18,10 @@ A basic decentralized, local-first, peer-to-peer todo application built with ***
 
 ---
 
-- **Direct P2P Connections**: WebRTC connections between all devices (Alice, Bob, Peter)
-- **Relay/Signaling Network**: Relay nodes for NAT traversal, peer discovery, and IPFS pinning 
+- **Progressive Web App**: If webservers are down, this app can be started as PWA from desktops and mobile devices
+- **Direct P2P Connections**: WebRTC connections between all devices
+- **Relay/Signaling Network**: Signaling for peer discovery with optional relay functionality when direct peer-to-peer is unavailable 
+- **OrbitDB/IPFS Pinning** Peers and Relays integrate a Helia/OrbitDB node which pin db data on demand or by default (can be customized)
 - **Local OrbitDB Storage**: Each device maintains offline-capable via the browsers indexdb
 - **Multi-Transport Support**: WebSocket, WebTransport, and WebRTC protocols
 - **Storacha/Filecoin Integration with UCAN-Auth:** Backup & restore todo lists via Storacha gateway to Filecoin decentralized storage
