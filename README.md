@@ -8,11 +8,11 @@
   <a href="https://filecoin.io/" target="_blank"><img src="static/filecoin.svg" alt="Filecoin" height="50"></a>
   <a href="https://storacha.network/" target="_blank"><img src="static/storacha-logo.jpeg" alt="Storacha" height="50"></a>
 </div>
-A basic decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
+A basic decentralized, local-first, peer-to-peer todo application built with ***libp2p***, ***IPFS***, and ***OrbitDB***. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
 ## 🛡️ **Why Local-First P2P Matters**
 
-> **Unstoppable by Design** - This application demonstrates technology that continues operating even when cloud providers fail, governments attempt censorship, or software vendors shut down their services. Your data and functionality remain under your control, distributed across a resilient peer-to-peer network between your business partners. Imagine traditional software which was sold on a compact disc in the past - once installed it could never be stopped. A USP which should convince every clients around the globe.
+> **Unstoppable by Design** - This application demonstrates technology that continues operating even when cloud providers fail, governments attempt censorship, or software vendors shut down their services. Your data and functionality remain under your control, distributed across a resilient peer-to-peer network between your business partners. Imagine traditional software which was sold on a compact disc in the past - once installed it could never be stopped. A USP which should convince every client around the globe.
 
 **🚫 No More Service Shutdowns** • **🌐 Censorship Resistant** • **💪 Vendor Independent** • **⚡ Always Available**
 
