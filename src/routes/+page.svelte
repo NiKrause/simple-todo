@@ -14,6 +14,7 @@ import SystemToast from '$lib/SystemToast.svelte';
 	import ConnectedPeers from '$lib/ConnectedPeers.svelte';
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
 	import StorachaIntegration from '$lib/StorachaIntegration.svelte';
+	import QRCodeModal from '$lib/QRCodeModal.svelte';
 	import { Cloud } from 'lucide-svelte';
     import { toastStore } from '$lib/toast-store.js';
 
@@ -33,6 +34,9 @@ import SystemToast from '$lib/SystemToast.svelte';
 
 	// Storacha integration state
 	let showStorachaIntegration = false;
+
+	// QR Code modal state
+	let showQRCodeModal = false;
 
 
 	const handleModalClose = async (event) => {
@@ -211,7 +215,11 @@ import SystemToast from '$lib/SystemToast.svelte';
 			</p>
 		</div>
 		<div class="flex-shrink-0 self-start sm:self-auto">
-			<SocialIcons size="w-5 h-5" className="" />
+			<SocialIcons 
+				size="w-5 h-5" 
+				className="" 
+				onQRCodeClick={() => showQRCodeModal = true} 
+			/>
 		</div>
 	</header>
 
@@ -286,3 +294,6 @@ import SystemToast from '$lib/SystemToast.svelte';
 		<StorachaIntegration />
 	</div>
 {/if}
+
+<!-- QR Code Modal -->
+<QRCodeModal bind:show={showQRCodeModal} />
