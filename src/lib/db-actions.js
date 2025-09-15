@@ -46,25 +46,27 @@ export async function loadTodos() {
 		// Handle both array and object structures
 		let todosArray;
 		if (!Array.isArray(allTodos)) {
-			logMobileError('loadTodos', new Error('Expected array from todoDB.all()'), { 
+			console.error('Expected array from todoDB.all()', {
 				actualType: typeof allTodos,
 				value: allTodos
 			});
 			return;
 		}
-		
-		todosArray = allTodos.map((todo, index) => {
-			if (!todo || typeof todo !== 'object') {
-				console.warn(`⚠️ Invalid todo at index ${index}:`, todo);
-				return null;
-			}
-			
-			return {
-				id: todo.hash,
-				key: todo.key,
-				...todo.value // Access the nested value property
-			};
-		}).filter(Boolean); // Remove null entries
+
+		todosArray = allTodos
+			.map((todo, index) => {
+				if (!todo || typeof todo !== 'object') {
+					console.warn(`⚠️ Invalid todo at index ${index}:`, todo);
+					return null;
+				}
+
+				return {
+					id: todo.hash,
+					key: todo.key,
+					...todo.value // Access the nested value property
+				};
+			})
+			.filter(Boolean); // Remove null entries
 
 		// Sort by createdAt descending (newest first)
 		const sortedTodos = todosArray.sort((a, b) => {
@@ -76,11 +78,11 @@ export async function loadTodos() {
 		todosStore.set(sortedTodos);
 		console.log('todos', sortedTodos);
 		console.log('📋 Loaded todos:', sortedTodos.length);
-		
+
 		// Show success toast with todo count
 		systemToasts.showTodosLoaded(sortedTodos.length);
 	} catch (error) {
-		logMobileError('loadTodos', error, {
+		console.error('Error loading todos:', error, {
 			todoDBAddress: todoDB?.address,
 			todoDBType: typeof todoDB
 		});

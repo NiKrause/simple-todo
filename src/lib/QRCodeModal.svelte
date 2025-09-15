@@ -46,9 +46,11 @@
 		<div
 			class="flex min-h-full items-center justify-center p-4"
 			on:click|stopPropagation
+			on:keydown={(e) => e.key === 'Enter' && e.stopPropagation()}
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="qr-modal-title"
+			tabindex="0"
 		>
 			<div
 				class="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl md:max-w-lg"
@@ -57,7 +59,7 @@
 				<!-- Close Button -->
 				<button
 					on:click={closeModal}
-					class="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+					class="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
 					aria-label="Close QR code modal"
 				>
 					<X class="h-4 w-4" />
@@ -65,9 +67,7 @@
 
 				<!-- Modal Header -->
 				<div class="mb-6 text-center">
-					<h2 id="qr-modal-title" class="text-2xl font-bold text-gray-900">
-						Simple-Todo Example
-					</h2>
+					<h2 id="qr-modal-title" class="text-2xl font-bold text-gray-900">Simple-Todo Example</h2>
 					<p class="mt-2 text-sm text-gray-600">
 						Scan with your mobile device to open this page on another device
 					</p>
@@ -90,18 +90,16 @@
 
 					<!-- URL Display -->
 					<div class="mt-6">
-						<p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+						<p class="mb-2 text-xs font-medium tracking-wide text-gray-500 uppercase">
 							Current URL
 						</p>
-						<div
-							class="rounded-lg bg-gray-50 p-3 font-mono text-sm text-gray-700 break-all"
-						>
+						<div class="rounded-lg bg-gray-50 p-3 font-mono text-sm break-all text-gray-700">
 							{currentUrl}
 						</div>
 					</div>
 				{:else}
 					<div class="flex justify-center">
-						<div class="animate-pulse rounded-xl bg-gray-200 h-72 w-72"></div>
+						<div class="h-72 w-72 animate-pulse rounded-xl bg-gray-200"></div>
 					</div>
 				{/if}
 

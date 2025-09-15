@@ -12,13 +12,11 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 
 > **Unstoppable** - This application demonstrates technology that continues operating even when cloud providers fail, governments attempt censorship, or software vendors shut down their services. Your data and functionality remain under your control, distributed across a resilient peer-to-peer network or self-hosted signaling or relay nodes. Imagine traditional software which was sold on a compact disc in the past - once installed it could never be stopped. A USP which should convince every client around the globe.
 
-
-
 ---
 
 - **Progressive Web App**: If webservers are down, this app can be started as PWA from desktops and mobile devices
 - **Direct P2P Connections**: WebRTC connections between all devices
-- **Relay/Signaling Network**: Signaling for peer discovery with optional relay functionality when direct peer-to-peer is unavailable 
+- **Relay/Signaling Network**: Signaling for peer discovery with optional relay functionality when direct peer-to-peer is unavailable
 - **OrbitDB/IPFS Pinning** Peers and Relays integrate a Helia/OrbitDB node which pin db data on demand or by default (can be customized)
 - **Local OrbitDB Storage**: Each device maintains offline-capable via the browsers indexdb
 - **Multi-Transport Support**: WebSocket, WebTransport, and WebRTC protocols
@@ -34,13 +32,12 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 
 ![Local-First P2P Network Architecture](docs/p2p-network-diagram.svg)
 
-
-
 ## 🎯 What is this?
 
 This is a **browser only** local-first peer-to-peer todo application that operates without any traditional server infrastructure. It connects directly to other browsers and mobile devices through peer-to-peer connections, creating a truly decentralized experience.
 
 ### Key Features
+
 - ✅ **No Server Required** - Runs entirely in your browser
 - ✅ **Local Data** - data is stored in your browsers level storage and replicated via OrbitBB and IPFS
 - ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of signaling nodes)
@@ -52,6 +49,7 @@ This is a **browser only** local-first peer-to-peer todo application that operat
 This project includes an enhanced P2P relay server that facilitates peer discovery and connectivity for the simple-todo application. The relay server provides:
 
 ### Features
+
 - **Circuit Relay v2** - Helps peers connect through NAT and firewalls
 - **WebRTC Signaling** - Enables direct peer-to-peer connections
 - **OrbitDB Pinning** - Automatically pins and syncs OrbitDB databases
@@ -63,6 +61,7 @@ This project includes an enhanced P2P relay server that facilitates peer discove
 ### Quick Start
 
 #### Using Docker Compose (Recommended)
+
 ```bash
 # Run both the app and relay together
 docker-compose up --build
@@ -72,6 +71,7 @@ docker-compose up --build
 ```
 
 #### Manual Setup
+
 ```bash
 # Install relay dependencies
 cd relay
@@ -127,6 +127,7 @@ The relay provides several HTTP API endpoints for monitoring and management:
 ### Docker Support
 
 The relay comes with full Docker support including:
+
 - Multi-stage Dockerfile for optimal image size
 - Docker Compose configuration with app integration
 - Health checks and automatic restarts

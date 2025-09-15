@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "5173:5173"  # Main app port
+      - '5173:5173' # Main app port
     environment:
       - NODE_ENV=production
       # Point to relay service for P2P connectivity
@@ -27,11 +27,11 @@ services:
       context: .
       dockerfile: relay/Dockerfile
     ports:
-      - "4001:4001"  # WebSocket port for browsers
-      - "4002:4002"  # TCP port for native libp2p nodes
-      - "4003:4003/udp"  # WebRTC port
-      - "4006:4006/udp"  # WebRTC Direct port
-      - "3000:3000"  # HTTP API port
+      - '4001:4001' # WebSocket port for browsers
+      - '4002:4002' # TCP port for native libp2p nodes
+      - '4003:4003/udp' # WebRTC port
+      - '4006:4006/udp' # WebRTC Direct port
+      - '3000:3000' # HTTP API port
     environment:
       - NODE_ENV=production
       - RELAY_WS_PORT=4001
@@ -57,7 +57,7 @@ services:
       - todo-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:3000/health']
       interval: 30s
       timeout: 10s
       retries: 3

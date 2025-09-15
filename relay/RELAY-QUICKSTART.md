@@ -5,6 +5,7 @@
 This project now includes a production-ready P2P relay server with the following components:
 
 ### ✅ Successfully Integrated
+
 - **P2P Relay Server** (`relay/relay-enhanced.js`)
 - **Service Architecture** (storage, pinning, express)
 - **Docker Support** (Dockerfile + docker-compose.yml)
@@ -12,6 +13,7 @@ This project now includes a production-ready P2P relay server with the following
 - **OrbitDB Pinning Service** (without backup to Storacha)
 
 ### 📁 Directory Structure
+
 ```
 simple-todo/
 ├── relay/
@@ -22,7 +24,7 @@ simple-todo/
 │       ├── storage.js        # Persistent storage management
 │       ├── pinning.js        # OrbitDB pinning (no Storacha)
 │       └── express.js        # HTTP API endpoints
-├── docker-compose.yml        # Full stack orchestration  
+├── docker-compose.yml        # Full stack orchestration
 ├── Dockerfile               # SvelteKit app container
 ├── test-relay.js            # Integration test script
 └── RELAY-QUICKSTART.md      # This guide
@@ -31,6 +33,7 @@ simple-todo/
 ## 🚀 Quick Start Options
 
 ### Option 1: Docker Compose (Recommended)
+
 ```bash
 # Run both app and relay together
 docker-compose up --build
@@ -40,6 +43,7 @@ docker-compose up --build
 ```
 
 ### Option 2: Manual Setup
+
 ```bash
 # Terminal 1: Start the relay
 cd relay
@@ -51,6 +55,7 @@ npm run dev
 ```
 
 ### Option 3: Test Integration
+
 ```bash
 # Run automated integration tests
 ./test-relay.js
@@ -93,8 +98,9 @@ Access these at `http://localhost:3000`:
 - `POST /test-pubsub` - Test pubsub messaging
 
 ### Kept Essential Features
+
 - ✅ P2P networking and relay functionality
-- ✅ OrbitDB pinning and synchronization  
+- ✅ OrbitDB pinning and synchronization
 - ✅ HTTP API for monitoring
 - ✅ Multi-transport support (WebRTC, WebSocket, TCP)
 - ✅ Production-ready configuration
@@ -115,7 +121,7 @@ Access these at `http://localhost:3000`:
 # Syntax check
 cd relay && node -c relay-enhanced.js
 
-# Integration test  
+# Integration test
 ./test-relay.js
 
 # Docker validation

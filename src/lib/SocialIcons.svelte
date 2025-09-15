@@ -61,7 +61,7 @@
 	<!-- QR Code -->
 	<button
 		on:click={onQRCodeClick}
-		class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+		class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-purple-600 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:outline-none"
 		title="Show QR Code"
 		aria-label="Show QR code for sharing this page"
 	>

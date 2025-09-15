@@ -50,9 +50,11 @@ export default defineConfig({
 					{
 						urlPattern: ({ request }) => {
 							// Only cache navigation requests, avoid OrbitDB/IPFS requests
-							return request.mode === 'navigate' && 
-								!request.url.includes('/ipfs/') && 
-								!request.url.includes('/orbitdb/');
+							return (
+								request.mode === 'navigate' &&
+								!request.url.includes('/ipfs/') &&
+								!request.url.includes('/orbitdb/')
+							);
 						},
 						handler: 'NetworkFirst',
 						options: {
@@ -77,11 +79,7 @@ export default defineConfig({
 				skipWaiting: true,
 				clientsClaim: true,
 				// Exclude OrbitDB and large files from precaching
-				globIgnores: [
-					'**/orbitdb/**',
-					'**/ipfs/**',
-					'**/node_modules/**'
-				]
+				globIgnores: ['**/orbitdb/**', '**/ipfs/**', '**/node_modules/**']
 			},
 			// Use existing manifest.json
 			manifest: false, // We'll use our custom manifest.json

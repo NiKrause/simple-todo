@@ -79,7 +79,6 @@ export async function initializeP2P(preferences = {}) {
 		// Set initialization state
 		initializationStore.set({ isInitializing: true, isInitialized: false, error: null });
 
-
 		// Create libp2p configuration and node with network and peer connection preferences
 		const config = await createLibp2pConfig({
 			enablePeerConnections,
@@ -91,7 +90,7 @@ export async function initializeP2P(preferences = {}) {
 		console.log(
 			`✅ libp2p node created with network connection: ${enableNetworkConnection ? 'enabled' : 'disabled'}, peer connections: ${enablePeerConnections ? 'enabled' : 'disabled'}`
 		);
-		
+
 		// Show toast notification for libp2p creation
 		systemToasts.showLibp2pCreated();
 
@@ -105,27 +104,30 @@ export async function initializeP2P(preferences = {}) {
 		let actuallyUsePersistentStorage = enablePersistentStorage;
 
 		if (enablePersistentStorage) {
-				try {
-					console.log('🗄️ Initializing Helia with persistent storage (LevelDB)...');
-					const blockstore = new LevelBlockstore('./helia-blocks');
-					const datastore = new LevelDatastore('./helia-data');
-					heliaConfig = { libp2p, blockstore, datastore };
-					
-					// Show toast for persistent storage
-					systemToasts.showStoragePersistent();
-				} catch (levelError) {
-					console.warn('⚠️ LevelDB initialization failed, falling back to in-memory storage:', levelError);
-					actuallyUsePersistentStorage = false;
-					
-					// Show toast for storage test failure
-					systemToasts.showStorageTestFailed();
-				}
+			try {
+				console.log('🗄️ Initializing Helia with persistent storage (LevelDB)...');
+				const blockstore = new LevelBlockstore('./helia-blocks');
+				const datastore = new LevelDatastore('./helia-data');
+				heliaConfig = { libp2p, blockstore, datastore };
+
+				// Show toast for persistent storage
+				systemToasts.showStoragePersistent();
+			} catch (levelError) {
+				console.warn(
+					'⚠️ LevelDB initialization failed, falling back to in-memory storage:',
+					levelError
+				);
+				actuallyUsePersistentStorage = false;
+
+				// Show toast for storage test failure
+				systemToasts.showStorageTestFailed();
+			}
 		}
 
 		if (!actuallyUsePersistentStorage) {
 			console.log('💾 Initializing Helia with in-memory storage...');
 			// heliaConfig already has just { libp2p }, which defaults to in-memory storage
-			
+
 			// Show toast for in-memory storage (only if not already shown above)
 			if (!enablePersistentStorage) {
 				systemToasts.showStorageMemory();
@@ -136,7 +138,7 @@ export async function initializeP2P(preferences = {}) {
 		console.log(
 			`✅ Helia created with ${actuallyUsePersistentStorage ? 'persistent' : 'in-memory'} storage`
 		);
-		
+
 		// Show toast for Helia creation
 		systemToasts.showHeliaCreated();
 

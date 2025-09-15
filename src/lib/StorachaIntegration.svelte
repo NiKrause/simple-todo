@@ -19,22 +19,16 @@
 		createSpace,
 		getSpaceUsage
 	} from './storacha-backup.js';
-	import { OrbitDBStorachaBridge, restoreDatabaseFromSpace } from 'orbitdb-storacha-bridge';
+	import { OrbitDBStorachaBridge } from 'orbitdb-storacha-bridge';
 	import { todosStore } from './db-actions.js';
-	import { initializationStore, orbitDBStore, libp2pStore, peerIdStore } from './p2p.js';
-	import { initializeDatabase, loadTodos, todoDBStore } from './db-actions.js';
-	// Add imports for creating fresh instances
-	import { createLibp2p } from 'libp2p';
-	import { createHelia } from 'helia';
-	import { createOrbitDB } from '@orbitdb/core';
-	import { createLibp2pConfig } from './libp2p-config.js';
-	import { LevelBlockstore } from 'blockstore-level';
-	import { LevelDatastore } from 'datastore-level';
+	import { initializationStore, orbitDBStore } from './p2p.js';
+	import { loadTodos, todoDBStore } from './db-actions.js';
 
 	// Component state
 	let showStoracha = true; // Start expanded by default
 	let isLoading = false;
-	let status = '';
+	// eslint-disable-next-line no-unused-vars
+	let status = ''; // Used for internal state tracking, could be displayed in UI
 	let error = null;
 	let success = null;
 
@@ -78,8 +72,6 @@
 	let spaces = [];
 	let spaceUsage = null; // Will contain file count and last upload info
 
-
-
 	// Progress tracking functions
 	function initializeBridge(authMethod, authData) {
 		if (bridge) {
@@ -88,7 +80,7 @@
 		}
 
 		const bridgeOptions = {};
-		
+
 		if (authMethod === 'credentials') {
 			bridgeOptions.storachaKey = authData.key;
 			bridgeOptions.storachaProof = authData.proof;
@@ -97,9 +89,9 @@
 			if (!client) {
 				throw new Error('UCAN client is required but not available');
 			}
-			
+
 			bridgeOptions.ucanClient = client;
-			
+
 			// Get current space DID if available
 			try {
 				const currentSpace = client.currentSpace();
@@ -181,7 +173,7 @@
 			console.log(`💾 Saving ${method} credentials to localStorage...`);
 			localStorage.setItem(STORAGE_KEYS.AUTH_METHOD, method);
 			localStorage.setItem(STORAGE_KEYS.AUTO_LOGIN, 'true');
-			
+
 			if (method === 'credentials') {
 				localStorage.setItem(STORAGE_KEYS.STORACHA_KEY, data.key);
 				localStorage.setItem(STORAGE_KEYS.STORACHA_PROOF, data.proof);
@@ -189,7 +181,7 @@
 				localStorage.setItem(STORAGE_KEYS.UCAN_TOKEN, data.ucanToken);
 				localStorage.setItem(STORAGE_KEYS.RECIPIENT_KEY, data.recipientKey);
 			}
-			
+
 			console.log('✅ Credentials saved successfully');
 		} catch (err) {
 			console.warn('❌ Failed to save credentials to localStorage:', err);
@@ -222,7 +214,7 @@
 					return { method, ucanToken, recipientKey };
 				}
 			}
-			
+
 			console.log('❌ No valid credentials found');
 		} catch (err) {
 			console.warn('❌ Failed to load credentials from localStorage:', err);
@@ -232,7 +224,7 @@
 
 	function clearStoredCredentials() {
 		try {
-			Object.values(STORAGE_KEYS).forEach(key => {
+			Object.values(STORAGE_KEYS).forEach((key) => {
 				localStorage.removeItem(key);
 			});
 		} catch (err) {
@@ -405,7 +397,9 @@
 
 				if (!useStoredCredentials) {
 					saveCredentials('ucan', { ucanToken: tokenToUse, recipientKey: keyToUse });
-					showMessage('Successfully logged in to Storacha with UCAN! Credentials saved for auto-login.');
+					showMessage(
+						'Successfully logged in to Storacha with UCAN! Credentials saved for auto-login.'
+					);
 				} else {
 					showMessage('Successfully auto-logged in to Storacha with UCAN!');
 				}
@@ -565,21 +559,19 @@
 		}
 	}
 
-
-
-	// Format date
-	function formatDate(dateString) {
-		return new Date(dateString).toLocaleString();
-	}
+	// Format date (currently unused but may be needed for future features)
+	// function formatDate(dateString) {
+	// 	return new Date(dateString).toLocaleString();
+	// }
 
 	// Format relative time for space usage
 	function formatRelativeTime(dateString) {
 		if (!dateString) return 'Never';
-		
+
 		const date = new Date(dateString);
 		const now = new Date();
 		const diffInSeconds = Math.floor((now - date) / 1000);
-		
+
 		if (diffInSeconds < 60) return 'Just now';
 		if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
 		if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
@@ -593,8 +585,6 @@
 		return space.name === 'Unnamed Space' ? `Space ${space.did.slice(-8)}` : space.name;
 	}
 
-
-
 	// Auto-login on component mount
 	onMount(async () => {
 		console.log('🚀 StorachaIntegration component mounted');
@@ -603,10 +593,10 @@
 		const stored = loadCredentials();
 		if (stored) {
 			console.log(`🔐 Found stored ${stored.method} credentials, attempting auto-login...`);
-			
+
 			// Set the auth method and form values from stored credentials
 			authMethod = stored.method;
-			
+
 			try {
 				if (stored.method === 'credentials') {
 					storachaKey = stored.key;
@@ -625,8 +615,6 @@
 			console.log('🔒 No stored credentials found, user needs to login manually');
 		}
 	});
-
-
 
 	// Fallback-only restore (more reliable but loses some metadata)
 	async function restoreFromSpaceFallback() {
@@ -651,7 +639,7 @@
 			// Clean up existing database before restore to prevent conflicts
 			status = 'Cleaning up existing database...';
 			console.log('🧹 Cleaning up existing database before restore...');
-			
+
 			try {
 				// Close and clean up existing todo database
 				if ($todoDBStore) {
@@ -659,7 +647,7 @@
 					await $todoDBStore.close();
 					todoDBStore.set(null);
 				}
-				
+
 				// Try to drop any existing databases with common names
 				const commonNames = ['simple-todos', 'test-todos', 'restored-todos'];
 				for (const dbName of commonNames) {
@@ -668,15 +656,14 @@
 						console.log(`🗑️ Dropping existing database '${dbName}':`, existingDB.address);
 						await existingDB.drop();
 						await existingDB.close();
-					} catch (dropError) {
+					} catch {
 						console.log(`ℹ️ No existing '${dbName}' database to drop`);
 					}
 				}
-				
 			} catch (cleanupError) {
 				console.warn('⚠️ Cleanup warning (continuing anyway):', cleanupError.message);
 			}
-			
+
 			// Use the current OrbitDB instance for fallback restore with progress tracking
 			status = 'Starting fallback restore...';
 			console.log('🔄 Using fallback restore method with current OrbitDB instance...');
@@ -689,7 +676,7 @@
 			// Use unique database name to prevent conflicts
 			const uniqueDbName = `restored-todos-${Date.now()}`;
 			console.log('🆆 Using unique database name:', uniqueDbName);
-			
+
 			// Use fallback reconstruction directly (as requested)
 			const result = await bridge.restoreFromSpace($orbitDBStore, {
 				timeout: 180000, // 3 minutes timeout for fallback reconstruction
@@ -722,7 +709,6 @@
 			} else {
 				showMessage(`Fallback restore failed: ${result.error}`, 'error');
 			}
-
 		} catch (error) {
 			console.error('❌ Fallback restore failed:', error);
 			showMessage(`Fallback restore failed: ${error.message}`, 'error');
@@ -732,15 +718,16 @@
 			resetProgress();
 		}
 	}
-
 </script>
 
 <div
-	class="rounded-xl border border-blue-200/50 bg-white/95 backdrop-blur-sm shadow-2xl ring-1 ring-black/5 dark:border-gray-600/50 dark:bg-gray-800/95 dark:ring-white/10 p-4 max-h-[70vh] overflow-y-auto"
+	class="max-h-[70vh] overflow-y-auto rounded-xl border border-blue-200/50 bg-white/95 p-4 shadow-2xl ring-1 ring-black/5 backdrop-blur-sm dark:border-gray-600/50 dark:bg-gray-800/95 dark:ring-white/10"
 	style="backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);"
 >
 	<!-- Header -->
-	<div class="mb-4 flex items-center justify-between border-b border-gray-200/50 pb-3 dark:border-gray-700/50">
+	<div
+		class="mb-4 flex items-center justify-between border-b border-gray-200/50 pb-3 dark:border-gray-700/50"
+	>
 		<div class="flex items-center space-x-2">
 			<div class="rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 p-2">
 				<Cloud class="h-5 w-5 text-white" />
@@ -755,8 +742,16 @@
 			on:click={() => (showStoracha = !showStoracha)}
 			class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 			title={showStoracha ? 'Collapse' : 'Expand'}
+			aria-label={showStoracha ? 'Collapse Storacha panel' : 'Expand Storacha panel'}
 		>
-			<svg class="h-4 w-4 transform transition-transform duration-200 {showStoracha ? 'rotate-180' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+			<svg
+				class="h-4 w-4 transform transition-transform duration-200 {showStoracha
+					? 'rotate-180'
+					: ''}"
+				fill="none"
+				viewBox="0 0 24 24"
+				stroke="currentColor"
+			>
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
 			</svg>
 		</button>
@@ -771,11 +766,10 @@
 				<div class="flex items-center space-x-2">
 					<Loader2 class="h-4 w-4 animate-spin text-yellow-600 dark:text-yellow-400" />
 					<div class="text-sm">
-						<div class="font-medium text-yellow-800 dark:text-yellow-200">
-							Database Not Ready
-						</div>
+						<div class="font-medium text-yellow-800 dark:text-yellow-200">Database Not Ready</div>
 						<div class="text-yellow-700 dark:text-yellow-300">
-							OrbitDB is still initializing. You can login to Storacha, but backup/restore will be disabled until initialization completes.
+							OrbitDB is still initializing. You can login to Storacha, but backup/restore will be
+							disabled until initialization completes.
 						</div>
 					</div>
 				</div>
@@ -804,7 +798,6 @@
 				</div>
 			</div>
 		{/if}
-
 
 		<!-- Progress Bar -->
 		{#if showProgress}
@@ -849,17 +842,21 @@
 				</div>
 
 				<!-- Authentication Method Toggle -->
-				<div class="flex justify-center mb-4">
+				<div class="mb-4 flex justify-center">
 					<div class="rounded-lg border bg-gray-100 p-1 dark:bg-gray-700">
 						<button
-							on:click={() => authMethod = 'credentials'}
-							class="px-4 py-2 rounded-md text-sm transition-colors {authMethod === 'credentials' ? 'bg-blue-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}"
+							on:click={() => (authMethod = 'credentials')}
+							class="rounded-md px-4 py-2 text-sm transition-colors {authMethod === 'credentials'
+								? 'bg-blue-600 text-white'
+								: 'text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-600'}"
 						>
 							🔑 Credentials
 						</button>
 						<button
-							on:click={() => authMethod = 'ucan'}
-							class="px-4 py-2 rounded-md text-sm transition-colors {authMethod === 'ucan' ? 'bg-blue-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}"
+							on:click={() => (authMethod = 'ucan')}
+							class="rounded-md px-4 py-2 text-sm transition-colors {authMethod === 'ucan'
+								? 'bg-blue-600 text-white'
+								: 'text-gray-700 hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-gray-600'}"
 						>
 							🎫 UCAN
 						</button>
@@ -931,7 +928,7 @@
 								></textarea>
 								<textarea
 									bind:value={recipientKey}
-									placeholder='Recipient Key (JSON: did:key with keys object)'
+									placeholder="Recipient Key (JSON: did:key with keys object)"
 									rows="3"
 									class="w-full resize-none rounded-md border border-gray-300 bg-white px-3 py-2 font-mono text-xs text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
 								></textarea>
@@ -995,7 +992,7 @@
 					<button
 						on:click={handleBackup}
 						disabled={isLoading || !$initializationStore.isInitialized || $todosStore.length === 0}
-						class="w-full flex items-center justify-center space-x-2 rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+						class="flex w-full items-center justify-center space-x-2 rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700 disabled:opacity-50"
 					>
 						<Upload class="h-4 w-4" />
 						<span>Backup Database</span>
@@ -1005,7 +1002,7 @@
 					<button
 						on:click={restoreFromSpaceFallback}
 						disabled={isLoading || !$initializationStore.isInitialized}
-						class="w-full flex items-center justify-center space-x-2 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+						class="flex w-full items-center justify-center space-x-2 rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
 						title="Restore database from Storacha backup"
 					>
 						<Download class="h-4 w-4" />
@@ -1014,158 +1011,184 @@
 				</div>
 
 				<!-- Spaces Management -->
-					<div class="rounded-md border bg-white p-4 dark:bg-gray-700">
-						<div class="mb-3 flex items-center justify-between">
-							<h4 class="flex items-center space-x-2 font-medium text-gray-800 dark:text-white">
-								<List class="h-4 w-4" />
-								<span>Spaces ({spaces.length})</span>
-							</h4>
-							<div class="flex items-center space-x-1">
+				<div class="rounded-md border bg-white p-4 dark:bg-gray-700">
+					<div class="mb-3 flex items-center justify-between">
+						<h4 class="flex items-center space-x-2 font-medium text-gray-800 dark:text-white">
+							<List class="h-4 w-4" />
+							<span>Spaces ({spaces.length})</span>
+						</h4>
+						<div class="flex items-center space-x-1">
+							<button
+								on:click={loadSpaceUsage}
+								disabled={isLoading}
+								class="rounded p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-300"
+								title="Refresh space usage"
+								aria-label="Refresh space usage"
+							>
+								<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+									/>
+								</svg>
+							</button>
+							{#if spaceUsage && spaceUsage.totalFiles <= 50 && !spaceUsage.analyzed}
 								<button
-									on:click={loadSpaceUsage}
+									on:click={async () => {
+										spaceUsage = await getSpaceUsage(client, true);
+									}}
 									disabled={isLoading}
-									class="rounded p-1 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50 dark:text-gray-400 dark:hover:bg-gray-600 dark:hover:text-gray-300"
-									title="Refresh space usage"
+									class="rounded p-1 text-blue-500 transition-colors hover:bg-blue-100 hover:text-blue-700 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
+									title="Analyze file types"
+									aria-label="Analyze file types"
 								>
 									<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+										/>
 									</svg>
 								</button>
-								{#if spaceUsage && spaceUsage.totalFiles <= 50 && !spaceUsage.analyzed}
-									<button
-										on:click={async () => { spaceUsage = await getSpaceUsage(client, true); }}
-										disabled={isLoading}
-										class="rounded p-1 text-blue-500 transition-colors hover:bg-blue-100 hover:text-blue-700 disabled:opacity-50 dark:text-blue-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
-										title="Analyze file types"
+							{/if}
+						</div>
+					</div>
+
+					<!-- Space Usage Information -->
+					{#if spaceUsage}
+						<div
+							class="mb-4 rounded border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-800"
+						>
+							<div class="flex items-center justify-between text-sm">
+								<div class="flex items-center space-x-2">
+									<div
+										class="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30"
 									>
-										<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-										</svg>
-									</button>
+										<span class="text-xs font-bold text-blue-600 dark:text-blue-400"
+											>{spaceUsage.totalFiles}</span
+										>
+									</div>
+									<span class="font-medium text-gray-700 dark:text-gray-300">
+										file{spaceUsage.totalFiles !== 1 ? 's' : ''} stored
+									</span>
+								</div>
+								{#if spaceUsage.lastUploadDate}
+									<div class="text-gray-500 dark:text-gray-400">
+										Last upload: {formatRelativeTime(spaceUsage.lastUploadDate)}
+									</div>
 								{/if}
 							</div>
-						</div>
 
-						<!-- Space Usage Information -->
-						{#if spaceUsage}
-							<div class="mb-4 rounded border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-800">
-								<div class="flex items-center justify-between text-sm">
-									<div class="flex items-center space-x-2">
-										<div class="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-											<span class="text-xs font-bold text-blue-600 dark:text-blue-400">{spaceUsage.totalFiles}</span>
+							<!-- File Type Breakdown -->
+							{#if spaceUsage.totalFiles > 0}
+								<div class="mt-2 grid grid-cols-3 gap-2 text-xs">
+									{#if spaceUsage.backupFiles > 0}
+										<div class="flex items-center space-x-1">
+											<div class="h-2 w-2 rounded-full bg-green-500"></div>
+											<span class="text-gray-600 dark:text-gray-400"
+												>{spaceUsage.backupFiles} backup{spaceUsage.backupFiles !== 1
+													? 's'
+													: ''}</span
+											>
 										</div>
-										<span class="font-medium text-gray-700 dark:text-gray-300">
-											file{spaceUsage.totalFiles !== 1 ? 's' : ''} stored
-										</span>
-									</div>
-									{#if spaceUsage.lastUploadDate}
-										<div class="text-gray-500 dark:text-gray-400">
-											Last upload: {formatRelativeTime(spaceUsage.lastUploadDate)}
+									{/if}
+									{#if spaceUsage.blockFiles > 0}
+										<div class="flex items-center space-x-1">
+											<div class="h-2 w-2 rounded-full bg-blue-500"></div>
+											<span class="text-gray-600 dark:text-gray-400"
+												>{spaceUsage.blockFiles} data block{spaceUsage.blockFiles !== 1
+													? 's'
+													: ''}</span
+											>
+										</div>
+									{/if}
+									{#if spaceUsage.otherFiles > 0}
+										<div class="flex items-center space-x-1">
+											<div class="h-2 w-2 rounded-full bg-gray-500"></div>
+											<span class="text-gray-600 dark:text-gray-400"
+												>{spaceUsage.otherFiles} other</span
+											>
 										</div>
 									{/if}
 								</div>
-								
-								<!-- File Type Breakdown -->
-								{#if spaceUsage.totalFiles > 0}
-									<div class="mt-2 grid grid-cols-3 gap-2 text-xs">
-										{#if spaceUsage.backupFiles > 0}
-											<div class="flex items-center space-x-1">
-												<div class="h-2 w-2 rounded-full bg-green-500"></div>
-												<span class="text-gray-600 dark:text-gray-400">{spaceUsage.backupFiles} backup{spaceUsage.backupFiles !== 1 ? 's' : ''}</span>
-											</div>
-										{/if}
-										{#if spaceUsage.blockFiles > 0}
-											<div class="flex items-center space-x-1">
-												<div class="h-2 w-2 rounded-full bg-blue-500"></div>
-												<span class="text-gray-600 dark:text-gray-400">{spaceUsage.blockFiles} data block{spaceUsage.blockFiles !== 1 ? 's' : ''}</span>
-											</div>
-										{/if}
-										{#if spaceUsage.otherFiles > 0}
-											<div class="flex items-center space-x-1">
-												<div class="h-2 w-2 rounded-full bg-gray-500"></div>
-												<span class="text-gray-600 dark:text-gray-400">{spaceUsage.otherFiles} other</span>
-											</div>
-										{/if}
-									</div>
-									
-									<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-										{#if spaceUsage.oldestUploadDate && spaceUsage.oldestUploadDate !== spaceUsage.lastUploadDate}
-											Oldest upload: {formatRelativeTime(spaceUsage.oldestUploadDate)}<br/>
-										{/if}
-										<em>Note: Each backup creates many data blocks</em>
-									</div>
-								{/if}
-							</div>
-						{:else if spaceUsage === null && isLoggedIn}
-							<div class="mb-4 rounded border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-600 dark:bg-yellow-900/30">
-								<div class="text-sm text-yellow-700 dark:text-yellow-300">
-									Space usage information unavailable
+
+								<div class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+									{#if spaceUsage.oldestUploadDate && spaceUsage.oldestUploadDate !== spaceUsage.lastUploadDate}
+										Oldest upload: {formatRelativeTime(spaceUsage.oldestUploadDate)}<br />
+									{/if}
+									<em>Note: Each backup creates many data blocks</em>
 								</div>
-							</div>
-						{/if}
-
-						<!-- Create New Space -->
-						<div class="mb-4 flex space-x-2">
-							<input
-								bind:value={newSpaceName}
-								placeholder="New space name"
-								class="flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-							/>
-							<button
-								on:click={handleCreateSpace}
-								disabled={isLoading || !newSpaceName.trim()}
-								class="rounded-md bg-green-600 px-3 py-2 text-white transition-colors hover:bg-green-700 disabled:opacity-50"
-							>
-								<Plus class="h-4 w-4" />
-							</button>
+							{/if}
 						</div>
+					{:else if spaceUsage === null && isLoggedIn}
+						<div
+							class="mb-4 rounded border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-600 dark:bg-yellow-900/30"
+						>
+							<div class="text-sm text-yellow-700 dark:text-yellow-300">
+								Space usage information unavailable
+							</div>
+						</div>
+					{/if}
 
-						<!-- Spaces List -->
-						{#if spaces.length === 0}
-							<div class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-								No spaces found
-							</div>
-						{:else}
-							<div class="max-h-40 space-y-2 overflow-y-auto">
-								{#each spaces as space (space.did)}
-									<div
-										class="flex items-center justify-between rounded border bg-gray-50 p-2 dark:bg-gray-600"
-									>
-										<div>
-											<div class="text-sm font-medium text-gray-800 dark:text-white">
-												{formatSpaceName(space)}
-											</div>
-											<div class="font-mono text-xs text-gray-500 dark:text-gray-400">
-												{space.did.slice(0, 20)}...
-											</div>
-										</div>
-										{#if currentSpace?.did !== space.did}
-											<button
-												on:click={() => selectSpace(space)}
-												class="px-2 py-1 text-sm text-blue-600 transition-colors hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-											>
-												Select
-											</button>
-										{:else}
-											<span
-												class="px-2 py-1 text-sm font-medium text-green-600 dark:text-green-400"
-											>
-												Current
-											</span>
-										{/if}
-									</div>
-								{/each}
-							</div>
-						{/if}
+					<!-- Create New Space -->
+					<div class="mb-4 flex space-x-2">
+						<input
+							bind:value={newSpaceName}
+							placeholder="New space name"
+							class="flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+						/>
+						<button
+							on:click={handleCreateSpace}
+							disabled={isLoading || !newSpaceName.trim()}
+							class="rounded-md bg-green-600 px-3 py-2 text-white transition-colors hover:bg-green-700 disabled:opacity-50"
+						>
+							<Plus class="h-4 w-4" />
+						</button>
 					</div>
 
-
+					<!-- Spaces List -->
+					{#if spaces.length === 0}
+						<div class="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+							No spaces found
+						</div>
+					{:else}
+						<div class="max-h-40 space-y-2 overflow-y-auto">
+							{#each spaces as space (space.did)}
+								<div
+									class="flex items-center justify-between rounded border bg-gray-50 p-2 dark:bg-gray-600"
+								>
+									<div>
+										<div class="text-sm font-medium text-gray-800 dark:text-white">
+											{formatSpaceName(space)}
+										</div>
+										<div class="font-mono text-xs text-gray-500 dark:text-gray-400">
+											{space.did.slice(0, 20)}...
+										</div>
+									</div>
+									{#if currentSpace?.did !== space.did}
+										<button
+											on:click={() => selectSpace(space)}
+											class="px-2 py-1 text-sm text-blue-600 transition-colors hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+										>
+											Select
+										</button>
+									{:else}
+										<span class="px-2 py-1 text-sm font-medium text-green-600 dark:text-green-400">
+											Current
+										</span>
+									{/if}
+								</div>
+							{/each}
+						</div>
+					{/if}
+				</div>
 			</div>
 		{/if}
 	{/if}
 </div>
-
-
 
 <style>
 	/* Custom scrollbar for webkit browsers */

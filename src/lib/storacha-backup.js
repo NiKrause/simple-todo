@@ -4,11 +4,7 @@
  * Uses the orbitdb-storacha-bridge library from npm
  */
 
-import {
-	backupDatabase,
-	restoreDatabaseFromSpace,
-	listStorachaSpaceFiles
-} from 'orbitdb-storacha-bridge';
+import { listStorachaSpaceFiles } from 'orbitdb-storacha-bridge';
 
 // Note: These are equivalent:
 // 1. restoreDatabaseFromSpace(orbitdb, options) - Direct function call
@@ -402,7 +398,7 @@ export async function getSpaceUsage(client, detailed = false) {
 
 		// Sort by date to find oldest and newest
 		const sortedUploads = uploads.sort((a, b) => new Date(b.insertedAt) - new Date(a.insertedAt));
-		
+
 		const lastUploadDate = sortedUploads[0].insertedAt;
 		const oldestUploadDate = sortedUploads[sortedUploads.length - 1].insertedAt;
 
@@ -414,37 +410,40 @@ export async function getSpaceUsage(client, detailed = false) {
 		if (detailed && uploads.length <= 50) {
 			// Only do detailed analysis for smaller numbers of files to avoid performance issues
 			console.log('🔍 Performing detailed file type analysis...');
-			
+
 			// Analyze up to first 20 files to get a sample
 			const samplesToAnalyze = uploads.slice(0, 20);
-			
+
 			for (const upload of samplesToAnalyze) {
 				const cid = upload.root.toString();
 				let fileType = 'block'; // Default assumption
-				
+
 				try {
 					// Quick check - try to fetch first few bytes
 					const response = await fetch(`https://w3s.link/ipfs/${cid}`, {
-						headers: { 'Range': 'bytes=0-512' }, // Smaller range
+						headers: { Range: 'bytes=0-512' }, // Smaller range
 						signal: AbortSignal.timeout(3000) // 3 second timeout
 					});
-					
+
 					if (response.ok) {
 						const text = await response.text();
-						
+
 						// Check if it looks like JSON backup metadata
-						if (text.trim().startsWith('{') && (text.includes('backupVersion') || text.includes('simple-todo'))) {
+						if (
+							text.trim().startsWith('{') &&
+							(text.includes('backupVersion') || text.includes('simple-todo'))
+						) {
 							fileType = 'backup';
 						}
 					}
-				} catch (error) {
+				} catch {
 					// Keep default 'block' type
 				}
-				
+
 				if (fileType === 'backup') backupFiles++;
 				else if (fileType === 'block') blockFiles++;
 				else otherFiles++;
-				
+
 				processedUploads.push({
 					cid,
 					uploadedAt: upload.insertedAt,
@@ -452,13 +451,13 @@ export async function getSpaceUsage(client, detailed = false) {
 					type: fileType
 				});
 			}
-			
+
 			// For remaining files, just estimate based on patterns
 			const remaining = uploads.length - samplesToAnalyze.length;
 			if (remaining > 0) {
 				// Assume remaining files are mostly blocks since backups are rare
 				blockFiles += remaining;
-				
+
 				// Add remaining files without detailed analysis
 				for (let i = samplesToAnalyze.length; i < uploads.length; i++) {
 					const upload = uploads[i];
@@ -470,14 +469,16 @@ export async function getSpaceUsage(client, detailed = false) {
 					});
 				}
 			}
-			
-			console.log(`✅ Analyzed ${uploads.length} files: ${backupFiles} backups, ${blockFiles} blocks, ${otherFiles} other`);
+
+			console.log(
+				`✅ Analyzed ${uploads.length} files: ${backupFiles} backups, ${blockFiles} blocks, ${otherFiles} other`
+			);
 		} else {
 			// Fast mode: just return basic info without detailed analysis
 			blockFiles = uploads.length; // Assume most are blocks
 			backupFiles = 0; // We'll estimate this is very small
 			otherFiles = 0;
-			
+
 			for (const upload of uploads) {
 				processedUploads.push({
 					cid: upload.root.toString(),
@@ -486,7 +487,7 @@ export async function getSpaceUsage(client, detailed = false) {
 					type: 'unknown'
 				});
 			}
-			
+
 			console.log(`✅ Space contains ${uploads.length} files (fast mode)`);
 		}
 
