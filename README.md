@@ -1,6 +1,6 @@
 # Simple Todo - A Local-First Peer-to-Peer Demo App (in Svelte)
 
-<div align="center">
+<div align="center" style="width: 100%;">
   <a href="https://libp2p.io/" target="_blank"><img src="static/libp2p.png" alt="libp2p" height="50"></a>
   <a href="https://ipfs.tech/" target="_blank"><img src="static/ipfs.png" alt="IPFS" height="50"></a>
   <a href="https://helia.io/" target="_blank"><img src="static/helia.svg" alt="Helia" height="50"></a>
@@ -8,7 +8,7 @@
   <a href="https://filecoin.io/" target="_blank"><img src="static/filecoin.svg" alt="Filecoin" height="50"></a>
   <a href="https://storacha.network/" target="_blank"><img src="static/storacha-logo.jpeg" alt="Storacha" height="50"></a>
 </div>
-A basic decentralized, local-first, peer-to-peer todo application built with ***libp2p***, ***IPFS***, and ***OrbitDB***. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
+A basic decentralized, local-first, peer-to-peer todo application built with `libp2p`, `IPFS`, and `OrbitDB`. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
 > **Unstoppable** - This application demonstrates technology that continues operating even when cloud providers fail, governments attempt censorship, or software vendors shut down their services. Your data and functionality remain under your control, distributed across a resilient peer-to-peer network between your business partners. Imagine traditional software which was sold on a compact disc in the past - once installed it could never be stopped. A USP which should convince every client around the globe.
 
@@ -45,6 +45,92 @@ This is a **browser only** local-first peer-to-peer todo application that operat
 - ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of signaling nodes)
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
 - ✅ **Dynamic Identity** - Fresh peer ID generated on each load
+
+## 🌉 P2P Relay Server
+
+This project includes an enhanced P2P relay server that facilitates peer discovery and connectivity for the simple-todo application. The relay server provides:
+
+### Features
+- **Circuit Relay v2** - Helps peers connect through NAT and firewalls
+- **WebRTC Signaling** - Enables direct peer-to-peer connections
+- **OrbitDB Pinning** - Automatically pins and syncs OrbitDB databases
+- **HTTP API** - Management and monitoring endpoints
+- **Multi-Transport Support** - WebSocket, TCP, WebRTC, and WebRTC Direct
+- **Metrics & Monitoring** - Prometheus-compatible metrics and health checks
+- **Production Ready** - DoS protection, rate limiting, and secure configuration
+
+### Quick Start
+
+#### Using Docker Compose (Recommended)
+```bash
+# Run both the app and relay together
+docker-compose up --build
+
+# Access the app at http://localhost:5173
+# Access relay API at http://localhost:3000
+```
+
+#### Manual Setup
+```bash
+# Install relay dependencies
+cd relay
+npm install
+
+# Start the relay server
+npm start
+
+# Or with verbose logging
+npm run start:verbose
+```
+
+### Configuration
+
+The relay server can be configured using environment variables:
+
+```bash
+# Port Configuration
+RELAY_WS_PORT=4001          # WebSocket port for browsers
+RELAY_TCP_PORT=4002          # TCP port for native libp2p nodes
+RELAY_WEBRTC_PORT=4003       # WebRTC port
+RELAY_WEBRTC_DIRECT_PORT=4006 # WebRTC Direct port
+HTTP_PORT=3000               # HTTP API port
+
+# Storage
+DATASTORE_PATH=./relay-datastore
+
+# Networking
+PUBSUB_TOPICS=todo._peer-discovery._p2p._pubsub
+
+# Security (Production)
+API_PASSWORD=your_secure_password_here
+RELAY_PRIV_KEY=your_hex_private_key_here
+
+# Debugging
+ENABLE_DATASTORE_DIAGNOSTICS=true
+STRUCTURED_LOGS=true
+```
+
+### HTTP API Endpoints
+
+The relay provides several HTTP API endpoints for monitoring and management:
+
+- `GET /health` - Health check and system status
+- `GET /multiaddrs` - Get relay multiaddresses for peer connection
+- `GET /peers` - List connected peers
+- `GET /metrics` - Prometheus metrics (public endpoint)
+- `POST /test-pubsub` - Test pubsub messaging
+- `GET /pinning/stats` - OrbitDB pinning statistics
+- `GET /pinning/databases` - List pinned databases
+- `POST /pinning/sync` - Manually sync a database
+
+### Docker Support
+
+The relay comes with full Docker support including:
+- Multi-stage Dockerfile for optimal image size
+- Docker Compose configuration with app integration
+- Health checks and automatic restarts
+- Volume mounts for persistent data
+- Network isolation and port mapping
 
 ## 🎯 How to Test
 
