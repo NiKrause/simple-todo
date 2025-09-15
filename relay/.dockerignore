@@ -1,4 +1,6 @@
 node_modules
+orbitdb/*
+relay-datastore/*
 npm-debug.log
 .git
 .gitignore
