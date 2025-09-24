@@ -14,7 +14,9 @@ test.describe('Simple Todo P2P Application', () => {
 		await expect(page.locator('[data-testid="consent-modal"]')).toBeVisible();
 
 		// Wait for the modal to be fully loaded
-		await page.waitForSelector('[data-testid="consent-modal"] h1', { hasText: 'Simple TODO Example' });
+		await page.waitForSelector('[data-testid="consent-modal"] h1', {
+			hasText: 'Simple TODO Example'
+		});
 
 		// Step 2: Check the 4 required checkboxes
 		console.log('✅ Checking consent modal checkboxes...');
@@ -100,10 +102,12 @@ test.describe('Simple Todo P2P Application', () => {
 		await page.goto('/');
 
 		// Wait for consent modal - be more specific to target the modal h1
-		await expect(page.locator('[data-testid="consent-modal"] h1', { hasText: 'Simple TODO Example' })).toBeVisible();
+		await expect(
+			page.locator('[data-testid="consent-modal"] h1', { hasText: 'Simple TODO Example' })
+		).toBeVisible();
 
-		// Select offline mode by unchecking network connection
-		await page.locator('input[type="radio"][value="false"]').check();
+		// Select offline mode by choosing the "Offline Mode" radio button
+		await page.getByRole('radio', { name: 'Offline Mode Does not connect' }).check();
 
 		// Check required checkboxes
 		const checkboxes = page.locator('input[type="checkbox"]');
@@ -130,7 +134,9 @@ test.describe('Simple Todo P2P Application', () => {
 		await page.goto('/');
 
 		// Accept consent with default settings
-		await page.waitForSelector('[data-testid="consent-modal"] h1', { hasText: 'Simple TODO Example' });
+		await page.waitForSelector('[data-testid="consent-modal"] h1', {
+			hasText: 'Simple TODO Example'
+		});
 
 		// Check all checkboxes quickly
 		const checkboxes = page.locator('input[type="checkbox"]');
@@ -178,7 +184,9 @@ test.describe('Simple Todo P2P Application', () => {
 	test('should handle todo operations correctly', async ({ page }) => {
 		// Navigate and accept consent
 		await page.goto('/');
-		await page.waitForSelector('[data-testid="consent-modal"] h1', { hasText: 'Simple TODO Example' });
+		await page.waitForSelector('[data-testid="consent-modal"] h1', {
+			hasText: 'Simple TODO Example'
+		});
 
 		// Quick consent acceptance
 		const checkboxes = page.locator('input[type="checkbox"]');

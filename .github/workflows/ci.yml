@@ -38,7 +38,7 @@ jobs:
         run: |
           cd relay
           pnpm install
-          
+
       - name: Rebuild native modules if needed
         run: |
           cd relay
@@ -65,7 +65,7 @@ jobs:
           else
             echo "Native modules already compiled correctly"
           fi
-          
+
       - name: Lint code
         run: pnpm run lint
         continue-on-error: true
