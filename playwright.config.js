@@ -54,14 +54,38 @@ export default defineConfig({
 			name: 'firefox',
 			use: {
 				...devices['Desktop Firefox'],
-				permissions: ['microphone', 'camera']
+				permissions: ['microphone', 'camera'],
+				launchOptions: {
+					firefoxUserPrefs: {
+						'media.navigator.streams.fake': true,
+						'media.navigator.permission.disabled': true,
+						'dom.webrtc.hw.h264.enabled': true,
+						'media.peerconnection.enabled': true,
+						'media.peerconnection.ice.default_address_only': false,
+						'media.peerconnection.ice.no_host': false,
+						'dom.serviceWorkers.enabled': true,
+						'security.tls.insecure_fallback_hosts': 'localhost'
+					}
+				}
 			}
 		},
 		{
 			name: 'webkit',
 			use: {
 				...devices['Desktop Safari'],
-				permissions: ['microphone', 'camera']
+				permissions: ['microphone', 'camera'],
+				launchOptions: {
+					args: [
+						'--disable-web-security',
+						'--disable-features=VizDisplayCompositor',
+						'--use-fake-ui-for-media-stream',
+						'--use-fake-device-for-media-stream',
+						'--allow-running-insecure-content'
+					]
+				},
+				// WebKit has stricter timeout requirements
+				navigationTimeout: 30000,
+				actionTimeout: 15000
 			}
 		}
 	],
