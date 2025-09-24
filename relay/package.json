@@ -9,8 +9,7 @@
 	"scripts": {
 		"start": "node relay-enhanced.js",
 		"start:verbose": "node relay-enhanced.js --verbose",
-		"start:dev": "NODE_ENV=development RELAY_WS_PORT=4011 RELAY_TCP_PORT=4012 RELAY_WEBRTC_PORT=4013 RELAY_WEBRTC_DIRECT_PORT=4016 HTTP_PORT=3001 node relay-enhanced.js",
-		"postinstall": "pnpm rebuild || echo 'Native module rebuild failed, but continuing...'"
+		"start:dev": "NODE_ENV=development RELAY_WS_PORT=4011 RELAY_TCP_PORT=4012 RELAY_WEBRTC_PORT=4013 RELAY_WEBRTC_DIRECT_PORT=4016 HTTP_PORT=3001 node relay-enhanced.js"
 	},
 	"dependencies": {
 		"@chainsafe/libp2p-gossipsub": "^14.1.1",
