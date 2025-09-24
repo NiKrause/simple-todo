@@ -7,7 +7,7 @@ export default defineConfig({
 
 	// Web server configuration
 	webServer: {
-		command: 'npm run preview',
+		command: 'pnpm run preview',
 		port: 4173,
 		// Use the test environment file
 		env: {
@@ -46,7 +46,8 @@ export default defineConfig({
 				// Grant permissions needed for WebRTC
 				permissions: ['microphone', 'camera'],
 				// Set user agent to avoid blocking
-				userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+				userAgent:
+					'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 			}
 		},
 		{
@@ -66,11 +67,7 @@ export default defineConfig({
 	],
 
 	// Reporter configuration
-	reporter: [
-		['html'],
-		['list'],
-		['junit', { outputFile: 'test-results/junit.xml' }]
-	],
+	reporter: [['html'], ['list'], ['junit', { outputFile: 'test-results/junit.xml' }]],
 
 	// Output directory
 	outputDir: 'test-results/',

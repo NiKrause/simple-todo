@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop, master ]
+    branches: [main, develop, master]
   pull_request:
-    branches: [ main, develop, master ]
+    branches: [main, develop, master]
 
 jobs:
   ci:
@@ -12,41 +12,41 @@ jobs:
     timeout-minutes: 30
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Install pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: latest
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22'
-        cache: 'pnpm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
 
-    - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-    - name: Install relay dependencies
-      run: |
-        cd relay
-        pnpm install --frozen-lockfile
+      - name: Install relay dependencies
+        run: |
+          cd relay
+          pnpm install --frozen-lockfile
 
-    - name: Lint code
-      run: pnpm run lint
-      continue-on-error: true
+      - name: Lint code
+        run: pnpm run lint
+        continue-on-error: true
 
-    - name: Run unit tests
-      run: pnpm run test:unit -- --run
-      continue-on-error: true
+      - name: Run unit tests
+        run: pnpm run test:unit -- --run
+        continue-on-error: true
 
-    - name: Test relay setup
-      run: pnpm run test:relay-setup
+      - name: Test relay setup
+        run: pnpm run test:relay-setup
 
-    - name: Build application
-      run: pnpm run build
+      - name: Build application
+        run: pnpm run build
 
-    - name: Build success notification
-      run: echo "✅ Build completed successfully"
+      - name: Build success notification
+        run: echo "✅ Build completed successfully"
