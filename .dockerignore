@@ -74,3 +74,4 @@ LICENSE
 # Temporary files
 tmp
 temp
+relay/test-relay-datastore/

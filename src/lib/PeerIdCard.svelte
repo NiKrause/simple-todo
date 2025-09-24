@@ -49,10 +49,10 @@
 	}
 </script>
 
-<div class="rounded-lg bg-white p-6 shadow-md">
+<div class="rounded-lg bg-white p-6 shadow-md" data-testid="peer-id-card">
 	<h2 class="mb-4 text-xl font-semibold">{title}</h2>
 	{#if peerId}
-		<div class="relative rounded-md bg-blue-50 p-3">
+		<div class="relative rounded-md bg-blue-50 p-3" data-testid="peer-id">
 			<code class="font-mono text-sm break-all select-all">{formatPeerId(peerId)}</code>
 			{#if copyable}
 				<button

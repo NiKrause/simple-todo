@@ -86,7 +86,7 @@
 </script>
 
 {#if show}
-	<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black p-4">
+	<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black p-4" data-testid="consent-modal">
 		<div class="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-white shadow-xl">
 			<div class="p-6">
 				<h1 class="mb-6 text-center text-2xl font-bold text-gray-800">{title}</h1>
