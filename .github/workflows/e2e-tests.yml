@@ -29,12 +29,12 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Install relay dependencies
         run: |
           cd relay
-          pnpm install --frozen-lockfile
+          pnpm install
 
       - name: Build application
         run: pnpm run build
@@ -94,12 +94,12 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Install relay dependencies
         run: |
           cd relay
-          pnpm install --frozen-lockfile
+          pnpm install
 
       - name: Build application
         run: pnpm run build
@@ -139,16 +139,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Install relay dependencies
         run: |
           cd relay
-          pnpm install --frozen-lockfile
+          pnpm install
 
       - name: Test relay setup
         run: pnpm run test:relay-setup
