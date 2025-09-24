@@ -26,7 +26,7 @@ export default defineConfig({
 		timeout: 15000
 	},
 
-	// Browser projects
+	// Browser projects - Only Chromium for P2P/WebRTC compatibility
 	projects: [
 		{
 			name: 'chromium',
@@ -49,45 +49,8 @@ export default defineConfig({
 				userAgent:
 					'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 			}
-		},
-		{
-			name: 'firefox',
-			use: {
-				...devices['Desktop Firefox'],
-				permissions: ['microphone', 'camera'],
-				launchOptions: {
-					firefoxUserPrefs: {
-						'media.navigator.streams.fake': true,
-						'media.navigator.permission.disabled': true,
-						'dom.webrtc.hw.h264.enabled': true,
-						'media.peerconnection.enabled': true,
-						'media.peerconnection.ice.default_address_only': false,
-						'media.peerconnection.ice.no_host': false,
-						'dom.serviceWorkers.enabled': true,
-						'security.tls.insecure_fallback_hosts': 'localhost'
-					}
-				}
-			}
-		},
-		{
-			name: 'webkit',
-			use: {
-				...devices['Desktop Safari'],
-				permissions: ['microphone', 'camera'],
-				launchOptions: {
-					args: [
-						'--disable-web-security',
-						'--disable-features=VizDisplayCompositor',
-						'--use-fake-ui-for-media-stream',
-						'--use-fake-device-for-media-stream',
-						'--allow-running-insecure-content'
-					]
-				},
-				// WebKit has stricter timeout requirements
-				navigationTimeout: 30000,
-				actionTimeout: 15000
-			}
 		}
+		// Firefox and WebKit removed due to WebRTC/P2P compatibility issues
 	],
 
 	// Reporter configuration

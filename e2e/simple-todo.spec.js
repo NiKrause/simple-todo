@@ -1,37 +1,15 @@
 import { test, expect } from '@playwright/test';
 
-// Helper function to check browser compatibility
-function isBrowserSupported(browserName) {
-	// For now, we know Chromium works well
-	// Firefox and WebKit may have issues with WebRTC/P2P features
-	return browserName === 'chromium';
-}
-
 test.describe('Simple Todo P2P Application', () => {
-	test.beforeEach(async ({ page, browserName }) => {
-		// Check browser compatibility
-		if (!isBrowserSupported(browserName)) {
-			console.log(`⚠️ Warning: ${browserName} may have limited P2P support`);
-			// Add longer timeouts for non-Chromium browsers
-			test.setTimeout(120000); // 2 minutes for problematic browsers
-		}
-
+	test.beforeEach(async ({ page }) => {
 		// Navigate to the application
 		await page.goto('/');
 
-		// Wait for the page to load with longer timeout for non-Chromium browsers
-		const timeout = isBrowserSupported(browserName) ? 30000 : 60000;
-		await page.waitForLoadState('networkidle', { timeout });
+		// Wait for the page to load
+		await page.waitForLoadState('networkidle');
 	});
 
-	test('should show consent modal and proceed with P2P initialization', async ({ page, browserName }) => {
-		// Skip P2P features for browsers with known compatibility issues
-		if (!isBrowserSupported(browserName)) {
-			console.log(`⚠️ Skipping P2P test for ${browserName} due to WebRTC compatibility issues`);
-			test.skip();
-			return;
-		}
-
+	test('should show consent modal and proceed with P2P initialization', async ({ page }) => {
 		// Step 1: Verify consent modal is visible
 		await expect(page.locator('[data-testid="consent-modal"]')).toBeVisible();
 
@@ -117,13 +95,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 All test steps completed successfully!');
 	});
 
-	test('should handle offline mode correctly', async ({ page, browserName }) => {
-		// Skip P2P features for browsers with known compatibility issues
-		if (!isBrowserSupported(browserName)) {
-			console.log(`⚠️ Skipping offline mode test for ${browserName} due to WebRTC compatibility issues`);
-			test.skip();
-			return;
-		}
+	test('should handle offline mode correctly', async ({ page }) => {
 		// Navigate to the application
 		await page.goto('/');
 
@@ -153,13 +125,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('✅ Offline mode test completed');
 	});
 
-	test('should display system toast notifications', async ({ page, browserName }) => {
-		// Skip P2P features for browsers with known compatibility issues
-		if (!isBrowserSupported(browserName)) {
-			console.log(`⚠️ Skipping toast notification test for ${browserName} due to WebRTC compatibility issues`);
-			test.skip();
-			return;
-		}
+	test('should display system toast notifications', async ({ page }) => {
 		// Navigate to the application
 		await page.goto('/');
 
@@ -209,13 +175,7 @@ test.describe('Simple Todo P2P Application', () => {
 		);
 	});
 
-	test('should handle todo operations correctly', async ({ page, browserName }) => {
-		// Skip P2P features for browsers with known compatibility issues
-		if (!isBrowserSupported(browserName)) {
-			console.log(`⚠️ Skipping todo operations test for ${browserName} due to WebRTC compatibility issues`);
-			test.skip();
-			return;
-		}
+	test('should handle todo operations correctly', async ({ page }) => {
 		// Navigate and accept consent
 		await page.goto('/');
 		await page.waitForSelector('[data-testid="consent-modal"] h1', { hasText: 'Simple TODO Example' });
