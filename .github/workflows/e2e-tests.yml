@@ -41,8 +41,16 @@ jobs:
       - name: Install relay dependencies
         run: |
           cd relay
-          pnpm config set enable-pre-post-scripts true
           pnpm install
+          
+      - name: Rebuild native modules if needed
+        run: |
+          cd relay
+          # Check and rebuild if necessary
+          if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
+            echo "Rebuilding native modules..."
+            npm rebuild @ipshipyard/node-datachannel || echo "rebuild failed"
+          fi
 
       - name: Build application
         run: pnpm run build
@@ -114,8 +122,16 @@ jobs:
       - name: Install relay dependencies
         run: |
           cd relay
-          pnpm config set enable-pre-post-scripts true
           pnpm install
+          
+      - name: Rebuild native modules if needed
+        run: |
+          cd relay
+          # Check and rebuild if necessary
+          if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
+            echo "Rebuilding native modules..."
+            npm rebuild @ipshipyard/node-datachannel || echo "rebuild failed"
+          fi
 
       - name: Build application
         run: pnpm run build
@@ -166,13 +182,34 @@ jobs:
       - name: Install dependencies
         run: |
           pnpm config set enable-pre-post-scripts true
-          pnpm install
+          pnpm install --verbose
 
       - name: Install relay dependencies
         run: |
           cd relay
-          pnpm config set enable-pre-post-scripts true
-          pnpm install
+          # First try with pnpm
+          pnpm install || echo "pnpm install failed"
+          
+      - name: Force rebuild native modules
+        run: |
+          cd relay
+          # Clean any existing builds
+          rm -rf node_modules/@ipshipyard/node-datachannel/build || true
+          rm -rf node_modules/classic-level/build || true
+          
+          # Use npm to rebuild these specific packages
+          npm rebuild @ipshipyard/node-datachannel || echo "npm rebuild node-datachannel failed"
+          npm rebuild classic-level || echo "npm rebuild classic-level failed"
+          
+          # Check if the .node files exist
+          echo "Checking for .node files:"
+          find node_modules -name "*.node" -type f 2>/dev/null || echo "No .node files found"
+          
+          # Alternative: try installing with npm directly
+          if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
+            echo "Installing node-datachannel with npm as fallback"
+            npm install @ipshipyard/node-datachannel --no-save || echo "npm install failed"
+          fi
 
       - name: Test relay setup
         run: pnpm run test:relay-setup
