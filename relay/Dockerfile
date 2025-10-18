@@ -3,7 +3,7 @@ FROM node:22-alpine
 WORKDIR /app
 
 # Copy only relay-specific files first
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 RUN npm install --omit=dev --legacy-peer-deps
 
 # Copy the rest of the relay files

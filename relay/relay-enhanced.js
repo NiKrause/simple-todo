@@ -2,7 +2,7 @@ import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { circuitRelayServer, circuitRelayTransport } from '@libp2p/circuit-relay-v2';
 import { identify, identifyPush } from '@libp2p/identify';
-import { webRTC, webRTCDirect } from '@libp2p/webrtc';
+// import { webRTC, webRTCDirect } from '@libp2p/webrtc';
 import { webSockets } from '@libp2p/websockets';
 import { createLibp2p } from 'libp2p';
 import * as filters from '@libp2p/websockets/filters';
@@ -90,12 +90,13 @@ const libp2pOptions = {
 		listen: [
 			`/ip4/0.0.0.0/tcp/${tcpPort}`, // Direct TCP
 			`/ip4/0.0.0.0/tcp/${wsPort}/ws`, // WebSocket for browsers
-			`/ip4/0.0.0.0/udp/${webrtcPort}/webrtc`, // WebRTC for NAT traversal
-			`/ip4/0.0.0.0/udp/${webrtcDirectPort}/webrtc-direct`, // WebRTC Direct
+			// WebRTC addresses temporarily disabled due to node-datachannel compilation issues
+			// `/ip4/0.0.0.0/udp/${webrtcPort}/webrtc`, // WebRTC for NAT traversal
+			// `/ip4/0.0.0.0/udp/${webrtcDirectPort}/webrtc-direct`, // WebRTC Direct
 			`/ip6/::/tcp/${tcpPort}`, // IPv6 TCP
 			`/ip6/::/tcp/${wsPort}/ws`, // IPv6 WebSocket
-			`/ip6/::/udp/${webrtcPort}/webrtc`, // IPv6 WebRTC Direct
-			`/ip6/::/udp/${webrtcDirectPort}/webrtc-direct`, // IPv6 WebRTC Direct
+			// `/ip6/::/udp/${webrtcPort}/webrtc`, // IPv6 WebRTC Direct
+			// `/ip6/::/udp/${webrtcDirectPort}/webrtc-direct`, // IPv6 WebRTC Direct
 			'/p2p-circuit' // Circuit relay
 		],
 		// Enhanced announce addresses with environment-aware configuration
@@ -106,24 +107,25 @@ const libp2pOptions = {
 		circuitRelayTransport({
 			discoverRelays: 1
 		}),
-		webRTC({
-			rtcConfiguration: {
-				iceServers: [
-					{
-						urls: ['stun:stun.l.google.com:19302', 'stun:global.stun.twilio.com:3478']
-					}
-				]
-			}
-		}),
-		webRTCDirect({
-			rtcConfiguration: {
-				iceServers: [
-					{
-						urls: ['stun:stun.l.google.com:19302', 'stun:global.stun.twilio.com:3478']
-					}
-				]
-			}
-		}),
+		// WebRTC transports temporarily disabled due to node-datachannel compilation issues
+		// webRTC({
+		// 	rtcConfiguration: {
+		// 		iceServers: [
+		// 			{
+		// 				urls: ['stun:stun.l.google.com:19302', 'stun:global.stun.twilio.com:3478']
+		// 			}
+		// 		]
+		// 	}
+		// }),
+		// webRTCDirect({
+		// 	rtcConfiguration: {
+		// 		iceServers: [
+		// 			{
+		// 				urls: ['stun:stun.l.google.com:19302', 'stun:global.stun.twilio.com:3478']
+		// 			}
+		// 		]
+		// 	}
+		// }),
 		webSockets({
 			filter: filters.all
 		})
@@ -359,16 +361,47 @@ const peerStats = {
 
 server.addEventListener('peer:discovery', async (event) => {
 	const { id: peerId, multiaddrs } = event.detail;
+	const peerIdShort = peerId.toString().slice(0, 12) + '...';
+	
 	console.log(
-		'🔍 Peer discovered:',
-		peerId.toString().slice(0, 12) + '...',
-		'Addresses:',
-		multiaddrs.length
+		`🔍 [DISCOVERY] Peer discovered: ${peerIdShort} | ` +
+		`Addresses: ${multiaddrs.length} | ` +
+		`Timestamp: ${new Date().toISOString()}`
 	);
 
 	if (process.argv.includes('--verbose')) {
+		console.log('  📍 Discovered addresses:');
 		multiaddrs.forEach((addr) => console.log(`    - ${addr.toString()}`));
 	}
+
+	// Structured logging for monitoring
+	if (process.env.STRUCTURED_LOGS === 'true') {
+		console.log(
+			JSON.stringify({
+				event: 'peer_discovery',
+				timestamp: new Date().toISOString(),
+				peerId: peerIdShort,
+				fullPeerId: peerId.toString(),
+				addressCount: multiaddrs.length,
+				addresses: multiaddrs.map(addr => addr.toString())
+			})
+		);
+	}
+});
+
+// Add connection attempt logging
+server.addEventListener('connection:open', async (event) => {
+	const { remotePeer, remoteAddr } = event.detail;
+	if (!remotePeer) return;
+
+	const peerId = remotePeer.toString();
+	const peerIdShort = `${peerId.slice(0, 8)}...`;
+	const addr = remoteAddr?.toString() || 'unknown';
+	
+	console.log(
+		`🔗 [CONNECTION] Attempting connection to ${peerIdShort} | ` +
+		`Address: ${addr} | Timestamp: ${new Date().toISOString()}`
+	);
 });
 
 server.addEventListener('peer:connect', async (event) => {
@@ -472,6 +505,14 @@ console.log('\n🎯 Relay Server Information:');
 console.log('  Relay PeerId:', server.peerId.toString());
 console.log('  Multiaddrs:');
 server.getMultiaddrs().forEach((ma) => console.log(`    ${ma.toString()}`));
+
+console.log('\n🔍 Peer Discovery & Connection Logging:');
+console.log('  - Peer discovery events will be logged with 🔍 [DISCOVERY]');
+console.log('  - Connection attempts will be logged with 🔗 [CONNECTION]');
+console.log('  - Successful connections will be logged with 🤝 [CONNECT]');
+console.log('  - Disconnections will be logged with 👋 [DISCONNECT]');
+console.log('  - Use --verbose flag for detailed address information');
+console.log('  - Use STRUCTURED_LOGS=true for JSON-formatted logs');
 
 // Create and start HTTP API server using Express service
 const app = createExpressServer(server, connectedPeers, peerStats, pinningService);

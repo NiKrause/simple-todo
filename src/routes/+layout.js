@@ -1,3 +1,3 @@
-export const prerender = true;
+export const prerender = false; // Disable prerendering for server actions
 export const trailingSlash = 'always';
-export const ssr = false;
+export const ssr = true; // Enable SSR for server actions

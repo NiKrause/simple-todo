@@ -75,7 +75,7 @@ export async function initializeStorachaClientWithUCAN(ucanToken, recipientKey) 
 		});
 
 		// Parse delegation token
-		const delegationBytes = Buffer.from(ucanToken, 'base64');
+		const delegationBytes = Uint8Array.from(atob(ucanToken), c => c.charCodeAt(0));
 		const delegation = await Delegation.extract(delegationBytes);
 
 		if (!delegation.ok) {

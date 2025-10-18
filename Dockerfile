@@ -22,8 +22,8 @@ RUN pnpm run build
 # Production stage
 FROM node:22-alpine AS production
 
-# Install pnpm globally
-RUN npm install -g pnpm
+# Install pnpm globally and curl for health checks
+RUN npm install -g pnpm && apk add --no-cache curl
 
 # Set working directory
 WORKDIR /app
@@ -31,23 +31,24 @@ WORKDIR /app
 # Copy package files
 COPY package.json pnpm-lock.yaml ./
 
-# Install only production dependencies
-RUN pnpm install --prod --frozen-lockfile
+# Install all dependencies (needed for server-side OrbitDB)
+RUN pnpm install --frozen-lockfile
 
 # Copy built application from build stage
 COPY --from=base /app/build ./build
 COPY --from=base /app/static ./static
+COPY --from=base /app/src ./src
 
-# Create data directory for persistent storage
-RUN mkdir -p /app/data
+# Create data directories for persistent storage
+RUN mkdir -p /app/server-orbitdb /app/server-helia-blocks /app/server-helia-data
 
-# Expose port 5173
-EXPOSE 5173
+# Expose port 3000
+EXPOSE 3000
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
-ENV PORT=5173
+ENV PORT=3000
 
-# Start the application using preview mode (serves the built static files)
-CMD ["pnpm", "run", "preview", "--host", "0.0.0.0", "--port", "5173"]
+# Start the SSR Node.js server
+CMD ["node", "build/index.js"]

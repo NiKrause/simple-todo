@@ -4,6 +4,7 @@ import { yamux } from '@chainsafe/libp2p-yamux';
 import { webSockets } from '@libp2p/websockets';
 import { webRTC } from '@libp2p/webrtc';
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
+import { FaultTolerance } from '@libp2p/interface-transport';
 import { identify } from '@libp2p/identify';
 import { dcutr } from '@libp2p/dcutr';
 import { autoNAT } from '@libp2p/autonat';
@@ -39,7 +40,9 @@ export async function createLibp2pConfig(options = {}) {
 	const {
 		privateKey = null,
 		enablePeerConnections = true,
-		enableNetworkConnection = true
+		enableNetworkConnection = true,
+		isServer = false,
+		enableMDNS = false
 	} = options;
 
 	// Get fixed peer ID from environment variable
@@ -89,24 +92,28 @@ export async function createLibp2pConfig(options = {}) {
 		services.dcutr = dcutr();
 	}
 
-	return {
+	const config = {
 		...(finalPrivateKey && { privateKey: finalPrivateKey }),
 		addresses: {
-			listen: enableNetworkConnection
-				? ['/p2p-circuit', '/webrtc', '/webtransport', '/wss', '/ws']
-				: ['/webrtc'] // Only local WebRTC when network connection is disabled
+			listen: isServer
+				? [] // Server mode: No listen addresses to avoid multiaddr issues
+				: enableNetworkConnection
+					? ['/p2p-circuit', '/webrtc', '/webtransport', '/wss', '/ws']
+					: ['/webrtc'] // Only local WebRTC when network connection is disabled
 		},
-		transports: enableNetworkConnection
-			? [
-					webSockets({
-						filter: filters.all
-					}),
-					webRTC(),
-					circuitRelayTransport({
-						discoverRelays: 1
-					})
-				]
-			: [webRTC(), circuitRelayTransport({ discoverRelays: 1 })], // Only WebRTC transport when network connection is disabled
+		transports: isServer
+			? [webSockets({ filter: filters.all })] // Server mode: WebSocket only
+			: enableNetworkConnection
+				? [
+						webSockets({
+							filter: filters.all
+						}),
+						webRTC(),
+						circuitRelayTransport({
+							discoverRelays: 1
+						})
+					]
+				: [webRTC(), circuitRelayTransport({ discoverRelays: 1 })], // Only WebRTC transport when network connection is disabled
 		connectionEncrypters: [noise()],
 		connectionGater: {
 			denyDialMultiaddr: () => false,
@@ -120,6 +127,9 @@ export async function createLibp2pConfig(options = {}) {
 		},
 		streamMuxers: [yamux()],
 		peerDiscovery: peerDiscoveryServices,
+		transportManager: {
+			faultTolerance: FaultTolerance.NO_FATAL
+		},
 		// peerDiscovery: [
 		// 	pubsubPeerDiscovery({
 		// 		interval: 5000, // More frequent broadcasting
@@ -131,6 +141,8 @@ export async function createLibp2pConfig(options = {}) {
 		//
 		services
 	};
+	
+	return config;
 }
 
 // Usage example:

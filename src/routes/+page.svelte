@@ -1,6 +1,9 @@
 <script>
 	/* eslint-disable no-undef */
 	import { onMount } from 'svelte';
+	
+	// Server data from SSR
+	export let data;
 	import { fade, fly } from 'svelte/transition';
 	import { peerIdStore, initializeP2P, initializationStore, libp2pStore } from '$lib/p2p.js';
 	import {
@@ -21,7 +24,16 @@
 	import TodoList from '$lib/TodoList.svelte';
 	import ConnectedPeers from '$lib/ConnectedPeers.svelte';
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
-	import StorachaIntegration from '$lib/StorachaIntegration.svelte';
+	// Import StorachaIntegration conditionally to avoid SSR issues
+	let StorachaIntegration;
+	
+	// Dynamically import StorachaIntegration to avoid SSR issues
+	async function loadStorachaIntegration() {
+		if (!StorachaIntegration) {
+			const module = await import('$lib/StorachaIntegration.svelte');
+			StorachaIntegration = module.default;
+		}
+	}
 	import QRCodeModal from '$lib/QRCodeModal.svelte';
 	// import { Cloud } from 'lucide-svelte'; // Unused for now
 	import { toastStore } from '$lib/toast-store.js';
@@ -62,29 +74,77 @@
 		}
 
 		try {
-			// Pass the preferences to initializeP2P
-			await initializeP2P(preferences);
+			// Only initialize P2P if server is not available
+			if (typeof window !== 'undefined' && !data?.serverAvailable) {
+				console.log('🔧 DEBUG: Server not available, initializing client P2P with preferences');
+				await initializeP2P(preferences);
+			} else {
+				console.log('🔧 DEBUG: Server available, using server-side OrbitDB');
+				// Show server mode indicator
+				toastStore.show('🖥️ Using server-side OrbitDB', 'info');
+			}
 		} catch (err) {
 			error = `Failed to initialize P2P or OrbitDB: ${err.message}`;
 			console.error('P2P initialization failed:', err);
 		}
 	};
 
-	onMount(async () => {
-		try {
-			if (localStorage.getItem(CONSENT_KEY) === 'true') {
-				showModal = false;
-				// When auto-initializing, use default preferences
-				console.log('🔧 DEBUG: Auto-initializing with default preferences');
-				await initializeP2P({
-					enablePersistentStorage: true,
-					enableNetworkConnection: true,
-					enablePeerConnections: true
-				});
+	onMount(() => {
+		let pollInterval;
+		
+		const initialize = async () => {
+			try {
+				// Sync server todos to client store if available
+				if (data?.todos && data.todos.length > 0) {
+					console.log(`📋 Syncing ${data.todos.length} todos from server to client store`);
+					todosStore.set(data.todos);
+				}
+				
+				if (localStorage.getItem(CONSENT_KEY) === 'true') {
+					showModal = false;
+					// Only initialize P2P if server is not available
+					if (typeof window !== 'undefined' && !data?.serverAvailable) {
+						console.log('🔧 DEBUG: Server not available, initializing client P2P');
+						await initializeP2P({
+							enablePersistentStorage: true,
+							enableNetworkConnection: true,
+							enablePeerConnections: true
+						});
+					} else {
+						console.log('🔧 DEBUG: Server available, using server-side OrbitDB');
+						// Show server mode indicator
+						toastStore.show('🖥️ Using server-side OrbitDB', 'info');
+						
+						// Set up polling for server updates (every 5 seconds)
+						pollInterval = setInterval(async () => {
+							try {
+								const response = await fetch('/api/todos');
+								if (response.ok) {
+									const { todos } = await response.json();
+									if (todos && todos.length !== $todosStore.length) {
+										console.log(`📋 Polling: Syncing ${todos.length} todos from server`);
+										todosStore.set(todos);
+									}
+								}
+							} catch (error) {
+								console.warn('Polling failed:', error);
+							}
+						}, 5000);
+					}
+				}
+			} catch {
+				// ignore storage errors
 			}
-		} catch {
-			// ignore storage errors
-		}
+		};
+		
+		initialize();
+		
+		// Cleanup on component destroy
+		return () => {
+			if (pollInterval) {
+				clearInterval(pollInterval);
+			}
+		};
 	});
 
 	const handleAddTodo = async (event) => {
@@ -269,8 +329,13 @@
 <!-- Floating Storacha Button & Panel - Always Available -->
 <!-- Floating Storacha Button -->
 <button
-	on:click={() => (showStorachaIntegration = !showStorachaIntegration)}
-	class="fixed right-6 bottom-6 z-[10000] flex h-16 w-16 items-center justify-center rounded-full border-2 border-white bg-[#E91315] text-white shadow-2xl transition-all duration-300 hover:scale-110 hover:shadow-[0_20px_40px_rgba(233,19,21,0.4)] focus:ring-4 focus:ring-red-300 focus:outline-none {showStorachaIntegration
+	on:click={async () => {
+		if (!showStorachaIntegration) {
+			await loadStorachaIntegration();
+		}
+		showStorachaIntegration = !showStorachaIntegration;
+	}}
+	class="fixed right-6 bottom-20 z-[10000] flex h-16 w-16 items-center justify-center rounded-full border-2 border-white bg-[#E91315] text-white shadow-2xl transition-all duration-300 hover:scale-110 hover:shadow-[0_20px_40px_rgba(233,19,21,0.4)] focus:ring-4 focus:ring-red-300 focus:outline-none {showStorachaIntegration
 		? 'scale-105 rotate-12'
 		: 'hover:rotate-6'}"
 	title={showStorachaIntegration
@@ -329,7 +394,7 @@
 
 	<!-- Floating panel -->
 	<div
-		class="fixed right-6 bottom-24 z-[9999] w-96 max-w-[calc(100vw-3rem)] sm:right-4 sm:bottom-20 sm:w-80 md:right-6 md:bottom-24"
+		class="fixed right-6 bottom-36 z-[9999] w-96 max-w-[calc(100vw-3rem)] sm:right-4 sm:bottom-32 sm:w-80 md:right-6 md:bottom-36"
 		transition:fly={{ x: 100, duration: 300 }}
 	>
 		<StorachaIntegration />

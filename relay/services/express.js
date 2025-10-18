@@ -143,10 +143,15 @@ export function createExpressServer(server, connectedPeers, peerStats, pinningSe
 	// API Password Middleware
 	const apiPassword = process.env.API_PASSWORD;
 
-	// Middleware to protect routes with API password (except /metrics)
+	// Middleware to protect routes with API password (except /metrics, /health, /multiaddrs, /peers)
 	function protectWithPassword(req, res, next) {
-		// Skip authentication for /metrics endpoint
-		if (req.path === '/metrics') {
+		// Skip authentication for /metrics, /health, /multiaddrs and /peers endpoints
+		if (
+			req.path === '/metrics' ||
+			req.path === '/health' ||
+			req.path === '/multiaddrs' ||
+			req.path === '/peers'
+		) {
 			return next();
 		}
 
@@ -178,7 +183,7 @@ export function createExpressServer(server, connectedPeers, peerStats, pinningSe
 
 	// Log API password status
 	if (apiPassword) {
-		console.log('🔐 API password protection enabled (except /metrics)');
+		console.log('🔐 API password protection enabled (except /metrics, /health, /multiaddrs, /peers)');
 	} else {
 		console.warn('⚠️ API password protection disabled - configure API_PASSWORD in .env');
 	}
@@ -415,7 +420,7 @@ export function startExpressServer(app, httpPort, server) {
 			console.log(`\n🌐 HTTP API Server:`);
 			console.log(`  - Running on port: ${httpPort}`);
 			console.log(
-				`  - Authentication: ${apiPassword ? '🔐 Protected (except /metrics)' : '⚠️ Unprotected'}`
+				`  - Authentication: ${apiPassword ? '🔐 Protected (except /metrics, /health, /multiaddrs, /peers)' : '⚠️ Unprotected'}`
 			);
 			if (apiPassword) {
 				console.log(`  - Auth Header: Authorization: Bearer ${apiPassword}`);

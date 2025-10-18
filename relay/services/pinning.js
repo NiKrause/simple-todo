@@ -1,7 +1,27 @@
-import { createOrbitDB } from '@orbitdb/core';
+import { createOrbitDB, useAccessController } from '@orbitdb/core';
 import { createHelia } from 'helia';
 import { CID } from 'multiformats/cid';
 import PQueue from 'p-queue';
+
+// Generic read-only AccessController factory for arbitrary types
+
+function createReadOnlyAccessController(type) {
+	return ({ write = [] } = {}) => async ({ address } = {}) => {
+		return {
+			type,
+			address: address || `/${type}/readonly`,
+			write,
+			// never allow appends from this process
+			canAppend: async () => false
+		};
+	};
+}
+
+// Extract unsupported AccessController type from OrbitDB error
+function parseUnsupportedACType(err) {
+	const m = /AccessController type '([^']+)' is not supported/.exec(err?.message || '');
+	return m ? m[1] : null;
+}
 
 export class PinningService {
 	constructor(options = {}) {
@@ -284,8 +304,23 @@ export class PinningService {
 		this.metrics.syncOperations++;
 
 		try {
-			// Open the database with proper access controller configuration
-			const db = await this.orbitdb.open(dbAddress);
+			// Attempt to open the database
+			let db;
+			try {
+				db = await this.orbitdb.open(dbAddress);
+			} catch (openErr) {
+				// If AccessController type is unsupported, register a read-only fallback for that type and retry once
+				const acType = parseUnsupportedACType(openErr);
+				if (acType) {
+					this.log(`🛡️ Registering read-only fallback for AccessController type '${acType}'`, 'warn');
+					const ReadOnlyAC = createReadOnlyAccessController(acType);
+					useAccessController(Object.assign(ReadOnlyAC, { type: acType }));
+					// Retry open once
+					db = await this.orbitdb.open(dbAddress);
+				} else {
+					throw openErr;
+				}
+			}
 
 			this.log(`📂 Database opened: ${db.name}`, 'debug');
 
@@ -297,7 +332,7 @@ export class PinningService {
 			if (!identityInfo.id) {
 				this.log(`⚠️  Database ${db.name} has no identity ID, skipping`, 'warn');
 				await db.close();
-				return;
+				return null;
 			}
 
 			if (!this.shouldPinDatabase(identityInfo.id)) {
@@ -306,7 +341,7 @@ export class PinningService {
 					'debug'
 				);
 				await db.close();
-				return;
+				return null;
 			}
 
 			// Wait for database to be ready and for potential peer joins
@@ -372,7 +407,8 @@ export class PinningService {
 		} catch (error) {
 			this.metrics.failedSyncs++;
 			this.log(`❌ Error syncing database ${dbAddress}: ${error.message}`, 'error');
-			throw error;
+			// Do not rethrow; keep relay alive and continue processing other topics
+			return null;
 		}
 	}
 

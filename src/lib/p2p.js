@@ -8,6 +8,7 @@ import { initializeDatabase } from './db-actions.js';
 import { LevelBlockstore } from 'blockstore-level';
 import { LevelDatastore } from 'datastore-level';
 import { systemToasts } from './toast-store.js';
+import { clientLogger } from './console-logger.js';
 
 // Export libp2p instance for plugins
 export const libp2pStore = writable(null);
@@ -45,7 +46,7 @@ export async function initializeP2P(preferences = {}) {
 		enablePeerConnections = true
 	} = preferences;
 
-	console.log('🚀 Starting P2P initialization after user consent...', {
+	clientLogger.info('Starting P2P initialization after user consent', {
 		enablePersistentStorage,
 		enableNetworkConnection,
 		enablePeerConnections
@@ -87,8 +88,8 @@ export async function initializeP2P(preferences = {}) {
 
 		libp2p = await createLibp2p(config);
 		libp2pStore.set(libp2p); // Make available to plugins
-		console.log(
-			`✅ libp2p node created with network connection: ${enableNetworkConnection ? 'enabled' : 'disabled'}, peer connections: ${enablePeerConnections ? 'enabled' : 'disabled'}`
+		clientLogger.libp2p(
+			`Node created - network: ${enableNetworkConnection ? 'enabled' : 'disabled'}, peers: ${enablePeerConnections ? 'enabled' : 'disabled'}`
 		);
 
 		// Show toast notification for libp2p creation
@@ -135,8 +136,8 @@ export async function initializeP2P(preferences = {}) {
 		}
 
 		helia = await createHelia(heliaConfig);
-		console.log(
-			`✅ Helia created with ${actuallyUsePersistentStorage ? 'persistent' : 'in-memory'} storage`
+		clientLogger.helia(
+			`Created with ${actuallyUsePersistentStorage ? 'persistent' : 'in-memory'} storage`
 		);
 
 		// Show toast for Helia creation

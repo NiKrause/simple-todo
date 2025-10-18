@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  simple-todo-node-a:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: simple-todo-node-a
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - ORBITDB_INSTANCE_NAME=node-a
+      - MDNS_SERVICE_NAME=simple-todo
+      - ENABLE_MDNS=true
+    ports:
+      - "3001:3000"  # External port 3001 -> Internal port 3000
+    volumes:
+      - todo-node-a-data:/app/server-orbitdb
+      - todo-node-a-helia-blocks:/app/server-helia-blocks
+      - todo-node-a-helia-data:/app/server-helia-data
+    networks:
+      - todo-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  simple-todo-node-b:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: simple-todo-node-b
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - ORBITDB_INSTANCE_NAME=node-b
+      - MDNS_SERVICE_NAME=simple-todo
+      - ENABLE_MDNS=true
+    ports:
+      - "3002:3000"  # External port 3002 -> Internal port 3000
+    volumes:
+      - todo-node-b-data:/app/server-orbitdb
+      - todo-node-b-helia-blocks:/app/server-helia-blocks
+      - todo-node-b-helia-data:/app/server-helia-data
+    networks:
+      - todo-network
+    restart: unless-stopped
+    depends_on:
+      - simple-todo-node-a
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  todo-node-a-data:
+    driver: local
+  todo-node-a-helia-blocks:
+    driver: local
+  todo-node-a-helia-data:
+    driver: local
+  todo-node-b-data:
+    driver: local
+  todo-node-b-helia-blocks:
+    driver: local
+  todo-node-b-helia-data:
+    driver: local
+
+networks:
+  todo-network:
+    driver: bridge
+    enable_ipv6: false
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
