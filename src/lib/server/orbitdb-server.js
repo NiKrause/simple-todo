@@ -2,6 +2,8 @@ import { createLibp2p } from 'libp2p';
 import { createHelia } from 'helia';
 import { createOrbitDB, IPFSAccessController, MemoryStorage } from '@orbitdb/core';
 import { createLibp2pConfig } from '../libp2p-config.js';
+import { LevelBlockstore } from 'blockstore-level';
+import { LevelDatastore } from 'datastore-level';
 import { mdns } from '@libp2p/mdns';
 import { serverLogger } from '../console-logger.js';
 
@@ -53,12 +55,16 @@ class OrbitDBServer {
 			this.peerId = this.libp2p.peerId.toString();
 			serverLogger.libp2p(`Node created with peerId: ${this.peerId}`);
 
-			// Create Helia with in-memory storage for browser compatibility
+			// Create Helia with persistent storage for server
+			const blockstore = new LevelBlockstore('./server-helia-blocks');
+			const datastore = new LevelDatastore('./server-helia-data');
+			
 			this.helia = await createHelia({
-				libp2p: this.libp2p
-				// No blockstore/datastore specified = uses in-memory storage
+				libp2p: this.libp2p,
+				blockstore,
+				datastore
 			});
-			serverLogger.helia('Created with in-memory storage');
+			serverLogger.helia('Created with persistent storage (LevelDB)');
 
 			// Create OrbitDB instance
 			this.orbitdb = await createOrbitDB({

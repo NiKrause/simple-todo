@@ -30,9 +30,13 @@ class HybridModeManager {
 				lastCheck: new Date().toISOString()
 			});
 			
-			// If server failed, immediately switch to client mode
-			if (!this.serverAvailable) {
-				this.switchToClientMode('Server unavailable on page load');
+			// If server failed or mode indicates fallback, immediately switch to client mode
+			if (!this.serverAvailable || initialData.mode === 'client-fallback') {
+				console.log('📱 Server not available, auto-switching to client mode');
+				// Use setTimeout to allow UI to initialize first
+				setTimeout(() => {
+					this.switchToClientMode('Server unavailable on page load');
+				}, 100);
 			}
 		}
 		

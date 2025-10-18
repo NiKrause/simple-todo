@@ -20,7 +20,7 @@ export default defineConfig({
 		sveltekit(),
 		nodePolyfills({
 			include: [
-				'path',
+				// 'path', // Exclude path to prevent service worker conflicts
 				'util',
 				'buffer',
 				'process',
@@ -40,52 +40,103 @@ export default defineConfig({
 			protocolImports: true
 		}),
 		VitePWA({
-			// PWA configuration optimized for mobile browsers and IndexedDB
+			// PWA configuration for hybrid offline/online functionality
 			registerType: 'autoUpdate',
+			injectRegister: 'script', // Force script injection
+			strategies: 'generateSW', // Generate service worker
 			workbox: {
 				// Increase the maximum file size limit to 5MB to handle large P2P libraries
 				maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
-				// Use network-first strategy to avoid interfering with OrbitDB/libp2p
+				// Aggressive caching for offline-first PWA functionality
 				runtimeCaching: [
 					{
+						// Cache all navigation requests for offline PWA
+							urlPattern: ({ request, url }) => {
+								return (
+									request.mode === 'navigate' ||
+									(request.method === 'GET' && request.headers.get('accept')?.includes('text/html'))
+								);
+							},
+							handler: 'NetworkFirst', // Required when using networkTimeoutSeconds
+							options: {
+								cacheName: 'navigation-cache',
+								networkTimeoutSeconds: 3, // Quick timeout for offline fallback
+								cacheableResponse: {
+									statuses: [0, 200]
+								}
+							}
+					},
+					{
+						// Cache form actions for offline submission handling
+						urlPattern: /\?\/(addTodo|toggleTodo|deleteTodo)$/,
+						handler: 'NetworkFirst', // Required for networkTimeoutSeconds
+						options: {
+							cacheName: 'form-actions-cache',
+							networkTimeoutSeconds: 2
+						}
+					},
+					{
+						// Cache static assets (CSS, JS, images)
 						urlPattern: ({ request }) => {
-							// Only cache navigation requests, avoid OrbitDB/IPFS requests
 							return (
-								request.mode === 'navigate' &&
-								!request.url.includes('/ipfs/') &&
-								!request.url.includes('/orbitdb/')
+								request.destination === 'style' ||
+								request.destination === 'script' ||
+								request.destination === 'image' ||
+								request.destination === 'font'
 							);
 						},
-						handler: 'NetworkFirst',
+						handler: 'CacheFirst', // Static assets rarely change
 						options: {
-							cacheName: 'navigation-cache',
-							networkTimeoutSeconds: 3,
+							cacheName: 'assets-cache',
 							cacheableResponse: {
 								statuses: [0, 200]
 							}
 						}
-					},
-					{
-						urlPattern: ({ request }) => {
-							return request.destination === 'style' || request.destination === 'script';
-						},
-						handler: 'StaleWhileRevalidate',
-						options: {
-							cacheName: 'assets-cache'
-						}
 					}
 				],
-				// Skip waiting for immediate activation
+				// Skip waiting for immediate activation (critical for PWA updates)
 				skipWaiting: true,
 				clientsClaim: true,
+				// More aggressive precaching for offline functionality
+				navigationPreload: true,
+				// Critical: Include offline fallback page
+				navigateFallback: '/offline-fallback.html',
 				// Exclude OrbitDB and large files from precaching
-				globIgnores: ['**/orbitdb/**', '**/ipfs/**', '**/node_modules/**']
+				globIgnores: ['**/orbitdb/**', '**/ipfs/**', '**/node_modules/**'],
+				// Include all built assets for offline use
+				globPatterns: [
+					'**/*.{js,css,html,ico,png,svg,webmanifest}'
+				]
 			},
-			// Use existing manifest.json
-			manifest: false, // We'll use our custom manifest.json
+			// Generate manifest.json automatically with better PWA support
+			manifest: {
+				name: 'Simple TODO - Hybrid P2P App',
+				short_name: 'P2P Todo',
+				description: 'A hybrid local-first peer-to-peer TODO list app',
+				theme_color: '#3B82F6',
+				background_color: '#ffffff',
+				display: 'standalone',
+				start_url: '/',
+				scope: '/',
+				orientation: 'any',
+				categories: ['productivity', 'utilities'],
+				icons: [
+					{
+						src: '/android-chrome-192x192.png',
+						sizes: '192x192',
+						type: 'image/png'
+					},
+					{
+						src: '/android-chrome-512x512.png',
+						sizes: '512x512',
+						type: 'image/png',
+						purpose: 'any maskable'
+					}
+			]
+			},
 			// Development options
 			devOptions: {
-				enabled: process.env.NODE_ENV === 'development',
+				enabled: true,
 				type: 'module'
 			},
 			// Enable periodic SW updates

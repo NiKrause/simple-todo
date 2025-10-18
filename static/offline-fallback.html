@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Simple TODO - Offline Mode</title>
+    <meta name="description" content="Simple TODO app running in offline mode with client-side OrbitDB">
+    
+    <!-- PWA manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#3B82F6">
+    
+    <!-- Basic Tailwind CSS styles for offline fallback -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f9fafb;
+            margin: 0;
+            padding: 20px;
+        }
+        .offline-indicator {
+            background: linear-gradient(45deg, #ef4444, #f97316);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3B82F6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="offline-indicator">
+            📱 PWA Mode - Server Offline
+            <div class="mt-2 text-sm opacity-90">
+                Switching to client-side OrbitDB...
+            </div>
+        </div>
+        
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
+            <h1 class="text-3xl font-bold text-center mb-8">
+                🚀 Simple TODO - Hybrid P2P App
+            </h1>
+            
+            <div class="text-center">
+                <div class="loading-spinner mb-4"></div>
+                <p class="text-gray-600 mb-4">
+                    Initializing client-side OrbitDB and P2P connections...
+                </p>
+                <p class="text-sm text-gray-500">
+                    Your app is running in offline PWA mode with peer-to-peer functionality.
+                </p>
+            </div>
+            
+            <div class="mt-8 p-4 bg-blue-50 rounded-lg">
+                <h3 class="font-semibold text-blue-800 mb-2">📱 PWA Features Active:</h3>
+                <ul class="text-sm text-blue-700 space-y-1">
+                    <li>✅ Client-side OrbitDB database</li>
+                    <li>✅ Peer-to-peer connections (WebRTC)</li>
+                    <li>✅ Offline data persistence</li>
+                    <li>✅ Browser-to-browser synchronization</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Redirect to main app after showing offline message -->
+    <script type="module">
+        console.log('🔄 Offline fallback page loaded - redirecting to main app...');
+        
+        // Wait a moment for user to see the offline message, then redirect
+        setTimeout(() => {
+            // Force reload to trigger the main app with client mode
+            window.location.href = '/?offline=true';
+        }, 2000);
+    </script>
+</body>
+</html>

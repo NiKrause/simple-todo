@@ -37,6 +37,11 @@
 	import QRCodeModal from '$lib/QRCodeModal.svelte';
 	// import { Cloud } from 'lucide-svelte'; // Unused for now
 	import { toastStore } from '$lib/toast-store.js';
+	// Import hybrid mode detection
+	import { initializeHybridMode, getHybridManager, hybridMode } from '$lib/hybrid-mode.js';
+import { getFormInterceptor } from '$lib/form-interceptor.js';
+import { browser } from '$app/environment';
+import ModeIndicator from '$lib/ModeIndicator.svelte';
 
 	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
 
@@ -89,11 +94,61 @@
 		}
 	};
 
+	// Make refresh function and store available globally as soon as component loads
+	if (typeof window !== 'undefined') {
+		window.refreshTodosFromServer = refreshTodosFromServer;
+		window.todosStore = todosStore;
+	}
+
 	onMount(() => {
 		let pollInterval;
 		
 		const initialize = async () => {
 			try {
+				// Check for offline fallback query parameter
+				if (browser) {
+					const urlParams = new URLSearchParams(window.location.search);
+					const isOfflineFallback = urlParams.has('offline');
+					
+					if (isOfflineFallback) {
+						console.log('🔄 Detected offline fallback mode - forcing client mode');
+						// Clean up URL
+						urlParams.delete('offline');
+						const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+						history.replaceState({}, '', newUrl);
+						
+						// Force client mode by overriding server data
+						data = {
+							...data,
+							mode: 'client-fallback',
+							serverAvailable: false,
+							todos: data?.todos || []
+						};
+						
+							// Show immediate feedback
+						toastStore.show('📱 Running in offline PWA mode', 'info');
+					}
+				}
+				
+				// Initialize hybrid mode detection with server data
+				if (browser) {
+					console.log('🔄 Initializing hybrid mode with server data:', data);
+					initializeHybridMode(data);
+					
+					// Initialize form interceptor for offline handling
+					getFormInterceptor();
+					
+					// If offline fallback was detected, trigger immediate client mode
+					if (data?.mode === 'client-fallback') {
+						const hybridManager = getHybridManager();
+						if (hybridManager) {
+							setTimeout(() => {
+								hybridManager.switchToClientMode('Offline fallback mode detected');
+							}, 500);
+						}
+					}
+				}
+				
 				// Sync server todos to client store if available
 				if (data?.todos && data.todos.length > 0) {
 					console.log(`📋 Syncing ${data.todos.length} todos from server to client store`);
@@ -102,34 +157,47 @@
 				
 				if (localStorage.getItem(CONSENT_KEY) === 'true') {
 					showModal = false;
-					// Only initialize P2P if server is not available
-					if (typeof window !== 'undefined' && !data?.serverAvailable) {
-						console.log('🔧 DEBUG: Server not available, initializing client P2P');
+					
+					// Check if hybrid manager suggests client mode
+					const hybridManager = getHybridManager();
+					if (hybridManager && !hybridManager.isServerMode()) {
+						console.log('🔧 DEBUG: Hybrid manager suggests client mode, initializing P2P');
 						await initializeP2P({
 							enablePersistentStorage: true,
 							enableNetworkConnection: true,
 							enablePeerConnections: true
 						});
 					} else {
-						console.log('🔧 DEBUG: Server available, using server-side OrbitDB');
+						console.log('🔧 DEBUG: Server mode active, using server-side OrbitDB');
 						// Show server mode indicator
 						toastStore.show('🖥️ Using server-side OrbitDB', 'info');
 						
-						// Set up polling for server updates (every 5 seconds)
-						pollInterval = setInterval(async () => {
-							try {
-								const response = await fetch('/api/todos');
-								if (response.ok) {
-									const { todos } = await response.json();
-									if (todos && todos.length !== $todosStore.length) {
-										console.log(`📋 Polling: Syncing ${todos.length} todos from server`);
-										todosStore.set(todos);
+									// Set up server health monitoring via ping
+							pollInterval = setInterval(async () => {
+								try {
+									// Simple health check - just ping the base URL
+									const response = await fetch('/', {
+										method: 'HEAD',
+										cache: 'no-cache'
+									});
+									
+									if (!response.ok) {
+										throw new Error(`Server responded with ${response.status}`);
+									}
+									
+									// Server is healthy, continue
+									console.log('🖥️ Server health check passed');
+								} catch (error) {
+									console.warn('❌ Server health check failed, triggering client fallback:', error);
+									// Server is unreachable, switch to client mode
+									const manager = getHybridManager();
+									if (manager) {
+										await manager.triggerClientFallback();
+										clearInterval(pollInterval);
+										pollInterval = null;
 									}
 								}
-							} catch (error) {
-								console.warn('Polling failed:', error);
-							}
-						}, 5000);
+							}, 10000); // Check every 10 seconds
 					}
 				}
 			} catch {
@@ -147,12 +215,45 @@
 		};
 	});
 
+	// Function to refresh todos from server API (for server mode)
+	async function refreshTodosFromServer() {
+		console.log('🔄 refreshTodosFromServer called');
+		try {
+			const response = await fetch('/api/todos');
+			console.log('🌐 API response status:', response.status, response.ok);
+			if (response.ok) {
+				const result = await response.json();
+				console.log('📊 API result:', result);
+				if (result.success) {
+					console.log(`🔄 Refreshed ${result.todos.length} todos from server`);
+					todosStore.set(result.todos);
+					console.log('✅ Store updated successfully');
+					return true;
+				} else {
+					console.warn('⚠️ API returned success:false');
+				}
+			} else {
+				console.warn('⚠️ API response not ok:', response.status);
+			}
+		} catch (error) {
+			console.error('❌ Failed to refresh todos from server:', error);
+		}
+		console.log('❌ refreshTodosFromServer returning false');
+		return false;
+	}
+
 	const handleAddTodo = async (event) => {
-		const success = await addTodo(event.detail.text);
-		if (success) {
-			toastStore.show('✅ Todo added successfully!', 'success');
+		// This should only be called in client mode
+		// Server mode uses form enhancement directly
+		if ($hybridMode?.mode === 'client') {
+			const success = await addTodo(event.detail.text);
+			if (success) {
+				toastStore.show('✅ Todo added successfully!', 'success');
+			} else {
+				toastStore.show('❌ Failed to add todo', 'error');
+			}
 		} else {
-			toastStore.show('❌ Failed to add todo', 'error');
+			console.log('🖥️ Server mode: Form enhancement should handle adding todo');
 		}
 	};
 
@@ -237,6 +338,8 @@
 			await loadTodos();
 			console.log('🔄 Reload complete');
 		};
+
+		// refreshTodosFromServer already assigned at component load
 	}
 </script>
 
@@ -302,7 +405,7 @@
 		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
 	{:else}
 		<!-- Add TODO Form -->
-		<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
+		<AddTodoForm on:add={handleAddTodo} disabled={$hybridMode?.mode !== 'server' && !$initializationStore.isInitialized} />
 
 		<!-- TODO List -->
 		<TodoList
@@ -403,3 +506,6 @@
 
 <!-- QR Code Modal -->
 <QRCodeModal bind:show={showQRCodeModal} />
+
+<!-- Hybrid Mode Indicator -->
+<ModeIndicator />
