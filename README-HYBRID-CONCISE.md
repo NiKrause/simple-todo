@@ -98,6 +98,7 @@ Peer-To-Peer Collaboration and instand updates
 
 Missing Abstraction Library which handles both classic mode and peer-to-peer mode
 
+
 ## 🚀 Quick Start
 
 ```bash
@@ -145,7 +146,7 @@ Traditional web apps have a **single point of failure**. This hybrid architectur
 | Fast Load | ✅ | ❌ | ✅ |
 | Uptime | ❌ | ✅ | ✅ |
 | Offline | ❌ | ✅ | ✅ |
-| Scalability | ❌ | ✅ | ✅ |
+| Scalability | Expensive | Free | Depends on Usecase |
 
 ---
 
