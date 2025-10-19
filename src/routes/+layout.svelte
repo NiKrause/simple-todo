@@ -1,7 +1,6 @@
 <script>
 	/* eslint-disable no-undef */
 	import '../app.css';
-	import ModeIndicator from '$lib/ModeIndicator.svelte';
 	// import favicon from '$lib/assets/favicon.svg';
 
 	let { children } = $props();
@@ -19,5 +18,3 @@
 
 {@render children?.()}
 
-<!-- Hybrid mode indicator -->
-<ModeIndicator />

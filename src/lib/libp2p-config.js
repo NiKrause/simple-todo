@@ -70,6 +70,9 @@ export async function createLibp2pConfig(options = {}) {
 			})
 		);
 	}
+	
+	// Note: mDNS is only available in Node.js, not browsers
+	// For browser P2P, we rely on pubsub peer discovery + relay servers
 
 	// Configure services based on network connection preference
 	const services = {
@@ -130,14 +133,14 @@ export async function createLibp2pConfig(options = {}) {
 		transportManager: {
 			faultTolerance: FaultTolerance.NO_FATAL
 		},
-		// peerDiscovery: [
-		// 	pubsubPeerDiscovery({
-		// 		interval: 5000, // More frequent broadcasting
-		// 		topics: PUBSUB_TOPICS, // Configurable topics
-		// 		listenOnly: false,
-		// 		emitSelf: true // Enable even when no peers are present initially
-		// 	})
-		// ],
+		peerDiscovery: [
+			pubsubPeerDiscovery({
+				interval: 5000, // More frequent broadcasting
+				topics: PUBSUB_TOPICS, // Configurable topics
+				listenOnly: false,
+				emitSelf: true // Enable even when no peers are present initially
+			})
+		],
 		//
 		services
 	};

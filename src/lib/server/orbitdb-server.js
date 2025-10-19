@@ -6,6 +6,8 @@ import { LevelBlockstore } from 'blockstore-level';
 import { LevelDatastore } from 'datastore-level';
 import { mdns } from '@libp2p/mdns';
 import { serverLogger } from '../console-logger.js';
+import { websocketManager } from './websocket-server.js';
+import { getServerDatabaseName } from '../server-config.js';
 
 class OrbitDBServer {
 	constructor() {
@@ -75,7 +77,8 @@ class OrbitDBServer {
 			serverLogger.orbitdb('Instance created on server');
 
 			// Open todos database
-			this.todoDB = await this.orbitdb.open('simple-todos', {
+			const dbName = getServerDatabaseName();
+			this.todoDB = await this.orbitdb.open(dbName, {
 				type: 'keyvalue',
 				create: true,
 				sync: true,
@@ -97,8 +100,9 @@ class OrbitDBServer {
 			});
 
 			// Set up peer discovery events
-			this.libp2p.addEventListener('peer:discovery', (event) => {
-				const peerIdStr = event.detail.id.toString();
+			this.libp2p.addEventListener('peer:discovery', async (event) => {
+				const peerId = event.detail.id;
+				const peerIdStr = peerId.toString();
 				const addresses = event.detail.multiaddrs.map(addr => addr.toString());
 				
 				const peerInfo = {
@@ -109,7 +113,18 @@ class OrbitDBServer {
 
 				this.discoveredNodes.set(peerIdStr, peerInfo);
 				serverLogger.mdns('Discovered peer', peerInfo);
+				
+				// Auto-connect to discovered peers
+				try {
+					await this.libp2p.dial(peerId);
+					serverLogger.libp2p(`Auto-connected to discovered peer: ${peerIdStr}`);
+				} catch (error) {
+					serverLogger.error(`Failed to connect to peer ${peerIdStr}:`, error);
+				}
 			});
+
+			// Set up real-time sync after database is ready
+			this.setupRealtimeSync();
 
 			this.isInitialized = true;
 			serverLogger.success('OrbitDB server initialization completed');
@@ -119,6 +134,42 @@ class OrbitDBServer {
 			throw error;
 		}
 	}
+
+	setupRealtimeSync() {
+		if (!this.todoDB) {
+			serverLogger.error('TodoDB not available for real-time sync setup');
+			return;
+		}
+
+		serverLogger.info('Setting up real-time sync with WebSocket broadcasting');
+
+		// Listen for database updates
+		this.todoDB.events.on('update', (entry) => {
+			serverLogger.info('Database updated, broadcasting to WebSocket clients');
+			websocketManager.broadcastTodoUpdated({
+				id: entry.hash,
+				key: entry.key,
+				...entry.value
+			});
+		});
+
+		this.todoDB.events.on('join', (address, entry) => {
+			serverLogger.info('New todo added, broadcasting to WebSocket clients');
+			websocketManager.broadcastTodoAdded({
+				id: entry.hash,
+				key: entry.key,
+				...entry.value
+			});
+		});
+
+		this.todoDB.events.on('replicated', (address) => {
+			serverLogger.info('Database replicated, broadcasting refresh');
+			websocketManager.broadcastDatabaseReplicated(address);
+		});
+
+		serverLogger.success('Real-time sync setup completed');
+	}
+
 
 	// Database operations
 	async getTodos() {
@@ -155,7 +206,12 @@ class OrbitDBServer {
 
 		await this.todoDB.put(todoId, todo);
 		serverLogger.dbOp('ADD_TODO', { todoId, text });
-		return { id: todoId, key: todoId, ...todo };
+		
+		// Broadcast the change via WebSocket
+		const result = { id: todoId, key: todoId, ...todo };
+		websocketManager.broadcastTodoAdded(result);
+		
+		return result;
 	}
 
 	async toggleTodo(todoId) {
@@ -177,7 +233,12 @@ class OrbitDBServer {
 
 		await this.todoDB.put(todoId, updatedTodo);
 		serverLogger.dbOp('TOGGLE_TODO', { todoId, completed: updatedTodo.completed });
-		return { id: todoId, key: todoId, ...updatedTodo };
+		
+		// Broadcast the change via WebSocket
+		const result = { id: todoId, key: todoId, ...updatedTodo };
+		websocketManager.broadcastTodoUpdated(result);
+		
+		return result;
 	}
 
 	async deleteTodo(todoId) {
@@ -186,7 +247,11 @@ class OrbitDBServer {
 		}
 
 		await this.todoDB.del(todoId);
-		console.log('✅ Server: Todo deleted:', todoId);
+		serverLogger.dbOp('DELETE_TODO', { todoId });
+		
+		// Broadcast the change via WebSocket
+		websocketManager.broadcastTodoDeleted(todoId);
+		
 		return true;
 	}
 
@@ -208,8 +273,13 @@ class OrbitDBServer {
 		};
 
 		await this.todoDB.put(todoId, updatedTodo);
-		console.log('✅ Server: Todo assignee updated:', todoId, assignee);
-		return { id: todoId, key: todoId, ...updatedTodo };
+		serverLogger.dbOp('UPDATE_ASSIGNEE', { todoId, assignee });
+		
+		// Broadcast the change via WebSocket
+		const result = { id: todoId, key: todoId, ...updatedTodo };
+		websocketManager.broadcastTodoUpdated(result);
+		
+		return result;
 	}
 
 	// Peer and status information

@@ -9,10 +9,14 @@ import { LevelBlockstore } from 'blockstore-level';
 import { LevelDatastore } from 'datastore-level';
 import { systemToasts } from './toast-store.js';
 import { clientLogger } from './console-logger.js';
+import { getDatabaseName } from './config.js';
 
 // Export libp2p instance for plugins
 export const libp2pStore = writable(null);
 export const peerIdStore = writable(null);
+
+// Export connected peers store for UI reactivity  
+export const connectedPeersStore = writable(/** @type {string[]} */ ([]));
 
 // Export OrbitDB instance for backup/restore operations
 export const orbitDBStore = writable(null);
@@ -92,6 +96,30 @@ export async function initializeP2P(preferences = {}) {
 			`Node created - network: ${enableNetworkConnection ? 'enabled' : 'disabled'}, peers: ${enablePeerConnections ? 'enabled' : 'disabled'}`
 		);
 
+		// Set up libp2p event listeners for peer connections
+		libp2p.addEventListener('peer:connect', (event) => {
+			const peerId = event.detail.toString();
+			console.log('🔗 Peer connected:', peerId);
+			clientLogger.libp2p(`Peer connected: ${peerId}`);
+			
+			// Update the connected peers store
+			connectedPeersStore.update(peers => {
+				if (!peers.includes(peerId)) {
+					return [...peers, peerId];
+				}
+				return peers;
+			});
+		});
+
+		libp2p.addEventListener('peer:disconnect', (event) => {
+			const peerId = event.detail.toString();
+			console.log('🔌 Peer disconnected:', peerId);
+			clientLogger.libp2p(`Peer disconnected: ${peerId}`);
+			
+			// Update the connected peers store
+			connectedPeersStore.update(peers => peers.filter(p => p !== peerId));
+		});
+
 		// Show toast notification for libp2p creation
 		systemToasts.showLibp2pCreated();
 
@@ -159,9 +187,11 @@ export async function initializeP2P(preferences = {}) {
 		const headsStorage = await MemoryStorage();
 		const entryStorage = await MemoryStorage();
 
+		const dbName = getDatabaseName();
+		
 		if (!enablePersistentStorage && !enableNetworkConnection) {
 			//if we have no network and no persistent storage, we use in-memory storage
-			todoDB = await orbitdb.open('simple-todos', {
+			todoDB = await orbitdb.open(dbName, {
 				type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
 				create: true, // Allows the database to be created if it doesn't exist
 				// sync: enableNetworkConnection, // Only enable sync if peer connections are allowed
@@ -170,7 +200,7 @@ export async function initializeP2P(preferences = {}) {
 				// AccessController: !enableNetworkConnection ? IPFSAccessController({ write: ['*'] }) : null //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
 			});
 		} else {
-			todoDB = await orbitdb.open('simple-todos', {
+			todoDB = await orbitdb.open(dbName, {
 				type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
 				create: true, // Allows the database to be created if it doesn't exist
 				sync: enableNetworkConnection, // Only enable sync if peer connections are allowed

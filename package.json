@@ -31,6 +31,7 @@
 		"@tailwindcss/forms": "^0.5.10",
 		"@tailwindcss/typography": "^0.5.16",
 		"@tailwindcss/vite": "^4.1.13",
+		"@types/ws": "^8.5.12",
 		"eslint": "^9.35.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.12.1",
@@ -89,6 +90,7 @@
 		"orbitdb-storacha-bridge": "^0.2.2",
 		"svelte-qrcode": "^1.0.1",
 		"uint8arrays": "^5.1.0",
-		"vite-plugin-node-polyfills": "^0.24.0"
+		"vite-plugin-node-polyfills": "^0.24.0",
+		"ws": "^8.17.1"
 	}
 }

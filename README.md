@@ -167,7 +167,6 @@ This codebase contains reusable components for building decentralized P2P applic
 
 - **[ConsentModal.svelte](./src/lib/ConsentModal.svelte)** - A comprehensive privacy consent component that manages user preferences for data storage (persistent vs session), network connectivity, and P2P connections. Features configurable checkboxes, storage toggles, and handles GDPR-style consent flow for decentralized applications.
 
-- **[StorachaIntegration.svelte](./src/lib/StorachaIntegration.svelte)** - Complete Web3 storage integration component providing UCAN-based authentication, space management, and backup/restore functionality for OrbitDB databases to Storacha/Filecoin. Includes progress tracking, error handling, and space usage monitoring.
 
 - **[storacha-backup.js](./src/lib/storacha-backup.js)** - Core backup/restore utility module that bridges OrbitDB with Storacha cloud storage. Provides functions for client initialization, space management, database backup/restore operations, and UCAN delegation handling for decentralized storage workflows.
 

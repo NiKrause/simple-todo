@@ -3,6 +3,7 @@ import { browser } from '$app/environment';
 import { initializeP2P } from './p2p.js';
 import { todosStore } from './db-actions.js';
 import { clientLogger } from './console-logger.js';
+import { websocketClient } from './websocket-client.js';
 
 // Hybrid mode state
 export const hybridMode = writable({
@@ -37,6 +38,13 @@ class HybridModeManager {
 				setTimeout(() => {
 					this.switchToClientMode('Server unavailable on page load');
 				}, 100);
+			} else if (this.serverAvailable && this.currentMode === 'server') {
+				// Connect WebSocket for real-time updates in server mode
+				if (typeof window !== 'undefined') {
+					setTimeout(() => {
+						websocketClient.connect();
+					}, 500); // Small delay to ensure everything is initialized
+				}
 			}
 		}
 		
@@ -53,6 +61,11 @@ class HybridModeManager {
 		}
 
 		clientLogger.hybrid(`Switching to client mode: ${reason}`);
+		
+		// Disconnect WebSocket when switching to client mode
+		if (typeof window !== 'undefined') {
+			websocketClient.disconnect();
+		}
 		
 		this.currentMode = 'client';
 		this.serverAvailable = false;
@@ -205,6 +218,34 @@ class HybridModeManager {
 
 	getStoredPeers() {
 		return Array.from(this.storedPeers.values());
+	}
+
+	// Switch to server mode and connect WebSocket
+	async switchToServerMode() {
+		if (this.currentMode === 'server') {
+			clientLogger.info('Already in server mode');
+			return;
+		}
+
+		clientLogger.hybrid('Switching to server mode');
+		
+		this.currentMode = 'server';
+		this.serverAvailable = true;
+		
+		// Connect WebSocket for real-time updates
+		if (typeof window !== 'undefined') {
+			websocketClient.connect();
+		}
+		
+		hybridMode.set({
+			mode: 'server',
+			serverAvailable: true,
+			clientInitialized: false,
+			error: null,
+			lastCheck: new Date().toISOString()
+		});
+		
+		clientLogger.success('Successfully switched to server mode');
 	}
 
 	// Manual fallback trigger (for PWA when server is detected as down)
