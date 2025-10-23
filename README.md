@@ -84,7 +84,7 @@ libp2p Node                    libp2p Node
 4. **P2P Mode**: Direct peer connections, data syncs browser-to-browser
 5. **Recovery**: When servers return, can switch back to server mode
 
-## Limitations
+## Limitations/Todo`s:
 
 Local-First behavior:
 
@@ -100,6 +100,18 @@ Peer-To-Peer Collaboration and instant updates
 
 Missing Abstraction Library which handles both classic mode and peer-to-peer mode
 
+Initial Sync in peer-to-peer mode
+
+When a browser orbit-db is spinning up, it connects to the libp2p network for initial sync. So far the relay (which could be decentralized network too!) runs basic OrbitDB pinning service and the browser db get's the initial sync from there.
+
+- checkout OrbitDB-Storacha-Bridge which would allow allow to restore a db from a Storacha Space
+- evaluate, if an OrbitDB could restore/initialize it's data directory from IPFS (via the /orbitdb/addresss) CID containing Manifest with Idenity, AccessController) What is missing are the HEADS (last block) which is unknown when spinning up the failover browser nodes. At this point it was not communicated. It is imaginable that Server SSR if is rendering a TodoList or adding a TODO is always delivering the last HEAD CID into a hidden field, which then could be used for the failover when restoring the complete history log from the latest HEAD by iterating down.
+
+- create an abstraction library which allows writing hybrid ssr-p2p PWA's more easily.
+
+
+- evaluate if a browser can optionally run an OrbitDB if - page was rendered in SSR mode
+- when peer-to-peer failover is activated data is loaded at
 
 ## 🚀 Quick Start
 
