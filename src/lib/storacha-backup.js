@@ -259,9 +259,13 @@ export async function restoreFromStorachaSpace(storachaKey, storachaProof) {
 			storachaProof
 		});
 
-		// Use the bridge restore method for progress tracking
+		// Use the bridge restore method with working options (like Miles&Smiles)
 		const restoreResult = await bridge.restoreFromSpace(orbitdb, {
-			timeout: 60000
+			timeout: 120000, // 2 minutes timeout (like Miles&Smiles)
+			preferredDatabaseName: 'simple-todos', // Specific database name
+			restartAfterRestore: true, // Restart after restore
+			verifyIntegrity: true, // Verify integrity
+			// No forceFallback: false - let fallback be enabled!
 		});
 
 		if (restoreResult.success) {

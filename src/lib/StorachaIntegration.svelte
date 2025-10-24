@@ -589,17 +589,14 @@
 					todoDBStore.set(null);
 				}
 
-				// Try to drop any existing databases with common names
-				const commonNames = ['simple-todos', 'test-todos', 'restored-todos'];
-				for (const dbName of commonNames) {
-					try {
-						const existingDB = await $orbitDBStore.open(dbName, { type: 'keyvalue' });
-						console.log(`🗑️ Dropping existing database '${dbName}':`, existingDB.address);
-						await existingDB.drop();
-						await existingDB.close();
-					} catch {
-						console.log(`ℹ️ No existing '${dbName}' database to drop`);
-					}
+				// Try to drop the default database if it exists
+				try {
+					const existingDB = await $orbitDBStore.open('simple-todos', { type: 'keyvalue' });
+					console.log(`🗑️ Dropping existing database 'simple-todos':`, existingDB.address);
+					await existingDB.drop();
+					await existingDB.close();
+				} catch {
+					console.log(`ℹ️ No existing 'simple-todos' database to drop`);
 				}
 			} catch (cleanupError) {
 				console.warn('⚠️ Cleanup warning (continuing anyway):', cleanupError.message);
@@ -618,15 +615,13 @@
 			const uniqueDbName = `restored-todos-${Date.now()}`;
 			console.log('🆆 Using unique database name:', uniqueDbName);
 
-			// Use fallback reconstruction directly (as requested)
+			// Use working restore method with fallback enabled (like Miles&Smiles)
 			const result = await bridge.restoreFromSpace($orbitDBStore, {
-				timeout: 180000, // 3 minutes timeout for fallback reconstruction
-				forceFallback: true, // Force fallback reconstruction (works reliably)
-				fallbackDatabaseName: uniqueDbName,
-				dbConfig: {
-					type: 'keyvalue',
-					create: true
-				}
+				timeout: 120000, // 2 minutes timeout (shorter like Miles&Smiles)
+				preferredDatabaseName: 'simple-todos', // Specific database name
+				restartAfterRestore: true, // Restart after restore
+				verifyIntegrity: true, // Verify integrity
+				// forceFallback: false REMOVED - let fallback be enabled!
 			});
 
 			console.log('Fallback restore result:', result);

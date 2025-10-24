@@ -3,6 +3,8 @@ node_modules
 coverage
 orbitdb*/
 relay/test-relay-datastore/
+server-helia-*/
+server-*/
 playwright-report/
 p2p-todo-demo
 
