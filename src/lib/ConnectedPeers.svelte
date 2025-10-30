@@ -49,6 +49,7 @@
 		const allConnections = libp2p.getConnections();
 
 		allConnections.forEach((connection) => {
+			if (!connection?.remotePeer) return;
 			const peerIdStr = connection.remotePeer.toString();
 
 			// Skip if already in our peers list
