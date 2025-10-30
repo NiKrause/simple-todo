@@ -620,7 +620,7 @@
 				timeout: 120000, // 2 minutes timeout (shorter like Miles&Smiles)
 				preferredDatabaseName: 'simple-todos', // Specific database name
 				restartAfterRestore: true, // Restart after restore
-				verifyIntegrity: true, // Verify integrity
+				verifyIntegrity: true // Verify integrity
 				// forceFallback: false REMOVED - let fallback be enabled!
 			});
 

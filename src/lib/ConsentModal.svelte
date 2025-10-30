@@ -32,7 +32,7 @@
 {#if show}
 	<!-- Compact Cookie-Style Consent Banner -->
 	<div
-		class="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-300 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg"
+		class="fixed right-0 bottom-0 left-0 z-50 border-t border-gray-300 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg"
 		data-testid="consent-modal"
 	>
 		<div class="mx-auto max-w-7xl px-4 py-3">
@@ -49,7 +49,8 @@
 							<span class="text-sm font-medium text-gray-700">Storage:</span>
 							<button
 								on:click={() => (enablePersistentStorage = !enablePersistentStorage)}
-								class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 {enablePersistentStorage
+								aria-label="Toggle browser storage"
+								class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none {enablePersistentStorage
 									? 'bg-blue-600'
 									: 'bg-gray-400'}"
 							>
@@ -69,7 +70,8 @@
 							<span class="text-sm font-medium text-gray-700">Network:</span>
 							<button
 								on:click={() => (enableNetworkConnection = !enableNetworkConnection)}
-								class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 {enableNetworkConnection
+								aria-label="Toggle network connection"
+								class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none {enableNetworkConnection
 									? 'bg-blue-600'
 									: 'bg-gray-400'}"
 							>
@@ -93,7 +95,7 @@
 									bind:checked={enablePeerConnections}
 									class="h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
 								/>
-								<label for="peer-connections" class="text-xs text-gray-700 cursor-pointer">
+								<label for="peer-connections" class="cursor-pointer text-xs text-gray-700">
 									P2P Devices
 								</label>
 							</div>
@@ -114,7 +116,7 @@
 						{:else}
 							Memory only (no persistence)
 						{/if}
-						<span class="text-gray-500 ml-2">
+						<span class="ml-2 text-gray-500">
 							v{typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}
 							[{typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]
 						</span>
@@ -131,7 +133,7 @@
 						</label>
 						<button
 							on:click={handleProceed}
-							class="whitespace-nowrap rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+							class="rounded-md bg-blue-600 px-4 py-1.5 text-sm font-medium whitespace-nowrap text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none"
 						>
 							{proceedButtonText}
 						</button>

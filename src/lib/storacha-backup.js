@@ -264,7 +264,7 @@ export async function restoreFromStorachaSpace(storachaKey, storachaProof) {
 			timeout: 120000, // 2 minutes timeout (like Miles&Smiles)
 			preferredDatabaseName: 'simple-todos', // Specific database name
 			restartAfterRestore: true, // Restart after restore
-			verifyIntegrity: true, // Verify integrity
+			verifyIntegrity: true // Verify integrity
 			// No forceFallback: false - let fallback be enabled!
 		});
 

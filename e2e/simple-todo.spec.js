@@ -10,39 +10,21 @@ test.describe('Simple Todo P2P Application', () => {
 	});
 
 	test('should show consent modal and proceed with P2P initialization', async ({ page }) => {
-		// Step 1: Verify consent modal is visible
+		// Step 1: Verify consent banner is visible
 		await expect(page.locator('[data-testid="consent-modal"]')).toBeVisible();
 
-		// Wait for the modal to be fully loaded
-		await page.waitForSelector('[data-testid="consent-modal"] h1', {
-			hasText: 'Simple TODO Example'
-		});
+		// Wait for the banner to be fully loaded
+		await page.waitForSelector('[data-testid="consent-modal"]');
 
-		// Step 2: Check the 4 required checkboxes
-		console.log('✅ Checking consent modal checkboxes...');
+		// Step 2: Verify default settings (Storage: On, Network: On)
+		console.log('✅ Consent banner visible with default settings');
 
-		// Find all consent checkboxes (the ones in the consent section, not the preference radio buttons)
-		const consentCheckboxes = page.locator('[data-testid="consent-modal"] input[type="checkbox"]');
-		const checkboxCount = await consentCheckboxes.count();
-
-		// Check all consent checkboxes
-		for (let i = 0; i < checkboxCount; i++) {
-			await consentCheckboxes.nth(i).check();
-		}
-
-		// Verify all checkboxes are checked
-		for (let i = 0; i < checkboxCount; i++) {
-			await expect(consentCheckboxes.nth(i)).toBeChecked();
-		}
-
-		console.log('✅ All consent checkboxes are checked');
-
-		// Step 3: Click the Proceed button
-		const proceedButton = page.locator('button', { hasText: 'Proceed to Test the App' });
+		// Step 3: Click the Accept & Continue button
+		const proceedButton = page.locator('button', { hasText: 'Accept & Continue' });
 		await expect(proceedButton).toBeEnabled();
 		await proceedButton.click();
 
-		console.log('✅ Clicked Proceed button');
+		console.log('✅ Clicked Accept & Continue button');
 
 		// Step 4: Wait for consent modal to disappear
 		await expect(page.locator('[data-testid="consent-modal"]')).not.toBeVisible();
@@ -101,24 +83,16 @@ test.describe('Simple Todo P2P Application', () => {
 		// Navigate to the application
 		await page.goto('/');
 
-		// Wait for consent modal - be more specific to target the modal h1
-		await expect(
-			page.locator('[data-testid="consent-modal"] h1', { hasText: 'Simple TODO Example' })
-		).toBeVisible();
+		// Wait for consent banner
+		await expect(page.locator('[data-testid="consent-modal"]')).toBeVisible();
 
-		// Select offline mode by choosing the "Offline Mode" radio button
-		await page.getByRole('radio', { name: 'Offline Mode Does not connect' }).check();
-
-		// Check required checkboxes
-		const checkboxes = page.locator('input[type="checkbox"]');
-		const checkboxCount = await checkboxes.count();
-
-		for (let i = 0; i < checkboxCount; i++) {
-			await checkboxes.nth(i).check();
-		}
+		// Toggle Network to Off (clicking the toggle button)
+		// Click the toggle switch itself - the button that has the bg-blue-600 or bg-gray-400 class
+		const toggleButtons = page.locator('button.relative.inline-flex');
+		await toggleButtons.nth(1).click(); // Second toggle is Network
 
 		// Continue
-		await page.locator('button', { hasText: 'Proceed to Test the App' }).click();
+		await page.locator('button', { hasText: 'Accept & Continue' }).click();
 
 		// Wait for modal to disappear
 		await expect(page.locator('[data-testid="consent-modal"]')).not.toBeVisible();
@@ -134,19 +108,10 @@ test.describe('Simple Todo P2P Application', () => {
 		await page.goto('/');
 
 		// Accept consent with default settings
-		await page.waitForSelector('[data-testid="consent-modal"] h1', {
-			hasText: 'Simple TODO Example'
-		});
+		await page.waitForSelector('[data-testid="consent-modal"]');
 
-		// Check all checkboxes quickly
-		const checkboxes = page.locator('input[type="checkbox"]');
-		const checkboxCount = await checkboxes.count();
-
-		for (let i = 0; i < checkboxCount; i++) {
-			await checkboxes.nth(i).check();
-		}
-
-		await page.locator('button', { hasText: 'Proceed to Test the App' }).click();
+		// Click Accept & Continue
+		await page.locator('button', { hasText: 'Accept & Continue' }).click();
 
 		// Wait for modal to disappear
 		await expect(page.locator('[data-testid="consent-modal"]')).not.toBeVisible();
@@ -184,19 +149,10 @@ test.describe('Simple Todo P2P Application', () => {
 	test('should handle todo operations correctly', async ({ page }) => {
 		// Navigate and accept consent
 		await page.goto('/');
-		await page.waitForSelector('[data-testid="consent-modal"] h1', {
-			hasText: 'Simple TODO Example'
-		});
+		await page.waitForSelector('[data-testid="consent-modal"]');
 
 		// Quick consent acceptance
-		const checkboxes = page.locator('input[type="checkbox"]');
-		const checkboxCount = await checkboxes.count();
-
-		for (let i = 0; i < checkboxCount; i++) {
-			await checkboxes.nth(i).check();
-		}
-
-		await page.locator('button', { hasText: 'Proceed to Test the App' }).click();
+		await page.locator('button', { hasText: 'Accept & Continue' }).click();
 		await expect(page.locator('[data-testid="consent-modal"]')).not.toBeVisible();
 
 		// Wait for todo input to be ready
