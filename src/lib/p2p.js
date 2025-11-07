@@ -131,7 +131,22 @@ export async function openDatabaseByName(dbName, preferences = {}, enableEncrypt
 		currentIdentity = orbitdb.identity;
 	}
 
+	const currentInstanceIdentity = currentIdentity?.id || orbitdb.identity?.id;
 	console.log(`📂 Opening database by name: ${dbName}`);
+	console.log('🔑 Current OrbitDB instance identity:', currentInstanceIdentity);
+
+	// Extract identity from dbName (part before first underscore)
+	let dbNameIdentity = null;
+	if (dbName && dbName.includes('_')) {
+		const underscoreIndex = dbName.indexOf('_');
+		if (underscoreIndex > 0) {
+			dbNameIdentity = dbName.substring(0, underscoreIndex);
+		}
+	}
+
+	const isOurIdentity = dbNameIdentity === currentInstanceIdentity;
+	console.log('🔧 Database identity (from name):', dbNameIdentity);
+	console.log('🔧 Is our identity?', isOurIdentity);
 
 	// Close existing database if open
 	if (todoDB) {
@@ -140,6 +155,31 @@ export async function openDatabaseByName(dbName, preferences = {}, enableEncrypt
 		todoDB = null;
 	}
 
+	// If it's NOT our identity, use NO options (like openDatabaseByAddress)
+	// Everything should be read from the database manifest
+	if (!isOurIdentity && dbNameIdentity) {
+		console.log('🔧 Opening database from different identity - using NO options (all config from manifest)');
+		
+		try {
+			// Open with NO options - OrbitDB will read everything from the manifest
+			todoDB = await orbitdb.open(dbName);
+
+			console.log('🔍 TodoDB records:', (await todoDB.all()).length);
+			console.log('✅ Database opened successfully by name:', todoDB);
+			console.log('🔧 Database address after open:', todoDB.address);
+			console.log('🔧 Database name:', todoDB.name);
+
+			// Initialize database stores and actions
+			await initializeDatabase(orbitdb, todoDB, preferences);
+
+			return todoDB;
+		} catch (error) {
+			console.error('❌ Error opening database by name (different identity):', error);
+			throw error;
+		}
+	}
+
+	// If it's our identity, we can use options (but still minimal)
 	const {
 		enablePersistentStorage = true,
 		enableNetworkConnection = true,
@@ -155,8 +195,8 @@ export async function openDatabaseByName(dbName, preferences = {}, enableEncrypt
 		encryption = { data: dataEncryption, replication: replicationEncryption };
 	}
 
-	// Try to open the database by name
-	// Note: When opening by name from another identity, we may not have write access
+	// Try to open the database by name (our identity)
+	// Note: For our own databases, we can provide options
 	try {
 		if (!enablePersistentStorage && !enableNetworkConnection) {
 			// In-memory storage only
