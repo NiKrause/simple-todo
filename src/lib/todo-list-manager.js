@@ -25,6 +25,9 @@ export const encryptionStore = writable({
 // Store for list of unique user IDs/DIDs
 export const uniqueUsersStore = writable([]);
 
+// Store for manually tracked/added user identities
+export const trackedUsersStore = writable([]);
+
 // Store for todo list hierarchy (breadcrumb trail)
 export const todoListHierarchyStore = writable([]);
 
@@ -610,5 +613,69 @@ export async function listUniqueUsers() {
 		console.error('❌ Error listing unique users:', error);
 		return [];
 	}
+}
+
+// Function to add a tracked user and discover their projects database
+export async function addTrackedUser(identityId) {
+	if (!identityId || !identityId.trim()) {
+		throw new Error('Identity ID is required');
+	}
+
+	const trimmedId = identityId.trim();
+	const tracked = get(trackedUsersStore);
+	
+	// Check if already tracked
+	if (tracked.includes(trimmedId)) {
+		console.log(`ℹ️  Identity ${trimmedId} is already tracked`);
+		return;
+	}
+
+	// Add to tracked users
+	trackedUsersStore.set([...tracked, trimmedId]);
+	
+	// Try to discover and add their "projects" database
+	try {
+		const { openDatabaseByName } = await import('./p2p.js');
+		const dbName = `${trimmedId}_projects`;
+		
+		console.log(`🔍 Attempting to discover projects database for identity: ${trimmedId}`);
+		
+		const preferences = {
+			enablePersistentStorage: true,
+			enableNetworkConnection: true,
+			enablePeerConnections: true
+		};
+		
+		// Try to open their projects database
+		const projectsDb = await openDatabaseByName(dbName, preferences, false, '');
+		
+		if (projectsDb && projectsDb.address) {
+			// Add to our registry
+			await addTodoListToRegistry('projects', dbName, projectsDb.address, null);
+			
+			// Refresh available lists
+			await listAvailableTodoLists();
+			
+			// Update unique users list
+			await listUniqueUsers();
+			
+			console.log(`✅ Successfully discovered and added projects database for ${trimmedId}`);
+			return true;
+		}
+	} catch (error) {
+		console.warn(`⚠️ Could not discover projects database for ${trimmedId}:`, error);
+		// Don't throw - user is still added to tracked list even if discovery fails
+	}
+	
+	return false;
+}
+
+// Function to remove a tracked user
+export function removeTrackedUser(identityId) {
+	const tracked = get(trackedUsersStore);
+	trackedUsersStore.set(tracked.filter(id => id !== identityId));
+	
+	// Also remove from unique users if it was only there because we tracked it
+	// (This is optional - you might want to keep discovered users even if untracked)
 }
 
