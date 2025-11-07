@@ -26,7 +26,8 @@
 	import TodoListSelector from '$lib/TodoListSelector.svelte';
 	import UsersList from '$lib/UsersList.svelte';
 	import BreadcrumbNavigation from '$lib/BreadcrumbNavigation.svelte';
-	import { switchToTodoList, createSubList, currentTodoListNameStore } from '$lib/todo-list-manager.js';
+	import { switchToTodoList, createSubList, currentTodoListNameStore, currentDbNameStore, currentDbAddressStore, extractDisplayName, listAvailableTodoLists, availableTodoListsStore, todoListHierarchyStore, buildHierarchyPath, listUniqueUsers } from '$lib/todo-list-manager.js';
+	import { getCurrentIdentityId, openDatabaseByAddress, openDatabaseByName } from '$lib/p2p.js';
 	import { get } from 'svelte/store';
 	// import { Cloud } from 'lucide-svelte'; // Unused for now
 	import { toastStore } from '$lib/toast-store.js';
@@ -75,7 +76,11 @@
 
 		try {
 			// Pass the preferences to initializeP2P
-			await initializeP2P(preferences);
+			// Check if already initializing/initialized to avoid duplicate initialization
+			const currentState = get(initializationStore);
+			if (!currentState.isInitialized && !currentState.isInitializing) {
+				await initializeP2P(preferences);
+			}
 		} catch (err) {
 			error = `Failed to initialize P2P or OrbitDB: ${err.message}`;
 			console.error('P2P initialization failed:', err);
@@ -84,6 +89,10 @@
 
 	onMount(async () => {
 		try {
+			// Check if there's a hash in the URL - if so, auto-initialize even without consent
+			const hasHash = window.location.hash && window.location.hash.startsWith('#/');
+			const hasConsent = localStorage.getItem(CONSENT_KEY) === 'true';
+			
 			// Check for hash in URL to open specific database
 			const handleHashChange = async () => {
 				if (!$initializationStore.isInitialized || isUpdatingFromHash) {
@@ -92,11 +101,252 @@
 
 				const hash = window.location.hash;
 				if (hash && hash.startsWith('#/')) {
-					const dbName = decodeURIComponent(hash.slice(2)); // Remove '#/'
-					if (dbName && dbName !== get(currentTodoListNameStore)) {
-						console.log(`📂 Opening database from URL hash: ${dbName}`);
-						isUpdatingFromHash = true;
-						await switchToTodoList(dbName, preferences, enableEncryption, encryptionPassword);
+					const hashValue = decodeURIComponent(hash.slice(2)); // Remove '#/'
+					if (!hashValue) return;
+					
+					const currentAddress = get(currentDbAddressStore);
+					if (hashValue === currentAddress) {
+						return; // Already on this database
+					}
+
+					console.log(`📂 Opening database from URL hash: ${hashValue}`);
+					isUpdatingFromHash = true;
+					
+					try {	
+						console.log('🔧 DEBUG: Hash value:', hashValue);
+						if (hashValue.startsWith('/orbitdb/')) {
+							// It's an OrbitDB address - open directly by address
+							console.log(`🔗 Opening database by address from URL: ${hashValue}`);
+							toastStore.show('🌐 Loading database from network...', 'info', 5000);
+							const openedDB = await openDatabaseByAddress(hashValue, preferences, enableEncryption, encryptionPassword);
+							
+							// Log database information
+							console.log('📊 Database Information:');
+							console.log('  - Address:', openedDB.address);
+							console.log('  - Name:', openedDB.name);
+							console.log('  - Type:', openedDB.type);
+							console.log('  - Opened:', openedDB.opened);
+							console.log('  - Writable:', openedDB.access?.write || false);
+							
+							// Get all data from the database
+							try {
+								const allData = await openedDB.all();
+								console.log('📦 Database Contents:');
+								console.log('  - Total Records:', Array.isArray(allData) ? allData.length : 'Unknown format');
+								
+								if (Array.isArray(allData)) {
+									console.log('  - Records:', allData);
+									
+									// Log each record in detail
+									allData.forEach((entry, index) => {
+										console.log(`  Record ${index + 1}:`, {
+											key: entry.key || entry.hash,
+											hash: entry.hash,
+											value: entry.value,
+											fullEntry: entry
+										});
+									});
+								} else {
+									console.log('  - Raw Data:', allData);
+								}
+								
+								// Try to get todos if available
+								const currentTodoDB = get(todoDBStore);
+								if (currentTodoDB && currentTodoDB === openedDB) {
+									const todos = get(todosStore);
+									console.log('  - Parsed Todos:', todos);
+									console.log('  - Todo Count:', todos.length);
+								}
+							} catch (dataError) {
+								console.error('  ❌ Error reading database contents:', dataError);
+							}
+							
+							// Extract display name and dbName from database name
+							const currentIdentityId = getCurrentIdentityId();
+							let displayName = openedDB.name || 'Unknown';
+							let dbName = openedDB.name || null;
+							let extractedIdentityId = null;
+							
+							// If database name has identity prefix, extract display name (part after first _)
+							if (dbName && dbName.includes('_')) {
+								const underscoreIndex = dbName.indexOf('_');
+								if (underscoreIndex > 0) {
+									extractedIdentityId = dbName.substring(0, underscoreIndex);
+									displayName = dbName.substring(underscoreIndex + 1);
+								}
+							}
+							
+							if (currentIdentityId) {
+								// Try to find this address in our registry
+								await listAvailableTodoLists();
+								const availableLists = get(availableTodoListsStore);
+								const list = availableLists.find(l => l.address === hashValue);
+								
+                                if (list) {
+									displayName = list.displayName;
+									dbName = list.dbName;
+									console.log('  - Found in registry:', { displayName, dbName, parent: list.parent });
+									
+									// Extract identity from dbName if we have it
+									if (dbName && dbName.includes('_')) {
+										const underscoreIndex = dbName.indexOf('_');
+										if (underscoreIndex > 0) {
+											extractedIdentityId = dbName.substring(0, underscoreIndex);
+										}
+									}
+									
+									// Update users list from dbName prefixes (even if found in registry)
+									await listUniqueUsers();
+								} else {
+									// Not in our registry - add it to available lists
+									// Use database name as display name if we can extract it
+									if (!displayName || displayName === 'Unknown' || !dbName) {
+										displayName = `Database ${hashValue.slice(-8)}`;
+										if (!dbName) {
+											dbName = `unknown_${displayName}`;
+										}
+									}
+									
+									// Add to available lists store so it appears in combo box
+									const newList = {
+										dbName: dbName,
+										displayName: displayName,
+										address: hashValue,
+										parent: null
+									};
+									
+                                    const updatedLists = [...availableLists, newList];
+                                    availableTodoListsStore.set(updatedLists);
+                                    console.log('  - Added to available lists:', newList);
+                                    
+                                    // Persist in our registry so it survives refreshes/switches
+                                    try {
+                                        const { addTodoListToRegistry } = await import('$lib/todo-list-manager.js');
+                                        await addTodoListToRegistry(displayName, dbName, hashValue, null);
+                                        console.log('  - Persisted in registry');
+                                    } catch (e) {
+                                        console.warn('  ⚠️ Could not persist to registry:', e);
+                                    }
+                                    
+                                    // Update users list from dbName prefixes
+                                    await listUniqueUsers();
+								}
+							} else {
+								// No current identity, just use database name
+								if (!displayName || displayName === 'Unknown' || !dbName) {
+									displayName = `Database ${hashValue.slice(-8)}`;
+									if (!dbName) {
+										dbName = `unknown_${displayName}`;
+									}
+								}
+								
+								// Add to available lists store
+								const newList = {
+									dbName: dbName,
+									displayName: displayName,
+									address: hashValue,
+									parent: null
+								};
+								
+								const currentLists = get(availableTodoListsStore);
+                                const updatedLists = [...currentLists, newList];
+                                availableTodoListsStore.set(updatedLists);
+                                console.log('  - Added to available lists (no identity):', newList);
+                                
+                                // Persist in our registry if possible (may fail if not initialized yet)
+                                try {
+                                    const { addTodoListToRegistry } = await import('$lib/todo-list-manager.js');
+                                    await addTodoListToRegistry(displayName, dbName, hashValue, null);
+                                    console.log('  - Persisted in registry');
+                                } catch (e) {
+                                    console.warn('  ⚠️ Could not persist to registry (no identity yet?):', e);
+                                }
+                                
+                                // Update users list from dbName prefixes
+                                await listUniqueUsers();
+							}
+							
+							// Update stores
+							currentTodoListNameStore.set(displayName);
+							if (dbName) {
+								currentDbNameStore.set(dbName);
+							}
+							currentDbAddressStore.set(hashValue);
+							
+							// Re-extract identity from final dbName to ensure we have it
+							if (dbName && dbName.includes('_')) {
+								const underscoreIndex = dbName.indexOf('_');
+								if (underscoreIndex > 0) {
+									extractedIdentityId = dbName.substring(0, underscoreIndex);
+								}
+							}
+							
+							// Ensure users list is updated after all store updates
+							await listUniqueUsers();
+							
+							// Show final toast with identity and dbName (after all processing)
+							if (extractedIdentityId && dbName) {
+								console.log('📢 Showing success toast with identity:', extractedIdentityId, 'and dbName:', dbName);
+								toastStore.show(`✅ Database loaded! Identity: ${extractedIdentityId.slice(0, 8)}... | Name: ${dbName}`, 'success', 5000);
+							} else if (dbName) {
+								console.log('📢 Showing success toast with dbName:', dbName);
+								toastStore.show(`✅ Database loaded! Name: ${dbName}`, 'success', 5000);
+							}
+							
+							// Update hierarchy
+							if (currentIdentityId) {
+								await listAvailableTodoLists();
+								const availableLists = get(availableTodoListsStore);
+								const list = availableLists.find(l => l.address === hashValue);
+								if (list && list.parent) {
+									// Build hierarchy for this list
+									const hierarchy = await buildHierarchyPath(list.displayName);
+									todoListHierarchyStore.set(hierarchy);
+									console.log('  - Hierarchy:', hierarchy);
+								} else {
+									// Not in registry or no parent, set as root
+									todoListHierarchyStore.set([{ name: displayName, parent: null }]);
+								}
+							} else {
+								// No identity, set as root
+								todoListHierarchyStore.set([{ name: displayName, parent: null }]);
+							}
+							
+							console.log('✅ Database opened and logged successfully');
+						} else {
+							// Not an address - treat as displayName or dbName (backward compatibility)
+							const identityId = getCurrentIdentityId();
+							
+							// Try to find it in available lists first
+							await listAvailableTodoLists();
+							const availableLists = get(availableTodoListsStore);
+							const list = availableLists.find(l => l.displayName === hashValue);
+							
+							if (list) {
+								// Found in available lists - check if we have an address
+								if (list.address) {
+									// Use the address to open
+									const openedDB = await openDatabaseByAddress(list.address, preferences, enableEncryption, encryptionPassword);
+									currentTodoListNameStore.set(list.displayName);
+									currentDbNameStore.set(list.dbName);
+									currentDbAddressStore.set(list.address);
+								} else {
+									// No address stored, switch normally (will create/get address)
+									await switchToTodoList(list.displayName, preferences, enableEncryption, encryptionPassword);
+								}
+							} else if (identityId && hashValue.startsWith(`${identityId}_`)) {
+								// It's a full dbName from current identity
+								const displayName = extractDisplayName(hashValue, identityId);
+								await switchToTodoList(displayName, preferences, enableEncryption, encryptionPassword);
+							} else {
+								// Not found, try to open as displayName (will create if doesn't exist)
+								await switchToTodoList(hashValue, preferences, enableEncryption, encryptionPassword);
+							}
+						}
+					} catch (error) {
+						console.error('❌ Error opening database from hash:', error);
+						toastStore.show(`Failed to open database: ${error.message}`, 'error');
+					} finally {
 						isUpdatingFromHash = false;
 					}
 				}
@@ -105,48 +355,69 @@
 			// Listen for hash changes
 			window.addEventListener('hashchange', handleHashChange);
 
-			// Check initial hash
-			if (localStorage.getItem(CONSENT_KEY) === 'true') {
-				showModal = false;
-				// When auto-initializing, use default preferences
-				console.log('🔧 DEBUG: Auto-initializing with default preferences');
-				await initializeP2P({
-					enablePersistentStorage: true,
-					enableNetworkConnection: true,
-					enablePeerConnections: true
-				});
-
-				// After initialization, check hash
-				await handleHashChange();
-			} else {
-				// Even if modal is shown, set up hash listener for after initialization
-				const unsubscribe = initializationStore.subscribe(async (state) => {
-					if (state.isInitialized) {
-						await handleHashChange();
+			// Set up subscription to handle hash after initialization completes
+			let hashHandled = false;
+			const unsubscribe = initializationStore.subscribe(async (state) => {
+				if (state.isInitialized && hasHash && !hashHandled) {
+					// Only handle hash once after initialization
+					const currentAddress = get(currentDbAddressStore);
+					const hash = window.location.hash;
+					if (hash && hash.startsWith('#/')) {
+						const hashValue = decodeURIComponent(hash.slice(2));
+						if (hashValue !== currentAddress) {
+							hashHandled = true;
+							await handleHashChange();
+						}
 					}
-				});
-				// Cleanup on component destroy
-				return () => {
-					window.removeEventListener('hashchange', handleHashChange);
-					unsubscribe();
-				};
+				}
+			});
+
+			// If there's a hash in URL, auto-initialize even without consent (user wants to open a specific DB)
+			// Accessing a database via URL implies consent
+			if (hasHash || hasConsent) {
+				if (hasHash && !hasConsent) {
+					// Auto-initialize when hash is present - accessing DB via URL implies consent
+					showModal = false;
+					console.log('🔧 DEBUG: Hash detected, auto-initializing to open database (implied consent)...');
+					// Initialize - hash will be handled by subscription once initialized
+					await initializeP2P({
+						enablePersistentStorage: true,
+						enableNetworkConnection: true,
+						enablePeerConnections: true
+					});
+					// Hash will be handled by subscription
+				} else if (hasConsent) {
+					// Normal flow: consent remembered
+					showModal = false;
+					console.log('🔧 DEBUG: Auto-initializing with default preferences');
+					await initializeP2P({
+						enablePersistentStorage: true,
+						enableNetworkConnection: true,
+						enablePeerConnections: true
+					});
+
+					// After initialization, check hash
+					await handleHashChange();
+					hashHandled = true;
+				}
 			}
 
 			// Cleanup on component destroy
 			return () => {
 				window.removeEventListener('hashchange', handleHashChange);
+				unsubscribe();
 			};
 		} catch {
 			// ignore storage errors
 		}
 	});
 
-	// Update hash when currentTodoListNameStore changes (but not when updating from hash)
+	// Update hash when currentDbAddressStore changes (but not when updating from hash)
 	$: {
 		if (typeof window !== 'undefined' && $initializationStore.isInitialized && !isUpdatingFromHash) {
-			const currentName = $currentTodoListNameStore;
-			if (currentName) {
-				const hash = `/${encodeURIComponent(currentName)}`;
+			const currentAddress = $currentDbAddressStore;
+			if (currentAddress) {
+				const hash = `/${encodeURIComponent(currentAddress)}`;
 				if (window.location.hash !== `#${hash}`) {
 					// Use replaceState to avoid adding to history
 					window.history.replaceState(null, '', `#${hash}`);

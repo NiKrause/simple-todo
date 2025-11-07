@@ -170,7 +170,8 @@ const libp2pOptions = {
 		// Enhanced gossipsub configuration
 		pubsub: gossipsub({
 			emitSelf: process.env.GOSSIP_EMIT_SELF === 'true',
-			allowPublishToZeroTopicPeers: process.env.GOSSIP_ALLOW_PUBLISH_ZERO_TOPIC === 'true',
+			// Allow publishing even when no peers are subscribed (prevents crashes)
+			allowPublishToZeroTopicPeers: process.env.GOSSIP_ALLOW_PUBLISH_ZERO_TOPIC !== 'false', // Default to true
 			canRelayMessage: process.env.GOSSIP_CAN_RELAY_MESSAGE === 'true',
 			gossipIncoming: process.env.GOSSIP_INCOMING === 'true',
 			fallbackToFloodsub: process.env.GOSSIP_FALLBACK_TO_FLOODSUB === 'true',
@@ -514,6 +515,46 @@ const gracefulShutdown = async (signal) => {
 
 	process.exit(0);
 };
+
+// Helper function to check if an error is a PublishError
+function isPublishError(error) {
+	if (!error) return false;
+	const message = error.message || error.toString() || '';
+	const name = error.name || '';
+	return message.includes('PublishError.NoPeersSubscribedToTopic') || 
+	       message.includes('NoPeersSubscribedToTopic') ||
+	       name === 'PublishError';
+}
+
+// Global error handlers to prevent crashes from unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+	// Check if it's a PublishError.NoPeersSubscribedToTopic - this is not fatal
+	if (isPublishError(reason)) {
+		console.warn('⚠️  [Relay] Gossipsub publish failed: No peers subscribed to topic (this is normal when no peers are connected)');
+		return; // Don't crash, just log and continue
+	}
+	
+	// For other unhandled rejections, log but don't crash in production
+	console.error('❌ [Relay] Unhandled promise rejection:', reason);
+	if (isDevelopment) {
+		console.error('Promise:', promise);
+	}
+});
+
+process.on('uncaughtException', (error) => {
+	// Check if it's a PublishError.NoPeersSubscribedToTopic - this is not fatal
+	if (isPublishError(error)) {
+		console.warn('⚠️  [Relay] Gossipsub publish failed: No peers subscribed to topic (this is normal when no peers are connected)');
+		return; // Don't crash, just log and continue
+	}
+	
+	// For other uncaught exceptions, log and exit
+	console.error('❌ [Relay] Uncaught exception:', error);
+	if (isDevelopment) {
+		console.error('Stack:', error.stack);
+	}
+	// In production, we might want to exit, but for now just log
+});
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

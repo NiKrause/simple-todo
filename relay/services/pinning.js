@@ -327,7 +327,42 @@ export class PinningService {
 
 		try {
 			// Open the database with proper access controller configuration
-			const db = await this.orbitdb.open(dbAddress);
+			// Wrap in try-catch to handle gossipsub publish errors gracefully
+			let db;
+			try {
+				db = await this.orbitdb.open(dbAddress);
+			} catch (openError) {
+				// Check if it's a PublishError - this can happen when OrbitDB tries to publish but no peers are subscribed
+				const isPublishErr = openError && (
+					(openError.message && openError.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
+					(openError.message && openError.message.includes('NoPeersSubscribedToTopic')) ||
+					openError.name === 'PublishError'
+				);
+				if (isPublishErr) {
+					this.log(`⚠️  Gossipsub publish error during database open (no peers subscribed - this is normal): ${dbAddress}`, 'warn');
+					// Retry opening - the error might be transient
+					try {
+						db = await this.orbitdb.open(dbAddress);
+					} catch (retryError) {
+						// If retry also fails, check if it's still the publish error
+						const isRetryPublishErr = retryError && (
+							(retryError.message && retryError.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
+							(retryError.message && retryError.message.includes('NoPeersSubscribedToTopic')) ||
+							retryError.name === 'PublishError'
+						);
+						if (isRetryPublishErr) {
+							this.log(`⚠️  Gossipsub publish error persists, but continuing anyway: ${dbAddress}`, 'warn');
+							// Try one more time with a small delay
+							await new Promise(resolve => setTimeout(resolve, 100));
+							db = await this.orbitdb.open(dbAddress);
+						} else {
+							throw retryError;
+						}
+					}
+				} else {
+					throw openError;
+				}
+			}
 
 			this.log(`📂 Database opened: ${db.name}`, 'debug');
 
@@ -412,6 +447,19 @@ export class PinningService {
 
 			return metadata;
 		} catch (error) {
+			// Check if it's a PublishError - this is not a fatal error, just means no peers are subscribed
+			const isPublishErr = error && (
+				(error.message && error.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
+				(error.message && error.message.includes('NoPeersSubscribedToTopic')) ||
+				error.name === 'PublishError'
+			);
+			if (isPublishErr) {
+				this.log(`⚠️  Gossipsub publish error during sync (no peers subscribed - this is normal): ${dbAddress}`, 'warn');
+				// Don't count this as a failed sync, it's just a warning
+				// Return null or empty metadata to indicate partial success
+				return null;
+			}
+			
 			this.metrics.failedSyncs++;
 			this.log(`❌ Error syncing database ${dbAddress}: ${error.message}`, 'error');
 			throw error;
@@ -491,36 +539,60 @@ export class PinningService {
 
 		// Handle database updates with debouncing
 		db.events.on('update', async (entry) => {
-			this.log(`🔄 Database updated: ${db.name}`, 'info');
-			this.log(`📝 Raw update entry: ${JSON.stringify(entry)}`, 'debug');
+			try {
+				this.log(`🔄 Database updated: ${db.name}`, 'info');
+				this.log(`📝 Raw update entry: ${JSON.stringify(entry)}`, 'debug');
 
-			// Clear existing timer if it exists
-			if (this.updateTimers.has(dbAddress)) {
-				clearTimeout(this.updateTimers.get(dbAddress));
-			}
-
-			// Set a new timer to debounce multiple rapid updates
-			const timer = setTimeout(async () => {
-				try {
-					// Use enhanced record counting
-					const newRecordCount = await this.getRecordCount(db);
-					metadata.recordCount = newRecordCount;
-					metadata.lastSynced = new Date().toISOString();
-					metadata.syncCount++;
-
-					this.log(
-						`📊 Database ${db.name} updated: ${newRecordCount} records (sync #${metadata.syncCount})`,
-						'debug'
-					);
-
-					// Clean up the timer
-					this.updateTimers.delete(dbAddress);
-				} catch (error) {
-					this.log(`❌ Error processing update for ${db.name}: ${error.message}`, 'error');
+				// Clear existing timer if it exists
+				if (this.updateTimers.has(dbAddress)) {
+					clearTimeout(this.updateTimers.get(dbAddress));
 				}
-			}, 500); // 500ms debounce delay
 
-			this.updateTimers.set(dbAddress, timer);
+				// Set a new timer to debounce multiple rapid updates
+				const timer = setTimeout(async () => {
+					try {
+						// Use enhanced record counting
+						const newRecordCount = await this.getRecordCount(db);
+						metadata.recordCount = newRecordCount;
+						metadata.lastSynced = new Date().toISOString();
+						metadata.syncCount++;
+
+						this.log(
+							`📊 Database ${db.name} updated: ${newRecordCount} records (sync #${metadata.syncCount})`,
+							'debug'
+						);
+
+						// Clean up the timer
+						this.updateTimers.delete(dbAddress);
+					} catch (error) {
+						// Check if it's a PublishError - not fatal
+						const isPublishErr = error && (
+							(error.message && error.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
+							(error.message && error.message.includes('NoPeersSubscribedToTopic')) ||
+							error.name === 'PublishError'
+						);
+						if (isPublishErr) {
+							this.log(`⚠️  Gossipsub publish error in update handler (no peers subscribed - this is normal): ${db.name}`, 'warn');
+						} else {
+							this.log(`❌ Error processing update for ${db.name}: ${error.message}`, 'error');
+						}
+					}
+				}, 500); // 500ms debounce delay
+
+				this.updateTimers.set(dbAddress, timer);
+			} catch (error) {
+				// Check if it's a PublishError - not fatal
+				const isPublishErr = error && (
+					(error.message && error.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
+					(error.message && error.message.includes('NoPeersSubscribedToTopic')) ||
+					error.name === 'PublishError'
+				);
+				if (isPublishErr) {
+					this.log(`⚠️  Gossipsub publish error in update event (no peers subscribed - this is normal): ${db.name}`, 'warn');
+				} else {
+					this.log(`❌ Error in update event handler for ${db.name}: ${error.message}`, 'error');
+				}
+			}
 		});
 
 		// Handle peer joins with enhanced logging

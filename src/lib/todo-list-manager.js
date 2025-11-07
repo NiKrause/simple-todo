@@ -7,6 +7,12 @@ import { OrbitDBAccessController } from '@orbitdb/core';
 // Store for current todo list name (display name, without ID prefix)
 export const currentTodoListNameStore = writable('projects');
 
+// Store for current database name (full name with identity ID prefix)
+export const currentDbNameStore = writable(null);
+
+// Store for current database address (OrbitDB address, e.g., "/orbitdb/zdpuA...")
+export const currentDbAddressStore = writable(null);
+
 // Store for list of available todo lists
 export const availableTodoListsStore = writable([]);
 
@@ -21,6 +27,9 @@ export const uniqueUsersStore = writable([]);
 
 // Store for todo list hierarchy (breadcrumb trail)
 export const todoListHierarchyStore = writable([]);
+
+// Store to track the selected user for filtering todo lists
+export const selectedUserIdStore = writable(null); // null means show all users
 
 // Cache for registry database instances (identityId -> database instance)
 const registryDbCache = new Map();
@@ -284,7 +293,7 @@ export async function listAvailableTodoLists() {
  * @param {string} todoListName - Display name of the todo list
  * @returns {Promise<Array<{name: string, parent: string|null}>>} Hierarchy path from root to the list
  */
-async function buildHierarchyPath(todoListName) {
+export async function buildHierarchyPath(todoListName) {
 	const identityId = getCurrentIdentityId();
 	if (!identityId) {
 		return [{ name: todoListName, parent: null }];
@@ -335,18 +344,38 @@ async function buildHierarchyPath(todoListName) {
  * @param {string|null} address - Database address
  * @param {string|null} parent - Parent todo list name (for sub-lists)
  */
-async function addTodoListToRegistry(displayName, dbName, address = null, parent = null) {
+export async function addTodoListToRegistry(displayName, dbName, address = null, parent = null) {
 	const identityId = getCurrentIdentityId();
 	if (!identityId) return;
 
 	try {
 		const registryDb = await openRegistryDatabase(identityId);
 		
-		// Validate dbName matches expected pattern: identityId_displayName
-		const expectedDbName = `${identityId}_${displayName}`;
-		if (dbName !== expectedDbName) {
-			console.warn(`⚠️ dbName mismatch: expected ${expectedDbName}, got ${dbName}. Using expected value.`);
-			dbName = expectedDbName;
+		// Extract identity from dbName (part before first underscore)
+		let dbNameIdentity = null;
+		if (dbName && dbName.includes('_')) {
+			const underscoreIndex = dbName.indexOf('_');
+			if (underscoreIndex > 0) {
+				dbNameIdentity = dbName.substring(0, underscoreIndex);
+			}
+		}
+		
+		// Only validate/overwrite dbName if it belongs to the current identity
+		// If it belongs to a different identity, preserve it as-is
+		if (dbNameIdentity === identityId) {
+			// Database belongs to current identity - validate pattern
+			const expectedDbName = `${identityId}_${displayName}`;
+			if (dbName !== expectedDbName) {
+				console.warn(`⚠️ dbName mismatch: expected ${expectedDbName}, got ${dbName}. Using expected value.`);
+				dbName = expectedDbName;
+			}
+		} else if (dbNameIdentity) {
+			// Database belongs to a different identity - preserve dbName as-is
+			console.log(`ℹ️  Preserving dbName from different identity: ${dbName} (identity: ${dbNameIdentity})`);
+		} else {
+			// No identity in dbName - use current identity pattern
+			console.warn(`⚠️ dbName has no identity prefix, using current identity: ${identityId}`);
+			dbName = `${identityId}_${displayName}`;
 		}
 		
 		// Store in registry with displayName as key
@@ -362,6 +391,35 @@ async function addTodoListToRegistry(displayName, dbName, address = null, parent
 		console.log(`💾 Added to registry: ${displayName} (${dbName})${address ? ` [${address}]` : ''}${parentInfo}`);
 	} catch (error) {
 		console.error('❌ Error adding todo list to registry:', error);
+	}
+}
+
+/**
+ * Remove a todo list from the registry database
+ * @param {string} displayName - Display name of the todo list to remove
+ * @returns {Promise<boolean>} Success status
+ */
+export async function removeTodoListFromRegistry(displayName) {
+	const identityId = getCurrentIdentityId();
+	if (!identityId) {
+		console.warn('⚠️ Cannot remove todo list: no identity available');
+		return false;
+	}
+
+	try {
+		const registryDb = await openRegistryDatabase(identityId);
+		
+		// Delete from registry
+		await registryDb.del(displayName);
+		console.log(`🗑️ Removed from registry: ${displayName}`);
+		
+		// Refresh the available lists
+		await listAvailableTodoLists();
+		
+		return true;
+	} catch (error) {
+		console.error('❌ Error removing todo list from registry:', error);
+		return false;
 	}
 }
 
@@ -388,9 +446,11 @@ export async function switchToTodoList(todoListName, preferences = {}, enableEnc
 		
 		const openedDB = await openTodoList(trimmedName, preferences, enableEncryption, encryptionPassword);
 		currentTodoListNameStore.set(trimmedName);
+		currentDbNameStore.set(dbName); // Store the full database name
 		
 		// Get database address if available
 		const dbAddress = openedDB?.address || null;
+		currentDbAddressStore.set(dbAddress); // Store the database address
 		
 		// Determine parent from parameter or registry
 		let actualParent = parentListName;
@@ -522,17 +582,28 @@ export async function listUniqueUsers() {
 	try {
 		const uniqueIds = new Set();
 		
-		// Add current identity
-		const currentIdentityId = getCurrentIdentityId();
-		if (currentIdentityId) {
-			uniqueIds.add(currentIdentityId);
+		// Extract identity IDs from database names (format: identityId_displayName)
+		// Take only the part before the first underscore
+		const availableLists = get(availableTodoListsStore);
+		console.log('🔍 listUniqueUsers: Checking', availableLists.length, 'lists');
+		
+		for (const list of availableLists) {
+			if (list.dbName && list.dbName.includes('_')) {
+				const underscoreIndex = list.dbName.indexOf('_');
+				if (underscoreIndex > 0) {
+					const identityId = list.dbName.substring(0, underscoreIndex);
+					if (identityId) {
+						uniqueIds.add(identityId);
+						console.log('  - Found identity:', identityId, 'from dbName:', list.dbName);
+					}
+				}
+			} else {
+				console.log('  - Skipping list (no dbName or no underscore):', list);
+			}
 		}
 		
-		// Note: In a fully decentralized system, we'd discover other identities
-		// through network interactions (peers, pubsub, etc.)
-		// For now, we only know about the current identity
-		
 		const uniqueUsersArray = Array.from(uniqueIds).sort();
+		console.log('👥 Unique users found:', uniqueUsersArray);
 		uniqueUsersStore.set(uniqueUsersArray);
 		return uniqueUsersArray;
 	} catch (error) {

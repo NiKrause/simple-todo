@@ -319,8 +319,19 @@ export function createExpressServer(server, connectedPeers, peerStats, pinningSe
 			res.json({ success: true, sent: testMsg });
 			console.log('[relay] Sent test pubsub message:', testMsg);
 		} catch (e) {
-			res.status(500).json({ success: false, error: e.message });
-			console.error('[relay] Failed to send test pubsub message:', e);
+			// Check if it's a PublishError - this is not fatal, just means no peers are subscribed
+			const isPublishErr = e && (
+				(e.message && e.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
+				(e.message && e.message.includes('NoPeersSubscribedToTopic')) ||
+				e.name === 'PublishError'
+			);
+			if (isPublishErr) {
+				console.warn('[relay] Gossipsub publish failed: No peers subscribed to topic (this is normal when no peers are connected)');
+				res.json({ success: false, warning: 'No peers subscribed to topic', sent: testMsg });
+			} else {
+				res.status(500).json({ success: false, error: e.message });
+				console.error('[relay] Failed to send test pubsub message:', e);
+			}
 		}
 	});
 

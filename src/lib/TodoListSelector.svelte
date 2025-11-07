@@ -1,13 +1,17 @@
 <script>
 	import { onMount } from 'svelte';
 	import {
-		currentTodoListNameStore,
-		availableTodoListsStore,
-		switchToTodoList,
-		listAvailableTodoLists
-	} from './todo-list-manager.js';
+    currentTodoListNameStore,
+    availableTodoListsStore,
+    switchToTodoList,
+    listAvailableTodoLists,
+    removeTodoListFromRegistry,
+    selectedUserIdStore
+} from './todo-list-manager.js';
+import { openDatabaseByAddress } from './p2p.js';
 	import { initializationStore } from './p2p.js';
 	import { get } from 'svelte/store';
+	import { currentDbNameStore, currentDbAddressStore } from './todo-list-manager.js';
 
 	let showDropdown = false;
 	let inputValue = '';
@@ -16,18 +20,32 @@
 	let isUserTyping = false; // Track if user is actively typing
 
 	// Update inputValue when currentTodoListNameStore changes (but not when user is typing)
-	$: if ($initializationStore.isInitialized && !isUserTyping && inputValue !== $currentTodoListNameStore) {
-		inputValue = $currentTodoListNameStore || '';
+	$: if ($initializationStore.isInitialized && !isUserTyping) {
+		// Always sync inputValue with currentTodoListNameStore when not typing
+		if (inputValue !== $currentTodoListNameStore) {
+			inputValue = $currentTodoListNameStore || '';
+		}
 	}
 
 	$: {
 		if ($availableTodoListsStore) {
-			// If input is empty or matches current list, show all lists
-			// Otherwise filter by input value
+			// First filter by selected user (if any)
+			let listsToShow = $availableTodoListsStore;
+			
+			if ($selectedUserIdStore) {
+				// Filter to show only lists from the selected user
+				listsToShow = listsToShow.filter((list) => {
+					if (!list.dbName || !list.dbName.includes('_')) return false;
+					const identityId = list.dbName.split('_')[0];
+					return identityId === $selectedUserIdStore;
+				});
+			}
+			
+			// Then filter by input value
 			if (inputValue === '' || inputValue === $currentTodoListNameStore) {
-				filteredLists = $availableTodoListsStore;
+				filteredLists = listsToShow;
 			} else {
-				filteredLists = $availableTodoListsStore.filter((list) =>
+				filteredLists = listsToShow.filter((list) =>
 					list.displayName.toLowerCase().includes(inputValue.toLowerCase())
 				);
 			}
@@ -44,17 +62,51 @@
 		return unsubscribe;
 	});
 
-	async function handleSelect(list) {
-		showDropdown = false;
-		isUserTyping = false; // Reset typing flag when selecting
-		inputValue = list.displayName;
-		const preferences = {
-			enablePersistentStorage: true,
-			enableNetworkConnection: true,
-			enablePeerConnections: true
-		};
-		await switchToTodoList(list.displayName, preferences, false, '');
-	}
+async function handleSelect(list) {
+    showDropdown = false;
+    isUserTyping = false; // Reset typing flag when selecting
+    inputValue = list.displayName; // Set immediately for visual feedback
+    
+    // IMPORTANT: Update the store immediately so the combo box shows the selected item
+    currentTodoListNameStore.set(list.displayName);
+    if (list.dbName) {
+        currentDbNameStore.set(list.dbName);
+    }
+    if (list.address) {
+        currentDbAddressStore.set(list.address);
+    }
+    
+    const preferences = {
+        enablePersistentStorage: true,
+        enableNetworkConnection: true,
+        enablePeerConnections: true
+    };
+
+    // If this list has an OrbitDB address, open it by address to ensure we load the same DB
+    if (list.address) {
+        try {
+            await openDatabaseByAddress(list.address, preferences, false, '');
+            // Sync URL hash so global hash handler updates stores and persists
+            if (typeof window !== 'undefined') {
+                const hash = `/${encodeURIComponent(list.address)}`;
+                if (window.location.hash !== `#${hash}`) {
+                    window.history.replaceState(null, '', `#${hash}`);
+                }
+            }
+            // The hash handler will update stores again, but we've already set them for immediate UI feedback
+        } catch (e) {
+            console.error('Failed to open database by address from selector:', e);
+            // On error, revert the store updates
+            const previousName = get(currentTodoListNameStore);
+            if (previousName !== list.displayName) {
+                currentTodoListNameStore.set(previousName);
+            }
+        }
+    } else {
+        await switchToTodoList(list.displayName, preferences, false, '');
+        // switchToTodoList already updates currentTodoListNameStore, so we're good
+    }
+}
 
 	async function handleCreate() {
 		if (!inputValue.trim()) return;
@@ -111,6 +163,34 @@
 			showDropdown = false;
 		}
 	}
+
+	async function handleDelete(event, list) {
+		// Stop event propagation to prevent the select action
+		event.stopPropagation();
+		event.preventDefault();
+		
+		// Confirm deletion
+		if (!confirm(`Are you sure you want to delete "${list.displayName}" from your todo lists?`)) {
+			return;
+		}
+		
+		try {
+			const success = await removeTodoListFromRegistry(list.displayName);
+			if (success) {
+				// If the deleted list was the current one, switch to projects
+				if (list.displayName === $currentTodoListNameStore) {
+					const preferences = {
+						enablePersistentStorage: true,
+						enableNetworkConnection: true,
+						enablePeerConnections: true
+					};
+					await switchToTodoList('projects', preferences, false, '');
+				}
+			}
+		} catch (error) {
+			console.error('Failed to delete todo list:', error);
+		}
+	}
 </script>
 
 <div class="relative w-full">
@@ -148,24 +228,41 @@
 		>
 			{#if filteredLists.length > 0}
 				{#each filteredLists as list (list.dbName)}
-					<button
-						type="button"
-						on:click={() => handleSelect(list)}
-						class="w-full px-4 py-2 text-left text-sm hover:bg-blue-50 focus:bg-blue-50 focus:outline-none {list.displayName ===
+					<div
+						class="group relative flex items-center w-full hover:bg-blue-50 {list.displayName ===
 						$currentTodoListNameStore
-							? 'bg-blue-100 font-medium'
+							? 'bg-blue-100'
 							: ''}"
 						role="option"
 					>
-						{#if list.parent}
-							<span class="flex items-center pl-6 text-gray-700">
-								<span class="inline-block w-3 mr-2 text-gray-400 text-xs">└─</span>
-								<span>{list.displayName}</span>
-							</span>
-						{:else}
-							<span class="font-medium">{list.displayName}</span>
-						{/if}
-					</button>
+						<button
+							type="button"
+							on:click={() => handleSelect(list)}
+							class="flex-1 px-4 py-2 text-left text-sm focus:bg-blue-50 focus:outline-none {list.displayName ===
+							$currentTodoListNameStore
+								? 'font-medium'
+								: ''}"
+						>
+							{#if list.parent}
+								<span class="flex items-center pl-6 text-gray-700">
+									<span class="inline-block w-3 mr-2 text-gray-400 text-xs">└─</span>
+									<span>{list.displayName}</span>
+								</span>
+							{:else}
+								<span class="font-medium">{list.displayName}</span>
+							{/if}
+						</button>
+						<button
+							type="button"
+							on:click={(e) => handleDelete(e, list)}
+							class="opacity-0 group-hover:opacity-100 px-2 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 focus:outline-none transition-opacity"
+							title="Delete this todo list"
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+							</svg>
+						</button>
+					</div>
 				{/each}
 			{/if}
 			{#if inputValue.trim() && !filteredLists.some((l) => l.displayName.toLowerCase() === inputValue.trim().toLowerCase())}

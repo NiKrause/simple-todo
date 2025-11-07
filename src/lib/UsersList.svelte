@@ -1,8 +1,9 @@
 <script>
 	import { onMount } from 'svelte';
-	import { uniqueUsersStore, listUniqueUsers, availableTodoListsStore } from './todo-list-manager.js';
+	import { uniqueUsersStore, listUniqueUsers, availableTodoListsStore, selectedUserIdStore } from './todo-list-manager.js';
 	import { initializationStore } from './p2p.js';
 	import { showToast } from './toast-store.js';
+	import { get } from 'svelte/store';
 
 	let copiedUserId = null;
 	let hoveredUserId = null;
@@ -25,7 +26,9 @@
 	// Compute user count text
 	$: userCountText = $uniqueUsersStore.length === 1 ? 'user' : 'users';
 
-	async function copyToClipboard(userId) {
+	async function copyToClipboard(userId, event) {
+		// Prevent selection if user is clicking to copy
+		event.stopPropagation();
 		try {
 			await navigator.clipboard.writeText(userId);
 			copiedUserId = userId;
@@ -36,6 +39,16 @@
 		} catch (error) {
 			console.error('Failed to copy to clipboard:', error);
 			showToast('Failed to copy to clipboard', 'error', 2000);
+		}
+	}
+
+	function selectUser(userId, event) {
+		// Toggle selection: if already selected, deselect (show all)
+		const currentSelected = get(selectedUserIdStore);
+		if (currentSelected === userId) {
+			selectedUserIdStore.set(null); // Show all users
+		} else {
+			selectedUserIdStore.set(userId); // Filter to this user
 		}
 	}
 </script>
@@ -57,14 +70,21 @@
 				<div class="group relative border-b border-gray-100 last:border-b-0">
 					<button
 						type="button"
-						on:click={() => copyToClipboard(userId)}
+						on:click={(e) => selectUser(userId, e)}
 						on:mouseenter={() => (hoveredUserId = userId)}
 						on:mouseleave={() => (hoveredUserId = null)}
-						class="w-full px-3 py-2 text-left text-xs text-gray-700 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none transition-colors {copiedUserId === userId
+						class="w-full px-3 py-2 text-left text-xs text-gray-700 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none transition-colors {$selectedUserIdStore === userId
+							? 'bg-blue-100 font-medium'
+							: copiedUserId === userId
 							? 'bg-green-50'
 							: ''}"
 					>
-						<div class="truncate font-mono">{userId}</div>
+						<div class="flex items-center justify-between">
+							<div class="truncate font-mono flex-1">{userId}</div>
+							{#if $selectedUserIdStore === userId}
+								<span class="ml-2 text-blue-600 text-xs">✓</span>
+							{/if}
+						</div>
 					</button>
 					<!-- Tooltip showing full ID -->
 					{#if hoveredUserId === userId}
@@ -73,7 +93,7 @@
 							role="tooltip"
 						>
 							<div class="break-all font-mono">{userId}</div>
-							<div class="mt-1 text-xs text-gray-400">Click to copy</div>
+							<div class="mt-1 text-xs text-gray-400">Click to filter todo lists</div>
 						</div>
 					{/if}
 				</div>
@@ -82,6 +102,8 @@
 	</div>
 	<div class="mt-1 text-xs text-gray-500">
 		{$uniqueUsersStore.length} unique {userCountText} found
+		{#if $selectedUserIdStore}
+			<span class="ml-2 text-blue-600">• Filtered to: {$selectedUserIdStore.slice(0, 8)}...</span>
+		{/if}
 	</div>
 </div>
-

@@ -1,8 +1,9 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
+	import { Save } from 'lucide-svelte';
 
 	export let placeholder = 'What needs to be done?';
-	export let buttonText = 'Add TODO';
+	export let buttonText = 'Add'; // Changed from 'Add TODO' to 'Add'
 	export let disabled = false;
 
 	let inputText = '';
@@ -156,8 +157,9 @@
 				on:click={handleSubmit}
 				{disabled}
 				data-testid="add-todo-button"
-				class="rounded-md bg-blue-500 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400"
+				class="flex items-center gap-1 rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
 			>
+				<Save class="h-4 w-4" />
 				{buttonText}
 			</button>
 		</div>
