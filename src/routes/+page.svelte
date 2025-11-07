@@ -270,7 +270,7 @@
 <!-- Floating Storacha Button -->
 <button
 	on:click={() => (showStorachaIntegration = !showStorachaIntegration)}
-	class="fixed right-6 bottom-20 z-[10000] flex h-16 w-16 items-center justify-center rounded-full border-2 border-white bg-[#E91315] text-white shadow-2xl transition-all duration-300 hover:scale-110 hover:shadow-[0_20px_40px_rgba(233,19,21,0.4)] focus:ring-4 focus:ring-red-300 focus:outline-none sm:bottom-24 {showStorachaIntegration
+	class="fixed right-6 bottom-36 z-[10000] flex h-16 w-16 items-center justify-center rounded-full border-2 border-white bg-[#E91315] text-white shadow-2xl transition-all duration-300 hover:scale-110 hover:shadow-[0_20px_40px_rgba(233,19,21,0.4)] focus:ring-4 focus:ring-red-300 focus:outline-none sm:bottom-24 {showStorachaIntegration
 		? 'scale-105 rotate-12'
 		: 'hover:rotate-6'}"
 	title={showStorachaIntegration

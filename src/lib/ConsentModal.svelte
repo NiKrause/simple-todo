@@ -90,7 +90,7 @@
 {#if show}
 	<!-- Compact Cookie-Style Consent Banner -->
 	<div
-		class="fixed right-0 bottom-4 left-0 z-50 border-t border-gray-300 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg rounded-t-lg"
+		class="fixed right-0 bottom-0 left-0 z-50 border-t border-gray-300 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg rounded-t-lg sm:bottom-4"
 		data-testid="consent-modal"
 	>
 		<div class="mx-auto max-w-7xl px-4 py-3">
@@ -195,7 +195,7 @@
 <!-- Toast Notification -->
 {#if showToast}
 	<div
-		class="fixed bottom-32 left-1/2 z-[60] -translate-x-1/2 transform transition-all duration-300 ease-in-out translate-y-0 opacity-100 sm:bottom-28"
+		class="fixed bottom-28 left-1/2 z-[60] -translate-x-1/2 transform transition-all duration-300 ease-in-out translate-y-0 opacity-100 sm:bottom-32"
 		role="alert"
 		aria-live="polite"
 	>
