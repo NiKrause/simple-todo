@@ -15,22 +15,31 @@
 	function handleToggleComplete(event) {
 		dispatch('toggleComplete', event.detail);
 	}
+
+	function handleCreateSubList(event) {
+		dispatch('createSubList', event.detail);
+	}
 </script>
 
 <div class="mb-6 rounded-lg bg-white p-6 shadow-md">
 	<h2 class="mb-4 text-xl font-semibold">{title} ({todos.length})</h2>
 	{#if todos.length > 0}
 		<div class="space-y-3">
-			{#each todos as { id, text, completed, assignee, createdBy, key } (id)}
+			{#each todos as { id, text, description, priority, completed, assignee, createdBy, key, estimatedTime, estimatedCosts } (id)}
 				<TodoItem
 					{id}
 					{text}
+					description={description || ''}
+					{priority}
 					{completed}
 					{assignee}
 					{createdBy}
 					todoKey={key}
+					estimatedTime={estimatedTime || null}
+					estimatedCosts={estimatedCosts || {}}
 					on:delete={handleDelete}
 					on:toggleComplete={handleToggleComplete}
+					on:createSubList={handleCreateSubList}
 				/>
 			{/each}
 		</div>

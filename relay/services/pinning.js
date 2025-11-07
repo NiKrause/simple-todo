@@ -10,6 +10,8 @@ export class PinningService {
 		this.syncQueue = new PQueue({ concurrency: 2 });
 		this.updateTimers = new Map(); // Debouncing timers for update events
 		this.processedCIDs = new Map(); // Map of dbAddress -> Set of processed CIDs to avoid duplicates
+		this.activeSyncs = new Set(); // Track databases currently being synced to prevent concurrent syncs
+		this.queuedSyncs = new Set(); // Track databases queued for sync to prevent duplicate queue entries
 		this.metrics = {
 			totalPinned: 0,
 			syncOperations: 0,
@@ -280,8 +282,48 @@ export class PinningService {
 	 * Sync and pin an OrbitDB database
 	 */
 	async syncAndPinDatabase(dbAddress) {
+		// Check if this database is already being synced
+		if (this.activeSyncs.has(dbAddress)) {
+			this.log(`⏸️  Database ${dbAddress} is already being synced, skipping duplicate sync`, 'debug');
+			return;
+		}
+
+		// Check if database is already open and pinned
+		if (this.pinnedDatabases.has(dbAddress)) {
+			const existing = this.pinnedDatabases.get(dbAddress);
+			if (existing.db) {
+				// Check if database is still open
+				try {
+					if (existing.db.opened) {
+						this.log(`✅ Database ${dbAddress} is already open and pinned, updating metadata`, 'debug');
+						try {
+							// Update metadata without reopening
+							const recordCount = await this.getRecordCount(existing.db);
+							existing.metadata.recordCount = recordCount;
+							existing.metadata.lastSynced = new Date().toISOString();
+							existing.metadata.syncCount = (existing.metadata.syncCount || 0) + 1;
+							this.metrics.syncOperations++;
+							return existing.metadata;
+						} catch (error) {
+							this.log(`⚠️  Error updating existing database metadata: ${error.message}`, 'warn');
+							// Continue to full sync if update fails
+						}
+					} else {
+						this.log(`🔄 Database ${dbAddress} exists but is closed, will reopen`, 'debug');
+						// Remove closed database from map so we can reopen it
+						this.pinnedDatabases.delete(dbAddress);
+					}
+				} catch (error) {
+					this.log(`⚠️  Error checking database state: ${error.message}, will reopen`, 'warn');
+					// Remove potentially corrupted entry
+					this.pinnedDatabases.delete(dbAddress);
+				}
+			}
+		}
+
 		this.log(`🔄 Starting sync for database: ${dbAddress}`, 'info');
 		this.metrics.syncOperations++;
+		this.activeSyncs.add(dbAddress);
 
 		try {
 			// Open the database with proper access controller configuration
@@ -373,6 +415,9 @@ export class PinningService {
 			this.metrics.failedSyncs++;
 			this.log(`❌ Error syncing database ${dbAddress}: ${error.message}`, 'error');
 			throw error;
+		} finally {
+			// Always remove from active syncs, even if there was an error
+			this.activeSyncs.delete(dbAddress);
 		}
 	}
 
@@ -493,10 +538,37 @@ export class PinningService {
 			return;
 		}
 
+		// Skip if already queued or actively syncing
+		if (this.queuedSyncs.has(topic) || this.activeSyncs.has(topic)) {
+			this.log(`⏭️  Database ${topic} already queued or syncing, skipping`, 'debug');
+			return;
+		}
+
+		// Check if database is already open and pinned (fast path)
+		if (this.pinnedDatabases.has(topic)) {
+			const existing = this.pinnedDatabases.get(topic);
+			if (existing.db && existing.db.opened) {
+				this.log(`✅ Database ${topic} already open, skipping queue`, 'debug');
+				return;
+			}
+		}
+
 		this.log(`📡 Subscription change detected: ${topic}`, 'debug');
 
-		// Queue the sync operation
-		this.syncQueue.add(() => this.syncAndPinDatabase(topic));
+		// Mark as queued
+		this.queuedSyncs.add(topic);
+
+		// Queue the sync operation with cleanup
+		this.syncQueue
+			.add(() => this.syncAndPinDatabase(topic))
+			.finally(() => {
+				// Remove from queued set when done (whether success or failure)
+				this.queuedSyncs.delete(topic);
+			})
+			.catch((error) => {
+				// Log error but don't throw (p-queue handles errors)
+				this.log(`⚠️  Sync task failed for ${topic}: ${error.message}`, 'warn');
+			});
 	}
 
 	/**
@@ -551,6 +623,12 @@ export class PinningService {
 			clearTimeout(timer);
 		}
 		this.updateTimers.clear();
+
+		// Clear active syncs tracking
+		this.activeSyncs.clear();
+
+		// Clear queued syncs tracking
+		this.queuedSyncs.clear();
 
 		// Close all pinned databases
 		const closePromises = [];
@@ -612,7 +690,9 @@ export class PinningService {
 			queueInfo: {
 				size: this.syncQueue.size,
 				pending: this.syncQueue.pending,
-				isPaused: this.syncQueue.isPaused
+				isPaused: this.syncQueue.isPaused,
+				queuedSyncs: this.queuedSyncs.size,
+				activeSyncs: this.activeSyncs.size
 			},
 			timers: {
 				activeUpdateTimers: this.updateTimers.size

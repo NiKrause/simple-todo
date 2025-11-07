@@ -107,7 +107,7 @@ function setupDatabaseListeners(todoDB) {
 }
 
 // Add a new todo
-export async function addTodo(text, assignee = null) {
+export async function addTodo(text, assignee = null, description = '', priority = null, estimatedTime = null, estimatedCosts = {}) {
 	console.log('🔍 Adding todo:', text);
 	const todoDB = get(todoDBStore);
 	const myPeerId = get(peerIdStore);
@@ -126,9 +126,13 @@ export async function addTodo(text, assignee = null) {
 		const todoId = `todo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 		const todo = {
 			text: text.trim(),
+			description: description || '',
+			priority: priority || null, // 'A', 'B', or 'C'
 			completed: false,
 			createdBy: myPeerId,
 			assignee: assignee,
+			estimatedTime: estimatedTime || null, // in minutes or hours
+			estimatedCosts: estimatedCosts || {}, // { usd: 0, eth: 0, btc: 0 }
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
 		};
@@ -141,6 +145,53 @@ export async function addTodo(text, assignee = null) {
 		return true;
 	} catch (error) {
 		console.error('❌ Error adding todo:', error);
+		return false;
+	}
+}
+
+// Update a todo
+export async function updateTodo(todoId, updates) {
+	const todoDB = get(todoDBStore);
+
+	if (!todoDB) {
+		console.error('❌ Database not available');
+		return false;
+	}
+
+	try {
+		// If todoId is numeric (array index), we need to find the actual database key
+		let actualTodoId = todoId;
+		if (typeof todoId === 'number' || !isNaN(parseInt(todoId))) {
+			const allTodos = await todoDB.all();
+			if (Array.isArray(allTodos)) {
+				const todo = allTodos[parseInt(todoId)];
+				if (todo && todo.key) {
+					actualTodoId = todo.key;
+				}
+			}
+		}
+
+		const existingTodo = await todoDB.get(actualTodoId);
+		if (!existingTodo) {
+			console.error('❌ Todo not found:', todoId);
+			return false;
+		}
+
+		// Access the nested value property for the todo data
+		const todoData = existingTodo.value || existingTodo;
+
+		const updatedTodo = {
+			...todoData,
+			...updates,
+			updatedAt: new Date().toISOString()
+		};
+
+		await todoDB.put(actualTodoId, updatedTodo);
+		console.log('✅ Todo updated:', todoId);
+		await loadTodos();
+		return true;
+	} catch (error) {
+		console.error('❌ Error updating todo:', error);
 		return false;
 	}
 }

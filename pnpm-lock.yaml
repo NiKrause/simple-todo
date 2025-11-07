@@ -55,6 +55,9 @@ importers:
       '@orbitdb/core':
         specifier: ^3.0.2
         version: 3.0.2
+      '@orbitdb/simple-encryption':
+        specifier: ^0.0.2
+        version: 0.0.2
       '@ucanto/core':
         specifier: ^10.4.0
         version: 10.4.6
@@ -1339,6 +1342,10 @@ packages:
   '@orbitdb/identity-provider-did@1.0.2':
     resolution: {integrity: sha512-EJERefUKOSzi0e1SpznGqHOJ0FR64jskfmEFoHLc9IE9tdw9eckrI0XMY+LkhpHpPKclTApgz2MAbYNVwfVJFg==}
     engines: {node: '>=16.0.0'}
+
+  '@orbitdb/simple-encryption@0.0.2':
+    resolution: {integrity: sha512-A4LHa5hKhKOyY1GLmeLcsM/kXhxkhTJYemL8YP0Zy6b8eBwkQEkXplqmSlRTe8YDAstDX3dN8+ClWD3OULSq0Q==}
+    engines: {node: '>=20.0.0'}
 
   '@peculiar/asn1-cms@2.5.0':
     resolution: {integrity: sha512-p0SjJ3TuuleIvjPM4aYfvYw8Fk1Hn/zAVyPJZTtZ2eE9/MIer6/18ROxX6N/e6edVSfvuZBqhxAj3YgsmSjQ/A==}
@@ -7269,6 +7276,10 @@ snapshots:
     dependencies:
       dids: 4.0.4
       uint8arrays: 4.0.10
+
+  '@orbitdb/simple-encryption@0.0.2':
+    dependencies:
+      multiformats: 13.4.1
 
   '@peculiar/asn1-cms@2.5.0':
     dependencies:

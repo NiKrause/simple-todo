@@ -6,20 +6,47 @@
 	export let disabled = false;
 
 	let inputText = '';
+	let description = '';
+	let priority = '';
+	let estimatedTime = '';
+	let estimatedCost = '';
+	let estimatedCostCurrency = 'usd';
+	let showAdvanced = false;
+
 	const dispatch = createEventDispatcher();
 
 	function handleSubmit() {
 		if (!inputText || inputText.trim() === '') return;
 
+		const estimatedCosts = {};
+		if (estimatedCost) {
+			const costValue = parseFloat(estimatedCost) || 0;
+			if (costValue > 0) {
+				estimatedCosts[estimatedCostCurrency] = costValue;
+			}
+		}
+
 		dispatch('add', {
-			text: inputText.trim()
+			text: inputText.trim(),
+			description: description.trim(),
+			priority: priority || null,
+			estimatedTime: estimatedTime ? parseFloat(estimatedTime) : null,
+			estimatedCosts: Object.keys(estimatedCosts).length > 0 ? estimatedCosts : {}
 		});
 
+		// Reset form
 		inputText = '';
+		description = '';
+		priority = '';
+		estimatedTime = '';
+		estimatedCost = '';
+		estimatedCostCurrency = 'usd';
+		showAdvanced = false;
 	}
 
 	function handleKeydown(event) {
-		if (event.key === 'Enter') {
+		if (event.key === 'Enter' && !event.shiftKey && !showAdvanced) {
+			event.preventDefault();
 			handleSubmit();
 		}
 	}
@@ -28,15 +55,102 @@
 <div class="mb-6 rounded-lg bg-white p-6 shadow-md">
 	<h2 class="mb-4 text-xl font-semibold">Add New TODO</h2>
 	<div class="space-y-4">
-		<input
-			type="text"
-			bind:value={inputText}
-			{placeholder}
-			{disabled}
-			data-testid="todo-input"
-			class="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
-			on:keydown={handleKeydown}
-		/>
+		<div>
+			<input
+				type="text"
+				bind:value={inputText}
+				{placeholder}
+				{disabled}
+				data-testid="todo-input"
+				class="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+				on:keydown={handleKeydown}
+			/>
+		</div>
+
+		<button
+			type="button"
+			on:click={() => showAdvanced = !showAdvanced}
+			class="text-sm text-blue-600 hover:text-blue-800 underline"
+		>
+			{showAdvanced ? 'Hide' : 'Show'} Advanced Fields
+		</button>
+
+		{#if showAdvanced}
+			<div class="space-y-4 rounded-md border border-gray-200 bg-gray-50 p-4">
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-1">
+						Description
+					</label>
+					<textarea
+						bind:value={description}
+						{disabled}
+						placeholder="Add a detailed description..."
+						rows="3"
+						class="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+					></textarea>
+				</div>
+
+				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-1">
+							Priority
+						</label>
+						<select
+							bind:value={priority}
+							{disabled}
+							class="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+						>
+							<option value="">None</option>
+							<option value="A">A (High)</option>
+							<option value="B">B (Medium)</option>
+							<option value="C">C (Low)</option>
+						</select>
+					</div>
+
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-1">
+							Estimated Time (hours)
+						</label>
+						<input
+							type="number"
+							bind:value={estimatedTime}
+							{disabled}
+							placeholder="e.g., 2.5"
+							min="0"
+							step="0.1"
+							class="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+						/>
+					</div>
+				</div>
+
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-2">
+						Estimated Cost
+					</label>
+					<div class="flex gap-2">
+						<input
+							type="number"
+							bind:value={estimatedCost}
+							{disabled}
+							placeholder="0.00"
+							min="0"
+							step="0.01"
+							class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+						/>
+						<select
+							bind:value={estimatedCostCurrency}
+							{disabled}
+							class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+						>
+							<option value="usd">USD ($)</option>
+							<option value="eth">ETH</option>
+							<option value="btc">BTC</option>
+						</select>
+					</div>
+				</div>
+			</div>
+		{/if}
+
 		<div class="flex gap-2">
 			<button
 				on:click={handleSubmit}

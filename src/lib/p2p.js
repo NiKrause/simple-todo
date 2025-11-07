@@ -2,7 +2,8 @@ import { writable } from 'svelte/store';
 
 import { createLibp2p } from 'libp2p';
 import { createHelia } from 'helia';
-import { createOrbitDB, IPFSAccessController, MemoryStorage } from '@orbitdb/core';
+import { createOrbitDB, IPFSAccessController, OrbitDBAccessController, MemoryStorage } from '@orbitdb/core';
+import SimpleEncryption from '@orbitdb/simple-encryption';
 import { createLibp2pConfig, RELAY_BOOTSTRAP_ADDR } from './libp2p-config.js';
 import { initializeDatabase } from './db-actions.js';
 import { LevelBlockstore } from 'blockstore-level';
@@ -29,6 +30,171 @@ let orbitdb = null;
 
 let peerId = null;
 let todoDB = null;
+let currentIdentity = null;
+
+/**
+ * Open or create a todo list database
+ * @param {string} todoListName - Name of the todo list (default: 'projects')
+ * @param {Object} preferences - Network preferences
+ * @param {boolean} enableEncryption - Whether to enable encryption
+ * @param {string} encryptionPassword - Password for encryption (required if enableEncryption is true)
+ * @returns {Promise<Object>} The opened database
+ */
+export async function openTodoList(todoListName = 'projects', preferences = {}, enableEncryption = false, encryptionPassword = null) {
+	if (!orbitdb) {
+		throw new Error('OrbitDB instance not initialized. Please initialize P2P first.');
+	}
+
+	if (!currentIdentity) {
+		currentIdentity = orbitdb.identity;
+	}
+
+	// Create database name: identityId + "_" + todoListName
+	const identityId = currentIdentity.id;
+	const dbName = `${identityId}_${todoListName}`;
+	console.log(`📂 Opening todo list database: ${dbName} (display name: ${todoListName})`);
+
+	// Close existing database if open
+	if (todoDB) {
+		console.log('🔒 Closing existing database...');
+		await todoDB.close();
+		todoDB = null;
+	}
+
+	const {
+		enablePersistentStorage = true,
+		enableNetworkConnection = true,
+		enablePeerConnections = true
+	} = preferences;
+
+	// Set up encryption if enabled
+	let encryption = null;
+	if (enableEncryption && encryptionPassword) {
+		console.log('🔐 Setting up encryption for database...');
+		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
+		const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
+		encryption = { data: dataEncryption, replication: replicationEncryption };
+	}
+
+	// Set up access controller - only allow the current identity to write
+	const accessController = OrbitDBAccessController({
+		write: [identityId]
+	});
+
+	const headsStorage = await MemoryStorage();
+	const entryStorage = await MemoryStorage();
+
+	// Open the database
+	if (!enablePersistentStorage && !enableNetworkConnection) {
+		// In-memory storage only
+		todoDB = await orbitdb.open(dbName, {
+			type: 'keyvalue',
+			create: true,
+			headsStorage,
+			entryStorage,
+			AccessController: accessController,
+			encryption
+		});
+	} else {
+		todoDB = await orbitdb.open(dbName, {
+			type: 'keyvalue',
+			create: true,
+			sync: enableNetworkConnection,
+			AccessController: accessController,
+			encryption
+		});
+	}
+
+	console.log('🔍 TodoDB records:', (await todoDB.all()).length);
+	console.log('✅ Database opened successfully:', todoDB);
+
+	// Initialize database stores and actions
+	await initializeDatabase(orbitdb, todoDB, preferences);
+
+	return todoDB;
+}
+
+/**
+ * Open a database by its address (hash)
+ * @param {string} dbAddress - The database address/hash (e.g., "031d947594b8d02f69041280fd5bdd6ff6a07ec3130e075b86893179c543e3e305_simpletodo")
+ * @param {Object} preferences - Network preferences
+ * @param {boolean} enableEncryption - Whether to enable encryption
+ * @param {string} encryptionPassword - Password for encryption (required if enableEncryption is true)
+ * @returns {Promise<Object>} The opened database
+ */
+export async function openDatabaseByAddress(dbAddress, preferences = {}, enableEncryption = false, encryptionPassword = null) {
+	if (!orbitdb) {
+		throw new Error('OrbitDB instance not initialized. Please initialize P2P first.');
+	}
+
+	if (!currentIdentity) {
+		currentIdentity = orbitdb.identity;
+	}
+
+	console.log(`📂 Opening database by address: ${dbAddress}`);
+
+	// Close existing database if open
+	if (todoDB) {
+		console.log('🔒 Closing existing database...');
+		await todoDB.close();
+		todoDB = null;
+	}
+
+	const {
+		enablePersistentStorage = true,
+		enableNetworkConnection = true,
+		enablePeerConnections = true
+	} = preferences;
+
+	// Set up encryption if enabled
+	let encryption = null;
+	if (enableEncryption && encryptionPassword) {
+		console.log('🔐 Setting up encryption for database...');
+		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
+		const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
+		encryption = { data: dataEncryption, replication: replicationEncryption };
+	}
+
+	// Try to open the database by address
+	// Note: When opening by address, we may not have write access if it's not our database
+	try {
+		if (!enablePersistentStorage && !enableNetworkConnection) {
+			// In-memory storage only
+			todoDB = await orbitdb.open(dbAddress, {
+				type: 'keyvalue',
+				create: false, // Don't create if it doesn't exist
+				sync: false,
+				encryption
+			});
+		} else {
+			todoDB = await orbitdb.open(dbAddress, {
+				type: 'keyvalue',
+				create: false, // Don't create if it doesn't exist
+				sync: enableNetworkConnection,
+				encryption
+			});
+		}
+
+		console.log('🔍 TodoDB records:', (await todoDB.all()).length);
+		console.log('✅ Database opened successfully by address:', todoDB);
+
+		// Initialize database stores and actions
+		await initializeDatabase(orbitdb, todoDB, preferences);
+
+		return todoDB;
+	} catch (error) {
+		console.error('❌ Error opening database by address:', error);
+		throw error;
+	}
+}
+
+/**
+ * Get the current identity ID
+ * @returns {string|null} The identity ID or null if not initialized
+ */
+export function getCurrentIdentityId() {
+	return currentIdentity?.id || null;
+}
 
 /**
  * Initialize the P2P network after user consent
@@ -155,33 +321,45 @@ export async function initializeP2P(preferences = {}) {
 
 		// Make OrbitDB instance available to other components
 		orbitDBStore.set(orbitdb);
-		const headsStorage = await MemoryStorage();
-		const entryStorage = await MemoryStorage();
+		
+		// Get the identity from OrbitDB instance
+		currentIdentity = orbitdb.identity;
+		console.log('🔑 Current identity:', currentIdentity.id);
 
-		if (!enablePersistentStorage && !enableNetworkConnection) {
-			//if we have no network and no persistent storage, we use in-memory storage
-			todoDB = await orbitdb.open('simple-todos', {
-				type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
-				create: true, // Allows the database to be created if it doesn't exist
-				// sync: enableNetworkConnection, // Only enable sync if peer connections are allowed
-				headsStorage,
-				entryStorage
-				// AccessController: !enableNetworkConnection ? IPFSAccessController({ write: ['*'] }) : null //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
+		// Initialize the registry database for this identity
+		const identityId = currentIdentity.id;
+		const registryDbName = identityId; // Registry DB is just the identityId
+		
+		console.log('📋 Initializing registry database...');
+		const accessController = OrbitDBAccessController({
+			write: [identityId]
+		});
+		
+		const registryDb = await orbitdb.open(registryDbName, {
+			type: 'keyvalue',
+			create: true,
+			sync: true,
+			AccessController: accessController
+		});
+
+		// Ensure 'projects' is in the registry (default todo list)
+		const projectsEntry = await registryDb.get('projects');
+		if (!projectsEntry) {
+			await registryDb.put('projects', {
+				displayName: 'projects',
+				dbName: `${identityId}_projects`,
+				parent: null,
+				createdAt: new Date().toISOString()
 			});
-		} else {
-			todoDB = await orbitdb.open('simple-todos', {
-				type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
-				create: true, // Allows the database to be created if it doesn't exist
-				sync: enableNetworkConnection, // Only enable sync if peer connections are allowed
-				AccessController: IPFSAccessController({ write: ['*'] }) //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
-			});
+			console.log('✅ Added "projects" to registry');
 		}
-		console.log('🔍 TodoDB records:', (await todoDB.all()).length);
+		
+		// Close registry database (we'll reopen it when needed)
+		await registryDb.close();
+		console.log('✅ Registry database initialized');
 
-		console.log('✅ Database opened successfully with OrbitDBAccessController:', todoDB);
-
-		// Initialize database stores and actions
-		await initializeDatabase(orbitdb, todoDB, preferences);
+		// Open default todo list 'projects'
+		await openTodoList('projects', preferences, null, null);
 
 		// Mark initialization as complete
 		initializationStore.set({ isInitializing: false, isInitialized: true, error: null });

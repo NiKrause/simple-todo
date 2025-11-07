@@ -23,6 +23,11 @@
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
 	import StorachaIntegration from '$lib/StorachaIntegration.svelte';
 	import QRCodeModal from '$lib/QRCodeModal.svelte';
+	import TodoListSelector from '$lib/TodoListSelector.svelte';
+	import UsersList from '$lib/UsersList.svelte';
+	import BreadcrumbNavigation from '$lib/BreadcrumbNavigation.svelte';
+	import { switchToTodoList, createSubList, currentTodoListNameStore } from '$lib/todo-list-manager.js';
+	import { get } from 'svelte/store';
 	// import { Cloud } from 'lucide-svelte'; // Unused for now
 	import { toastStore } from '$lib/toast-store.js';
 
@@ -45,6 +50,13 @@
 
 	// QR Code modal state
 	let showQRCodeModal = false;
+
+	// Encryption state
+	let enableEncryption = false;
+	let encryptionPassword = '';
+
+	// Flag to prevent infinite loop when updating hash from store changes
+	let isUpdatingFromHash = false;
 
 	const handleModalClose = async (event) => {
 		showModal = false;
@@ -72,6 +84,28 @@
 
 	onMount(async () => {
 		try {
+			// Check for hash in URL to open specific database
+			const handleHashChange = async () => {
+				if (!$initializationStore.isInitialized || isUpdatingFromHash) {
+					return; // Wait for initialization or skip if we're updating hash
+				}
+
+				const hash = window.location.hash;
+				if (hash && hash.startsWith('#/')) {
+					const dbName = decodeURIComponent(hash.slice(2)); // Remove '#/'
+					if (dbName && dbName !== get(currentTodoListNameStore)) {
+						console.log(`📂 Opening database from URL hash: ${dbName}`);
+						isUpdatingFromHash = true;
+						await switchToTodoList(dbName, preferences, enableEncryption, encryptionPassword);
+						isUpdatingFromHash = false;
+					}
+				}
+			};
+
+			// Listen for hash changes
+			window.addEventListener('hashchange', handleHashChange);
+
+			// Check initial hash
 			if (localStorage.getItem(CONSENT_KEY) === 'true') {
 				showModal = false;
 				// When auto-initializing, use default preferences
@@ -81,14 +115,56 @@
 					enableNetworkConnection: true,
 					enablePeerConnections: true
 				});
+
+				// After initialization, check hash
+				await handleHashChange();
+			} else {
+				// Even if modal is shown, set up hash listener for after initialization
+				const unsubscribe = initializationStore.subscribe(async (state) => {
+					if (state.isInitialized) {
+						await handleHashChange();
+					}
+				});
+				// Cleanup on component destroy
+				return () => {
+					window.removeEventListener('hashchange', handleHashChange);
+					unsubscribe();
+				};
 			}
+
+			// Cleanup on component destroy
+			return () => {
+				window.removeEventListener('hashchange', handleHashChange);
+			};
 		} catch {
 			// ignore storage errors
 		}
 	});
 
+	// Update hash when currentTodoListNameStore changes (but not when updating from hash)
+	$: {
+		if (typeof window !== 'undefined' && $initializationStore.isInitialized && !isUpdatingFromHash) {
+			const currentName = $currentTodoListNameStore;
+			if (currentName) {
+				const hash = `/${encodeURIComponent(currentName)}`;
+				if (window.location.hash !== `#${hash}`) {
+					// Use replaceState to avoid adding to history
+					window.history.replaceState(null, '', `#${hash}`);
+				}
+			}
+		}
+	}
+
 	const handleAddTodo = async (event) => {
-		const success = await addTodo(event.detail.text);
+		const { text, description, priority, estimatedTime, estimatedCosts } = event.detail;
+		const success = await addTodo(
+			text,
+			null, // assignee
+			description,
+			priority,
+			estimatedTime,
+			estimatedCosts
+		);
 		if (success) {
 			toastStore.show('✅ Todo added successfully!', 'success');
 		} else {
@@ -112,6 +188,12 @@
 		} else {
 			toastStore.show('❌ Failed to update todo', 'error');
 		}
+	};
+
+	const handleCreateSubList = async (event) => {
+		const { text } = event.detail;
+		const currentList = get(currentTodoListNameStore);
+		await createSubList(text, currentList, preferences, enableEncryption, encryptionPassword);
 	};
 
 	// Subscribe to the peerIdStore
@@ -199,12 +281,9 @@
 {#if showModal}
 	<ConsentModal
 		bind:show={showModal}
-		title="Simple TODO Example"
-		description="A local-first peer-to-peer web application demo"
 		bind:rememberDecision
 		rememberLabel="Don't show this again on this device"
 		proceedButtonText="Proceed"
-		disabledButtonText="Please check all boxes to continue"
 		on:proceed={handleModalClose}
 	/>
 {/if}
@@ -241,6 +320,77 @@
 	{:else if error || $initializationStore.error}
 		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
 	{:else}
+		<!-- Todo List Selector and Encryption Options -->
+		<div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+
+			<div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<div>
+					<UsersList />
+				</div>
+				<div>
+					<TodoListSelector />
+				</div>
+
+			</div>
+			<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+				<div class="group relative">
+					<label class="flex cursor-pointer items-center gap-2">
+						<input
+							type="checkbox"
+							bind:checked={enableEncryption}
+							class="h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
+						/>
+						<span class="text-sm font-medium text-gray-700">Enable Encryption</span>
+					</label>
+					<div
+						class="invisible absolute left-0 top-full z-10 mt-2 w-64 rounded-md bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100"
+						role="tooltip"
+					>
+						Without encryption, the todo list will be visible unencrypted on the internet and might be wanted or not wanted.
+					</div>
+				</div>
+				{#if enableEncryption}
+					<div class="flex-1">
+						<label for="encryption-password" class="block text-sm font-medium text-gray-700 mb-1">
+							Encryption Password
+						</label>
+						<input
+							id="encryption-password"
+							type="password"
+							bind:value={encryptionPassword}
+							placeholder="Enter password for encryption"
+							class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+						/>
+					</div>
+					<button
+						type="button"
+						on:click={async () => {
+							if (enableEncryption && !encryptionPassword.trim()) {
+								alert('Please enter an encryption password');
+								return;
+							}
+							// Get current todo list name from store
+							const { currentTodoListNameStore } = await import('$lib/todo-list-manager.js');
+							const { get } = await import('svelte/store');
+							const currentList = get(currentTodoListNameStore);
+							await switchToTodoList(currentList || 'projects', preferences, enableEncryption, encryptionPassword);
+						}}
+						disabled={!$initializationStore.isInitialized || !encryptionPassword.trim()}
+						class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+					>
+						Apply Encryption
+					</button>
+				{/if}
+			</div>
+		</div>
+
+		<!-- Breadcrumb Navigation -->
+		<BreadcrumbNavigation
+			{preferences}
+			{enableEncryption}
+			{encryptionPassword}
+		/>
+
 		<!-- Add TODO Form -->
 		<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
 
@@ -249,6 +399,7 @@
 			todos={$todosStore}
 			on:delete={handleDelete}
 			on:toggleComplete={handleToggleComplete}
+			on:createSubList={handleCreateSubList}
 		/>
 
 		<!-- P2P Status -->

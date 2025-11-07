@@ -68,6 +68,7 @@
 		"@libp2p/webrtc": "^6.0.7",
 		"@libp2p/websockets": "^9.2.19",
 		"@orbitdb/core": "^3.0.2",
+		"@orbitdb/simple-encryption": "^0.0.2",
 		"@ucanto/core": "^10.4.0",
 		"@ucanto/principal": "^9.0.2",
 		"@web3-storage/capabilities": "^18.1.0",
