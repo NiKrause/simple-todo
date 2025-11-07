@@ -203,7 +203,7 @@
 		description="A local-first peer-to-peer web application demo"
 		bind:rememberDecision
 		rememberLabel="Don't show this again on this device"
-		proceedButtonText="Proceed to Test the App"
+		proceedButtonText="Proceed"
 		disabledButtonText="Please check all boxes to continue"
 		on:proceed={handleModalClose}
 	/>
@@ -270,7 +270,7 @@
 <!-- Floating Storacha Button -->
 <button
 	on:click={() => (showStorachaIntegration = !showStorachaIntegration)}
-	class="fixed right-6 bottom-6 z-[10000] flex h-16 w-16 items-center justify-center rounded-full border-2 border-white bg-[#E91315] text-white shadow-2xl transition-all duration-300 hover:scale-110 hover:shadow-[0_20px_40px_rgba(233,19,21,0.4)] focus:ring-4 focus:ring-red-300 focus:outline-none {showStorachaIntegration
+	class="fixed right-6 bottom-20 z-[10000] flex h-16 w-16 items-center justify-center rounded-full border-2 border-white bg-[#E91315] text-white shadow-2xl transition-all duration-300 hover:scale-110 hover:shadow-[0_20px_40px_rgba(233,19,21,0.4)] focus:ring-4 focus:ring-red-300 focus:outline-none sm:bottom-24 {showStorachaIntegration
 		? 'scale-105 rotate-12'
 		: 'hover:rotate-6'}"
 	title={showStorachaIntegration
@@ -329,7 +329,7 @@
 
 	<!-- Floating panel -->
 	<div
-		class="fixed right-6 bottom-24 z-[9999] w-96 max-w-[calc(100vw-3rem)] sm:right-4 sm:bottom-20 sm:w-80 md:right-6 md:bottom-24"
+		class="fixed right-6 bottom-52 z-[9999] w-96 max-w-[calc(100vw-3rem)] sm:right-4 sm:bottom-48 sm:w-80 md:right-6 md:bottom-52"
 		transition:fly={{ x: 100, duration: 300 }}
 	>
 		<StorachaIntegration />
