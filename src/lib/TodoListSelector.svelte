@@ -234,6 +234,7 @@ async function handleSelect(list) {
 							? 'bg-blue-100'
 							: ''}"
 						role="option"
+						aria-selected={list.displayName === $currentTodoListNameStore}
 					>
 						<button
 							type="button"
@@ -271,6 +272,7 @@ async function handleSelect(list) {
 					on:click={handleCreate}
 					class="w-full px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-t border-gray-200"
 					role="option"
+					aria-selected="false"
 				>
 					+ Create "{inputValue.trim()}"
 				</button>

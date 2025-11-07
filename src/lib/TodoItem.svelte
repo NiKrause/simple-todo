@@ -114,16 +114,18 @@
 		<!-- Edit Mode -->
 		<div class="space-y-4">
 			<div>
-				<label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+				<label for="edit-title-{todoKey}" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
 				<input
+					id="edit-title-{todoKey}"
 					type="text"
 					bind:value={editText}
 					class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
 				/>
 			</div>
 			<div>
-				<label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+				<label for="edit-description-{todoKey}" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
 				<textarea
+					id="edit-description-{todoKey}"
 					bind:value={editDescription}
 					rows="3"
 					class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
@@ -131,8 +133,9 @@
 			</div>
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+					<label for="edit-priority-{todoKey}" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
 					<select
+						id="edit-priority-{todoKey}"
 						bind:value={editPriority}
 						class="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
 					>
@@ -143,8 +146,9 @@
 					</select>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Estimated Time (hours)</label>
+					<label for="edit-time-{todoKey}" class="block text-sm font-medium text-gray-700 mb-1">Estimated Time (hours)</label>
 					<input
+						id="edit-time-{todoKey}"
 						type="number"
 						bind:value={editEstimatedTime}
 						placeholder="e.g., 2.5"
@@ -155,9 +159,10 @@
 				</div>
 			</div>
 			<div>
-				<label class="block text-sm font-medium text-gray-700 mb-2">Estimated Cost</label>
+				<label for="edit-cost-{todoKey}" class="block text-sm font-medium text-gray-700 mb-2">Estimated Cost</label>
 				<div class="flex gap-2">
 					<input
+						id="edit-cost-{todoKey}"
 						type="number"
 						bind:value={editCost}
 						placeholder="0.00"
@@ -166,6 +171,7 @@
 						class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
 					/>
 					<select
+						id="edit-cost-currency-{todoKey}"
 						bind:value={editCostCurrency}
 						class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
 					>

@@ -79,10 +79,11 @@
 		{#if showAdvanced}
 			<div class="space-y-4 rounded-md border border-gray-200 bg-gray-50 p-4">
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">
+					<label for="add-todo-description" class="block text-sm font-medium text-gray-700 mb-1">
 						Description
 					</label>
 					<textarea
+						id="add-todo-description"
 						bind:value={description}
 						{disabled}
 						placeholder="Add a detailed description..."
@@ -93,10 +94,11 @@
 
 				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">
+						<label for="add-todo-priority" class="block text-sm font-medium text-gray-700 mb-1">
 							Priority
 						</label>
 						<select
+							id="add-todo-priority"
 							bind:value={priority}
 							{disabled}
 							class="w-full rounded-md border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
@@ -109,10 +111,11 @@
 					</div>
 
 					<div>
-						<label class="block text-sm font-medium text-gray-700 mb-1">
+						<label for="add-todo-time" class="block text-sm font-medium text-gray-700 mb-1">
 							Estimated Time (hours)
 						</label>
 						<input
+							id="add-todo-time"
 							type="number"
 							bind:value={estimatedTime}
 							{disabled}
@@ -125,11 +128,12 @@
 				</div>
 
 				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-2">
+					<label for="add-todo-cost" class="block text-sm font-medium text-gray-700 mb-2">
 						Estimated Cost
 					</label>
 					<div class="flex gap-2">
 						<input
+							id="add-todo-cost"
 							type="number"
 							bind:value={estimatedCost}
 							{disabled}
@@ -139,6 +143,7 @@
 							class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
 						/>
 						<select
+							id="add-todo-cost-currency"
 							bind:value={estimatedCostCurrency}
 							{disabled}
 							class="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
