@@ -8,7 +8,7 @@ export default defineConfig({
 	// Web server configuration
 	webServer: {
 		command: 'pnpm run preview',
-		port: 4173,
+		port: 4174,
 		// Use the test environment file
 		env: {
 			VITE_ENV_FILE: '.env.test'
@@ -67,7 +67,7 @@ export default defineConfig({
 
 	// Use baseURL for all tests
 	use: {
-		baseURL: 'http://localhost:4174',
+		baseURL: 'http://localhost:4173',
 		// Take screenshots on failure
 		screenshot: 'only-on-failure',
 		// Record video on failure
