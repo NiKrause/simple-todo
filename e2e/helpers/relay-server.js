@@ -43,6 +43,8 @@ export class RelayServer {
 		}
 
 		// Create environment variables for the relay
+		// Note: RELAY_PRIV_KEY can be provided via environment variable for CI environments
+		// The crypto polyfill in relay-enhanced.js should handle key generation if not provided
 		const env = {
 			...process.env,
 			NODE_ENV: 'development',
@@ -54,6 +56,7 @@ export class RelayServer {
 			DATASTORE_PATH: './test-relay-datastore',
 			PUBSUB_TOPICS: 'todo._peer-discovery._p2p._pubsub',
 			STRUCTURED_LOGS: 'false' // Disable structured logs for cleaner test output
+			// RELAY_PRIV_KEY will be used if provided in process.env
 		};
 
 		return new Promise((resolve, reject) => {

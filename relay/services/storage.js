@@ -27,9 +27,11 @@ export async function initializeStorage(hostDirectory, isDevMode = false, fixedP
 
 	let privateKey;
 
-	if (isDevMode && fixedPrivateKey) {
-		// Use fixed private key for development
-		console.log('🔑 Using fixed private key for development mode');
+	// Always use fixed private key if provided (not just in dev mode)
+	// This is especially important for CI environments where crypto.randomBytes might not work correctly
+	if (fixedPrivateKey) {
+		// Use fixed private key
+		console.log('🔑 Using fixed private key');
 		try {
 			privateKey = privateKeyFromProtobuf(uint8ArrayFromString(fixedPrivateKey, 'hex'));
 			console.log('✅ Fixed private key loaded successfully');
@@ -38,13 +40,27 @@ export async function initializeStorage(hostDirectory, isDevMode = false, fixedP
 				'⚠️ Failed to load fixed private key, falling back to generated key:',
 				error.message
 			);
-			privateKey = await loadOrCreateSelfKey(datastore);
+			try {
+				privateKey = await loadOrCreateSelfKey(datastore);
+			} catch (genError) {
+				console.error('❌ Failed to generate private key:', genError);
+				throw new Error(
+					`Failed to load or generate private key. Please provide a valid RELAY_PRIV_KEY environment variable. Error: ${genError.message}`
+				);
+			}
 		}
 	} else {
 		// Load or create persistent private key
 		console.log('🔑 Loading or creating persistent private key...');
-		privateKey = await loadOrCreateSelfKey(datastore);
-		console.log('✅ Private key loaded/created successfully');
+		try {
+			privateKey = await loadOrCreateSelfKey(datastore);
+			console.log('✅ Private key loaded/created successfully');
+		} catch (error) {
+			console.error('❌ Failed to load or create private key:', error);
+			throw new Error(
+				`Failed to load or create private key. This may be due to crypto.randomBytes not working correctly in this environment. Please provide a RELAY_PRIV_KEY environment variable. Error: ${error.message}`
+			);
+		}
 	}
 
 	return { datastore, blockstore, privateKey };
