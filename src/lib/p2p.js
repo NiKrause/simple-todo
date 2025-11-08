@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 
 import { createLibp2p } from 'libp2p';
 import { createHelia } from 'helia';
-import { createOrbitDB, IPFSAccessController, OrbitDBAccessController, MemoryStorage } from '@orbitdb/core';
+import { createOrbitDB, OrbitDBAccessController, MemoryStorage } from '@orbitdb/core';
 import SimpleEncryption from '@orbitdb/simple-encryption';
 import { createLibp2pConfig, RELAY_BOOTSTRAP_ADDR } from './libp2p-config.js';
 import { initializeDatabase } from './db-actions.js';
@@ -40,7 +40,12 @@ let currentIdentity = null;
  * @param {string} encryptionPassword - Password for encryption (required if enableEncryption is true)
  * @returns {Promise<Object>} The opened database
  */
-export async function openTodoList(todoListName = 'projects', preferences = {}, enableEncryption = false, encryptionPassword = null) {
+export async function openTodoList(
+	todoListName = 'projects',
+	preferences = {},
+	enableEncryption = false,
+	encryptionPassword = null
+) {
 	if (!orbitdb) {
 		throw new Error('OrbitDB instance not initialized. Please initialize P2P first.');
 	}
@@ -64,7 +69,8 @@ export async function openTodoList(todoListName = 'projects', preferences = {}, 
 	const {
 		enablePersistentStorage = true,
 		enableNetworkConnection = true,
-		enablePeerConnections = true
+		// eslint-disable-next-line no-unused-vars
+		enablePeerConnections: _enablePeerConnections = true
 	} = preferences;
 
 	// Set up encryption if enabled
@@ -122,7 +128,12 @@ export async function openTodoList(todoListName = 'projects', preferences = {}, 
  * @param {string} encryptionPassword - Password for encryption (required if enableEncryption is true)
  * @returns {Promise<Object>} The opened database
  */
-export async function openDatabaseByName(dbName, preferences = {}, enableEncryption = false, encryptionPassword = null) {
+export async function openDatabaseByName(
+	dbName,
+	preferences = {},
+	enableEncryption = false,
+	encryptionPassword = null
+) {
 	if (!orbitdb) {
 		throw new Error('OrbitDB instance not initialized. Please initialize P2P first.');
 	}
@@ -158,8 +169,10 @@ export async function openDatabaseByName(dbName, preferences = {}, enableEncrypt
 	// If it's NOT our identity, use NO options (like openDatabaseByAddress)
 	// Everything should be read from the database manifest
 	if (!isOurIdentity && dbNameIdentity) {
-		console.log('🔧 Opening database from different identity - using NO options (all config from manifest)');
-		
+		console.log(
+			'🔧 Opening database from different identity - using NO options (all config from manifest)'
+		);
+
 		try {
 			// Open with NO options - OrbitDB will read everything from the manifest
 			todoDB = await orbitdb.open(dbName);
@@ -183,7 +196,8 @@ export async function openDatabaseByName(dbName, preferences = {}, enableEncrypt
 	const {
 		enablePersistentStorage = true,
 		enableNetworkConnection = true,
-		enablePeerConnections = true
+		// eslint-disable-next-line no-unused-vars
+		enablePeerConnections: _enablePeerConnections = true
 	} = preferences;
 
 	// Set up encryption if enabled
@@ -236,7 +250,14 @@ export async function openDatabaseByName(dbName, preferences = {}, enableEncrypt
  * @param {string} encryptionPassword - Password for encryption (required if enableEncryption is true)
  * @returns {Promise<Object>} The opened database
  */
-export async function openDatabaseByAddress(dbAddress, preferences = {}, enableEncryption = false, encryptionPassword = null) {
+export async function openDatabaseByAddress(
+	dbAddress,
+	preferences = {},
+	// eslint-disable-next-line no-unused-vars
+	enableEncryption = false,
+	// eslint-disable-next-line no-unused-vars
+	encryptionPassword = null
+) {
 	if (!orbitdb) {
 		throw new Error('OrbitDB instance not initialized. Please initialize P2P first.');
 	}
@@ -246,7 +267,7 @@ export async function openDatabaseByAddress(dbAddress, preferences = {}, enableE
 	if (!currentIdentity) {
 		currentIdentity = orbitdb.identity;
 	}
-	
+
 	// Don't modify currentIdentity - preserve the original identity
 	// The database's access controller is read from the manifest, not set by us
 	const currentInstanceIdentity = currentIdentity?.id || orbitdb.identity?.id;
@@ -260,20 +281,9 @@ export async function openDatabaseByAddress(dbAddress, preferences = {}, enableE
 		todoDB = null;
 	}
 
-	const {
-		enablePersistentStorage = true,
-		enableNetworkConnection = true,
-		enablePeerConnections = true
-	} = preferences;
-
-	// Set up encryption if enabled
-	let encryption = null;
-	if (enableEncryption && encryptionPassword) {
-		console.log('🔐 Setting up encryption for database...');
-		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-		const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
-		encryption = { data: dataEncryption, replication: replicationEncryption };
-	}
+	// Preferences and encryption parameters are intentionally unused
+	// All configuration comes from the database manifest stored at the address
+	// This function signature is kept for API consistency with other open functions
 
 	// Open the database by address only - NO OPTIONS AT ALL
 	// Everything (type, access controller, encryption, etc.) is already defined in the database manifest
@@ -285,10 +295,10 @@ export async function openDatabaseByAddress(dbAddress, preferences = {}, enableE
 		// - Access controller address and configuration
 		// - Encryption settings (if any)
 		// - All other settings
-		// 
+		//
 		// Providing ANY options (type, create, sync, AccessController, encryption, etc.)
 		// would override the manifest settings and potentially create a new access controller
-		
+
 		console.log('🔧 Opening database by address with NO options (all config from manifest)');
 		console.log('🔧 Database address:', dbAddress);
 		console.log('🔑 Current OrbitDB instance identity:', currentInstanceIdentity);
@@ -305,31 +315,43 @@ export async function openDatabaseByAddress(dbAddress, preferences = {}, enableE
 		console.log('✅ Database opened successfully by address:', todoDB);
 		console.log('🔧 Database address after open:', todoDB.address);
 		console.log('🔧 Database name:', todoDB.name);
-		
+
 		// Extract the database's original identity from its name
 		const dbNameIdentity = todoDB.name?.split('_')[0];
 		console.log('🔧 Database original identity (from db name):', dbNameIdentity);
 		console.log('🔧 Current instance identity:', currentInstanceIdentity);
-		
+
 		if (dbNameIdentity && dbNameIdentity !== currentInstanceIdentity) {
-			console.log('ℹ️  Database belongs to different identity - opening in read/write mode based on access controller permissions');
+			console.log(
+				'ℹ️  Database belongs to different identity - opening in read/write mode based on access controller permissions'
+			);
 		}
-		
+
 		console.log('🔧 Access controller address:', todoDB.access?.address);
 		console.log('🔧 Access controller write permissions:', todoDB.access?.write);
-		
+
 		// Verify identity wasn't changed
 		const identityAfterOpen = currentIdentity?.id || orbitdb.identity?.id;
 		console.log('🔑 Instance identity after open (should be unchanged):', identityAfterOpen);
 		if (identityAfterOpen !== currentInstanceIdentity) {
-			console.warn('⚠️ WARNING: Instance identity changed after opening database! Original:', currentInstanceIdentity, 'Current:', identityAfterOpen);
+			console.warn(
+				'⚠️ WARNING: Instance identity changed after opening database! Original:',
+				currentInstanceIdentity,
+				'Current:',
+				identityAfterOpen
+			);
 		}
-		
+
 		// Verify database address wasn't changed
 		if (todoDB.address !== dbAddress) {
-			console.warn('⚠️ WARNING: Database address changed! Original:', dbAddress, 'Current:', todoDB.address);
+			console.warn(
+				'⚠️ WARNING: Database address changed! Original:',
+				dbAddress,
+				'Current:',
+				todoDB.address
+			);
 		}
-		
+
 		// Check if access controller was recreated
 		const hasWriteAccess = todoDB.access?.write?.includes(currentInstanceIdentity);
 		if (dbNameIdentity && dbNameIdentity !== currentInstanceIdentity && hasWriteAccess) {
@@ -337,7 +359,9 @@ export async function openDatabaseByAddress(dbAddress, preferences = {}, enableE
 			console.warn('   Database name identity:', dbNameIdentity);
 			console.warn('   Current instance identity:', currentInstanceIdentity);
 			console.warn('   Has write access:', hasWriteAccess);
-			console.warn('   This suggests a new access controller was created with our identity instead of using the original.');
+			console.warn(
+				'   This suggests a new access controller was created with our identity instead of using the original.'
+			);
 		} else {
 			console.log('✅ Access controller appears to be original');
 			console.log('   Database name identity:', dbNameIdentity);
@@ -488,7 +512,7 @@ export async function initializeP2P(preferences = {}) {
 
 		// Make OrbitDB instance available to other components
 		orbitDBStore.set(orbitdb);
-		
+
 		// Get the identity from OrbitDB instance
 		currentIdentity = orbitdb.identity;
 		console.log('🔑 Current identity:', currentIdentity.id);
@@ -496,12 +520,12 @@ export async function initializeP2P(preferences = {}) {
 		// Initialize the registry database for this identity
 		const identityId = currentIdentity.id;
 		const registryDbName = identityId; // Registry DB is just the identityId
-		
+
 		console.log('📋 Initializing registry database...');
 		const accessController = OrbitDBAccessController({
 			write: [identityId]
 		});
-		
+
 		const registryDb = await orbitdb.open(registryDbName, {
 			type: 'keyvalue',
 			create: true,
@@ -520,7 +544,7 @@ export async function initializeP2P(preferences = {}) {
 			});
 			console.log('✅ Added "projects" to registry');
 		}
-		
+
 		// Close registry database (we'll reopen it when needed)
 		await registryDb.close();
 		console.log('✅ Registry database initialized');

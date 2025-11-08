@@ -1,9 +1,9 @@
 <script>
 	import { onDestroy } from 'svelte';
 	import { writable } from 'svelte/store';
-	import { formatPeerId } from './utils.js';
+	import { formatPeerId } from '../../utils.js';
 	import TransportBadge from './TransportBadge.svelte';
-	import { systemToasts } from './toast-store.js';
+	import { systemToasts } from '../../toast-store.js';
 
 	// Plugin interface - only needs libp2p instance
 	export let libp2p = null;

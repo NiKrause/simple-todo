@@ -67,7 +67,7 @@ export default defineConfig({
 
 	// Use baseURL for all tests
 	use: {
-		baseURL: 'http://localhost:4173',
+		baseURL: 'http://localhost:4174',
 		// Take screenshots on failure
 		screenshot: 'only-on-failure',
 		// Record video on failure

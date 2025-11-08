@@ -31,12 +31,12 @@
 	const showToastNotification = (message) => {
 		toastMessage = message;
 		showToast = true;
-		
+
 		// Clear existing timeout
 		if (toastTimeout) {
 			clearTimeout(toastTimeout);
 		}
-		
+
 		// Auto-hide toast after 3 seconds
 		toastTimeout = setTimeout(() => {
 			showToast = false;
@@ -54,12 +54,12 @@
 
 	const handleNetworkToggle = () => {
 		enableNetworkConnection = !enableNetworkConnection;
-		
+
 		// If disabling network, also disable peer connections
 		if (!enableNetworkConnection) {
 			enablePeerConnections = false;
 		}
-		
+
 		const message = enableNetworkConnection
 			? 'Network connection enabled - you can sync with relay servers'
 			: 'Network connection disabled - working offline only';
@@ -90,7 +90,7 @@
 {#if show}
 	<!-- Compact Cookie-Style Consent Banner -->
 	<div
-		class="fixed right-0 bottom-0 left-0 z-50 border-t border-gray-300 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg rounded-t-lg sm:bottom-4"
+		class="fixed right-0 bottom-0 left-0 z-50 rounded-t-lg border-t border-gray-300 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg sm:bottom-4"
 		data-testid="consent-modal"
 	>
 		<div class="mx-auto max-w-7xl px-4 py-3">
@@ -195,7 +195,7 @@
 <!-- Toast Notification -->
 {#if showToast}
 	<div
-		class="fixed bottom-28 left-1/2 z-[60] -translate-x-1/2 transform transition-all duration-300 ease-in-out translate-y-0 opacity-100 sm:bottom-32"
+		class="fixed bottom-28 left-1/2 z-[60] -translate-x-1/2 translate-y-0 transform opacity-100 transition-all duration-300 ease-in-out sm:bottom-32"
 		role="alert"
 		aria-live="polite"
 	>

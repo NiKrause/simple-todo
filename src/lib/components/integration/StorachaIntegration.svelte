@@ -6,11 +6,11 @@
 		initializeStorachaClientWithUCAN,
 		listSpaces,
 		getSpaceUsage
-	} from './storacha-backup.js';
+	} from '../../storacha-backup.js';
 	import { OrbitDBStorachaBridge } from 'orbitdb-storacha-bridge';
-	import { todosStore } from './db-actions.js';
-	import { initializationStore, orbitDBStore } from './p2p.js';
-	import { loadTodos, todoDBStore } from './db-actions.js';
+	import { todosStore } from '../../db-actions.js';
+	import { initializationStore, orbitDBStore } from '../../p2p.js';
+	import { loadTodos, todoDBStore } from '../../db-actions.js';
 
 	// Component state
 	let showStoracha = true; // Start expanded by default

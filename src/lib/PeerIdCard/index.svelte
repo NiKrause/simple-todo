@@ -1,5 +1,5 @@
 <script>
-	import { formatPeerId } from './utils.js';
+	import { formatPeerId } from '../utils.js';
 
 	export let peerId = null;
 	export let title = 'My Peer ID';

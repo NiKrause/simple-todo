@@ -1,30 +1,59 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Simple Todo P2P Application', () => {
-	test.beforeEach(async ({ page }) => {
-		// Navigate to the application
-		await page.goto('/');
-
-		// Wait for the page to load
-		await page.waitForLoadState('networkidle');
+	test.beforeEach(async ({ page, context }) => {
+		// Clear cookies first
+		await context.clearCookies();
+		
+		// Clear localStorage and sessionStorage before page loads using addInitScript
+		await page.addInitScript(() => {
+			localStorage.clear();
+			sessionStorage.clear();
+		});
+		
+		// Navigate to the application with clean state
+		await page.goto('/', { waitUntil: 'domcontentloaded' });
 	});
 
 	test('should show consent modal and proceed with P2P initialization', async ({ page }) => {
-		// Step 1: Verify consent banner is visible
-		await expect(page.locator('[data-testid="consent-modal"]')).toBeVisible();
-
-		// Wait for the banner to be fully loaded
-		await page.waitForSelector('[data-testid="consent-modal"]');
+		// Navigate to the application
+		await page.goto('/');
+		
+		// Wait for SvelteKit to finish hydrating
+		await page.waitForFunction(() => {
+			const hasMain = document.querySelector('main') !== null;
+			const hasModal = document.querySelector('[data-testid="consent-modal"]') !== null;
+			return hasMain || hasModal;
+		}, { timeout: 30000 });
+		
+		// Give time for onMount to complete and modal to render
+		await page.waitForTimeout(1000);
+		
+		// Wait for the consent modal to appear
+		await page.waitForSelector('[data-testid="consent-modal"]', { 
+			state: 'attached', 
+			timeout: 20000 
+		});
+		
+		// Scroll to bottom to ensure modal is in viewport (it's positioned at bottom)
+		await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+		
+		// Verify it's visible
+		await expect(page.locator('[data-testid="consent-modal"]')).toBeVisible({ timeout: 5000 });
 
 		// Step 2: Verify default settings (Storage: On, Network: On)
 		console.log('✅ Consent banner visible with default settings');
 
-		// Step 3: Click the Accept & Continue button
-		const proceedButton = page.locator('button', { hasText: 'Accept & Continue' });
-		await expect(proceedButton).toBeEnabled();
+		// Step 3: Click the Proceed button
+		const consentModal = page.locator('[data-testid="consent-modal"]');
+		const proceedButton = consentModal.getByRole('button', { name: 'Proceed' });
+		
+		// Wait for button to be visible and enabled
+		await expect(proceedButton).toBeVisible({ timeout: 10000 });
+		await expect(proceedButton).toBeEnabled({ timeout: 5000 });
 		await proceedButton.click();
 
-		console.log('✅ Clicked Accept & Continue button');
+		console.log('✅ Clicked Proceed button');
 
 		// Step 4: Wait for consent modal to disappear
 		await expect(page.locator('[data-testid="consent-modal"]')).not.toBeVisible();
@@ -83,16 +112,37 @@ test.describe('Simple Todo P2P Application', () => {
 		// Navigate to the application
 		await page.goto('/');
 
-		// Wait for consent banner
-		await expect(page.locator('[data-testid="consent-modal"]')).toBeVisible();
+		// Wait for SvelteKit to finish hydrating
+		await page.waitForFunction(() => {
+			const hasMain = document.querySelector('main') !== null;
+			const hasModal = document.querySelector('[data-testid="consent-modal"]') !== null;
+			return hasMain || hasModal;
+		}, { timeout: 30000 });
+		
+		// Give time for onMount to complete
+		await page.waitForTimeout(1000);
+
+		// Wait for consent modal to appear
+		await page.waitForSelector('[data-testid="consent-modal"]', { 
+			state: 'attached', 
+			timeout: 20000 
+		});
+		
+		// Scroll to bottom to ensure modal is in viewport
+		await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+		
+		await expect(page.locator('[data-testid="consent-modal"]')).toBeVisible({ timeout: 5000 });
 
 		// Toggle Network to Off (clicking the toggle button)
-		// Click the toggle switch itself - the button that has the bg-blue-600 or bg-gray-400 class
-		const toggleButtons = page.locator('button.relative.inline-flex');
+		// The second toggle button is Network
+		const consentModal = page.locator('[data-testid="consent-modal"]');
+		const toggleButtons = consentModal.locator('button.relative.inline-flex');
 		await toggleButtons.nth(1).click(); // Second toggle is Network
 
-		// Continue
-		await page.locator('button', { hasText: 'Accept & Continue' }).click();
+		// Click Proceed button
+		const proceedButton = consentModal.getByRole('button', { name: 'Proceed' });
+		await expect(proceedButton).toBeVisible({ timeout: 5000 });
+		await proceedButton.click();
 
 		// Wait for modal to disappear
 		await expect(page.locator('[data-testid="consent-modal"]')).not.toBeVisible();
@@ -107,11 +157,28 @@ test.describe('Simple Todo P2P Application', () => {
 		// Navigate to the application
 		await page.goto('/');
 
-		// Accept consent with default settings
-		await page.waitForSelector('[data-testid="consent-modal"]');
+		// Wait for SvelteKit to finish hydrating
+		await page.waitForFunction(() => {
+			const hasMain = document.querySelector('main') !== null;
+			const hasModal = document.querySelector('[data-testid="consent-modal"]') !== null;
+			return hasMain || hasModal;
+		}, { timeout: 30000 });
+		
+		await page.waitForTimeout(1000);
 
-		// Click Accept & Continue
-		await page.locator('button', { hasText: 'Accept & Continue' }).click();
+		// Wait for consent modal
+		await page.waitForSelector('[data-testid="consent-modal"]', { 
+			state: 'attached', 
+			timeout: 20000 
+		});
+		
+		await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+		await expect(page.locator('[data-testid="consent-modal"]')).toBeVisible({ timeout: 5000 });
+
+		// Click Proceed button
+		const consentModal = page.locator('[data-testid="consent-modal"]');
+		const proceedButton = consentModal.getByRole('button', { name: 'Proceed' });
+		await proceedButton.click();
 
 		// Wait for modal to disappear
 		await expect(page.locator('[data-testid="consent-modal"]')).not.toBeVisible();
@@ -147,12 +214,32 @@ test.describe('Simple Todo P2P Application', () => {
 	});
 
 	test('should handle todo operations correctly', async ({ page }) => {
-		// Navigate and accept consent
+		// Navigate to the application
 		await page.goto('/');
-		await page.waitForSelector('[data-testid="consent-modal"]');
+		
+		// Wait for SvelteKit to finish hydrating
+		await page.waitForFunction(() => {
+			const hasMain = document.querySelector('main') !== null;
+			const hasModal = document.querySelector('[data-testid="consent-modal"]') !== null;
+			return hasMain || hasModal;
+		}, { timeout: 30000 });
+		
+		await page.waitForTimeout(1000);
 
-		// Quick consent acceptance
-		await page.locator('button', { hasText: 'Accept & Continue' }).click();
+		// Wait for consent modal
+		await page.waitForSelector('[data-testid="consent-modal"]', { 
+			state: 'attached', 
+			timeout: 20000 
+		});
+		
+		await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+		await expect(page.locator('[data-testid="consent-modal"]')).toBeVisible({ timeout: 5000 });
+
+		// Click Proceed button
+		const consentModal = page.locator('[data-testid="consent-modal"]');
+		const proceedButton = consentModal.getByRole('button', { name: 'Proceed' });
+		await proceedButton.click();
+		
 		await expect(page.locator('[data-testid="consent-modal"]')).not.toBeVisible();
 
 		// Wait for todo input to be ready

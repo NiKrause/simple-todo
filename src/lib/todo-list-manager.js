@@ -96,7 +96,7 @@ async function openRegistryDatabase(identityId) {
 		// Poll until it's in cache or opening completes
 		let attempts = 0;
 		while (registryDbOpening.has(identityId) && attempts < 50) {
-			await new Promise(resolve => setTimeout(resolve, 100));
+			await new Promise((resolve) => setTimeout(resolve, 100));
 			attempts++;
 			// Check if it's now in cache
 			if (registryDbCache.has(identityId)) {
@@ -119,7 +119,7 @@ async function openRegistryDatabase(identityId) {
 	}
 
 	const registryDbName = getRegistryDbName(identityId);
-	
+
 	// Mark as opening
 	registryDbOpening.add(identityId);
 
@@ -167,11 +167,11 @@ export async function listAvailableTodoLists() {
 	try {
 		// Open the registry database
 		const registryDb = await openRegistryDatabase(identityId);
-		
+
 		// Read all entries from the registry
 		const allEntries = await registryDb.all();
 		const todoLists = [];
-		
+
 		// OrbitDB 3.0 all() returns an array, not an object
 		if (Array.isArray(allEntries)) {
 			// Iterate over array entries
@@ -179,7 +179,7 @@ export async function listAvailableTodoLists() {
 				if (entry && entry.value) {
 					const value = entry.value;
 					const key = entry.key || entry.hash;
-					
+
 					if (value && typeof value === 'object') {
 						// Entry format: { displayName, dbName, address, parent, ... }
 						todoLists.push({
@@ -221,7 +221,7 @@ export async function listAvailableTodoLists() {
 		}
 
 		// Ensure 'projects' is in the list (default)
-		if (!todoLists.some(list => list.displayName === 'projects')) {
+		if (!todoLists.some((list) => list.displayName === 'projects')) {
 			todoLists.unshift({
 				dbName: `${identityId}_projects`,
 				displayName: 'projects',
@@ -266,14 +266,14 @@ export async function listAvailableTodoLists() {
 
 		// Add any orphaned sub-lists (parent doesn't exist) - these should still be shown
 		for (const [parentName, subLists] of subListsByParent.entries()) {
-			if (!todoLists.some(list => list.displayName === parentName)) {
+			if (!todoLists.some((list) => list.displayName === parentName)) {
 				subLists.sort((a, b) => a.displayName.localeCompare(b.displayName));
 				organizedLists.push(...subLists);
 			}
 		}
 
 		availableTodoListsStore.set(organizedLists);
-		
+
 		// Initialize hierarchy if empty and we have projects
 		const hierarchy = get(todoListHierarchyStore);
 		if (hierarchy.length === 0 && organizedLists.length > 0) {
@@ -282,8 +282,11 @@ export async function listAvailableTodoLists() {
 				todoListHierarchyStore.set([{ name: currentList, parent: null }]);
 			}
 		}
-		
-		console.log(`📋 Found ${organizedLists.length} todo lists from registry:`, organizedLists.map(l => l.displayName).join(', '));
+
+		console.log(
+			`📋 Found ${organizedLists.length} todo lists from registry:`,
+			organizedLists.map((l) => l.displayName).join(', ')
+		);
 		return organizedLists;
 	} catch (error) {
 		console.error('❌ Error listing todo lists from registry:', error);
@@ -311,7 +314,7 @@ export async function buildHierarchyPath(todoListName) {
 		// Traverse up the parent chain
 		while (currentName && !visited.has(currentName)) {
 			visited.add(currentName);
-			
+
 			const entry = await registryDb.get(currentName);
 			if (entry) {
 				// Add to beginning of hierarchy (root first)
@@ -353,7 +356,7 @@ export async function addTodoListToRegistry(displayName, dbName, address = null,
 
 	try {
 		const registryDb = await openRegistryDatabase(identityId);
-		
+
 		// Extract identity from dbName (part before first underscore)
 		let dbNameIdentity = null;
 		if (dbName && dbName.includes('_')) {
@@ -362,25 +365,29 @@ export async function addTodoListToRegistry(displayName, dbName, address = null,
 				dbNameIdentity = dbName.substring(0, underscoreIndex);
 			}
 		}
-		
+
 		// Only validate/overwrite dbName if it belongs to the current identity
 		// If it belongs to a different identity, preserve it as-is
 		if (dbNameIdentity === identityId) {
 			// Database belongs to current identity - validate pattern
 			const expectedDbName = `${identityId}_${displayName}`;
 			if (dbName !== expectedDbName) {
-				console.warn(`⚠️ dbName mismatch: expected ${expectedDbName}, got ${dbName}. Using expected value.`);
+				console.warn(
+					`⚠️ dbName mismatch: expected ${expectedDbName}, got ${dbName}. Using expected value.`
+				);
 				dbName = expectedDbName;
 			}
 		} else if (dbNameIdentity) {
 			// Database belongs to a different identity - preserve dbName as-is
-			console.log(`ℹ️  Preserving dbName from different identity: ${dbName} (identity: ${dbNameIdentity})`);
+			console.log(
+				`ℹ️  Preserving dbName from different identity: ${dbName} (identity: ${dbNameIdentity})`
+			);
 		} else {
 			// No identity in dbName - use current identity pattern
 			console.warn(`⚠️ dbName has no identity prefix, using current identity: ${identityId}`);
 			dbName = `${identityId}_${displayName}`;
 		}
-		
+
 		// Store in registry with displayName as key
 		await registryDb.put(displayName, {
 			displayName: displayName,
@@ -389,9 +396,11 @@ export async function addTodoListToRegistry(displayName, dbName, address = null,
 			parent: parent || null,
 			createdAt: new Date().toISOString()
 		});
-		
+
 		const parentInfo = parent ? ` (child of: ${parent})` : '';
-		console.log(`💾 Added to registry: ${displayName} (${dbName})${address ? ` [${address}]` : ''}${parentInfo}`);
+		console.log(
+			`💾 Added to registry: ${displayName} (${dbName})${address ? ` [${address}]` : ''}${parentInfo}`
+		);
 	} catch (error) {
 		console.error('❌ Error adding todo list to registry:', error);
 	}
@@ -411,14 +420,14 @@ export async function removeTodoListFromRegistry(displayName) {
 
 	try {
 		const registryDb = await openRegistryDatabase(identityId);
-		
+
 		// Delete from registry
 		await registryDb.del(displayName);
 		console.log(`🗑️ Removed from registry: ${displayName}`);
-		
+
 		// Refresh the available lists
 		await listAvailableTodoLists();
-		
+
 		return true;
 	} catch (error) {
 		console.error('❌ Error removing todo list from registry:', error);
@@ -435,7 +444,13 @@ export async function removeTodoListFromRegistry(displayName) {
  * @param {string} parentListName - Name of the parent todo list (for hierarchy)
  * @returns {Promise<boolean>} Success status
  */
-export async function switchToTodoList(todoListName, preferences = {}, enableEncryption = false, encryptionPassword = '', parentListName = null) {
+export async function switchToTodoList(
+	todoListName,
+	preferences = {},
+	enableEncryption = false,
+	encryptionPassword = '',
+	parentListName = null
+) {
 	if (!todoListName || todoListName.trim() === '') {
 		console.error('❌ Todo list name cannot be empty');
 		return false;
@@ -446,15 +461,20 @@ export async function switchToTodoList(todoListName, preferences = {}, enableEnc
 	try {
 		const identityId = getCurrentIdentityId();
 		const dbName = identityId ? `${identityId}_${trimmedName}` : trimmedName;
-		
-		const openedDB = await openTodoList(trimmedName, preferences, enableEncryption, encryptionPassword);
+
+		const openedDB = await openTodoList(
+			trimmedName,
+			preferences,
+			enableEncryption,
+			encryptionPassword
+		);
 		currentTodoListNameStore.set(trimmedName);
 		currentDbNameStore.set(dbName); // Store the full database name
-		
+
 		// Get database address if available
 		const dbAddress = openedDB?.address || null;
 		currentDbAddressStore.set(dbAddress); // Store the database address
-		
+
 		// Determine parent from parameter or registry
 		let actualParent = parentListName;
 		if (!actualParent && identityId) {
@@ -469,7 +489,7 @@ export async function switchToTodoList(todoListName, preferences = {}, enableEnc
 				console.warn('⚠️ Could not look up parent from registry:', error);
 			}
 		}
-		
+
 		// Update hierarchy
 		const currentHierarchy = get(todoListHierarchyStore);
 		if (actualParent) {
@@ -477,7 +497,10 @@ export async function switchToTodoList(todoListName, preferences = {}, enableEnc
 			const parentIndex = currentHierarchy.findIndex((item) => item.name === actualParent);
 			if (parentIndex >= 0) {
 				// Keep up to parent, then add new child
-				todoListHierarchyStore.set([...currentHierarchy.slice(0, parentIndex + 1), { name: trimmedName, parent: actualParent }]);
+				todoListHierarchyStore.set([
+					...currentHierarchy.slice(0, parentIndex + 1),
+					{ name: trimmedName, parent: actualParent }
+				]);
 			} else {
 				// Parent not in current hierarchy - build full path from registry
 				const fullHierarchy = await buildHierarchyPath(trimmedName);
@@ -488,18 +511,18 @@ export async function switchToTodoList(todoListName, preferences = {}, enableEnc
 			const fullHierarchy = await buildHierarchyPath(trimmedName);
 			todoListHierarchyStore.set(fullHierarchy);
 		}
-		
+
 		// Add to registry database (not localStorage)
 		if (identityId) {
 			await addTodoListToRegistry(trimmedName, dbName, dbAddress, actualParent);
 		}
-		
+
 		// Refresh available todo lists and unique users
 		await listAvailableTodoLists();
 		await listUniqueUsers();
-		
+
 		// Note: URL hash is updated automatically by reactive statement in +page.svelte
-		
+
 		showToast(`Switched to todo list: ${trimmedName}`, 'success');
 		return true;
 	} catch (error) {
@@ -518,7 +541,13 @@ export async function switchToTodoList(todoListName, preferences = {}, enableEnc
  * @param {string} encryptionPassword - Encryption password
  * @returns {Promise<boolean>} Success status
  */
-export async function createSubList(todoText, parentListName, preferences = {}, enableEncryption = false, encryptionPassword = '') {
+export async function createSubList(
+	todoText,
+	parentListName,
+	preferences = {},
+	enableEncryption = false,
+	encryptionPassword = ''
+) {
 	// Create a slug from the todo text
 	const slug = todoText
 		.toLowerCase()
@@ -533,7 +562,13 @@ export async function createSubList(todoText, parentListName, preferences = {}, 
 		return false;
 	}
 
-	return await switchToTodoList(slug, preferences, enableEncryption, encryptionPassword, parentListName);
+	return await switchToTodoList(
+		slug,
+		preferences,
+		enableEncryption,
+		encryptionPassword,
+		parentListName
+	);
 }
 
 /**
@@ -543,7 +578,11 @@ export async function createSubList(todoText, parentListName, preferences = {}, 
  * @param {string} encryptionPassword - Encryption password
  * @returns {Promise<boolean>} Success status
  */
-export async function navigateUp(preferences = {}, enableEncryption = false, encryptionPassword = '') {
+export async function navigateUp(
+	preferences = {},
+	enableEncryption = false,
+	encryptionPassword = ''
+) {
 	const hierarchy = get(todoListHierarchyStore);
 	if (hierarchy.length <= 1) {
 		// Already at root or no hierarchy
@@ -553,10 +592,16 @@ export async function navigateUp(preferences = {}, enableEncryption = false, enc
 	// Remove current level and get parent
 	const newHierarchy = hierarchy.slice(0, -1);
 	const parent = newHierarchy[newHierarchy.length - 1];
-	
+
 	if (parent) {
 		todoListHierarchyStore.set(newHierarchy);
-		return await switchToTodoList(parent.name, preferences, enableEncryption, encryptionPassword, parent.parent);
+		return await switchToTodoList(
+			parent.name,
+			preferences,
+			enableEncryption,
+			encryptionPassword,
+			parent.parent
+		);
 	}
 
 	return false;
@@ -570,7 +615,12 @@ export async function navigateUp(preferences = {}, enableEncryption = false, enc
  * @param {string} encryptionPassword - Encryption password
  * @returns {Promise<boolean>} Success status
  */
-export async function createTodoList(todoListName, preferences = {}, enableEncryption = false, encryptionPassword = '') {
+export async function createTodoList(
+	todoListName,
+	preferences = {},
+	enableEncryption = false,
+	encryptionPassword = ''
+) {
 	return await switchToTodoList(todoListName, preferences, enableEncryption, encryptionPassword);
 }
 
@@ -584,12 +634,12 @@ export async function createTodoList(todoListName, preferences = {}, enableEncry
 export async function listUniqueUsers() {
 	try {
 		const uniqueIds = new Set();
-		
+
 		// Extract identity IDs from database names (format: identityId_displayName)
 		// Take only the part before the first underscore
 		const availableLists = get(availableTodoListsStore);
 		console.log('🔍 listUniqueUsers: Checking', availableLists.length, 'lists');
-		
+
 		for (const list of availableLists) {
 			if (list.dbName && list.dbName.includes('_')) {
 				const underscoreIndex = list.dbName.indexOf('_');
@@ -604,7 +654,7 @@ export async function listUniqueUsers() {
 				console.log('  - Skipping list (no dbName or no underscore):', list);
 			}
 		}
-		
+
 		const uniqueUsersArray = Array.from(uniqueIds).sort();
 		console.log('👥 Unique users found:', uniqueUsersArray);
 		uniqueUsersStore.set(uniqueUsersArray);
@@ -623,7 +673,7 @@ export async function addTrackedUser(identityId) {
 
 	const trimmedId = identityId.trim();
 	const tracked = get(trackedUsersStore);
-	
+
 	// Check if already tracked
 	if (tracked.includes(trimmedId)) {
 		console.log(`ℹ️  Identity ${trimmedId} is already tracked`);
@@ -632,33 +682,33 @@ export async function addTrackedUser(identityId) {
 
 	// Add to tracked users
 	trackedUsersStore.set([...tracked, trimmedId]);
-	
+
 	// Try to discover and add their "projects" database
 	try {
 		const { openDatabaseByName } = await import('./p2p.js');
 		const dbName = `${trimmedId}_projects`;
-		
+
 		console.log(`🔍 Attempting to discover projects database for identity: ${trimmedId}`);
-		
+
 		const preferences = {
 			enablePersistentStorage: true,
 			enableNetworkConnection: true,
 			enablePeerConnections: true
 		};
-		
+
 		// Try to open their projects database
 		const projectsDb = await openDatabaseByName(dbName, preferences, false, '');
-		
+
 		if (projectsDb && projectsDb.address) {
 			// Add to our registry
 			await addTodoListToRegistry('projects', dbName, projectsDb.address, null);
-			
+
 			// Refresh available lists
 			await listAvailableTodoLists();
-			
+
 			// Update unique users list
 			await listUniqueUsers();
-			
+
 			console.log(`✅ Successfully discovered and added projects database for ${trimmedId}`);
 			return true;
 		}
@@ -666,16 +716,15 @@ export async function addTrackedUser(identityId) {
 		console.warn(`⚠️ Could not discover projects database for ${trimmedId}:`, error);
 		// Don't throw - user is still added to tracked list even if discovery fails
 	}
-	
+
 	return false;
 }
 
 // Function to remove a tracked user
 export function removeTrackedUser(identityId) {
 	const tracked = get(trackedUsersStore);
-	trackedUsersStore.set(tracked.filter(id => id !== identityId));
-	
+	trackedUsersStore.set(tracked.filter((id) => id !== identityId));
+
 	// Also remove from unique users if it was only there because we tracked it
 	// (This is optional - you might want to keep discovered users even if untracked)
 }
-

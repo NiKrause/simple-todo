@@ -71,16 +71,22 @@ export class RelayServer {
 			this.process.stdout.on('data', (data) => {
 				const text = data.toString();
 				output += text;
+				// Log output for debugging
+				process.stdout.write(text);
 
-				// Look for success indicators
+				// Look for success indicators - HTTP server must be ready
 				if (
 					text.includes('Enhanced Relay Server Ready!') ||
-					text.includes('Relay server is ready') ||
-					text.includes('HTTP server listening')
+					text.includes('HTTP API Server:') ||
+					(text.includes('Health check:') && text.includes('http://localhost'))
 				) {
 					this.parseRelayInfo(output);
-					this.isReady = true;
-					resolve();
+					// Don't resolve immediately - wait for health check
+					// The HTTP server might need a moment to be fully ready
+					setTimeout(() => {
+						this.isReady = true;
+						resolve();
+					}, 1000);
 				}
 			});
 
@@ -88,17 +94,22 @@ export class RelayServer {
 			this.process.stderr.on('data', (data) => {
 				const text = data.toString();
 				errorOutput += text;
-				console.log('Relay stderr:', text);
+				// Only log errors, not all stderr
+				if (text.includes('Error') || text.includes('error') || text.includes('ERROR')) {
+					console.error('Relay stderr:', text);
+				}
 
 				// Also check stderr for success (some logs might go there)
 				if (
 					text.includes('Enhanced Relay Server Ready!') ||
-					text.includes('Relay server is ready') ||
-					text.includes('HTTP server listening')
+					text.includes('HTTP API Server:') ||
+					(text.includes('Health check:') && text.includes('http://localhost'))
 				) {
 					this.parseRelayInfo(output + errorOutput);
-					this.isReady = true;
-					resolve();
+					setTimeout(() => {
+						this.isReady = true;
+						resolve();
+					}, 1000);
 				}
 			});
 
@@ -200,20 +211,30 @@ export class RelayServer {
 	/**
 	 * Wait for the relay server to be healthy
 	 */
-	async waitForHealth(maxAttempts = 30, interval = 1000) {
+	async waitForHealth(maxAttempts = 60, interval = 1000) {
+		// Wait a bit before starting health checks to give server time to start
+		await sleep(2000);
+		
 		for (let i = 0; i < maxAttempts; i++) {
 			try {
-				const response = await fetch(`http://localhost:${this.options.httpPort}/health`);
+				const response = await fetch(`http://localhost:${this.options.httpPort}/health`, {
+					signal: AbortSignal.timeout(2000)
+				});
 				if (response.ok) {
 					const health = await response.json();
 					console.log('✅ Relay server health check passed:', health);
 					return true;
 				}
-			} catch {
+			} catch (error) {
 				// Ignore fetch errors, server might not be ready yet
+				if (i === maxAttempts - 1) {
+					console.error('❌ Health check error:', error.message);
+				}
 			}
 
-			console.log(`⏳ Waiting for relay server health check... (${i + 1}/${maxAttempts})`);
+			if (i % 5 === 0 || i === maxAttempts - 1) {
+				console.log(`⏳ Waiting for relay server health check... (${i + 1}/${maxAttempts})`);
+			}
 			await sleep(interval);
 		}
 

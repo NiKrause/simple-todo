@@ -70,8 +70,8 @@
 
 		<button
 			type="button"
-			on:click={() => showAdvanced = !showAdvanced}
-			class="text-sm text-blue-600 hover:text-blue-800 underline"
+			on:click={() => (showAdvanced = !showAdvanced)}
+			class="text-sm text-blue-600 underline hover:text-blue-800"
 		>
 			{showAdvanced ? 'Hide' : 'Show'} Advanced Fields
 		</button>
@@ -79,7 +79,7 @@
 		{#if showAdvanced}
 			<div class="space-y-4 rounded-md border border-gray-200 bg-gray-50 p-4">
 				<div>
-					<label for="add-todo-description" class="block text-sm font-medium text-gray-700 mb-1">
+					<label for="add-todo-description" class="mb-1 block text-sm font-medium text-gray-700">
 						Description
 					</label>
 					<textarea
@@ -94,7 +94,7 @@
 
 				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					<div>
-						<label for="add-todo-priority" class="block text-sm font-medium text-gray-700 mb-1">
+						<label for="add-todo-priority" class="mb-1 block text-sm font-medium text-gray-700">
 							Priority
 						</label>
 						<select
@@ -111,7 +111,7 @@
 					</div>
 
 					<div>
-						<label for="add-todo-time" class="block text-sm font-medium text-gray-700 mb-1">
+						<label for="add-todo-time" class="mb-1 block text-sm font-medium text-gray-700">
 							Estimated Time (hours)
 						</label>
 						<input
@@ -128,7 +128,7 @@
 				</div>
 
 				<div>
-					<label for="add-todo-cost" class="block text-sm font-medium text-gray-700 mb-2">
+					<label for="add-todo-cost" class="mb-2 block text-sm font-medium text-gray-700">
 						Estimated Cost
 					</label>
 					<div class="flex gap-2">

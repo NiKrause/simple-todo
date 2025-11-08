@@ -8,9 +8,9 @@
 		trackedUsersStore,
 		addTrackedUser,
 		removeTrackedUser
-	} from './todo-list-manager.js';
-	import { initializationStore } from './p2p.js';
-	import { showToast } from './toast-store.js';
+	} from '../todo-list-manager.js';
+	import { initializationStore } from '../p2p.js';
+	import { showToast } from '../toast-store.js';
 	import { get } from 'svelte/store';
 
 	let showDropdown = false;

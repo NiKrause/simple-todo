@@ -1,5 +1,5 @@
 <script>
-	import { toastStore } from './toast-store.js';
+	import { toastStore } from '../../toast-store.js';
 	import { onMount } from 'svelte';
 
 	let toastElement;

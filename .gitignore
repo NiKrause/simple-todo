@@ -5,6 +5,8 @@ orbitdb*/
 relay/test-relay-datastore/
 server-helia-*/
 server-*/
+relay/relay-datastore/
+relay-datastore/
 playwright-report/
 p2p-todo-demo
 

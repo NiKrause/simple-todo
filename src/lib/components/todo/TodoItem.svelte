@@ -1,8 +1,8 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
-	import { formatPeerId } from './utils.js';
+	import { formatPeerId } from '../../utils.js';
 	import { FolderPlus, Edit2, Save, X } from 'lucide-svelte';
-	import { updateTodo } from './db-actions.js';
+	import { updateTodo } from '../../db-actions.js';
 
 	export let text;
 	export let description = '';
@@ -19,11 +19,11 @@
 	let editDescription = description || '';
 	let editPriority = priority || '';
 	let editEstimatedTime = estimatedTime ? String(estimatedTime) : '';
-	
+
 	// Determine current cost and currency from estimatedCosts
 	let editCost = '';
 	let editCostCurrency = 'usd';
-	
+
 	// Update editCost and editCostCurrency from props, but only when not editing
 	$: if (!isEditing && estimatedCosts) {
 		if (estimatedCosts.usd) {
@@ -107,14 +107,14 @@
 	}
 </script>
 
-<div
-	class="rounded-md border border-gray-200 p-4 hover:bg-gray-50 transition-colors"
->
+<div class="rounded-md border border-gray-200 p-4 transition-colors hover:bg-gray-50">
 	{#if isEditing}
 		<!-- Edit Mode -->
 		<div class="space-y-4">
 			<div>
-				<label for="edit-title-{todoKey}" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+				<label for="edit-title-{todoKey}" class="mb-1 block text-sm font-medium text-gray-700"
+					>Title</label
+				>
 				<input
 					id="edit-title-{todoKey}"
 					type="text"
@@ -123,7 +123,9 @@
 				/>
 			</div>
 			<div>
-				<label for="edit-description-{todoKey}" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+				<label for="edit-description-{todoKey}" class="mb-1 block text-sm font-medium text-gray-700"
+					>Description</label
+				>
 				<textarea
 					id="edit-description-{todoKey}"
 					bind:value={editDescription}
@@ -133,7 +135,9 @@
 			</div>
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 				<div>
-					<label for="edit-priority-{todoKey}" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+					<label for="edit-priority-{todoKey}" class="mb-1 block text-sm font-medium text-gray-700"
+						>Priority</label
+					>
 					<select
 						id="edit-priority-{todoKey}"
 						bind:value={editPriority}
@@ -146,7 +150,9 @@
 					</select>
 				</div>
 				<div>
-					<label for="edit-time-{todoKey}" class="block text-sm font-medium text-gray-700 mb-1">Estimated Time (hours)</label>
+					<label for="edit-time-{todoKey}" class="mb-1 block text-sm font-medium text-gray-700"
+						>Estimated Time (hours)</label
+					>
 					<input
 						id="edit-time-{todoKey}"
 						type="number"
@@ -159,7 +165,9 @@
 				</div>
 			</div>
 			<div>
-				<label for="edit-cost-{todoKey}" class="block text-sm font-medium text-gray-700 mb-2">Estimated Cost</label>
+				<label for="edit-cost-{todoKey}" class="mb-2 block text-sm font-medium text-gray-700"
+					>Estimated Cost</label
+				>
 				<div class="flex gap-2">
 					<input
 						id="edit-cost-{todoKey}"
@@ -207,21 +215,27 @@
 				on:change={handleToggleComplete}
 				class="mt-1 h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
 			/>
-			<div class="flex-1 min-w-0">
-				<div class="flex items-start gap-2 mb-1">
-					<span class={completed ? 'text-gray-500 line-through flex-1' : 'text-gray-800 font-medium flex-1'}>
+			<div class="min-w-0 flex-1">
+				<div class="mb-1 flex items-start gap-2">
+					<span
+						class={completed
+							? 'flex-1 text-gray-500 line-through'
+							: 'flex-1 font-medium text-gray-800'}
+					>
 						{text}
 					</span>
 					{#if priority}
-						<span class="px-2 py-1 text-xs font-semibold rounded border {getPriorityColor(priority)}">
+						<span
+							class="rounded border px-2 py-1 text-xs font-semibold {getPriorityColor(priority)}"
+						>
 							{priority}
 						</span>
 					{/if}
 				</div>
 				{#if description}
-					<p class="text-sm text-gray-600 mt-1 mb-2">{description}</p>
+					<p class="mt-1 mb-2 text-sm text-gray-600">{description}</p>
 				{/if}
-				<div class="flex flex-wrap gap-3 text-xs text-gray-500 mt-2">
+				<div class="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
 					{#if estimatedTime}
 						<span>⏱️ {estimatedTime}h</span>
 					{/if}
@@ -235,11 +249,17 @@
 						{/if}
 					{/if}
 					{#if assignee}
-						<span>Assigned to: <code class="rounded bg-gray-100 px-1">{formatPeerId(assignee)}</code></span>
+						<span
+							>Assigned to: <code class="rounded bg-gray-100 px-1">{formatPeerId(assignee)}</code
+							></span
+						>
 					{:else}
 						<span class="text-orange-600">Unassigned</span>
 					{/if}
-					<span>Created by: <code class="rounded bg-gray-100 px-1">{formatPeerId(createdBy)}</code></span>
+					<span
+						>Created by: <code class="rounded bg-gray-100 px-1">{formatPeerId(createdBy)}</code
+						></span
+					>
 				</div>
 			</div>
 			<div class="flex gap-2">

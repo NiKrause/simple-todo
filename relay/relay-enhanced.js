@@ -521,19 +521,23 @@ function isPublishError(error) {
 	if (!error) return false;
 	const message = error.message || error.toString() || '';
 	const name = error.name || '';
-	return message.includes('PublishError.NoPeersSubscribedToTopic') || 
-	       message.includes('NoPeersSubscribedToTopic') ||
-	       name === 'PublishError';
+	return (
+		message.includes('PublishError.NoPeersSubscribedToTopic') ||
+		message.includes('NoPeersSubscribedToTopic') ||
+		name === 'PublishError'
+	);
 }
 
 // Global error handlers to prevent crashes from unhandled promise rejections
 process.on('unhandledRejection', (reason, promise) => {
 	// Check if it's a PublishError.NoPeersSubscribedToTopic - this is not fatal
 	if (isPublishError(reason)) {
-		console.warn('⚠️  [Relay] Gossipsub publish failed: No peers subscribed to topic (this is normal when no peers are connected)');
+		console.warn(
+			'⚠️  [Relay] Gossipsub publish failed: No peers subscribed to topic (this is normal when no peers are connected)'
+		);
 		return; // Don't crash, just log and continue
 	}
-	
+
 	// For other unhandled rejections, log but don't crash in production
 	console.error('❌ [Relay] Unhandled promise rejection:', reason);
 	if (isDevelopment) {
@@ -544,10 +548,12 @@ process.on('unhandledRejection', (reason, promise) => {
 process.on('uncaughtException', (error) => {
 	// Check if it's a PublishError.NoPeersSubscribedToTopic - this is not fatal
 	if (isPublishError(error)) {
-		console.warn('⚠️  [Relay] Gossipsub publish failed: No peers subscribed to topic (this is normal when no peers are connected)');
+		console.warn(
+			'⚠️  [Relay] Gossipsub publish failed: No peers subscribed to topic (this is normal when no peers are connected)'
+		);
 		return; // Don't crash, just log and continue
 	}
-	
+
 	// For other uncaught exceptions, log and exit
 	console.error('❌ [Relay] Uncaught exception:', error);
 	if (isDevelopment) {

@@ -107,7 +107,14 @@ function setupDatabaseListeners(todoDB) {
 }
 
 // Add a new todo
-export async function addTodo(text, assignee = null, description = '', priority = null, estimatedTime = null, estimatedCosts = {}) {
+export async function addTodo(
+	text,
+	assignee = null,
+	description = '',
+	priority = null,
+	estimatedTime = null,
+	estimatedCosts = {}
+) {
 	console.log('🔍 Adding todo:', text);
 	const todoDB = get(todoDBStore);
 	const myPeerId = get(peerIdStore);

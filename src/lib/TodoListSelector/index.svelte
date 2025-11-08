@@ -7,11 +7,11 @@
     listAvailableTodoLists,
     removeTodoListFromRegistry,
     selectedUserIdStore
-} from './todo-list-manager.js';
-import { openDatabaseByAddress } from './p2p.js';
-	import { initializationStore } from './p2p.js';
+} from '../todo-list-manager.js';
+import { openDatabaseByAddress } from '../p2p.js';
+	import { initializationStore } from '../p2p.js';
 	import { get } from 'svelte/store';
-	import { currentDbNameStore, currentDbAddressStore } from './todo-list-manager.js';
+	import { currentDbNameStore, currentDbAddressStore } from '../todo-list-manager.js';
 
 	let showDropdown = false;
 	let inputValue = '';

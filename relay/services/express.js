@@ -143,10 +143,10 @@ export function createExpressServer(server, connectedPeers, peerStats, pinningSe
 	// API Password Middleware
 	const apiPassword = process.env.API_PASSWORD;
 
-	// Middleware to protect routes with API password (except /metrics)
+	// Middleware to protect routes with API password (except /metrics and /health)
 	function protectWithPassword(req, res, next) {
-		// Skip authentication for /metrics endpoint
-		if (req.path === '/metrics') {
+		// Skip authentication for /metrics and /health endpoints
+		if (req.path === '/metrics' || req.path === '/health') {
 			return next();
 		}
 
@@ -252,6 +252,7 @@ export function createExpressServer(server, connectedPeers, peerStats, pinningSe
 	});
 
 	// Enhanced health check with system information
+	// Health endpoint should be public for monitoring and e2e tests
 	app.get('/health', (req, res) => {
 		const connections = server.getConnections();
 		const uptime = process.uptime();
@@ -320,13 +321,15 @@ export function createExpressServer(server, connectedPeers, peerStats, pinningSe
 			console.log('[relay] Sent test pubsub message:', testMsg);
 		} catch (e) {
 			// Check if it's a PublishError - this is not fatal, just means no peers are subscribed
-			const isPublishErr = e && (
-				(e.message && e.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
-				(e.message && e.message.includes('NoPeersSubscribedToTopic')) ||
-				e.name === 'PublishError'
-			);
+			const isPublishErr =
+				e &&
+				((e.message && e.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
+					(e.message && e.message.includes('NoPeersSubscribedToTopic')) ||
+					e.name === 'PublishError');
 			if (isPublishErr) {
-				console.warn('[relay] Gossipsub publish failed: No peers subscribed to topic (this is normal when no peers are connected)');
+				console.warn(
+					'[relay] Gossipsub publish failed: No peers subscribed to topic (this is normal when no peers are connected)'
+				);
 				res.json({ success: false, warning: 'No peers subscribed to topic', sent: testMsg });
 			} else {
 				res.status(500).json({ success: false, error: e.message });

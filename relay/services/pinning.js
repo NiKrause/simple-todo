@@ -284,7 +284,10 @@ export class PinningService {
 	async syncAndPinDatabase(dbAddress) {
 		// Check if this database is already being synced
 		if (this.activeSyncs.has(dbAddress)) {
-			this.log(`⏸️  Database ${dbAddress} is already being synced, skipping duplicate sync`, 'debug');
+			this.log(
+				`⏸️  Database ${dbAddress} is already being synced, skipping duplicate sync`,
+				'debug'
+			);
 			return;
 		}
 
@@ -295,7 +298,10 @@ export class PinningService {
 				// Check if database is still open
 				try {
 					if (existing.db.opened) {
-						this.log(`✅ Database ${dbAddress} is already open and pinned, updating metadata`, 'debug');
+						this.log(
+							`✅ Database ${dbAddress} is already open and pinned, updating metadata`,
+							'debug'
+						);
 						try {
 							// Update metadata without reopening
 							const recordCount = await this.getRecordCount(existing.db);
@@ -333,27 +339,35 @@ export class PinningService {
 				db = await this.orbitdb.open(dbAddress);
 			} catch (openError) {
 				// Check if it's a PublishError - this can happen when OrbitDB tries to publish but no peers are subscribed
-				const isPublishErr = openError && (
-					(openError.message && openError.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
-					(openError.message && openError.message.includes('NoPeersSubscribedToTopic')) ||
-					openError.name === 'PublishError'
-				);
+				const isPublishErr =
+					openError &&
+					((openError.message &&
+						openError.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
+						(openError.message && openError.message.includes('NoPeersSubscribedToTopic')) ||
+						openError.name === 'PublishError');
 				if (isPublishErr) {
-					this.log(`⚠️  Gossipsub publish error during database open (no peers subscribed - this is normal): ${dbAddress}`, 'warn');
+					this.log(
+						`⚠️  Gossipsub publish error during database open (no peers subscribed - this is normal): ${dbAddress}`,
+						'warn'
+					);
 					// Retry opening - the error might be transient
 					try {
 						db = await this.orbitdb.open(dbAddress);
 					} catch (retryError) {
 						// If retry also fails, check if it's still the publish error
-						const isRetryPublishErr = retryError && (
-							(retryError.message && retryError.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
-							(retryError.message && retryError.message.includes('NoPeersSubscribedToTopic')) ||
-							retryError.name === 'PublishError'
-						);
+						const isRetryPublishErr =
+							retryError &&
+							((retryError.message &&
+								retryError.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
+								(retryError.message && retryError.message.includes('NoPeersSubscribedToTopic')) ||
+								retryError.name === 'PublishError');
 						if (isRetryPublishErr) {
-							this.log(`⚠️  Gossipsub publish error persists, but continuing anyway: ${dbAddress}`, 'warn');
+							this.log(
+								`⚠️  Gossipsub publish error persists, but continuing anyway: ${dbAddress}`,
+								'warn'
+							);
 							// Try one more time with a small delay
-							await new Promise(resolve => setTimeout(resolve, 100));
+							await new Promise((resolve) => setTimeout(resolve, 100));
 							db = await this.orbitdb.open(dbAddress);
 						} else {
 							throw retryError;
@@ -448,18 +462,21 @@ export class PinningService {
 			return metadata;
 		} catch (error) {
 			// Check if it's a PublishError - this is not a fatal error, just means no peers are subscribed
-			const isPublishErr = error && (
-				(error.message && error.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
-				(error.message && error.message.includes('NoPeersSubscribedToTopic')) ||
-				error.name === 'PublishError'
-			);
+			const isPublishErr =
+				error &&
+				((error.message && error.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
+					(error.message && error.message.includes('NoPeersSubscribedToTopic')) ||
+					error.name === 'PublishError');
 			if (isPublishErr) {
-				this.log(`⚠️  Gossipsub publish error during sync (no peers subscribed - this is normal): ${dbAddress}`, 'warn');
+				this.log(
+					`⚠️  Gossipsub publish error during sync (no peers subscribed - this is normal): ${dbAddress}`,
+					'warn'
+				);
 				// Don't count this as a failed sync, it's just a warning
 				// Return null or empty metadata to indicate partial success
 				return null;
 			}
-			
+
 			this.metrics.failedSyncs++;
 			this.log(`❌ Error syncing database ${dbAddress}: ${error.message}`, 'error');
 			throw error;
@@ -566,13 +583,16 @@ export class PinningService {
 						this.updateTimers.delete(dbAddress);
 					} catch (error) {
 						// Check if it's a PublishError - not fatal
-						const isPublishErr = error && (
-							(error.message && error.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
-							(error.message && error.message.includes('NoPeersSubscribedToTopic')) ||
-							error.name === 'PublishError'
-						);
+						const isPublishErr =
+							error &&
+							((error.message && error.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
+								(error.message && error.message.includes('NoPeersSubscribedToTopic')) ||
+								error.name === 'PublishError');
 						if (isPublishErr) {
-							this.log(`⚠️  Gossipsub publish error in update handler (no peers subscribed - this is normal): ${db.name}`, 'warn');
+							this.log(
+								`⚠️  Gossipsub publish error in update handler (no peers subscribed - this is normal): ${db.name}`,
+								'warn'
+							);
 						} else {
 							this.log(`❌ Error processing update for ${db.name}: ${error.message}`, 'error');
 						}
@@ -582,13 +602,16 @@ export class PinningService {
 				this.updateTimers.set(dbAddress, timer);
 			} catch (error) {
 				// Check if it's a PublishError - not fatal
-				const isPublishErr = error && (
-					(error.message && error.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
-					(error.message && error.message.includes('NoPeersSubscribedToTopic')) ||
-					error.name === 'PublishError'
-				);
+				const isPublishErr =
+					error &&
+					((error.message && error.message.includes('PublishError.NoPeersSubscribedToTopic')) ||
+						(error.message && error.message.includes('NoPeersSubscribedToTopic')) ||
+						error.name === 'PublishError');
 				if (isPublishErr) {
-					this.log(`⚠️  Gossipsub publish error in update event (no peers subscribed - this is normal): ${db.name}`, 'warn');
+					this.log(
+						`⚠️  Gossipsub publish error in update event (no peers subscribed - this is normal): ${db.name}`,
+						'warn'
+					);
 				} else {
 					this.log(`❌ Error in update event handler for ${db.name}: ${error.message}`, 'error');
 				}
