@@ -29,7 +29,11 @@ jobs:
           sudo apt-get install -y build-essential python3
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          # npm ci fails due to broken prebuild script in node-datachannel
+          # Install with --ignore-scripts to skip broken build scripts
+          # The native modules are only needed in the relay directory anyway
+          npm ci --ignore-scripts || npm install --ignore-scripts
 
       - name: Install relay dependencies
         run: |
