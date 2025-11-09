@@ -14,7 +14,6 @@ import { ping } from '@libp2p/ping';
 import { dcutr } from '@libp2p/dcutr';
 import { autoNAT } from '@libp2p/autonat';
 import { keychain } from '@libp2p/keychain';
-import { autoTLS } from '@ipshipyard/libp2p-auto-tls';
 import { config } from 'dotenv';
 // import { tls } from '@libp2p/tls'
 import { uPnPNAT } from '@libp2p/upnp-nat';
@@ -80,6 +79,24 @@ console.log(
 	`  - AutoTLS: ${autoTLSEnabled ? (stagingMode ? 'enabled (staging)' : 'enabled (production)') : 'disabled'}`
 );
 console.log(`  - UPnP: ${upnpEnabled ? 'enabled' : 'disabled'}`);
+
+// Conditionally load autoTLS only if needed (avoids loading native module in dev/test)
+let autoTLSService = null;
+if (autoTLSEnabled) {
+	try {
+		const { autoTLS } = await import('@ipshipyard/libp2p-auto-tls');
+		autoTLSService = autoTLS({
+			autoConfirmAddress: true,
+			// Use Let's Encrypt staging directory if STAGING is true
+			...(stagingMode && {
+				acmeDirectory: 'https://acme-staging-v02.api.letsencrypt.org/directory'
+			})
+		});
+	} catch (error) {
+		console.warn('⚠️ AutoTLS not available (native module may not be compiled):', error.message);
+		console.warn('⚠️ Continuing without AutoTLS - relay will work but without automatic TLS');
+	}
+}
 
 const libp2pOptions = {
 	// Include private key and datastore
@@ -209,16 +226,7 @@ const libp2pOptions = {
 
 		// AutoTLS service for automatic SSL/TLS certificate management
 		// Only enabled when not explicitly disabled and in production
-		...(!process.env.DISABLE_AUTO_TLS &&
-			process.env.NODE_ENV === 'production' && {
-				autoTLS: autoTLS({
-					autoConfirmAddress: true,
-					// Use Let's Encrypt staging directory if STAGING is true
-					...(process.env.STAGING === 'true' && {
-						acmeDirectory: 'https://acme-staging-v02.api.letsencrypt.org/directory'
-					})
-				})
-			})
+		...(autoTLSService && { autoTLS: autoTLSService })
 	}
 };
 

@@ -2,17 +2,16 @@
 import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { webSockets } from '@libp2p/websockets';
-import { webRTC } from '@libp2p/webrtc';
+import { webRTC, webRTCDirect } from '@libp2p/webrtc';
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
-import { identify } from '@libp2p/identify';
+import { identify, identifyPush } from '@libp2p/identify';
 import { dcutr } from '@libp2p/dcutr';
 import { autoNAT } from '@libp2p/autonat';
-import { gossipsub } from '@chainsafe/libp2p-gossipsub';
+import { gossipsub } from '@libp2p/gossipsub';
 import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
 import { bootstrap } from '@libp2p/bootstrap';
 import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
-import * as filters from '@libp2p/websockets/filters';
 
 // Environment variables
 const RELAY_BOOTSTRAP_ADDR_DEV =
@@ -71,8 +70,9 @@ export async function createLibp2pConfig(options = {}) {
 	// Configure services based on network connection preference
 	const services = {
 		identify: identify(),
+		identifyPush: identifyPush(), // Enable identify push for better peer info updates
 		pubsub: gossipsub({
-			emitSelf: true, // Enable to see our own messages
+			emitSelf: false, // Don't emit our own messages (matches example project)
 			allowPublishToZeroTopicPeers: true
 		})
 		//   ping: ping(),
@@ -81,10 +81,6 @@ export async function createLibp2pConfig(options = {}) {
 	if (enableNetworkConnection) {
 		console.log('🔍 Enabling bootstrap, pubsub, autonat, dcutr services');
 		services.bootstrap = bootstrap({ list: RELAY_BOOTSTRAP_ADDR });
-		// services.pubsub = gossipsub({
-		// 	emitSelf: true, // Enable to see our own messages
-		// 	allowPublishToZeroTopicPeers: true
-		// })
 		services.autonat = autoNAT();
 		services.dcutr = dcutr();
 	}
@@ -92,31 +88,41 @@ export async function createLibp2pConfig(options = {}) {
 	return {
 		...(finalPrivateKey && { privateKey: finalPrivateKey }),
 		addresses: {
-			listen: enableNetworkConnection
-				? ['/p2p-circuit', '/webrtc', '/webtransport', '/wss', '/ws']
-				: ['/webrtc'] // Only local WebRTC when network connection is disabled
+			listen: enableNetworkConnection ? ['/p2p-circuit', '/webrtc'] : ['/webrtc'] // Only local WebRTC when network connection is disabled
 		},
 		transports: enableNetworkConnection
 			? [
-					webSockets({
-						filter: filters.all
+					webSockets(),
+					webRTCDirect({
+						rtcConfiguration: {
+							iceServers: [
+								// STUN servers can be added here if needed
+								// { urls: ['stun:stun.l.google.com:19302'] }
+							]
+						}
 					}),
-					webRTC(),
+					webRTC({
+						rtcConfiguration: {
+							iceServers: [
+								// STUN servers can be added here if needed
+								// { urls: ['stun:stun.l.google.com:19302'] }
+							]
+						}
+					}),
 					circuitRelayTransport({
-						discoverRelays: 1
+						reservationCompletionTimeout: 20000 // Timeout for relay reservation
 					})
 				]
 			: [webRTC(), circuitRelayTransport({ discoverRelays: 1 })], // Only WebRTC transport when network connection is disabled
 		connectionEncrypters: [noise()],
 		connectionGater: {
-			denyDialMultiaddr: () => false,
-			denyDialPeer: () => false,
-			denyInboundConnection: () => false,
-			denyOutboundConnection: () => false,
-			denyInboundEncryptedConnection: () => false,
-			denyOutboundEncryptedConnection: () => false,
-			denyInboundUpgradedConnection: () => false,
-			denyOutboundUpgradedConnection: () => false
+			denyDialMultiaddr: () => false
+		},
+		connectionManager: {
+			inboundStreamProtocolNegotiationTimeout: 10000,
+			inboundUpgradeTimeout: 10000,
+			outboundStreamProtocolNegotiationTimeout: 10000,
+			outboundUpgradeTimeout: 10000
 		},
 		streamMuxers: [yamux()],
 		peerDiscovery: peerDiscoveryServices,

@@ -217,7 +217,7 @@ export class RelayServer {
 	async waitForHealth(maxAttempts = 60, interval = 1000) {
 		// Wait a bit before starting health checks to give server time to start
 		await sleep(2000);
-		
+
 		for (let i = 0; i < maxAttempts; i++) {
 			try {
 				const response = await fetch(`http://localhost:${this.options.httpPort}/health`, {

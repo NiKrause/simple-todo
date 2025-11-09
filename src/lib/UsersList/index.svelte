@@ -1,9 +1,9 @@
 <script>
 	import { onMount } from 'svelte';
-	import { 
-		uniqueUsersStore, 
-		listUniqueUsers, 
-		availableTodoListsStore, 
+	import {
+		uniqueUsersStore,
+		listUniqueUsers,
+		availableTodoListsStore,
 		selectedUserIdStore,
 		trackedUsersStore,
 		addTrackedUser,
@@ -17,8 +17,6 @@
 	let inputValue = '';
 	let filteredUsers = [];
 	let isAdding = false;
-	let isUserTyping = false;
-	let hoveredUserId = null;
 
 	onMount(async () => {
 		const unsubscribe = initializationStore.subscribe(async (state) => {
@@ -38,7 +36,7 @@
 	$: {
 		const allUsers = new Set([...$uniqueUsersStore, ...$trackedUsersStore]);
 		const allUsersArray = Array.from(allUsers).sort();
-		
+
 		if (inputValue === '') {
 			filteredUsers = allUsersArray;
 		} else {
@@ -53,10 +51,10 @@
 
 	async function handleAdd() {
 		if (!inputValue.trim()) return;
-		
+
 		const trimmedId = inputValue.trim();
 		isAdding = true;
-		
+
 		try {
 			const success = await addTrackedUser(trimmedId);
 			if (success) {
@@ -76,9 +74,8 @@
 
 	async function handleSelect(userId) {
 		showDropdown = false;
-		isUserTyping = false;
 		inputValue = userId;
-		
+
 		// Copy to clipboard when selecting
 		try {
 			await navigator.clipboard.writeText(userId);
@@ -87,7 +84,7 @@
 			console.error('Failed to copy to clipboard:', error);
 			// Don't show error toast - selection should still work even if copy fails
 		}
-		
+
 		// Toggle selection: if already selected, deselect (show all)
 		const currentSelected = get(selectedUserIdStore);
 		if (currentSelected === userId) {
@@ -100,11 +97,11 @@
 	async function handleDelete(event, userId) {
 		event.stopPropagation();
 		event.preventDefault();
-		
+
 		if (!confirm(`Remove "${userId.slice(0, 16)}..." from tracked users?`)) {
 			return;
 		}
-		
+
 		try {
 			removeTrackedUser(userId);
 			// If this was the selected user, deselect
@@ -120,16 +117,14 @@
 
 	function handleInputFocus() {
 		showDropdown = true;
-		isUserTyping = false;
 		inputValue = '';
 	}
 
 	function handleInputInput() {
-		isUserTyping = true;
+		// Input handler - can be extended if needed
 	}
 
 	function handleInputBlur() {
-		isUserTyping = false;
 		setTimeout(() => {
 			showDropdown = false;
 		}, 200);
@@ -150,9 +145,7 @@
 </script>
 
 <div class="w-full">
-	<label for="users-list" class="block text-sm font-medium text-gray-700 mb-1">
-		Users
-	</label>
+	<label for="users-list" class="mb-1 block text-sm font-medium text-gray-700"> Users </label>
 	<div class="relative">
 		<input
 			id="users-list"
@@ -163,14 +156,14 @@
 			on:input={handleInputInput}
 			on:keydown={handleKeydown}
 			placeholder="Type to filter, select, or add identity..."
-			class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
 			disabled={isAdding || !$initializationStore.isInitialized}
 		/>
 		<button
 			type="button"
 			on:click={handleAdd}
 			disabled={!inputValue.trim() || isAdding || !$initializationStore.isInitialized}
-			class="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+			class="absolute top-1/2 right-2 -translate-y-1/2 rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
 			title="Add identity"
 		>
 			{isAdding ? '...' : '+'}
@@ -185,7 +178,8 @@
 			{#if filteredUsers.length > 0}
 				{#each filteredUsers as userId (userId)}
 					<div
-						class="group relative flex items-center w-full hover:bg-blue-50 {$selectedUserIdStore === userId
+						class="group relative flex w-full items-center hover:bg-blue-50 {$selectedUserIdStore ===
+						userId
 							? 'bg-blue-100'
 							: ''}"
 						role="option"
@@ -194,7 +188,8 @@
 						<button
 							type="button"
 							on:click={() => handleSelect(userId)}
-							class="flex-1 px-4 py-2 text-left text-xs font-mono focus:bg-blue-50 focus:outline-none {$selectedUserIdStore === userId
+							class="flex-1 px-4 py-2 text-left font-mono text-xs focus:bg-blue-50 focus:outline-none {$selectedUserIdStore ===
+							userId
 								? 'font-medium'
 								: ''}"
 						>
@@ -203,21 +198,34 @@
 						<button
 							type="button"
 							on:click={(e) => handleDelete(e, userId)}
-							class="opacity-0 group-hover:opacity-100 px-2 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 focus:outline-none transition-opacity"
+							class="px-2 py-2 text-red-600 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-800 focus:outline-none"
 							title="Remove this user"
 						>
-							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-4 w-4"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M20 12H4"
+								/>
 							</svg>
 						</button>
 					</div>
 				{/each}
 			{/if}
-			{#if inputValue.trim() && !filteredUsers.some((u) => u.toLowerCase() === inputValue.trim().toLowerCase())}
+			{#if inputValue.trim() && !filteredUsers.some((u) => u.toLowerCase() === inputValue
+							.trim()
+							.toLowerCase())}
 				<button
 					type="button"
 					on:click={handleAdd}
-					class="w-full px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-t border-gray-200"
+					class="w-full border-t border-gray-200 px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none"
 					role="option"
 					aria-selected="false"
 				>
@@ -226,9 +234,10 @@
 			{/if}
 		</div>
 	{/if}
-	
+
 	<div class="mt-1 text-xs text-gray-500">
-		{filteredUsers.length} {userCountText}
+		{filteredUsers.length}
+		{userCountText}
 		{#if $selectedUserIdStore}
 			<span class="ml-2 text-blue-600">• Filtered to: {$selectedUserIdStore.slice(0, 8)}...</span>
 		{/if}

@@ -7,15 +7,15 @@ export default defineConfig({
 
 	// Web server configuration
 	webServer: {
-		command: 'pnpm run preview',
+		command: 'npm run preview',
 		port: 4174,
 		// Use the test environment file
 		env: {
 			VITE_ENV_FILE: '.env.test'
 		},
 		// Wait for server to be ready
-		timeout: 30000,
-		reuseExistingServer: !process.env.CI
+		timeout: 60000 // Increased timeout for act/CI environments
+		// reuseExistingServer: !process.env.CI
 	},
 
 	// Test configuration

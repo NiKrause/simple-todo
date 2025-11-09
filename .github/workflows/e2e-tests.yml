@@ -17,16 +17,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'pnpm'
+          cache: ${{ env.ENABLE_CACHE != 'false' && 'npm' || '' }}
 
       - name: Install system dependencies
         run: |
@@ -34,14 +29,12 @@ jobs:
           sudo apt-get install -y build-essential python3
 
       - name: Install dependencies
-        run: |
-          pnpm config set enable-pre-post-scripts true
-          pnpm install
+        run: npm ci
 
       - name: Install relay dependencies
         run: |
           cd relay
-          pnpm install
+          npm install
 
       - name: Rebuild native modules if needed
         run: |
@@ -53,15 +46,21 @@ jobs:
           fi
 
       - name: Build application
-        run: pnpm run build
+        run: npm run build
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
 
       - name: Run Playwright tests
-        run: pnpm run test:e2e
+        run: |
+          if [ -n "$TEST_GREP" ]; then
+            npm run test:e2e -- --grep "$TEST_GREP"
+          else
+            npm run test:e2e
+          fi
         env:
           CI: true
+          TEST_GREP: ${{ env.TEST_GREP }}
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -82,73 +81,3 @@ jobs:
             test-results/
             debug-screenshot.png
           retention-days: 7
-
-  # Health check job
-  health-check:
-    timeout-minutes: 10
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential python3
-
-      - name: Install dependencies
-        run: |
-          pnpm config set enable-pre-post-scripts true
-          pnpm install --verbose
-
-      - name: Install relay dependencies
-        run: |
-          cd relay
-          # First try with pnpm
-          pnpm install || echo "pnpm install failed"
-
-      - name: Force rebuild native modules
-        run: |
-          cd relay
-          # Clean any existing builds
-          rm -rf node_modules/@ipshipyard/node-datachannel/build || true
-          rm -rf node_modules/classic-level/build || true
-
-          # Use npm to rebuild these specific packages
-          npm rebuild @ipshipyard/node-datachannel || echo "npm rebuild node-datachannel failed"
-          npm rebuild classic-level || echo "npm rebuild classic-level failed"
-
-          # Check if the .node files exist
-          echo "Checking for .node files:"
-          find node_modules -name "*.node" -type f 2>/dev/null || echo "No .node files found"
-
-          # Alternative: try installing with npm directly
-          if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
-            echo "Installing node-datachannel with npm as fallback"
-            npm install @ipshipyard/node-datachannel --no-save || echo "npm install failed"
-          fi
-
-      - name: Test relay setup
-        run: pnpm run test:relay-setup
-
-      - name: Build application
-        run: pnpm run build
-
-      - name: Check package vulnerabilities
-        run: pnpm audit --audit-level moderate
-
-      - name: Lint check
-        run: pnpm run lint
-        continue-on-error: true

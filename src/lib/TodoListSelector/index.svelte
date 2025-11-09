@@ -1,14 +1,14 @@
 <script>
 	import { onMount } from 'svelte';
 	import {
-    currentTodoListNameStore,
-    availableTodoListsStore,
-    switchToTodoList,
-    listAvailableTodoLists,
-    removeTodoListFromRegistry,
-    selectedUserIdStore
-} from '../todo-list-manager.js';
-import { openDatabaseByAddress } from '../p2p.js';
+		currentTodoListNameStore,
+		availableTodoListsStore,
+		switchToTodoList,
+		listAvailableTodoLists,
+		removeTodoListFromRegistry,
+		selectedUserIdStore
+	} from '../todo-list-manager.js';
+	import { openDatabaseByAddress } from '../p2p.js';
 	import { initializationStore } from '../p2p.js';
 	import { get } from 'svelte/store';
 	import { currentDbNameStore, currentDbAddressStore } from '../todo-list-manager.js';
@@ -31,7 +31,7 @@ import { openDatabaseByAddress } from '../p2p.js';
 		if ($availableTodoListsStore) {
 			// First filter by selected user (if any)
 			let listsToShow = $availableTodoListsStore;
-			
+
 			if ($selectedUserIdStore) {
 				// Filter to show only lists from the selected user
 				listsToShow = listsToShow.filter((list) => {
@@ -40,7 +40,7 @@ import { openDatabaseByAddress } from '../p2p.js';
 					return identityId === $selectedUserIdStore;
 				});
 			}
-			
+
 			// Then filter by input value
 			if (inputValue === '' || inputValue === $currentTodoListNameStore) {
 				filteredLists = listsToShow;
@@ -62,51 +62,51 @@ import { openDatabaseByAddress } from '../p2p.js';
 		return unsubscribe;
 	});
 
-async function handleSelect(list) {
-    showDropdown = false;
-    isUserTyping = false; // Reset typing flag when selecting
-    inputValue = list.displayName; // Set immediately for visual feedback
-    
-    // IMPORTANT: Update the store immediately so the combo box shows the selected item
-    currentTodoListNameStore.set(list.displayName);
-    if (list.dbName) {
-        currentDbNameStore.set(list.dbName);
-    }
-    if (list.address) {
-        currentDbAddressStore.set(list.address);
-    }
-    
-    const preferences = {
-        enablePersistentStorage: true,
-        enableNetworkConnection: true,
-        enablePeerConnections: true
-    };
+	async function handleSelect(list) {
+		showDropdown = false;
+		isUserTyping = false; // Reset typing flag when selecting
+		inputValue = list.displayName; // Set immediately for visual feedback
 
-    // If this list has an OrbitDB address, open it by address to ensure we load the same DB
-    if (list.address) {
-        try {
-            await openDatabaseByAddress(list.address, preferences, false, '');
-            // Sync URL hash so global hash handler updates stores and persists
-            if (typeof window !== 'undefined') {
-                const hash = `/${encodeURIComponent(list.address)}`;
-                if (window.location.hash !== `#${hash}`) {
-                    window.history.replaceState(null, '', `#${hash}`);
-                }
-            }
-            // The hash handler will update stores again, but we've already set them for immediate UI feedback
-        } catch (e) {
-            console.error('Failed to open database by address from selector:', e);
-            // On error, revert the store updates
-            const previousName = get(currentTodoListNameStore);
-            if (previousName !== list.displayName) {
-                currentTodoListNameStore.set(previousName);
-            }
-        }
-    } else {
-        await switchToTodoList(list.displayName, preferences, false, '');
-        // switchToTodoList already updates currentTodoListNameStore, so we're good
-    }
-}
+		// IMPORTANT: Update the store immediately so the combo box shows the selected item
+		currentTodoListNameStore.set(list.displayName);
+		if (list.dbName) {
+			currentDbNameStore.set(list.dbName);
+		}
+		if (list.address) {
+			currentDbAddressStore.set(list.address);
+		}
+
+		const preferences = {
+			enablePersistentStorage: true,
+			enableNetworkConnection: true,
+			enablePeerConnections: true
+		};
+
+		// If this list has an OrbitDB address, open it by address to ensure we load the same DB
+		if (list.address) {
+			try {
+				await openDatabaseByAddress(list.address, preferences, false, '');
+				// Sync URL hash so global hash handler updates stores and persists
+				if (typeof window !== 'undefined') {
+					const hash = `/${encodeURIComponent(list.address)}`;
+					if (window.location.hash !== `#${hash}`) {
+						window.history.replaceState(null, '', `#${hash}`);
+					}
+				}
+				// The hash handler will update stores again, but we've already set them for immediate UI feedback
+			} catch (e) {
+				console.error('Failed to open database by address from selector:', e);
+				// On error, revert the store updates
+				const previousName = get(currentTodoListNameStore);
+				if (previousName !== list.displayName) {
+					currentTodoListNameStore.set(previousName);
+				}
+			}
+		} else {
+			await switchToTodoList(list.displayName, preferences, false, '');
+			// switchToTodoList already updates currentTodoListNameStore, so we're good
+		}
+	}
 
 	async function handleCreate() {
 		if (!inputValue.trim()) return;
@@ -168,12 +168,12 @@ async function handleSelect(list) {
 		// Stop event propagation to prevent the select action
 		event.stopPropagation();
 		event.preventDefault();
-		
+
 		// Confirm deletion
 		if (!confirm(`Are you sure you want to delete "${list.displayName}" from your todo lists?`)) {
 			return;
 		}
-		
+
 		try {
 			const success = await removeTodoListFromRegistry(list.displayName);
 			if (success) {
@@ -194,7 +194,7 @@ async function handleSelect(list) {
 </script>
 
 <div class="relative w-full">
-	<label for="todo-list-selector" class="block text-sm font-medium text-gray-700 mb-1">
+	<label for="todo-list-selector" class="mb-1 block text-sm font-medium text-gray-700">
 		Todo List
 	</label>
 	<div class="relative">
@@ -207,14 +207,14 @@ async function handleSelect(list) {
 			on:input={handleInputInput}
 			on:keydown={handleKeydown}
 			placeholder="Type to create or select a todo list..."
-			class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
 			disabled={isCreating || !$initializationStore.isInitialized}
 		/>
 		<button
 			type="button"
 			on:click={handleCreate}
 			disabled={!inputValue.trim() || isCreating || !$initializationStore.isInitialized}
-			class="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+			class="absolute top-1/2 right-2 -translate-y-1/2 rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
 			title="Create new todo list"
 		>
 			{isCreating ? '...' : '+'}
@@ -229,7 +229,7 @@ async function handleSelect(list) {
 			{#if filteredLists.length > 0}
 				{#each filteredLists as list (list.dbName)}
 					<div
-						class="group relative flex items-center w-full hover:bg-blue-50 {list.displayName ===
+						class="group relative flex w-full items-center hover:bg-blue-50 {list.displayName ===
 						$currentTodoListNameStore
 							? 'bg-blue-100'
 							: ''}"
@@ -246,7 +246,7 @@ async function handleSelect(list) {
 						>
 							{#if list.parent}
 								<span class="flex items-center pl-6 text-gray-700">
-									<span class="inline-block w-3 mr-2 text-gray-400 text-xs">└─</span>
+									<span class="mr-2 inline-block w-3 text-xs text-gray-400">└─</span>
 									<span>{list.displayName}</span>
 								</span>
 							{:else}
@@ -256,21 +256,34 @@ async function handleSelect(list) {
 						<button
 							type="button"
 							on:click={(e) => handleDelete(e, list)}
-							class="opacity-0 group-hover:opacity-100 px-2 py-2 text-red-600 hover:text-red-800 hover:bg-red-50 focus:outline-none transition-opacity"
+							class="px-2 py-2 text-red-600 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-800 focus:outline-none"
 							title="Delete this todo list"
 						>
-							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+							<svg
+								xmlns="http://www.w3.org/2000/svg"
+								class="h-4 w-4"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M20 12H4"
+								/>
 							</svg>
 						</button>
 					</div>
 				{/each}
 			{/if}
-			{#if inputValue.trim() && !filteredLists.some((l) => l.displayName.toLowerCase() === inputValue.trim().toLowerCase())}
+			{#if inputValue.trim() && !filteredLists.some((l) => l.displayName.toLowerCase() === inputValue
+							.trim()
+							.toLowerCase())}
 				<button
 					type="button"
 					on:click={handleCreate}
-					class="w-full px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none border-t border-gray-200"
+					class="w-full border-t border-gray-200 px-4 py-2 text-left text-sm text-blue-600 hover:bg-blue-50 focus:bg-blue-50 focus:outline-none"
 					role="option"
 					aria-selected="false"
 				>
@@ -280,6 +293,3 @@ async function handleSelect(list) {
 		</div>
 	{/if}
 </div>
-
-
-

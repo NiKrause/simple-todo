@@ -10,10 +10,10 @@ import { listStorachaSpaceFiles } from 'orbitdb-storacha-bridge';
 // 1. restoreDatabaseFromSpace(orbitdb, options) - Direct function call
 // 2. new OrbitDBStorachaBridge().restoreFromSpace(orbitdb, options) - Class method
 // Both call the exact same underlying implementation
-import * as Client from '@web3-storage/w3up-client';
-import { StoreMemory } from '@web3-storage/w3up-client/stores/memory';
-import { Signer } from '@web3-storage/w3up-client/principal/ed25519';
-import * as Proof from '@web3-storage/w3up-client/proof';
+import * as Client from '@storacha/client';
+import { StoreMemory } from '@storacha/client/stores/memory';
+import { Signer } from '@storacha/client/principal/ed25519';
+import * as Proof from '@storacha/client/proof';
 import * as Delegation from '@ucanto/core/delegation';
 import { get } from 'svelte/store';
 import { todoDBStore } from './db-actions.js';

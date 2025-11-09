@@ -15,8 +15,14 @@
 		const targetLevel = hierarchy[index];
 		const newHierarchy = hierarchy.slice(0, index + 1);
 		todoListHierarchyStore.set(newHierarchy);
-		
-		await switchToTodoList(targetLevel.name, preferences, enableEncryption, encryptionPassword, targetLevel.parent);
+
+		await switchToTodoList(
+			targetLevel.name,
+			preferences,
+			enableEncryption,
+			encryptionPassword,
+			targetLevel.parent
+		);
 	}
 
 	async function handleNavigateUp() {
@@ -31,7 +37,8 @@
 				<button
 					type="button"
 					on:click={() => handleBreadcrumbClick(index)}
-					class="hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded px-1 transition-colors {index === $todoListHierarchyStore.length - 1
+					class="rounded px-1 transition-colors hover:text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none {index ===
+					$todoListHierarchyStore.length - 1
 						? 'font-semibold text-gray-900'
 						: 'text-gray-600'}"
 					title={item.name}
@@ -47,7 +54,7 @@
 			<button
 				type="button"
 				on:click={handleNavigateUp}
-				class="ml-auto flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+				class="ml-auto flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-900 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:outline-none"
 				title="Navigate to parent list"
 			>
 				<ArrowUp class="h-3 w-3" />
@@ -56,7 +63,3 @@
 		{/if}
 	</div>
 {/if}
-
-
-
-
