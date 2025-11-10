@@ -54,49 +54,49 @@ export default async function globalSetup() {
 		let output = '';
 		let relayMultiaddr = null;
 
-		relayProcess.stdout.on('data', (data) => {
-			const text = data.toString();
-			output += text;
-			process.stdout.write(text);
+// 		relayProcess.stdout.on('data', (data) => {
+// 			const text = data.toString();
+// 			output += text;
+// 			process.stdout.write(text);
 
-			// Extract peer ID and create multiaddr
-			const peerIdMatch = text.match(/peer id[:\s]+([A-Za-z0-9]+)/i);
-			if (peerIdMatch && !relayMultiaddr) {
-				const peerId = peerIdMatch[1];
-				relayMultiaddr = `/ip4/127.0.0.1/tcp/4001/ws/p2p/${peerId}`;
+// 			// Extract peer ID and create multiaddr
+// 			const peerIdMatch = text.match(/peer id[:\s]+([A-Za-z0-9]+)/i);
+// 			if (peerIdMatch && !relayMultiaddr) {
+// 				const peerId = peerIdMatch[1];
+// 				relayMultiaddr = `/ip4/127.0.0.1/tcp/4001/ws/p2p/${peerId}`;
 				
-				// Create .env.development file for Vite
-				const envContent = `# Generated for e2e tests
-NODE_ENV=development
-VITE_NODE_ENV=development
-VITE_RELAY_BOOTSTRAP_ADDR_DEV=${relayMultiaddr}
-VITE_PUBSUB_TOPICS=todo._peer-discovery._p2p._pubsub
-`;
-				writeFileSync('.env.development', envContent);
-				console.log(`✅ Created .env.development with relay: ${relayMultiaddr}`);
+// 				// Create .env.development file for Vite
+// 				const envContent = `# Generated for e2e tests
+// NODE_ENV=development
+// VITE_NODE_ENV=development
+// VITE_RELAY_BOOTSTRAP_ADDR_DEV=${relayMultiaddr}
+// VITE_PUBSUB_TOPICS=todo._peer-discovery._p2p._pubsub
+// `;
+// 				writeFileSync('.env.development', envContent);
+// 				console.log(`✅ Created .env.development with relay: ${relayMultiaddr}`);
 
-				// Store relay info
-				writeFileSync(
-					path.join(process.cwd(), 'e2e', 'relay-info.json'),
-					JSON.stringify({ multiaddr: relayMultiaddr, pid: relayProcess.pid }, null, 2)
-				);
+// 				// Store relay info
+// 				writeFileSync(
+// 					path.join(process.cwd(), 'e2e', 'relay-info.json'),
+// 					JSON.stringify({ multiaddr: relayMultiaddr, pid: relayProcess.pid }, null, 2)
+// 				);
 
-				// Wait for health check
-				setTimeout(() => resolve(), 2000);
-			}
-		});
+// 				// Wait for health check
+// 				setTimeout(() => resolve(), 2000);
+// 			}
+// 		});
 
-		relayProcess.stderr.on('data', (data) => {
-			const text = data.toString();
-			if (text.match(/error/i)) {
-				console.error('Relay stderr:', text);
-			}
-		});
+// 		relayProcess.stderr.on('data', (data) => {
+// 			const text = data.toString();
+// 			if (text.match(/error/i)) {
+// 				console.error('Relay stderr:', text);
+// 			}
+// 		});
 
-		relayProcess.on('error', (error) => {
-			console.error('Failed to start relay:', error);
-			reject(error);
-		});
+// 		relayProcess.on('error', (error) => {
+// 			console.error('Failed to start relay:', error);
+// 			reject(error);
+// 		});
 
 		// Timeout
 		setTimeout(() => {

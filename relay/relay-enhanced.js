@@ -299,15 +299,6 @@ console.log('✅ PinningService initialized successfully');
 // Setup OrbitDB pinning event listeners
 console.log('🔗 Setting up OrbitDB pinning event listeners...');
 
-// Debug: List all available events on pubsub
-console.log(
-	'🔍 Available pubsub events:',
-	Object.getOwnPropertyNames(server.services.pubsub).filter(
-		(prop) => prop.includes('Event') || prop.includes('on')
-	)
-);
-
-// Listen to subscription-change events with debugging
 server.services.pubsub.addEventListener('subscription-change', (event) => {
 	console.log('🔔 Raw subscription-change event:', JSON.stringify(event, null, 2));
 
