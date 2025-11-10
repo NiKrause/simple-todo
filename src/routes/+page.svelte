@@ -26,6 +26,7 @@
 	import TodoListSelector from '$lib/components/todo/TodoListSelector.svelte';
 	import UsersList from '$lib/components/p2p/UsersList.svelte';
 	import BreadcrumbNavigation from '$lib/components/todo/BreadcrumbNavigation.svelte';
+	import ShareEmbedButtons from '$lib/components/todo/ShareEmbedButtons.svelte';
 	import {
 		switchToTodoList,
 		createSubList,
@@ -630,7 +631,8 @@
 					: '0.0.0'} [{typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]
 			</p>
 		</div>
-		<div class="flex-shrink-0 self-start sm:self-auto">
+		<div class="flex items-center gap-4 flex-shrink-0 self-start sm:self-auto">
+			<ShareEmbedButtons />
 			<SocialIcons size="w-5 h-5" className="" onQRCodeClick={() => (showQRCodeModal = true)} />
 		</div>
 	</header>

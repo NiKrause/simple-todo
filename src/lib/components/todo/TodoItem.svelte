@@ -13,6 +13,7 @@
 	export let todoKey;
 	export let estimatedTime = null;
 	export let estimatedCosts = {};
+	export let allowEdit = true;
 
 	let isEditing = false;
 	let editText = text;
@@ -263,14 +264,16 @@
 				</div>
 			</div>
 			<div class="flex gap-2">
-				<button
-					on:click={startEdit}
-					class="flex items-center gap-1 rounded-md px-3 py-1 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
-					title="Edit todo"
-				>
-					<Edit2 class="h-4 w-4" />
-					<span class="hidden sm:inline">Edit</span>
-				</button>
+				{#if allowEdit}
+					<button
+						on:click={startEdit}
+						class="flex items-center gap-1 rounded-md px-3 py-1 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
+						title="Edit todo"
+					>
+						<Edit2 class="h-4 w-4" />
+						<span class="hidden sm:inline">Edit</span>
+					</button>
+				{/if}
 				<button
 					on:click={handleCreateSubList}
 					class="flex items-center gap-1 rounded-md px-3 py-1 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
@@ -279,12 +282,14 @@
 					<FolderPlus class="h-4 w-4" />
 					<span class="hidden sm:inline">Sub-list</span>
 				</button>
-				<button
-					on:click={handleDelete}
-					class="rounded-md px-3 py-1 text-red-500 transition-colors hover:bg-red-50 hover:text-red-700"
-				>
-					Delete
-				</button>
+				{#if allowEdit}
+					<button
+						on:click={handleDelete}
+						class="rounded-md px-3 py-1 text-red-500 transition-colors hover:bg-red-50 hover:text-red-700"
+					>
+						Delete
+					</button>
+				{/if}
 			</div>
 		</div>
 	{/if}
