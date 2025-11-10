@@ -53,54 +53,81 @@ export default async function globalSetup() {
 
 		let output = '';
 		let relayMultiaddr = null;
+		let resolved = false;
 
-// 		relayProcess.stdout.on('data', (data) => {
-// 			const text = data.toString();
-// 			output += text;
-// 			process.stdout.write(text);
+		relayProcess.stdout.on('data', (data) => {
+			const text = data.toString();
+			output += text;
+			process.stdout.write(text);
 
-// 			// Extract peer ID and create multiaddr
-// 			const peerIdMatch = text.match(/peer id[:\s]+([A-Za-z0-9]+)/i);
-// 			if (peerIdMatch && !relayMultiaddr) {
-// 				const peerId = peerIdMatch[1];
-// 				relayMultiaddr = `/ip4/127.0.0.1/tcp/4001/ws/p2p/${peerId}`;
+			// Extract peer ID - try multiple patterns
+			// Pattern 1: "Relay PeerId: 12D3Koo..."
+			let peerIdMatch = text.match(/Relay PeerId[:\s]+([12][A-HJ-NP-Za-km-z1-9]{50,})/i);
+			// Pattern 2: "peer id: ..." or "peerId: ..."
+			if (!peerIdMatch) {
+				peerIdMatch = text.match(/peer\s*id[:\s]+([12][A-HJ-NP-Za-km-z1-9]{50,})/i);
+			}
+			// Pattern 3: Just look for libp2p peer ID format (base58 encoded, starts with 12D3 or similar)
+			if (!peerIdMatch) {
+				peerIdMatch = text.match(/([12][A-HJ-NP-Za-km-z1-9]{50,})/);
+			}
+
+			if (peerIdMatch && !relayMultiaddr && !resolved) {
+				const peerId = peerIdMatch[1];
+				relayMultiaddr = `/ip4/127.0.0.1/tcp/4001/ws/p2p/${peerId}`;
 				
-// 				// Create .env.development file for Vite
-// 				const envContent = `# Generated for e2e tests
-// NODE_ENV=development
-// VITE_NODE_ENV=development
-// VITE_RELAY_BOOTSTRAP_ADDR_DEV=${relayMultiaddr}
-// VITE_PUBSUB_TOPICS=todo._peer-discovery._p2p._pubsub
-// `;
-// 				writeFileSync('.env.development', envContent);
-// 				console.log(`✅ Created .env.development with relay: ${relayMultiaddr}`);
+				// Create .env.development file for Vite
+				const envContent = `# Generated for e2e tests
+NODE_ENV=development
+VITE_NODE_ENV=development
+VITE_RELAY_BOOTSTRAP_ADDR_DEV=${relayMultiaddr}
+VITE_PUBSUB_TOPICS=todo._peer-discovery._p2p._pubsub
+`;
+				writeFileSync('.env.development', envContent);
+				console.log(`✅ Created .env.development with relay: ${relayMultiaddr}`);
 
-// 				// Store relay info
-// 				writeFileSync(
-// 					path.join(process.cwd(), 'e2e', 'relay-info.json'),
-// 					JSON.stringify({ multiaddr: relayMultiaddr, pid: relayProcess.pid }, null, 2)
-// 				);
+				// Store relay info
+				writeFileSync(
+					path.join(process.cwd(), 'e2e', 'relay-info.json'),
+					JSON.stringify({ multiaddr: relayMultiaddr, pid: relayProcess.pid }, null, 2)
+				);
 
-// 				// Wait for health check
-// 				setTimeout(() => resolve(), 2000);
-// 			}
-// 		});
+				// Wait a bit for relay to be fully ready, then resolve
+				resolved = true;
+				setTimeout(() => {
+					console.log('✅ Relay server started successfully');
+					resolve();
+				}, 2000);
+			}
+		});
 
-// 		relayProcess.stderr.on('data', (data) => {
-// 			const text = data.toString();
-// 			if (text.match(/error/i)) {
-// 				console.error('Relay stderr:', text);
-// 			}
-// 		});
+		relayProcess.stderr.on('data', (data) => {
+			const text = data.toString();
+			process.stderr.write(text);
+			if (text.match(/error/i) && !text.match(/warn/i)) {
+				console.error('Relay stderr:', text);
+			}
+		});
 
-// 		relayProcess.on('error', (error) => {
-// 			console.error('Failed to start relay:', error);
-// 			reject(error);
-// 		});
+		relayProcess.on('error', (error) => {
+			console.error('Failed to start relay:', error);
+			if (!resolved) {
+				reject(error);
+			}
+		});
 
-		// Timeout
+		relayProcess.on('exit', (code) => {
+			if (code !== 0 && code !== null && !resolved) {
+				console.error(`Relay process exited with code ${code}`);
+				console.error('Relay output:', output);
+				reject(new Error(`Relay server exited with code ${code}`));
+			}
+		});
+
+		// Timeout fallback
 		setTimeout(() => {
-			if (!relayMultiaddr) {
+			if (!relayMultiaddr && !resolved) {
+				console.error('Relay output so far:', output);
 				relayProcess?.kill();
 				reject(new Error('Relay server failed to start within timeout'));
 			}
