@@ -1,10 +1,15 @@
 <script>
-	/* eslint-disable no-undef */
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { initializeP2P, openDatabaseByAddress } from '$lib/p2p.js';
 	import { initializationStore } from '$lib/p2p.js';
-	import { todosStore, loadTodos, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
+	import {
+		todosStore,
+		loadTodos,
+		addTodo,
+		deleteTodo,
+		toggleTodoComplete
+	} from '$lib/db-actions.js';
 	import TodoList from '$lib/components/todo/TodoList.svelte';
 	import AddTodoForm from '$lib/components/todo/AddTodoForm.svelte';
 	import BreadcrumbNavigation from '$lib/components/todo/BreadcrumbNavigation.svelte';
@@ -33,14 +38,6 @@
 	};
 	const enableEncryption = false;
 	const encryptionPassword = '';
-
-	// Check query parameter for allowAdd
-	$: {
-		if (typeof window !== 'undefined') {
-			const urlParams = new URLSearchParams(window.location.search);
-			allowAdd = urlParams.get('allowAdd') === 'true';
-		}
-	}
 
 	const handleAddTodo = async (event) => {
 		const { text, description, priority, estimatedTime, estimatedCosts } = event.detail;
@@ -73,20 +70,26 @@
 	const handleCreateSubList = async (event) => {
 		const { text } = event.detail;
 		const currentList = get(currentTodoListNameStore);
-		
+
 		try {
-			const success = await createSubList(text, currentList, preferences, enableEncryption, encryptionPassword);
+			const success = await createSubList(
+				text,
+				currentList,
+				preferences,
+				enableEncryption,
+				encryptionPassword
+			);
 			if (success) {
 				// Wait a bit for stores to update
 				await new Promise((resolve) => setTimeout(resolve, 100));
-				
+
 				const newListAddress = get(currentDbAddressStore);
 				const newListName = get(currentTodoListNameStore);
-				
+
 				if (newListAddress && typeof window !== 'undefined') {
 					// Reload todos from the new database (already opened by createSubList)
 					await loadTodos();
-					
+
 					// Update hierarchy
 					try {
 						await listAvailableTodoLists();
@@ -101,16 +104,16 @@
 					} catch (hierarchyError) {
 						console.warn('Could not update hierarchy:', hierarchyError);
 					}
-					
+
 					// Update URL without reloading using history API
 					const embedPath = `/embed/${encodeURIComponent(newListAddress)}`;
 					const queryParams = allowAdd ? '?allowAdd=true' : '';
 					const newUrl = embedPath + queryParams;
 					window.history.pushState(null, '', newUrl);
-					
+
 					// Update local dbAddress to match
 					dbAddress = newListAddress;
-					
+
 					toastStore.show('✅ Sub-list created!', 'success');
 				} else {
 					toastStore.show('✅ Sub-list created!', 'success');
@@ -126,6 +129,12 @@
 
 	onMount(async () => {
 		try {
+			// Check query parameter for allowAdd
+			if (typeof window !== 'undefined') {
+				const urlParams = new URLSearchParams(window.location.search);
+				allowAdd = urlParams.get('allowAdd') === 'true';
+			}
+
 			const addressParam = $page.params.address;
 			if (!addressParam) {
 				error = 'No database address provided';
@@ -170,7 +179,9 @@
 				await listAvailableTodoLists();
 				const availableLists = get(availableTodoListsStore);
 				const currentAddress = get(currentDbAddressStore);
-				const list = availableLists.find((l) => l.address === currentAddress || l.address === dbAddress);
+				const list = availableLists.find(
+					(l) => l.address === currentAddress || l.address === dbAddress
+				);
 				if (list) {
 					const hierarchy = await buildHierarchyPath(list.displayName);
 					todoListHierarchyStore.set(hierarchy);
@@ -237,4 +248,3 @@
 		</div>
 	{/if}
 </div>
-

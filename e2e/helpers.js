@@ -1,5 +1,3 @@
-/* eslint-disable no-console */
-
 import { expect } from '@playwright/test';
 
 /**
@@ -11,10 +9,7 @@ import { expect } from '@playwright/test';
  * @param {boolean} [options.enablePeerConnections=true] - Enable peer connections
  */
 export async function acceptConsentAndInitialize(page, options = {}) {
-	const {
-		enableNetworkConnection = true,
-		enablePeerConnections = true
-	} = options;
+	const { enableNetworkConnection = true, enablePeerConnections = true } = options;
 
 	// Wait for consent modal to appear
 	await page.waitForSelector('[data-testid="consent-modal"]', {
@@ -239,4 +234,3 @@ export async function waitForWebRTCConnection(page, timeout = 60000) {
 
 	console.log('✅ WebRTC connection established');
 }
-

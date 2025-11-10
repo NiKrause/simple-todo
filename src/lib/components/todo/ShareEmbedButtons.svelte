@@ -3,7 +3,6 @@
 	import { fade } from 'svelte/transition';
 	import { browser } from '$app/environment';
 	import { currentDbAddressStore, currentTodoListNameStore } from '$lib/todo-list-manager.js';
-	import { get } from 'svelte/store';
 	import { toastStore } from '$lib/toast-store.js';
 
 	let showEmbedModal = false;
@@ -15,7 +14,7 @@
 		const currentUrl = window.location.origin + window.location.pathname;
 		const address = encodeURIComponent($currentDbAddressStore);
 		const queryParam = allowAddTodos ? '?allowAdd=true' : '';
-		embedCode = `<iframe src="${currentUrl}/embed/${address}${queryParam}" width="100%" height="600" frameborder="0" allowtransparency="true"></iframe>`;
+		embedCode = `<iframe src="${currentUrl}#/embed/${address}${queryParam}" width="100%" height="600" frameborder="0" allowtransparency="true"></iframe>`;
 	}
 
 	async function copyShareLink() {
@@ -131,9 +130,11 @@
 	>
 		<!-- Modal Content -->
 		<div
-			class="fixed left-1/2 top-1/2 z-[10003] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow-2xl"
+			class="fixed top-1/2 left-1/2 z-[10003] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-lg bg-white p-6 shadow-2xl"
 			on:click|stopPropagation
+			on:keydown|stopPropagation
 			role="dialog"
+			tabindex="-1"
 			aria-modal="true"
 			aria-labelledby="embed-modal-title"
 		>
@@ -164,7 +165,7 @@
 					/>
 					<span class="text-sm font-medium text-gray-700">Allow adding todos</span>
 				</label>
-				<p class="ml-6 mt-1 text-xs text-gray-500">
+				<p class="mt-1 ml-6 text-xs text-gray-500">
 					When enabled, users can add new todos directly in the embedded view
 				</p>
 			</div>
@@ -172,7 +173,7 @@
 			<!-- Embed Code -->
 			<div class="mb-4">
 				<div class="mb-2 flex items-center justify-between">
-					<label class="text-sm font-medium text-gray-700">Embed Code</label>
+					<label for="embed-code-textarea" class="text-sm font-medium text-gray-700">Embed Code</label>
 					<button
 						on:click={copyEmbedCode}
 						class="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 transition-colors hover:bg-blue-50"
@@ -187,6 +188,7 @@
 					</button>
 				</div>
 				<textarea
+					id="embed-code-textarea"
 					readonly
 					value={embedCode}
 					class="w-full rounded-md border border-gray-300 bg-gray-50 p-3 font-mono text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
@@ -218,4 +220,3 @@
 		</div>
 	</div>
 {/if}
-

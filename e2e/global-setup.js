@@ -75,7 +75,7 @@ export default async function globalSetup() {
 			if (peerIdMatch && !relayMultiaddr && !resolved) {
 				const peerId = peerIdMatch[1];
 				relayMultiaddr = `/ip4/127.0.0.1/tcp/4001/ws/p2p/${peerId}`;
-				
+
 				// Create .env.development file for Vite
 				const envContent = `# Generated for e2e tests
 NODE_ENV=development

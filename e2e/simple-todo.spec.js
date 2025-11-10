@@ -5,7 +5,6 @@ import {
 	waitForPeerCount,
 	getPeerId,
 	getConnectedPeerIds,
-	waitForPeerInList,
 	getPeerCount
 } from './helpers.js';
 

@@ -4,7 +4,7 @@ import { createLibp2p } from 'libp2p';
 import { createHelia } from 'helia';
 import { createOrbitDB, OrbitDBAccessController, MemoryStorage } from '@orbitdb/core';
 import SimpleEncryption from '@orbitdb/simple-encryption';
-import { createLibp2pConfig, RELAY_BOOTSTRAP_ADDR } from './libp2p-config.js';
+import { createLibp2pConfig } from './libp2p-config.js';
 import { initializeDatabase } from './db-actions.js';
 import { LevelBlockstore } from 'blockstore-level';
 import { LevelDatastore } from 'datastore-level';
@@ -406,30 +406,6 @@ export async function initializeP2P(preferences = {}) {
 		enablePersistentStorage,
 		enableNetworkConnection,
 		enablePeerConnections
-	});
-
-	// Add detailed debugging for each choice
-	console.log('🔧 DEBUG: Storage Configuration:', {
-		persistent: enablePersistentStorage,
-		willUsePersistentStorage: enablePersistentStorage
-			? 'YES - Using LevelDB for blocks/data'
-			: 'NO - Using in-memory storage only'
-	});
-
-	console.log('🔧 DEBUG: Network Configuration:', {
-		networkConnection: enableNetworkConnection,
-		willBootstrapToRelay: enableNetworkConnection
-			? 'YES - Will connect to relay bootstrap nodes'
-			: 'NO - No relay bootstrap',
-		relayAddresses: enableNetworkConnection ? RELAY_BOOTSTRAP_ADDR : 'N/A'
-	});
-
-	console.log('🔧 DEBUG: Peer Discovery Configuration:', {
-		peerConnections: enablePeerConnections,
-		willUsePubsubDiscovery: enablePeerConnections
-			? 'YES - Using pubsub peer discovery'
-			: 'NO - No peer discovery',
-		pubsubTopics: enablePeerConnections ? 'todo._peer-discovery._p2p._pubsub' : 'N/A'
 	});
 
 	try {

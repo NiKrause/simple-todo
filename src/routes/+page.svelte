@@ -72,6 +72,10 @@
 	// Flag to prevent infinite loop when updating hash from store changes
 	let isUpdatingFromHash = false;
 
+	// Embed mode state
+	let isEmbedMode = false;
+	let embedAllowAdd = false;
+
 	const handleModalClose = async (event) => {
 		showModal = false;
 
@@ -106,6 +110,19 @@
 			const hasHash = window.location.hash && window.location.hash.startsWith('#/');
 			const hasConsent = localStorage.getItem(CONSENT_KEY) === 'true';
 
+			// Check for embed mode on initial load
+			if (hasHash && window.location.hash.startsWith('#/embed/')) {
+				isEmbedMode = true;
+				const embedPath = window.location.hash.slice(8); // Remove '#/embed/'
+				const [, queryString] = embedPath.split('?');
+				if (queryString) {
+					const params = new URLSearchParams(queryString);
+					embedAllowAdd = params.get('allowAdd') === 'true';
+				} else {
+					embedAllowAdd = false;
+				}
+			}
+
 			// Check for hash in URL to open specific database
 			const handleHashChange = async () => {
 				if (!$initializationStore.isInitialized || isUpdatingFromHash) {
@@ -114,6 +131,80 @@
 
 				const hash = window.location.hash;
 				if (hash && hash.startsWith('#/')) {
+					// Check if this is an embed route
+					if (hash.startsWith('#/embed/')) {
+						isEmbedMode = true;
+						// Extract address and query params from #/embed/orbitdb/...?allowAdd=true
+						const embedPath = hash.slice(8); // Remove '#/embed/'
+						const [addressPart, queryString] = embedPath.split('?');
+						const address = decodeURIComponent(addressPart);
+
+						// Parse query params
+						if (queryString) {
+							const params = new URLSearchParams(queryString);
+							embedAllowAdd = params.get('allowAdd') === 'true';
+						} else {
+							embedAllowAdd = false;
+						}
+
+						// Open the database if address is valid
+						// Address might be 'orbitdb/...' or '/orbitdb/...'
+						const normalizedAddress = address.startsWith('/') ? address : `/${address}`;
+						if (address && (address.startsWith('orbitdb/') || address.startsWith('/orbitdb/'))) {
+							const currentAddress = get(currentDbAddressStore);
+							if (normalizedAddress === currentAddress || address === currentAddress) {
+								return; // Already on this database
+							}
+
+							console.log(`📂 Opening database from embed hash: ${normalizedAddress}`);
+							isUpdatingFromHash = true;
+
+							try {
+								toastStore.show('🌐 Loading database from network...', 'info', 5000);
+								await openDatabaseByAddress(
+									normalizedAddress,
+									preferences,
+									enableEncryption,
+									encryptionPassword
+								);
+								await loadTodos();
+
+								// Load hierarchy for breadcrumb navigation
+								try {
+									await listAvailableTodoLists();
+									const availableLists = get(availableTodoListsStore);
+									const list = availableLists.find(
+										(l) => l.address === normalizedAddress || l.address === address
+									);
+									if (list) {
+										const hierarchy = await buildHierarchyPath(list.displayName);
+										todoListHierarchyStore.set(hierarchy);
+									} else {
+										const currentListName = get(currentTodoListNameStore);
+										if (currentListName) {
+											todoListHierarchyStore.set([{ name: currentListName, parent: null }]);
+										}
+									}
+								} catch (hierarchyError) {
+									console.warn('Could not load hierarchy:', hierarchyError);
+									const currentListName = get(currentTodoListNameStore);
+									if (currentListName) {
+										todoListHierarchyStore.set([{ name: currentListName, parent: null }]);
+									}
+								}
+							} catch (error) {
+								console.error('❌ Error opening database from embed hash:', error);
+								toastStore.show(`Failed to open database: ${error.message}`, 'error');
+							} finally {
+								isUpdatingFromHash = false;
+							}
+						}
+						return; // Don't process as regular hash
+					} else {
+						isEmbedMode = false;
+						embedAllowAdd = false;
+					}
+
 					const hashValue = decodeURIComponent(hash.slice(2)); // Remove '#/'
 					if (!hashValue) return;
 
@@ -468,12 +559,13 @@
 		}
 	});
 
-	// Update hash when currentDbAddressStore changes (but not when updating from hash)
+	// Update hash when currentDbAddressStore changes (but not when updating from hash or in embed mode)
 	$: {
 		if (
 			typeof window !== 'undefined' &&
 			$initializationStore.isInitialized &&
-			!isUpdatingFromHash
+			!isUpdatingFromHash &&
+			!isEmbedMode
 		) {
 			const currentAddress = $currentDbAddressStore;
 			if (currentAddress) {
@@ -524,7 +616,59 @@
 	const handleCreateSubList = async (event) => {
 		const { text } = event.detail;
 		const currentList = get(currentTodoListNameStore);
-		await createSubList(text, currentList, preferences, enableEncryption, encryptionPassword);
+
+		try {
+			const success = await createSubList(
+				text,
+				currentList,
+				preferences,
+				enableEncryption,
+				encryptionPassword
+			);
+			if (success) {
+				await new Promise((resolve) => setTimeout(resolve, 100)); // Wait for stores to update
+
+				if (isEmbedMode && typeof window !== 'undefined') {
+					const newListAddress = get(currentDbAddressStore);
+					if (newListAddress) {
+						await loadTodos(); // Reload todos from the new database
+
+						// Update hierarchy
+						try {
+							await listAvailableTodoLists();
+							const availableLists = get(availableTodoListsStore);
+							const list = availableLists.find((l) => l.address === newListAddress);
+							if (list) {
+								const hierarchy = await buildHierarchyPath(list.displayName);
+								todoListHierarchyStore.set(hierarchy);
+							} else {
+								const newListName = get(currentTodoListNameStore);
+								if (newListName) {
+									todoListHierarchyStore.set([{ name: newListName, parent: null }]);
+								}
+							}
+						} catch (hierarchyError) {
+							console.warn('Could not update hierarchy:', hierarchyError);
+						}
+
+						// Update URL hash without reloading
+						const embedPath = `/embed/${encodeURIComponent(newListAddress)}`;
+						const queryParams = embedAllowAdd ? '?allowAdd=true' : '';
+						const newHash = `#${embedPath}${queryParams}`;
+						window.history.pushState(null, '', newHash);
+
+						toastStore.show('✅ Sub-list created!', 'success');
+					}
+				} else {
+					toastStore.show('✅ Sub-list created!', 'success');
+				}
+			} else {
+				toastStore.show('❌ Failed to create sub-list', 'error');
+			}
+		} catch (err) {
+			console.error('Failed to create sub-list:', err);
+			toastStore.show('❌ Failed to create sub-list', 'error');
+		}
 	};
 
 	// Subscribe to the peerIdStore
@@ -620,22 +764,24 @@
 {/if}
 
 <main class="container mx-auto max-w-4xl p-6">
-	<!-- Header with title and social icons -->
-	<header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<div class="flex-1">
-			<h1 class="text-2xl font-bold text-gray-800 sm:text-3xl">Simple TODO Example</h1>
-			<p class="mt-1 text-sm text-gray-500">
-				• A Basic Local-First Peer-To-Peer PWA with IPFS and OrbitDB v{typeof __APP_VERSION__ !==
-				'undefined'
-					? __APP_VERSION__
-					: '0.0.0'} [{typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]
-			</p>
-		</div>
-		<div class="flex items-center gap-4 flex-shrink-0 self-start sm:self-auto">
-			<ShareEmbedButtons />
-			<SocialIcons size="w-5 h-5" className="" onQRCodeClick={() => (showQRCodeModal = true)} />
-		</div>
-	</header>
+	{#if !isEmbedMode}
+		<!-- Header with title and social icons -->
+		<header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<div class="flex-1">
+				<h1 class="text-2xl font-bold text-gray-800 sm:text-3xl">Simple TODO Example</h1>
+				<p class="mt-1 text-sm text-gray-500">
+					• A Basic Local-First Peer-To-Peer PWA with IPFS and OrbitDB v{typeof __APP_VERSION__ !==
+					'undefined'
+						? __APP_VERSION__
+						: '0.0.0'} [{typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]
+				</p>
+			</div>
+			<div class="flex flex-shrink-0 items-center gap-4 self-start sm:self-auto">
+				<ShareEmbedButtons />
+				<SocialIcons size="w-5 h-5" className="" onQRCodeClick={() => (showQRCodeModal = true)} />
+			</div>
+		</header>
+	{/if}
 
 	{#if $initializationStore.isInitializing}
 		<LoadingSpinner
@@ -651,7 +797,26 @@
 		/>
 	{:else if error || $initializationStore.error}
 		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
+	{:else if isEmbedMode}
+		<!-- Embed Mode UI -->
+		<div class="mx-auto max-w-2xl">
+			<!-- Breadcrumb Navigation -->
+			<BreadcrumbNavigation {preferences} {enableEncryption} {encryptionPassword} />
+
+			{#if embedAllowAdd}
+				<AddTodoForm on:add={handleAddTodo} />
+			{/if}
+			<TodoList
+				todos={$todosStore}
+				showTitle={false}
+				allowEdit={embedAllowAdd}
+				on:delete={handleDelete}
+				on:toggleComplete={handleToggleComplete}
+				on:createSubList={handleCreateSubList}
+			/>
+		</div>
 	{:else}
+		<!-- Normal Mode UI -->
 		<!-- Todo List Selector and Encryption Options -->
 		<div class="mb-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
 			<div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
