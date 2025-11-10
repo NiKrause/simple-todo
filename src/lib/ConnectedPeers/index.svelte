@@ -82,7 +82,9 @@
 	function setupPeerDiscoveryHandlers() {
 		// Handle peer discovery events
 		const onPeerDiscovery = async (event) => {
-			const { id: peerId, multiaddrs } = event.detail;
+			if (!event?.detail) return;
+			const { id: peerId, multiaddrs } = event.detail || {};
+			if (!peerId || !multiaddrs) return;
 			const peerIdStr = peerId?.toString();
 
 			console.log('🔍 Peer discovered:', formatPeerId(peerIdStr));
@@ -121,7 +123,9 @@
 
 		// Handle successful connections
 		const onPeerConnect = (event) => {
-			const peerId = event.detail;
+			if (!event?.detail) return;
+			// In libp2p v3, event.detail can be either a peerId directly or an object
+			const peerId = event.detail?.id || event.detail?.remotePeer || event.detail;
 			const peerIdStr = peerId?.toString();
 
 			if (!peerIdStr) return;
@@ -142,7 +146,9 @@
 
 		// Handle disconnections
 		const onPeerDisconnect = (event) => {
-			const peerId = event.detail.id || event.detail;
+			if (!event?.detail) return;
+			// In libp2p v3, event.detail can be either a peerId directly or an object
+			const peerId = event.detail?.id || event.detail?.remotePeer || event.detail;
 			const peerIdStr = peerId?.toString();
 
 			if (!peerIdStr) return;
@@ -157,7 +163,9 @@
 
 		// Handle connection events for transport tracking
 		const onConnectionOpen = (event) => {
+			if (!event?.detail) return;
 			const connection = event.detail;
+			if (!connection?.remotePeer) return;
 			const peerIdStr = connection.remotePeer?.toString();
 
 			if (!peerIdStr) return;
@@ -174,7 +182,9 @@
 		};
 
 		const onConnectionClose = (event) => {
+			if (!event?.detail) return;
 			const connection = event.detail;
+			if (!connection?.remotePeer) return;
 			const peerIdStr = connection.remotePeer?.toString();
 
 			if (!peerIdStr) return;

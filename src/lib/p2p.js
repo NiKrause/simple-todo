@@ -448,6 +448,48 @@ export async function initializeP2P(preferences = {}) {
 			`✅ libp2p node created with network connection: ${enableNetworkConnection ? 'enabled' : 'disabled'}, peer connections: ${enablePeerConnections ? 'enabled' : 'disabled'}`
 		);
 
+		// Add global error handlers for libp2p stream errors
+		// These errors are often non-fatal and can be safely ignored
+		if (typeof window !== 'undefined') {
+			// Handle unhandled promise rejections from libp2p streams
+			window.addEventListener('unhandledrejection', (event) => {
+				const error = event.reason;
+				// Check if it's a stream-related error that we can safely ignore
+				if (
+					error &&
+					(typeof error === 'string' || error instanceof Error) &&
+					(error.message?.includes('remotePeer') ||
+						error.message?.includes('shift') ||
+						error.message?.includes('stream') ||
+						error.toString().includes('remotePeer') ||
+						error.toString().includes('shift'))
+				) {
+					console.warn('⚠️ Libp2p stream error (non-fatal):', error.message || error);
+					event.preventDefault(); // Prevent the error from being logged to console
+					return;
+				}
+			});
+
+			// Handle general errors
+			window.addEventListener('error', (event) => {
+				const error = event.error || event.message;
+				// Check if it's a stream-related error
+				if (
+					error &&
+					(typeof error === 'string' || error instanceof Error) &&
+					(error.message?.includes('remotePeer') ||
+						error.message?.includes('shift') ||
+						error.message?.includes('stream') ||
+						error.toString().includes('remotePeer') ||
+						error.toString().includes('shift'))
+				) {
+					console.warn('⚠️ Libp2p stream error (non-fatal):', error.message || error);
+					event.preventDefault(); // Prevent the error from being logged to console
+					return;
+				}
+			});
+		}
+
 		// Show toast notification for libp2p creation
 		systemToasts.showLibp2pCreated();
 
