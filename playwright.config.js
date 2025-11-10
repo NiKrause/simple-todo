@@ -11,7 +11,7 @@ export default defineConfig({
 		port: 4174,
 		// Use the test environment file and set development mode
 		env: {
-			VITE_ENV_FILE: '.env.test',
+			VITE_ENV_FILE: '.env.development',
 			VITE_NODE_ENV: 'development'
 		},
 		// Wait for server to be ready

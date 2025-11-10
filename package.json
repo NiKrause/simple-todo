@@ -14,7 +14,6 @@
 		"lint": "prettier --check . && eslint .",
 		"test": "npm run test:e2e",
 		"test:e2e": "playwright test",
-		"test:relay-setup": "node test-relay-setup.js",
 		"test:e2e:debug": "playwright test --debug",
 		"test:e2e:headed": "playwright test --headed"
 	},

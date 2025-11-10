@@ -5,7 +5,6 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
-  # Allow manual trigger
   workflow_dispatch:
 
 jobs:
@@ -29,42 +28,28 @@ jobs:
           sudo apt-get install -y build-essential python3
 
       - name: Install dependencies
-        run: |
-          # npm ci fails due to broken prebuild script in node-datachannel
-          # Install with --ignore-scripts to skip broken build scripts
-          # The native modules are only needed in the relay directory anyway
-          npm ci --ignore-scripts || npm install --ignore-scripts
+        run: npm ci --ignore-scripts || npm install --ignore-scripts
 
       - name: Install relay dependencies
         run: |
           cd relay
           npm install
 
-      - name: Rebuild native modules if needed
-        run: |
-          cd relay
-          # Check and rebuild if necessary
-          if [ ! -f node_modules/@ipshipyard/node-datachannel/build/Release/node_datachannel.node ]; then
-            echo "Rebuilding native modules..."
-            npm rebuild @ipshipyard/node-datachannel || echo "rebuild failed"
-          fi
-
       - name: Build application
         run: npm run build
+        env:
+          VITE_NODE_ENV: development
+          VITE_RELAY_BOOTSTRAP_ADDR_DEV: /ip4/127.0.0.1/tcp/4001/ws/p2p/12D3KooWP9ryj8o6uLRhUV2SXJycuBrynakzbiUMBmTn3prF8ezb
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
 
       - name: Run Playwright tests
-        run: |
-          if [ -n "$TEST_GREP" ]; then
-            npm run test:e2e -- --grep "$TEST_GREP"
-          else
-            npm run test:e2e
-          fi
+        run: npm run test:e2e ${{ env.TEST_GREP && format('--grep "{0}"', env.TEST_GREP) || '' }}
         env:
           CI: true
           TEST_GREP: ${{ env.TEST_GREP }}
+          RELAY_PRIV_KEY: ${{ secrets.RELAY_PRIV_KEY }}
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

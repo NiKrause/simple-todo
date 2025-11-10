@@ -1,12 +1,24 @@
-import { stopGlobalRelay } from './helpers/relay-server.js';
-import { existsSync } from 'fs';
+import { readFileSync, unlinkSync, existsSync } from 'fs';
 import { rm } from 'fs/promises';
 import path from 'path';
 
-async function globalTeardown() {
+export default async function globalTeardown() {
 	console.log('🛑 Tearing down global test environment...');
-	// Stop the relay server after all tests
-	await stopGlobalRelay();
+
+	// Stop relay server
+	try {
+		const relayInfoPath = path.join(process.cwd(), 'e2e', 'relay-info.json');
+		if (existsSync(relayInfoPath)) {
+			const relayInfo = JSON.parse(readFileSync(relayInfoPath, 'utf8'));
+			if (relayInfo.pid) {
+				process.kill(relayInfo.pid, 'SIGTERM');
+				console.log(`✅ Relay server (PID ${relayInfo.pid}) stopped`);
+			}
+			unlinkSync(relayInfoPath);
+		}
+	} catch (error) {
+		console.warn('⚠️ Error stopping relay server:', error.message);
+	}
 
 	// Clean up test datastore to avoid lock issues
 	const testDatastorePath = path.join(process.cwd(), 'relay', 'test-relay-datastore');
@@ -25,7 +37,7 @@ async function globalTeardown() {
 		const { promisify } = await import('util');
 		const execAsync = promisify(exec);
 		await execAsync(
-			'lsof -ti:4011,4012,4013,4016,3001 2>/dev/null | xargs kill -9 2>/dev/null || true'
+			'lsof -ti:4001,4002,4003,4006,3000 2>/dev/null | xargs kill -9 2>/dev/null || true'
 		);
 	} catch {
 		// Ignore errors - ports might not be in use
@@ -33,5 +45,3 @@ async function globalTeardown() {
 
 	console.log('✅ Global teardown complete');
 }
-
-export default globalTeardown;
