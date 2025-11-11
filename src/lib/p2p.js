@@ -289,27 +289,18 @@ export async function openDatabaseByAddress(
 	// Everything (type, access controller, encryption, etc.) is already defined in the database manifest
 	// The manifest is stored at the database address and contains all configuration
 	try {
-		// IMPORTANT: When opening by address, we must NOT provide ANY options
-		// OrbitDB will read everything from the database manifest automatically:
-		// - Database type (keyvalue, docstore, etc.)
-		// - Access controller address and configuration
-		// - Encryption settings (if any)
-		// - All other settings
-		//
-		// Providing ANY options (type, create, sync, AccessController, encryption, etc.)
-		// would override the manifest settings and potentially create a new access controller
-
 		console.log('🔧 Opening database by address with NO options (all config from manifest)');
 		console.log('🔧 Database address:', dbAddress);
 		console.log('🔑 Current OrbitDB instance identity:', currentInstanceIdentity);
 
-		// Open with NO options - OrbitDB will read everything from the manifest
-		// The manifest contains:
-		// 1. Database type
-		// 2. Access controller address (points to the original access controller)
-		// 3. All other configuration
-		// By not providing any options, OrbitDB will use the original configuration
-		todoDB = await orbitdb.open(dbAddress);
+		// Add timeout wrapper to prevent hanging indefinitely
+		const openPromise = orbitdb.open(dbAddress);
+		const timeoutPromise = new Promise((_, reject) => 
+			setTimeout(() => reject(new Error('Database open timeout after 30 seconds')), 30000)
+		);
+		
+		console.log('⏳ Waiting for database to open (this may take time if syncing from network)...');
+		todoDB = await Promise.race([openPromise, timeoutPromise]);
 
 		console.log('🔍 TodoDB records:', (await todoDB.all()).length);
 		console.log('✅ Database opened successfully by address:', todoDB);
@@ -423,48 +414,6 @@ export async function initializeP2P(preferences = {}) {
 		console.log(
 			`✅ libp2p node created with network connection: ${enableNetworkConnection ? 'enabled' : 'disabled'}, peer connections: ${enablePeerConnections ? 'enabled' : 'disabled'}`
 		);
-
-		// Add global error handlers for libp2p stream errors
-		// These errors are often non-fatal and can be safely ignored
-		if (typeof window !== 'undefined') {
-			// Handle unhandled promise rejections from libp2p streams
-			window.addEventListener('unhandledrejection', (event) => {
-				const error = event.reason;
-				// Check if it's a stream-related error that we can safely ignore
-				if (
-					error &&
-					(typeof error === 'string' || error instanceof Error) &&
-					(error.message?.includes('remotePeer') ||
-						error.message?.includes('shift') ||
-						error.message?.includes('stream') ||
-						error.toString().includes('remotePeer') ||
-						error.toString().includes('shift'))
-				) {
-					console.warn('⚠️ Libp2p stream error (non-fatal):', error.message || error);
-					event.preventDefault(); // Prevent the error from being logged to console
-					return;
-				}
-			});
-
-			// Handle general errors
-			window.addEventListener('error', (event) => {
-				const error = event.error || event.message;
-				// Check if it's a stream-related error
-				if (
-					error &&
-					(typeof error === 'string' || error instanceof Error) &&
-					(error.message?.includes('remotePeer') ||
-						error.message?.includes('shift') ||
-						error.message?.includes('stream') ||
-						error.toString().includes('remotePeer') ||
-						error.toString().includes('shift'))
-				) {
-					console.warn('⚠️ Libp2p stream error (non-fatal):', error.message || error);
-					event.preventDefault(); // Prevent the error from being logged to console
-					return;
-				}
-			});
-		}
 
 		// Show toast notification for libp2p creation
 		systemToasts.showLibp2pCreated();

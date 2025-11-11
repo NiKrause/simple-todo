@@ -44,6 +44,26 @@
 	import { get } from 'svelte/store';
 	// import { Cloud } from 'lucide-svelte'; // Unused for now
 	import { toastStore } from '$lib/toast-store.js';
+	import { browser } from '$app/environment';
+
+	// Expose database address to window for e2e testing
+	// Move reactive statements outside the if block and ensure they always run
+	// Expose database address to window for e2e testing
+$: if (browser && $currentDbAddressStore) {
+	window.__currentDbAddress__ = $currentDbAddressStore;
+}
+
+$: if (browser && !$currentDbAddressStore) {
+	delete window.__currentDbAddress__;
+}
+
+$: if (browser && $todoDBStore) {
+	window.__todoDB__ = $todoDBStore;
+	// Also set address from todoDB if currentDbAddressStore is not set
+	if ($todoDBStore.address && !$currentDbAddressStore) {
+		window.__currentDbAddress__ = $todoDBStore.address;
+	}
+}
 
 	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
 
@@ -549,6 +569,13 @@
 				}
 			}
 
+			// Add this in onMount or as a global function
+			if (browser) {
+				window.__getDbAddress = () => {
+					return $currentDbAddressStore || ($todoDBStore?.address) || null;
+				};
+			}
+
 			// Cleanup on component destroy
 			return () => {
 				window.removeEventListener('hashchange', handleHashChange);
@@ -652,9 +679,9 @@
 						}
 
 						// Update URL hash without reloading
-						const embedPath = `/embed/${encodeURIComponent(newListAddress)}`;
+						const embedPath = `embed/${encodeURIComponent(newListAddress)}`;
 						const queryParams = embedAllowAdd ? '?allowAdd=true' : '';
-						const newHash = `#${embedPath}${queryParams}`;
+						const newHash = `#/${embedPath}${queryParams}`;
 						window.history.pushState(null, '', newHash);
 
 						toastStore.show('✅ Sub-list created!', 'success');

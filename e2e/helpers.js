@@ -234,3 +234,90 @@ export async function waitForWebRTCConnection(page, timeout = 60000) {
 
 	console.log('✅ WebRTC connection established');
 }
+
+/**
+ * Helper to get the current database address from the page
+ *
+ * @param {import('@playwright/test').Page} page - Playwright page instance
+ * @param {number} [timeout=15000] - Timeout in milliseconds
+ * @returns {Promise<string|null>} Database address or null if not found
+ */
+export async function getCurrentDatabaseAddress(page, timeout = 15000) {
+	console.log('🔍 Getting current database address...');
+	
+	// Add this as Method 5 - directly evaluate the store
+	const address = await page.waitForFunction(
+		() => {
+			// Method 1: Try to get from todoDB first (most reliable)
+			if (window.__todoDB__ && window.__todoDB__.address) {
+				return window.__todoDB__.address;
+			}
+			
+			// Method 2: Check if exposed in window object (for e2e testing)
+			if (window.__currentDbAddress__) {
+				return window.__currentDbAddress__;
+			}
+			
+			// Method 3: Check URL hash
+			const hash = window.location.hash;
+			if (hash && hash.startsWith('#/')) {
+				const decoded = decodeURIComponent(hash.slice(2));
+				if (decoded.startsWith('/orbitdb/')) {
+					return decoded;
+				}
+			}
+			
+			// Method 4: Try to access via console/debug function if available
+			// This is a fallback - we know the address exists from logs
+			try {
+				// Check if there's a way to get it from the page's internal state
+				// We can try to trigger a console log or access a debug function
+				if (window.debugDatabase) {
+					// This won't return the value, but we can try other methods
+				}
+			} catch {
+				// Ignore
+			}
+			
+			return null;
+		},
+		{ timeout }
+	).then((handle) => handle.jsonValue()).catch(() => null);
+	
+	if (address) {
+		console.log(`✅ Found database address: ${address}`);
+		return address;
+	}
+	
+	// If still not found, try waiting a bit more and checking again
+	console.log('⏳ Address not found yet, waiting a bit more...');
+	await page.waitForTimeout(2000);
+	
+	const retryAddress = await page.evaluate(() => {
+		// Check todoDB first
+		if (window.__todoDB__ && window.__todoDB__.address) {
+			return window.__todoDB__.address;
+		}
+		// Check currentDbAddress
+		if (window.__currentDbAddress__) {
+			return window.__currentDbAddress__;
+		}
+		// Check URL hash
+		const hash = window.location.hash;
+		if (hash && hash.startsWith('#/')) {
+			const decoded = decodeURIComponent(hash.slice(2));
+			if (decoded.startsWith('/orbitdb/')) {
+				return decoded;
+			}
+		}
+		return null;
+	});
+	
+	if (retryAddress) {
+		console.log(`✅ Found database address on retry: ${retryAddress}`);
+		return retryAddress;
+	}
+	
+	console.warn('⚠️ Could not find database address');
+	return null;
+}

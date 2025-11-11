@@ -1,6 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { peerIdStore } from './p2p.js';
 import { systemToasts } from './toast-store.js';
+import { currentDbAddressStore } from './todo-list-manager.js';
 
 // Store for OrbitDB instances
 export const orbitdbStore = writable(null);
@@ -16,6 +17,16 @@ export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
 export async function initializeDatabase(orbitdb, todoDB, preferences) {
 	orbitdbStore.set(orbitdb);
 	todoDBStore.set(todoDB);
+
+	// Update currentDbAddressStore with the database address
+	if (todoDB && todoDB.address) {
+		currentDbAddressStore.set(todoDB.address);
+		// Also expose to window immediately for e2e testing (in case reactive statements haven't run yet)
+		if (typeof window !== 'undefined') {
+			window.__todoDB__ = todoDB;
+			window.__currentDbAddress__ = todoDB.address;
+		}
+	}
 
 	// Load existing todos if no storge is enabled and no network we don't need to load anything
 	if (preferences.enablePersistentStorage || preferences.enableNetworkConnection) {

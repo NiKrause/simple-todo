@@ -53,16 +53,16 @@ export async function createLibp2pConfig(options = {}) {
 		}
 	}
 
-	// Configure peer discovery based on enablePeerConnections
+	// Configure peer discovery - always enable pubsub peer discovery when network is enabled
 	const peerDiscoveryServices = [];
-	if (enablePeerConnections && enableNetworkConnection) {
+	if (enableNetworkConnection) {
 		console.log('🔍 Enabling pubsub peer discovery');
 		peerDiscoveryServices.push(
 			pubsubPeerDiscovery({
-				interval: 5000, // More frequent broadcasting
-				topics: PUBSUB_TOPICS, // Configurable topics
+				interval: 3000, // Match example: 10 seconds
+				topics: PUBSUB_TOPICS,
 				listenOnly: false,
-				emitSelf: true // Enable even when no peers are present initially
+				emitSelf: true
 			})
 		);
 	}

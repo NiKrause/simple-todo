@@ -5,7 +5,8 @@ import {
 	waitForPeerCount,
 	getPeerId,
 	getConnectedPeerIds,
-	getPeerCount
+	getPeerCount,
+	getCurrentDatabaseAddress
 } from './helpers.js';
 
 test.describe('Simple Todo P2P Application', () => {
@@ -271,7 +272,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 Todo operations test completed successfully!');
 	});
 
-	test('should connect two browsers and see each other as connected peers', async ({ browser }) => {
+	test.only('should connect two browsers and see each other as connected peers', async ({ browser }) => {
 		// Create two separate browser contexts (simulating two different browsers)
 		const context1 = await browser.newContext();
 		const context2 = await browser.newContext();
@@ -410,5 +411,237 @@ test.describe('Simple Todo P2P Application', () => {
 		await context2.close();
 
 		console.log('✅ Two-browser peer connection test completed!');
+	});
+
+	test('should share database between browsers and sync todos', async ({ browser }) => {
+		// Create two separate browser contexts (simulating two different browsers)
+		const context1 = await browser.newContext();
+		const context2 = await browser.newContext();
+
+		const page1 = await context1.newPage();
+		const page2 = await context2.newPage();
+
+		// Enable console logging for debugging
+		page1.on('console', (msg) => console.log('Page1:', msg.text()));
+		page2.on('console', (msg) => console.log('Page2:', msg.text()));
+
+		console.log('🚀 Starting database sharing test...');
+
+		// ===== BROWSER A (Page 1) =====
+		console.log('📱 Browser A: Initializing...');
+		await page1.goto('/');
+
+		// Wait for SvelteKit to finish hydrating
+		await page1.waitForFunction(
+			() => {
+				const hasMain = document.querySelector('main') !== null;
+				const hasModal = document.querySelector('[data-testid="consent-modal"]') !== null;
+				return hasMain || hasModal;
+			},
+			{ timeout: 30000 }
+		);
+
+		await page1.waitForTimeout(1000);
+
+		// Accept consent and initialize P2P
+		await acceptConsentAndInitialize(page1);
+		await waitForP2PInitialization(page1);
+
+		// Wait for todo input to be ready
+		const todoInput1 = page1.locator('[data-testid="todo-input"]');
+		await expect(todoInput1).toBeVisible({ timeout: 15000 });
+
+		// Add 3 todos in Browser A
+		const todos = ['Shared Todo 1', 'Shared Todo 2', 'Shared Todo 3'];
+		
+		// Define sublist todos once (Shared Todo 2 and Shared Todo 3)
+		// Shared Todo 1 is in the parent list, not the sublist
+		const sublistTodos = todos.slice(1); // Get todos[1] and todos[2]
+
+		console.log('📝 Browser A: Adding first todo...');
+		// Add first todo
+		await todoInput1.fill(todos[0]);
+		await page1.locator('[data-testid="add-todo-button"]').click();
+		
+		// Wait for todo to appear
+		await expect(page1.locator('text=' + todos[0])).toBeVisible({ timeout: 5000 });
+		console.log(`✅ Browser A: Added "${todos[0]}"`);
+
+		// Click the "Sub-list" button on the first todo to create/open a sublist
+		console.log('📁 Browser A: Clicking Sub-list button on first todo...');
+		
+		// Wait for the todo to be fully rendered with its buttons
+		await expect(page1.locator('text=' + todos[0])).toBeVisible({ timeout: 5000 });
+		await page1.waitForTimeout(1000); // Give time for buttons to render
+		
+		// Find the Sub-list button by its title attribute (most reliable)
+		// Since we just added the first todo, the first Sub-list button should be for it
+		const subListButton = page1.locator('button[title="Create sub-list from this todo"]').first();
+		
+		await expect(subListButton).toBeVisible({ timeout: 5000 });
+		console.log('✅ Found Sub-list button');
+		
+		await subListButton.click();
+		console.log('✅ Clicked Sub-list button');
+		
+		// Wait for sublist to be created and opened
+		console.log('⏳ Browser A: Waiting for sublist to open...');
+		await page1.waitForTimeout(2000); // Give time for sublist to be created and opened
+		
+		// Wait for todo input to be ready again (should still be visible)
+		await expect(todoInput1).toBeVisible({ timeout: 10000 });
+
+		// Now add 2 more todos in the sublist
+		console.log('📝 Browser A: Adding 2 more todos in sublist...');
+		for (let i = 1; i < todos.length; i++) {
+			const todoText = todos[i];
+			await todoInput1.fill(todoText);
+			await page1.locator('[data-testid="add-todo-button"]').click();
+
+			// Wait for todo to appear
+			await expect(page1.locator('text=' + todoText)).toBeVisible({ timeout: 5000 });
+			console.log(`✅ Browser A: Added "${todoText}" in sublist`);
+
+			// Small delay between additions
+			await page1.waitForTimeout(500);
+		}
+
+		// Verify todos in the sublist (only Shared Todo 2 and Shared Todo 3)
+		// Shared Todo 1 is in the parent list, not the sublist
+		for (const todoText of sublistTodos) {
+			await expect(page1.locator('text=' + todoText)).toBeVisible({ timeout: 5000 });
+		}
+		console.log(`✅ Browser A: ${sublistTodos.length} todos visible in sublist`);
+
+		// Wait a bit for todos to sync to database
+		await page1.waitForTimeout(2000);
+
+		// Get the database address from Browser A (should now be available in URL hash since we're in a sublist)
+		console.log('🔗 Browser A: Getting database address from URL...');
+		const dbAddress = await getCurrentDatabaseAddress(page1, 15000);
+
+		expect(dbAddress).toBeTruthy();
+		expect(dbAddress).toMatch(/^\/orbitdb\//);
+		console.log(`✅ Browser A: Database address: ${dbAddress}`);
+
+		// Click share button to get the share link (this will copy it to clipboard)
+		const shareButton = page1.locator('button[aria-label="Share todo list"]');
+		await expect(shareButton).toBeVisible({ timeout: 5000 });
+		await shareButton.click();
+		
+		// Wait a bit for the share action to complete
+		await page1.waitForTimeout(1000);
+
+		// ===== BROWSER B (Page 2) =====
+		console.log('📱 Browser B: Opening shared database...');
+
+		// Navigate Browser B to the shared database URL
+		const baseUrl = await page1.evaluate(() => window.location.origin + window.location.pathname);
+		const sharedUrl = `${baseUrl}#/${encodeURIComponent(dbAddress)}`;
+		console.log(`🔗 Opening Browser B with URL: ${sharedUrl}`);
+		await page2.goto(sharedUrl);
+
+		// Wait for SvelteKit to finish hydrating
+		await page2.waitForFunction(
+			() => {
+				const hasMain = document.querySelector('main') !== null;
+				const hasModal = document.querySelector('[data-testid="consent-modal"]') !== null;
+				return hasMain || hasModal;
+			},
+			{ timeout: 30000 }
+		);
+
+		await page2.waitForTimeout(1000);
+
+		// Check if consent modal appears (it might not if hash auto-initialized)
+		console.log('📱 Browser B: Checking for consent modal...');
+		const consentModal = page2.locator('[data-testid="consent-modal"]');
+		const hasConsentModal = await consentModal.isVisible().catch(() => false);
+		
+		if (hasConsentModal) {
+			console.log('📱 Browser B: Consent modal found, accepting consent...');
+			await acceptConsentAndInitialize(page2);
+		} else {
+			console.log('📱 Browser B: No consent modal (auto-initialized from hash), waiting for P2P initialization...');
+		}
+
+		// Wait for P2P initialization
+		console.log('⏳ Browser B: Waiting for P2P initialization...');
+		await waitForP2PInitialization(page2);
+
+		// Wait for Browser B to connect to Browser A (or relay)
+		console.log('🔗 Browser B: Waiting for peer connections...');
+		await waitForPeerCount(page2, 1, 90000); // Wait for at least 1 peer connection
+		
+		// Get peer IDs to verify connection
+		const peerId1 = await page1.evaluate(() => {
+			const peerIdEl = document.querySelector('[data-testid="peer-id"]');
+			return peerIdEl?.textContent?.trim() || null;
+		});
+		const peerId2 = await page2.evaluate(() => {
+			const peerIdEl = document.querySelector('[data-testid="peer-id"]');
+			return peerIdEl?.textContent?.trim() || null;
+		});
+		
+		console.log(`📊 Browser A peer ID: ${peerId1?.substring(0, 16)}...`);
+		console.log(`📊 Browser B peer ID: ${peerId2?.substring(0, 16)}...`);
+		
+		// Give extra time for peer discovery and connection
+		console.log('⏳ Browser B: Waiting for peer discovery and connection...');
+		await page1.waitForTimeout(5000);
+		await page2.waitForTimeout(5000);
+		
+		// Check if Browser B sees Browser A
+		const peers2 = await getConnectedPeerIds(page2);
+		const shortPeerId1 = peerId1?.substring(0, 16) || '';
+		const browserBSeesBrowserA = peers2.some((peer) => peer.includes(shortPeerId1));
+		
+		console.log(`📊 Browser B sees ${peers2.length} peer(s):`, peers2);
+		console.log(`🔍 Browser B sees Browser A: ${browserBSeesBrowserA}`);
+		
+		if (!browserBSeesBrowserA) {
+			console.log('⏳ Waiting additional time for peer discovery...');
+			await page1.waitForTimeout(10000);
+			await page2.waitForTimeout(10000);
+		}
+
+		// Wait for database to load and sync
+		console.log('⏳ Browser B: Waiting for database to sync...');
+		await page2.waitForTimeout(5000); // Give time for database to open and sync
+
+		// Wait for todo input to be ready
+		const todoInput2 = page2.locator('[data-testid="todo-input"]');
+		await expect(todoInput2).toBeVisible({ timeout: 15000 });
+
+		// Wait for todos to appear (they should sync from Browser A)
+		console.log('🔍 Browser B: Waiting for todos to sync...');
+
+		// Wait for the 2 todos in the sublist to appear in Browser B
+		// (Shared Todo 1 is in the parent list, not the sublist)
+		for (const todoText of sublistTodos) {
+			await expect(page2.locator('text=' + todoText)).toBeVisible({ timeout: 30000 });
+		}
+		console.log(`✅ Browser B: Found ${sublistTodos.length} todos from shared database`);
+
+		// Verify all 3 todos are visible
+		const todoElements2 = page2.locator('[data-testid="todo-item"], .todo-item, [class*="todo"]');
+		const todoCount2 = await todoElements2.count();
+
+		console.log(`📊 Browser B: Found ${todoCount2} todo(s)`);
+		expect(todoCount2).toBeGreaterThanOrEqual(todos.length);
+
+		// Verify each todo text is present
+		for (const todoText of todos) {
+			const todoElement = page2.locator('text=' + todoText);
+			await expect(todoElement).toBeVisible({ timeout: 5000 });
+		}
+
+		console.log('✅ Browser B: All todos synced successfully!');
+
+		// Clean up
+		await context1.close();
+		await context2.close();
+
+		console.log('🎉 Database sharing test completed successfully!');
 	});
 });

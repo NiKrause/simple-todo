@@ -5,8 +5,7 @@ import { identify, identifyPush } from '@libp2p/identify';
 import { webRTC, webRTCDirect } from '@libp2p/webrtc';
 import { webSockets } from '@libp2p/websockets';
 import { createLibp2p } from 'libp2p';
-import * as filters from '@libp2p/websockets/filters';
-import { gossipsub } from '@chainsafe/libp2p-gossipsub';
+import { gossipsub } from '@libp2p/gossipsub';
 import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
 import { kadDHT, removePrivateAddressesMapper } from '@libp2p/kad-dht';
 import { tcp } from '@libp2p/tcp';
@@ -107,13 +106,14 @@ const libp2pOptions = {
 		listen: [
 			`/ip4/0.0.0.0/tcp/${tcpPort}`, // Direct TCP
 			`/ip4/0.0.0.0/tcp/${wsPort}/ws`, // WebSocket for browsers
-			`/ip4/0.0.0.0/udp/${webrtcPort}/webrtc`, // WebRTC for NAT traversal
-			`/ip4/0.0.0.0/udp/${webrtcDirectPort}/webrtc-direct`, // WebRTC Direct
-			`/ip6/::/tcp/${tcpPort}`, // IPv6 TCP
-			`/ip6/::/tcp/${wsPort}/ws`, // IPv6 WebSocket
-			`/ip6/::/udp/${webrtcPort}/webrtc`, // IPv6 WebRTC Direct
-			`/ip6/::/udp/${webrtcDirectPort}/webrtc-direct`, // IPv6 WebRTC Direct
+			// IPv6 addresses - optional, will fail gracefully if IPv6 not available
+			...(process.env.DISABLE_IPV6 !== 'true' ? [
+				`/ip6/::/tcp/${tcpPort}`, // IPv6 TCP
+				`/ip6/::/tcp/${wsPort}/ws` // IPv6 WebSocket
+			] : []),
 			'/p2p-circuit' // Circuit relay
+			// Note: WebRTC transports don't support explicit listen addresses
+			// They use STUN/TURN servers configured in the transport options
 		],
 		// Enhanced announce addresses with environment-aware configuration
 		...(appendAnnounceArray.length > 0 && { appendAnnounce: appendAnnounceArray })
@@ -141,9 +141,7 @@ const libp2pOptions = {
 				]
 			}
 		}),
-		webSockets({
-			filter: filters.all
-		})
+		webSockets()
 	],
 	peerDiscovery: [
 		pubsubPeerDiscovery({
@@ -169,6 +167,11 @@ const libp2pOptions = {
 	},
 	connectionGater: {
 		denyDialMultiaddr: () => false
+	},
+	transportManager: {
+		// Allow some addresses to fail without crashing (useful for IPv6 when not available)
+		// Value 1 = NO_FATAL - allows some listen addresses to fail without crashing
+		faultTolerance: 1
 	},
 	streamMuxers: [yamux()],
 	services: {
@@ -351,6 +354,7 @@ if (process.env.ENABLE_DATASTORE_DIAGNOSTICS === 'true') {
 
 // Enhanced peer tracking with more detailed metrics
 let connectedPeers = new Map();
+const discoveredPeers = new Set(); // Track discovered peers to avoid duplicate dial attempts
 const peerStats = {
 	totalConnections: 0,
 	connectionsByTransport: {},
@@ -359,15 +363,64 @@ const peerStats = {
 
 server.addEventListener('peer:discovery', async (event) => {
 	const { id: peerId, multiaddrs } = event.detail;
+	if (!peerId || !multiaddrs) return;
+
+	const peerIdStr = peerId.toString();
+	const peerIdShort = peerIdStr.slice(0, 12) + '...';
+
+	// Skip if already connected
+	const existingConnections = server.getConnections(peerId);
+	if (existingConnections && existingConnections.length > 0) {
+		console.log(`⏭️  [DISCOVERY] ${peerIdShort} - Already connected, skipping dial`);
+		return;
+	}
+
+	// Skip if already discovered and dial attempt is in progress
+	if (discoveredPeers.has(peerIdStr)) {
+		console.log(`⏭️  [DISCOVERY] ${peerIdShort} - Already discovered, skipping duplicate`);
+		return;
+	}
+
+	// Extract transport protocols from multiaddrs for logging
+	const transports = [];
+	multiaddrs.forEach((addr) => {
+		const addrStr = addr.toString();
+		if (addrStr.includes('/ws')) transports.push('websocket');
+		else if (addrStr.includes('/webrtc-direct')) transports.push('webrtc-direct');
+		else if (addrStr.includes('/webrtc')) transports.push('webrtc');
+		else if (addrStr.includes('/tcp') && !addrStr.includes('/ws')) transports.push('tcp');
+		else if (addrStr.includes('/p2p-circuit')) transports.push('circuit-relay');
+	});
+
 	console.log(
-		'🔍 Peer discovered:',
-		peerId.toString().slice(0, 12) + '...',
-		'Addresses:',
-		multiaddrs.length
+		`🔍 [DISCOVERY] Peer discovered: ${peerIdShort} | ` +
+		`Full ID: ${peerIdStr} | ` +
+		`Addresses: ${multiaddrs.length} | ` +
+		`Transports: ${[...new Set(transports)].join(', ') || 'unknown'}`
 	);
 
 	if (process.argv.includes('--verbose')) {
-		multiaddrs.forEach((addr) => console.log(`    - ${addr.toString()}`));
+		console.log(`   Multiaddrs:`);
+		multiaddrs.forEach((addr) => console.log(`     - ${addr.toString()}`));
+	}
+
+	// Mark as discovered
+	discoveredPeers.add(peerIdStr);
+
+	// Attempt to dial the discovered peer by peerId
+	try {
+		console.log(`📞 [DIAL] Attempting to dial discovered peer: ${peerIdShort}`);
+		const connection = await server.dial(peerId);
+		if (connection) {
+			console.log(`✅ [DIAL] Successfully initiated connection to: ${peerIdShort}`);
+			// Connection will be confirmed in peer:connect event
+		}
+	} catch (error) {
+		console.warn(
+			`❌ [DIAL] Failed to dial peer ${peerIdShort}: ${error.message}`
+		);
+		// Remove from discovered set so we can retry later if discovered again
+		discoveredPeers.delete(peerIdStr);
 	}
 });
 
@@ -376,8 +429,11 @@ server.addEventListener('peer:connect', async (event) => {
 	if (!remotePeer) return;
 
 	const peerId = remotePeer.toString();
-	const peerIdShort = `${peerId.slice(0, 8)}...`;
+	const peerIdShort = `${peerId.slice(0, 12)}...`;
 	const addr = remoteAddr?.toString() || 'unknown';
+
+	// Remove from discovered set since we're now connected
+	discoveredPeers.delete(peerId);
 
 	// Enhanced transport detection
 	let transport = 'unknown';
@@ -445,6 +501,8 @@ server.addEventListener('peer:disconnect', async (event) => {
 	}
 
 	connectedPeers.delete(peerId);
+	// Also remove from discovered set if present
+	discoveredPeers.delete(peerId);
 
 	console.log(
 		`👋 [DISCONNECT] ${peerIdShort} | Duration: ${duration} | ` +
@@ -472,6 +530,15 @@ console.log('\n🎯 Relay Server Information:');
 console.log('  Relay PeerId:', server.peerId.toString());
 console.log('  Multiaddrs:');
 server.getMultiaddrs().forEach((ma) => console.log(`    ${ma.toString()}`));
+console.log('\n📡 Peer Discovery Configuration:');
+const discoveryTopics = (process.env.PUBSUB_TOPICS || 'todo._peer-discovery._p2p._pubsub')
+	.split(',')
+	.map((t) => t.trim());
+console.log(`  Discovery topics: ${discoveryTopics.join(', ')}`);
+console.log(`  Discovery interval: 5000ms`);
+console.log(`  Emit self: true`);
+console.log(`  Listen only: false`);
+console.log('✅ Relay ready to discover and connect to peers\n');
 
 // Create and start HTTP API server using Express service
 const app = createExpressServer(server, connectedPeers, peerStats, pinningService);

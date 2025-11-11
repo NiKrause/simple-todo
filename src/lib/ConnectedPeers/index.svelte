@@ -24,22 +24,61 @@
 	const peerConnectionTransports = new Map();
 	let eventListeners = [];
 
-	// Initialize when libp2p instance is provided
+	// Add periodic refresh of connections (like the example)
+	let refreshInterval;
+	
 	$: if (libp2p) {
-		initializePeerManagement();
+		// Refresh connections every 2 seconds (like the example)
+		if (refreshInterval) {
+			clearInterval(refreshInterval);
+		}
+		refreshInterval = setInterval(() => {
+			refreshConnectionsFromLibp2p();
+		}, 2000);
 	}
-
+	
+	function refreshConnectionsFromLibp2p() {
+		if (!libp2p) return;
+		
+		const allConnections = libp2p.getConnections();
+		const peerMap = new Map();
+		
+		// Group connections by peer ID
+		allConnections.forEach((connection) => {
+			if (!connection?.remotePeer) return;
+			const peerIdStr = connection.remotePeer.toString();
+			
+			if (!peerMap.has(peerIdStr)) {
+				peerMap.set(peerIdStr, []);
+			}
+			peerMap.get(peerIdStr).push(connection);
+		});
+		
+		// Update peers list with all discovered connections
+		const newPeers = Array.from(peerMap.entries()).map(([peerIdStr, connections]) => {
+			const transports = new Set();
+			connections.forEach((conn) => {
+				const connTransports = extractTransportsFromConnection(conn);
+				connTransports.forEach((t) => transports.add(t));
+			});
+			
+			return {
+				peerId: peerIdStr,
+				transports: Array.from(transports)
+			};
+		});
+		
+		// Update peers store
+		peers.set(newPeers);
+	}
+	
+	// Call refresh on initialization
 	function initializePeerManagement() {
 		console.log('🔍 ConnectedPeers: Setting up peer management...');
-
-		// Clean up any existing listeners
 		cleanup();
-
-		// Check for existing connections first
 		checkExistingConnections();
-
-		// Set up peer discovery handlers
 		setupPeerDiscoveryHandlers();
+		refreshConnectionsFromLibp2p(); // Initial refresh
 	}
 
 	function checkExistingConnections() {
@@ -311,6 +350,10 @@
 
 	// Cleanup
 	function cleanup() {
+		if (refreshInterval) {
+			clearInterval(refreshInterval);
+			refreshInterval = null;
+		}
 		if (libp2p && eventListeners.length > 0) {
 			eventListeners.forEach(({ event, handler }) => {
 				libp2p.removeEventListener(event, handler);
