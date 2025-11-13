@@ -26,6 +26,8 @@
 		todoListHierarchyStore
 	} from '$lib/todo-list-manager.js';
 	import { get } from 'svelte/store';
+	import { replaceState } from '$app/navigation';
+	import { pushState } from '$app/navigation';
 
 	let error = null;
 	let loading = true;
@@ -109,7 +111,7 @@
 					const embedPath = `/embed/${encodeURIComponent(newListAddress)}`;
 					const queryParams = allowAdd ? '?allowAdd=true' : '';
 					const newUrl = embedPath + queryParams;
-					window.history.pushState(null, '', newUrl);
+					pushState(newUrl, {});
 
 					// Update local dbAddress to match
 					dbAddress = newListAddress;

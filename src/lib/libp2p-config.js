@@ -96,16 +96,24 @@ export async function createLibp2pConfig(options = {}) {
 					webRTCDirect({
 						rtcConfiguration: {
 							iceServers: [
-								// STUN servers can be added here if needed
-								// { urls: ['stun:stun.l.google.com:19302'] }
+								{
+									urls: [
+										'stun:stun.l.google.com:19302',
+										'stun:global.stun.twilio.com:3478'
+									]
+								}
 							]
 						}
 					}),
 					webRTC({
 						rtcConfiguration: {
 							iceServers: [
-								// STUN servers can be added here if needed
-								// { urls: ['stun:stun.l.google.com:19302'] }
+								{
+									urls: [
+										'stun:stun.l.google.com:19302',
+										'stun:global.stun.twilio.com:3478'
+									]
+								}
 							]
 						}
 					}),

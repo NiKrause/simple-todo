@@ -11,7 +11,7 @@ export default defineConfig({
 		port: 4174,
 		// Use the test environment file and set development mode
 		env: {
-			VITE_ENV_FILE: '.env.development',
+			// VITE_ENV_FILE: '.env.development',
 			VITE_NODE_ENV: 'development'
 		},
 		// Wait for server to be ready
@@ -45,7 +45,7 @@ export default defineConfig({
 					]
 				},
 				// Grant permissions needed for WebRTC
-				permissions: ['microphone', 'camera'],
+				permissions: ['microphone', 'camera', 'clipboard-read', 'clipboard-write'], // Add clipboard permissions
 				// Set user agent to avoid blocking
 				userAgent:
 					'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'

@@ -169,5 +169,16 @@ export default defineConfig({
 			include: [/varint/, /node_modules/],
 			transformMixedEsModules: true
 		}
+	},
+	server: {
+		// Allow Vite to serve files from the orbitdb directory (local clone)
+		fs: {
+			allow: [
+				// Default allowed directories
+				__dirname,
+				// Explicitly allow orbitdb directory
+				resolve(__dirname, 'orbitdb')
+			]
+		}
 	}
 });

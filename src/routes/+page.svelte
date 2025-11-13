@@ -45,25 +45,26 @@
 	// import { Cloud } from 'lucide-svelte'; // Unused for now
 	import { toastStore } from '$lib/toast-store.js';
 	import { browser } from '$app/environment';
+	import { replaceState } from '$app/navigation';
 
 	// Expose database address to window for e2e testing
 	// Move reactive statements outside the if block and ensure they always run
 	// Expose database address to window for e2e testing
-$: if (browser && $currentDbAddressStore) {
-	window.__currentDbAddress__ = $currentDbAddressStore;
-}
-
-$: if (browser && !$currentDbAddressStore) {
-	delete window.__currentDbAddress__;
-}
-
-$: if (browser && $todoDBStore) {
-	window.__todoDB__ = $todoDBStore;
-	// Also set address from todoDB if currentDbAddressStore is not set
-	if ($todoDBStore.address && !$currentDbAddressStore) {
-		window.__currentDbAddress__ = $todoDBStore.address;
+	$: if (browser && $currentDbAddressStore) {
+		window.__currentDbAddress__ = $currentDbAddressStore;
 	}
-}
+
+	$: if (browser && !$currentDbAddressStore) {
+		delete window.__currentDbAddress__;
+	}
+
+	$: if (browser && $todoDBStore) {
+		window.__todoDB__ = $todoDBStore;
+		// Also set address from todoDB if currentDbAddressStore is not set
+		if ($todoDBStore.address && !$currentDbAddressStore) {
+			window.__currentDbAddress__ = $todoDBStore.address;
+		}
+	}
 
 	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
 
@@ -546,11 +547,13 @@ $: if (browser && $todoDBStore) {
 					console.log(
 						'🔧 DEBUG: Hash detected, auto-initializing to open database (implied consent)...'
 					);
-					// Initialize - hash will be handled by subscription once initialized
+					// Initialize - skip default database since we'll open from hash
+					// Hash will be handled by subscription once initialized
 					await initializeP2P({
 						enablePersistentStorage: true,
 						enableNetworkConnection: true,
-						enablePeerConnections: true
+						enablePeerConnections: true,
+						skipDefaultDatabase: true
 					});
 					// Hash will be handled by subscription
 				} else if (hasConsent) {
@@ -572,7 +575,7 @@ $: if (browser && $todoDBStore) {
 			// Add this in onMount or as a global function
 			if (browser) {
 				window.__getDbAddress = () => {
-					return $currentDbAddressStore || ($todoDBStore?.address) || null;
+					return $currentDbAddressStore || $todoDBStore?.address || null;
 				};
 			}
 
@@ -599,7 +602,7 @@ $: if (browser && $todoDBStore) {
 				const hash = `/${encodeURIComponent(currentAddress)}`;
 				if (window.location.hash !== `#${hash}`) {
 					// Use replaceState to avoid adding to history
-					window.history.replaceState(null, '', `#${hash}`);
+					replaceState(`#${hash}`, { replaceState: true });
 				}
 			}
 		}
@@ -682,7 +685,7 @@ $: if (browser && $todoDBStore) {
 						const embedPath = `embed/${encodeURIComponent(newListAddress)}`;
 						const queryParams = embedAllowAdd ? '?allowAdd=true' : '';
 						const newHash = `#/${embedPath}${queryParams}`;
-						window.history.pushState(null, '', newHash);
+						pushState(newHash, {});
 
 						toastStore.show('✅ Sub-list created!', 'success');
 					}

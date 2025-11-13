@@ -173,7 +173,9 @@
 			<!-- Embed Code -->
 			<div class="mb-4">
 				<div class="mb-2 flex items-center justify-between">
-					<label for="embed-code-textarea" class="text-sm font-medium text-gray-700">Embed Code</label>
+					<label for="embed-code-textarea" class="text-sm font-medium text-gray-700"
+						>Embed Code</label
+					>
 					<button
 						on:click={copyEmbedCode}
 						class="flex items-center gap-1 rounded px-2 py-1 text-xs text-blue-600 transition-colors hover:bg-blue-50"

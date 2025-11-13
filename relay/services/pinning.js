@@ -2,6 +2,7 @@ import { createOrbitDB } from '@orbitdb/core';
 import { createHelia } from 'helia';
 import { CID } from 'multiformats/cid';
 import PQueue from 'p-queue';
+// import { createBlockstoreAdapter } from './blockstore-adapter.js';
 
 export class PinningService {
 	constructor(options = {}) {
@@ -73,6 +74,17 @@ export class PinningService {
 			datastore,
 			blockstore
 		});
+
+		// Wrap Helia's blockstore with adapter after creation
+		// Helia might wrap our blockstore, so we need to wrap it again
+		// if (this.helia.blockstore) {
+		// 	this.log('🔧 Wrapping Helia blockstore with adapter', 'debug');
+		// 	const originalBlockstore = this.helia.blockstore;
+		// 	this.helia.blockstore = createBlockstoreAdapter(originalBlockstore);
+		// 	this.log('🔧 Helia blockstore wrapped successfully', 'debug');
+		// } else {
+		// 	this.log('⚠️  WARNING: Helia has no blockstore property!', 'warn');
+		// }
 
 		// Create OrbitDB instance with access controllers registered
 		this.orbitdb = await createOrbitDB({

@@ -2,8 +2,10 @@ import { LevelBlockstore } from 'blockstore-level';
 import { LevelDatastore } from 'datastore-level';
 import { join } from 'path';
 import { loadOrCreateSelfKey } from '@libp2p/config';
-import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
-import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
+import { privateKeyFromProtobuf, privateKeyToProtobuf } from '@libp2p/crypto/keys';
+import { fromString as uint8ArrayFromString, toString as uint8ArrayToString } from 'uint8arrays';
+import { Key } from 'interface-datastore';
+// import { createBlockstoreAdapter } from './blockstore-adapter.js';
 
 /**
  * Initialize persistent storage for the relay
@@ -21,9 +23,12 @@ export async function initializeStorage(hostDirectory, isDevMode = false, fixedP
 	console.log('✅ Datastore initialized');
 
 	// Create blockstore
-	const blockstore = new LevelBlockstore(join(hostDirectory, 'blocks'));
-	await blockstore.open();
-	console.log('✅ Blockstore initialized');
+	const rawBlockstore = new LevelBlockstore(join(hostDirectory, 'blocks'));
+	await rawBlockstore.open();
+	const blockstore = rawBlockstore;
+	// Wrap blockstore with adapter to ensure Uint8Array compatibility
+	// const blockstore = createBlockstoreAdapter(rawBlockstore);
+	// console.log('✅ Blockstore initialized');
 
 	let privateKey;
 
@@ -40,8 +45,41 @@ export async function initializeStorage(hostDirectory, isDevMode = false, fixedP
 				'⚠️ Failed to load fixed private key, falling back to generated key:',
 				error.message
 			);
+			
+			// Check if a key already exists in the datastore
+			const keyExistsKey = new Key('/self/key');
+			let keyExists = false;
+			try {
+				await datastore.get(keyExistsKey);
+				keyExists = true;
+			} catch {
+				// Key doesn't exist, will be created
+				keyExists = false;
+			}
+			
 			try {
 				privateKey = await loadOrCreateSelfKey(datastore);
+				
+				// If key didn't exist before, it was just created - print it
+				if (!keyExists) {
+					try {
+						// Convert private key object directly to protobuf bytes, then to hex
+						const privateKeyBytes = privateKeyToProtobuf(privateKey);
+						const privateKeyHex = uint8ArrayToString(privateKeyBytes, 'hex');
+						
+						console.log('\n' + '='.repeat(80));
+						console.log('🔑 NEW PRIVATE KEY GENERATED (fallback from invalid RELAY_PRIV_KEY)');
+						console.log('='.repeat(80));
+						console.log('Add this to your .env file:');
+						console.log(`RELAY_PRIV_KEY=${privateKeyHex}`);
+						console.log('='.repeat(80) + '\n');
+					} catch (printError) {
+						console.warn('⚠️ Failed to print private key:', printError.message);
+						// Debug: log what the privateKey object actually is
+						console.log('Private key type:', typeof privateKey);
+						console.log('Private key keys:', Object.keys(privateKey || {}));
+					}
+				}
 			} catch (genError) {
 				console.error('❌ Failed to generate private key:', genError);
 				throw new Error(
@@ -52,8 +90,43 @@ export async function initializeStorage(hostDirectory, isDevMode = false, fixedP
 	} else {
 		// Load or create persistent private key
 		console.log('🔑 Loading or creating persistent private key...');
+		
+		// Check if a key already exists in the datastore
+		// loadOrCreateSelfKey stores the key under '/self/key'
+		const keyExistsKey = new Key('/self/key');
+		let keyExists = false;
+		try {
+			await datastore.get(keyExistsKey);
+			keyExists = true;
+		} catch {
+			// Key doesn't exist, will be created
+			keyExists = false;
+		}
+		
 		try {
 			privateKey = await loadOrCreateSelfKey(datastore);
+			
+			// If key didn't exist before, it was just created - print it
+			if (!keyExists) {
+				try {
+					// Convert private key object directly to protobuf bytes, then to hex
+					const privateKeyBytes = privateKeyToProtobuf(privateKey);
+					const privateKeyHex = uint8ArrayToString(privateKeyBytes, 'hex');
+					
+					console.log('\n' + '='.repeat(80));
+					console.log('🔑 NEW PRIVATE KEY GENERATED');
+					console.log('='.repeat(80));
+					console.log('Add this to your .env file:');
+					console.log(`RELAY_PRIV_KEY=${privateKeyHex}`);
+					console.log('='.repeat(80) + '\n');
+				} catch (printError) {
+					console.warn('⚠️ Failed to print private key:', printError.message);
+					// Debug: log what the privateKey object actually is
+					console.log('Private key type:', typeof privateKey);
+					console.log('Private key keys:', Object.keys(privateKey || {}));
+				}
+			}
+			
 			console.log('✅ Private key loaded/created successfully');
 		} catch (error) {
 			console.error('❌ Failed to load or create private key:', error);

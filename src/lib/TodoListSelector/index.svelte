@@ -12,6 +12,7 @@
 	import { initializationStore } from '../p2p.js';
 	import { get } from 'svelte/store';
 	import { currentDbNameStore, currentDbAddressStore } from '../todo-list-manager.js';
+	import { replaceState } from '$app/navigation';
 
 	let showDropdown = false;
 	let inputValue = '';
@@ -89,9 +90,7 @@
 				// Sync URL hash so global hash handler updates stores and persists
 				if (typeof window !== 'undefined') {
 					const hash = `/${encodeURIComponent(list.address)}`;
-					if (window.location.hash !== `#${hash}`) {
-						window.history.replaceState(null, '', `#${hash}`);
-					}
+					replaceState(`#${hash}`, { replaceState: true });
 				}
 				// The hash handler will update stores again, but we've already set them for immediate UI feedback
 			} catch (e) {

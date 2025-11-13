@@ -26,7 +26,7 @@
 
 	// Add periodic refresh of connections (like the example)
 	let refreshInterval;
-	
+
 	$: if (libp2p) {
 		// Refresh connections every 2 seconds (like the example)
 		if (refreshInterval) {
@@ -36,24 +36,25 @@
 			refreshConnectionsFromLibp2p();
 		}, 2000);
 	}
-	
+
 	function refreshConnectionsFromLibp2p() {
 		if (!libp2p) return;
-		
+
 		const allConnections = libp2p.getConnections();
 		const peerMap = new Map();
-		
+
 		// Group connections by peer ID
 		allConnections.forEach((connection) => {
+			console.log('🔍 Connection:', connection);
 			if (!connection?.remotePeer) return;
-			const peerIdStr = connection.remotePeer.toString();
-			
+			const peerIdStr = .toString();
+
 			if (!peerMap.has(peerIdStr)) {
 				peerMap.set(peerIdStr, []);
 			}
 			peerMap.get(peerIdStr).push(connection);
 		});
-		
+
 		// Update peers list with all discovered connections
 		const newPeers = Array.from(peerMap.entries()).map(([peerIdStr, connections]) => {
 			const transports = new Set();
@@ -61,17 +62,17 @@
 				const connTransports = extractTransportsFromConnection(conn);
 				connTransports.forEach((t) => transports.add(t));
 			});
-			
+
 			return {
 				peerId: peerIdStr,
 				transports: Array.from(transports)
 			};
 		});
-		
+
 		// Update peers store
 		peers.set(newPeers);
 	}
-	
+
 	// Call refresh on initialization
 	function initializePeerManagement() {
 		console.log('🔍 ConnectedPeers: Setting up peer management...');
@@ -88,8 +89,9 @@
 		const allConnections = libp2p.getConnections();
 
 		allConnections.forEach((connection) => {
+			console.log('🔍 Connection:', connection);
 			if (!connection?.remotePeer) return;
-			const peerIdStr = connection.remotePeer.toString();
+			const peerIdStr = connection?.remotePeer?.toString();
 
 			// Skip if already in our peers list
 			if (currentPeers.some((peer) => peer.peerId === peerIdStr)) {
@@ -202,10 +204,11 @@
 
 		// Handle connection events for transport tracking
 		const onConnectionOpen = (event) => {
+			console.log('🔍 Connection open event:', event);
 			if (!event?.detail) return;
 			const connection = event.detail;
 			if (!connection?.remotePeer) return;
-			const peerIdStr = connection.remotePeer?.toString();
+			const peerIdStr = connection?.remotePeer?.toString();
 
 			if (!peerIdStr) return;
 
@@ -221,10 +224,11 @@
 		};
 
 		const onConnectionClose = (event) => {
+			console.log('🔍 Connection close event:', event);
 			if (!event?.detail) return;
 			const connection = event.detail;
 			if (!connection?.remotePeer) return;
-			const peerIdStr = connection.remotePeer?.toString();
+			const peerIdStr = connection?.remotePeer?.toString();
 
 			if (!peerIdStr) return;
 

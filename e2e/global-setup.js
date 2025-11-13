@@ -39,8 +39,8 @@ export default async function globalSetup() {
 				...process.env,
 				NODE_ENV: 'development',
 				RELAY_PRIV_KEY: process.env.RELAY_PRIV_KEY, // Explicitly pass it
-				RELAY_WS_PORT: '4001',
-				RELAY_TCP_PORT: '4002',
+				RELAY_TCP_PORT: '4001',
+				RELAY_WS_PORT: '4002',
 				RELAY_WEBRTC_PORT: '4003',
 				RELAY_WEBRTC_DIRECT_PORT: '4006',
 				HTTP_PORT: '3000',
@@ -74,7 +74,7 @@ export default async function globalSetup() {
 
 			if (peerIdMatch && !relayMultiaddr && !resolved) {
 				const peerId = peerIdMatch[1];
-				relayMultiaddr = `/ip4/127.0.0.1/tcp/4001/ws/p2p/${peerId}`;
+				relayMultiaddr = `/ip4/127.0.0.1/tcp/4002/ws/p2p/${peerId}`;
 
 				// Create .env.development file for Vite
 				const envContent = `# Generated for e2e tests

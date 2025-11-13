@@ -16,7 +16,7 @@ import { keychain } from '@libp2p/keychain';
 import { config } from 'dotenv';
 // import { tls } from '@libp2p/tls'
 import { uPnPNAT } from '@libp2p/upnp-nat';
-import { prometheusMetrics } from '@libp2p/prometheus-metrics';
+// import { prometheusMetrics } from '@libp2p/prometheus-metrics';
 import { initializeStorage, closeStorage } from './services/storage.js';
 import { createExpressServer, startExpressServer } from './services/express.js';
 import { PinningService } from './services/pinning.js';
@@ -101,16 +101,18 @@ const libp2pOptions = {
 	// Include private key and datastore
 	...(privateKey && { privateKey }),
 	datastore,
-	metrics: prometheusMetrics(),
+	// metrics: prometheusMetrics(),
 	addresses: {
 		listen: [
 			`/ip4/0.0.0.0/tcp/${tcpPort}`, // Direct TCP
 			`/ip4/0.0.0.0/tcp/${wsPort}/ws`, // WebSocket for browsers
 			// IPv6 addresses - optional, will fail gracefully if IPv6 not available
-			...(process.env.DISABLE_IPV6 !== 'true' ? [
-				`/ip6/::/tcp/${tcpPort}`, // IPv6 TCP
-				`/ip6/::/tcp/${wsPort}/ws` // IPv6 WebSocket
-			] : []),
+			...(process.env.DISABLE_IPV6 !== 'true'
+				? [
+						`/ip6/::/tcp/${tcpPort}`, // IPv6 TCP
+						`/ip6/::/tcp/${wsPort}/ws` // IPv6 WebSocket
+					]
+				: []),
 			'/p2p-circuit' // Circuit relay
 			// Note: WebRTC transports don't support explicit listen addresses
 			// They use STUN/TURN servers configured in the transport options
@@ -182,10 +184,10 @@ const libp2pOptions = {
 		identifyPush: identifyPush(), // Add identify push service
 
 		// Enhanced Kademlia DHT with better configuration
-		aminoDHT: kadDHT({
-			protocol: '/ipfs/kad/1.0.0',
-			peerInfoMapper: removePrivateAddressesMapper
-		}),
+		// aminoDHT: kadDHT({
+		// 	protocol: '/ipfs/kad/1.0.0',
+		// 	peerInfoMapper: removePrivateAddressesMapper
+		// }),
 
 		// Enhanced gossipsub configuration
 		pubsub: gossipsub({
@@ -394,9 +396,9 @@ server.addEventListener('peer:discovery', async (event) => {
 
 	console.log(
 		`🔍 [DISCOVERY] Peer discovered: ${peerIdShort} | ` +
-		`Full ID: ${peerIdStr} | ` +
-		`Addresses: ${multiaddrs.length} | ` +
-		`Transports: ${[...new Set(transports)].join(', ') || 'unknown'}`
+			`Full ID: ${peerIdStr} | ` +
+			`Addresses: ${multiaddrs.length} | ` +
+			`Transports: ${[...new Set(transports)].join(', ') || 'unknown'}`
 	);
 
 	if (process.argv.includes('--verbose')) {
@@ -416,9 +418,7 @@ server.addEventListener('peer:discovery', async (event) => {
 			// Connection will be confirmed in peer:connect event
 		}
 	} catch (error) {
-		console.warn(
-			`❌ [DIAL] Failed to dial peer ${peerIdShort}: ${error.message}`
-		);
+		console.warn(`❌ [DIAL] Failed to dial peer ${peerIdShort}: ${error.message}`);
 		// Remove from discovered set so we can retry later if discovered again
 		discoveredPeers.delete(peerIdStr);
 	}
