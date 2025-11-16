@@ -7,7 +7,7 @@ import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
 import { identify, identifyPush } from '@libp2p/identify';
 import { dcutr } from '@libp2p/dcutr';
 import { autoNAT } from '@libp2p/autonat';
-import { gossipsub } from '@libp2p/gossipsub';
+import { gossipsub } from '@chainsafe/libp2p-gossipsub';
 import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
 import { bootstrap } from '@libp2p/bootstrap';
 import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
