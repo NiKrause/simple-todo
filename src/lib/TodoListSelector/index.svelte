@@ -90,6 +90,7 @@
 				// Sync URL hash so global hash handler updates stores and persists
 				if (typeof window !== 'undefined') {
 					const hash = `/${encodeURIComponent(list.address)}`;
+					// eslint-disable-next-line svelte/no-navigation-without-resolve
 					replaceState(`#${hash}`, { replaceState: true });
 				}
 				// The hash handler will update stores again, but we've already set them for immediate UI feedback

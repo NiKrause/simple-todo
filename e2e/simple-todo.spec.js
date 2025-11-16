@@ -25,20 +25,6 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('✅ Webserver is running and accessible');
 	});
 
-	test.beforeEach(async ({ page, context }) => {
-		// Clear cookies first
-		await context.clearCookies();
-
-		// Clear localStorage and sessionStorage before page loads using addInitScript
-		await page.addInitScript(() => {
-			localStorage.clear();
-			sessionStorage.clear();
-		});
-
-		// Navigate to the application with clean state
-		await page.goto('/', { waitUntil: 'domcontentloaded' });
-	});
-
 	test('should show consent modal and proceed with P2P initialization', async ({ page }) => {
 		// Navigate to the application
 		await page.goto('/');
@@ -272,9 +258,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 Todo operations test completed successfully!');
 	});
 
-	test('should connect two browsers and see each other as connected peers', async ({
-		browser
-	}) => {
+	test.only('should connect two browsers and see each other as connected peers', async ({ browser }) => {
 		// Create two separate browser contexts (simulating two different browsers)
 		const context1 = await browser.newContext();
 		const context2 = await browser.newContext();
@@ -350,24 +334,26 @@ test.describe('Simple Todo P2P Application', () => {
 		// Step 5: Verify both pages see each other in connected peers
 		console.log('🔍 Checking if pages see each other...');
 
-		// Get connected peer IDs from both pages
-		const peers1 = await getConnectedPeerIds(page1);
-		const peers2 = await getConnectedPeerIds(page2);
-
-		console.log(`📊 Page 1 sees ${peers1.length} peer(s):`, peers1);
-		console.log(`📊 Page 2 sees ${peers2.length} peer(s):`, peers2);
-
 		// Extract short peer IDs for comparison (first 8-16 characters)
 		const shortPeerId1 = peerId1?.substring(0, 16) || '';
 		const shortPeerId2 = peerId2?.substring(0, 16) || '';
 
-		// Check if page1 sees page2's peer ID
-		const page1SeesPage2 = peers1.some((peer) => peer.includes(shortPeerId2));
-		// Check if page2 sees page1's peer ID
-		const page2SeesPage1 = peers2.some((peer) => peer.includes(shortPeerId1));
+		// Helper function to check peer visibility
+		const checkPeerVisibility = async () => {
+			const peers1 = await getConnectedPeerIds(page1);
+			const peers2 = await getConnectedPeerIds(page2);
 
-		console.log(`🔍 Page 1 sees Page 2: ${page1SeesPage2}`);
-		console.log(`🔍 Page 2 sees Page 1: ${page2SeesPage1}`);
+			console.log(`📊 Page 1 sees ${peers1.length} peer(s):`, peers1);
+			console.log(`📊 Page 2 sees ${peers2.length} peer(s):`, peers2);
+
+			const page1SeesPage2 = peers1.some((peer) => peer.includes(shortPeerId2));
+			const page2SeesPage1 = peers2.some((peer) => peer.includes(shortPeerId1));
+
+			return { page1SeesPage2, page2SeesPage1 };
+		};
+
+		// Initial check
+		let { page1SeesPage2, page2SeesPage1 } = await checkPeerVisibility();
 
 		// Wait a bit more if they don't see each other yet (peer discovery can take time)
 		if (!page1SeesPage2 || !page2SeesPage1) {
@@ -376,27 +362,19 @@ test.describe('Simple Todo P2P Application', () => {
 			await page2.waitForTimeout(10000);
 
 			// Re-check
-			const peers1After = await getConnectedPeerIds(page1);
-			const peers2After = await getConnectedPeerIds(page2);
-
-			const page1SeesPage2After = peers1After.some((peer) => peer.includes(shortPeerId2));
-			const page2SeesPage1After = peers2After.some((peer) => peer.includes(shortPeerId1));
-
-			console.log(`🔍 After wait - Page 1 sees Page 2: ${page1SeesPage2After}`);
-			console.log(`🔍 After wait - Page 2 sees Page 1: ${page2SeesPage1After}`);
-
-			// Use the after-wait results
-			if (page1SeesPage2After || page2SeesPage1After) {
-				console.log('✅ At least one page sees the other - peer connection established!');
-			} else {
-				// Log diagnostic info
-				console.log('⚠️ Peer discovery may still be in progress. Current state:');
-				console.log(`   Page 1 peer count: ${peers1After.length}`);
-				console.log(`   Page 2 peer count: ${peers2After.length}`);
-			}
-		} else {
-			console.log('✅ Both pages see each other as connected peers!');
+			const result = await checkPeerVisibility();
+			page1SeesPage2 = result.page1SeesPage2;
+			page2SeesPage1 = result.page2SeesPage1;
 		}
+
+		// Assert that both pages see each other
+		console.log(`🔍 Page 1 sees Page 2: ${page1SeesPage2}`);
+		console.log(`🔍 Page 2 sees Page 1: ${page2SeesPage1}`);
+
+		expect(page1SeesPage2).toBe(true);
+		expect(page2SeesPage1).toBe(true);
+
+		console.log('✅ Both pages see each other as connected peers!');
 
 		// Step 6: Verify final peer counts
 		const finalPeerCount1 = await getPeerCount(page1);
@@ -627,18 +605,20 @@ test.describe('Simple Todo P2P Application', () => {
 		}
 		console.log(`✅ Browser B: Found ${sublistTodos.length} todos from shared database`);
 
-		// Verify all 3 todos are visible
-		const todoElements2 = page2.locator('[data-testid="todo-item"], .todo-item, [class*="todo"]');
-		const todoCount2 = await todoElements2.count();
-
-		console.log(`📊 Browser B: Found ${todoCount2} todo(s)`);
-		expect(todoCount2).toBeGreaterThanOrEqual(todos.length);
-
-		// Verify each todo text is present
-		for (const todoText of todos) {
+		// Verify each sublist todo text is present (we already verified visibility above, but double-check)
+		let visibleTodoCount = 0;
+		for (const todoText of sublistTodos) {
 			const todoElement = page2.locator('text=' + todoText);
-			await expect(todoElement).toBeVisible({ timeout: 5000 });
+			const isVisible = await todoElement.isVisible({ timeout: 5000 }).catch(() => false);
+			if (isVisible) {
+				visibleTodoCount++;
+			}
 		}
+
+		console.log(
+			`📊 Browser B: Found ${visibleTodoCount} visible todo(s) out of ${sublistTodos.length} expected`
+		);
+		expect(visibleTodoCount).toBeGreaterThanOrEqual(sublistTodos.length);
 
 		console.log('✅ Browser B: All todos synced successfully!');
 

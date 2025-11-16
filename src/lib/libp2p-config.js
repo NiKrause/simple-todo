@@ -37,8 +37,8 @@ console.log('RELAY_BOOTSTRAP_ADDR', RELAY_BOOTSTRAP_ADDR);
 export async function createLibp2pConfig(options = {}) {
 	const {
 		privateKey = null,
-		enablePeerConnections = true,
-		enableNetworkConnection = true
+		enableNetworkConnection = true,
+		enablePeerConnections = true
 	} = options;
 
 	// Get fixed peer ID from environment variable
@@ -74,8 +74,8 @@ export async function createLibp2pConfig(options = {}) {
 		pubsub: gossipsub({
 			emitSelf: false, // Don't emit our own messages (matches example project)
 			allowPublishToZeroTopicPeers: true
-		})
-		  , ping: ping()
+		}),
+		ping: ping()
 	};
 	// Only add bootstrap service if network connections are enabled
 	if (enableNetworkConnection) {
@@ -97,10 +97,7 @@ export async function createLibp2pConfig(options = {}) {
 						rtcConfiguration: {
 							iceServers: [
 								{
-									urls: [
-										'stun:stun.l.google.com:19302',
-										'stun:global.stun.twilio.com:3478'
-									]
+									urls: ['stun:stun.l.google.com:19302', 'stun:global.stun.twilio.com:3478']
 								}
 							]
 						}
@@ -109,10 +106,7 @@ export async function createLibp2pConfig(options = {}) {
 						rtcConfiguration: {
 							iceServers: [
 								{
-									urls: [
-										'stun:stun.l.google.com:19302',
-										'stun:global.stun.twilio.com:3478'
-									]
+									urls: ['stun:stun.l.google.com:19302', 'stun:global.stun.twilio.com:3478']
 								}
 							]
 						}

@@ -26,7 +26,6 @@
 		todoListHierarchyStore
 	} from '$lib/todo-list-manager.js';
 	import { get } from 'svelte/store';
-	import { replaceState } from '$app/navigation';
 	import { pushState } from '$app/navigation';
 
 	let error = null;
@@ -111,6 +110,7 @@
 					const embedPath = `/embed/${encodeURIComponent(newListAddress)}`;
 					const queryParams = allowAdd ? '?allowAdd=true' : '';
 					const newUrl = embedPath + queryParams;
+					// eslint-disable-next-line svelte/no-navigation-without-resolve
 					pushState(newUrl, {});
 
 					// Update local dbAddress to match

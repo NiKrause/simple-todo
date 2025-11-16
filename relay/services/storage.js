@@ -45,7 +45,7 @@ export async function initializeStorage(hostDirectory, isDevMode = false, fixedP
 				'⚠️ Failed to load fixed private key, falling back to generated key:',
 				error.message
 			);
-			
+
 			// Check if a key already exists in the datastore
 			const keyExistsKey = new Key('/self/key');
 			let keyExists = false;
@@ -56,17 +56,17 @@ export async function initializeStorage(hostDirectory, isDevMode = false, fixedP
 				// Key doesn't exist, will be created
 				keyExists = false;
 			}
-			
+
 			try {
 				privateKey = await loadOrCreateSelfKey(datastore);
-				
+
 				// If key didn't exist before, it was just created - print it
 				if (!keyExists) {
 					try {
 						// Convert private key object directly to protobuf bytes, then to hex
 						const privateKeyBytes = privateKeyToProtobuf(privateKey);
 						const privateKeyHex = uint8ArrayToString(privateKeyBytes, 'hex');
-						
+
 						console.log('\n' + '='.repeat(80));
 						console.log('🔑 NEW PRIVATE KEY GENERATED (fallback from invalid RELAY_PRIV_KEY)');
 						console.log('='.repeat(80));
@@ -90,7 +90,7 @@ export async function initializeStorage(hostDirectory, isDevMode = false, fixedP
 	} else {
 		// Load or create persistent private key
 		console.log('🔑 Loading or creating persistent private key...');
-		
+
 		// Check if a key already exists in the datastore
 		// loadOrCreateSelfKey stores the key under '/self/key'
 		const keyExistsKey = new Key('/self/key');
@@ -102,17 +102,17 @@ export async function initializeStorage(hostDirectory, isDevMode = false, fixedP
 			// Key doesn't exist, will be created
 			keyExists = false;
 		}
-		
+
 		try {
 			privateKey = await loadOrCreateSelfKey(datastore);
-			
+
 			// If key didn't exist before, it was just created - print it
 			if (!keyExists) {
 				try {
 					// Convert private key object directly to protobuf bytes, then to hex
 					const privateKeyBytes = privateKeyToProtobuf(privateKey);
 					const privateKeyHex = uint8ArrayToString(privateKeyBytes, 'hex');
-					
+
 					console.log('\n' + '='.repeat(80));
 					console.log('🔑 NEW PRIVATE KEY GENERATED');
 					console.log('='.repeat(80));
@@ -126,7 +126,7 @@ export async function initializeStorage(hostDirectory, isDevMode = false, fixedP
 					console.log('Private key keys:', Object.keys(privateKey || {}));
 				}
 			}
-			
+
 			console.log('✅ Private key loaded/created successfully');
 		} catch (error) {
 			console.error('❌ Failed to load or create private key:', error);

@@ -28,26 +28,28 @@
 	let refreshInterval;
 
 	$: if (libp2p) {
-		// Refresh connections every 2 seconds (like the example)
-		if (refreshInterval) {
-			clearInterval(refreshInterval);
-		}
-		refreshInterval = setInterval(() => {
-			refreshConnectionsFromLibp2p();
-		}, 2000);
+		// Clean up any existing listeners first
+		cleanup();
+		
+		// Check for existing connections once on init
+		refreshConnectionsFromLibp2p();
+		
+		// Set up event-based peer discovery handlers
+		setupPeerDiscoveryHandlers();
 	}
 
 	function refreshConnectionsFromLibp2p() {
 		if (!libp2p) return;
 
 		const allConnections = libp2p.getConnections();
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const peerMap = new Map();
 
 		// Group connections by peer ID
 		allConnections.forEach((connection) => {
 			console.log('🔍 Connection:', connection);
 			if (!connection?.remotePeer) return;
-			const peerIdStr = .toString();
+			const peerIdStr = connection.remotePeer.toString();
 
 			if (!peerMap.has(peerIdStr)) {
 				peerMap.set(peerIdStr, []);
@@ -57,6 +59,7 @@
 
 		// Update peers list with all discovered connections
 		const newPeers = Array.from(peerMap.entries()).map(([peerIdStr, connections]) => {
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity
 			const transports = new Set();
 			connections.forEach((conn) => {
 				const connTransports = extractTransportsFromConnection(conn);
@@ -73,53 +76,7 @@
 		peers.set(newPeers);
 	}
 
-	// Call refresh on initialization
-	function initializePeerManagement() {
-		console.log('🔍 ConnectedPeers: Setting up peer management...');
-		cleanup();
-		checkExistingConnections();
-		setupPeerDiscoveryHandlers();
-		refreshConnectionsFromLibp2p(); // Initial refresh
-	}
-
-	function checkExistingConnections() {
-		if (!libp2p) return;
-
-		console.log('🔍 Checking for existing connections...');
-		const allConnections = libp2p.getConnections();
-
-		allConnections.forEach((connection) => {
-			console.log('🔍 Connection:', connection);
-			if (!connection?.remotePeer) return;
-			const peerIdStr = connection?.remotePeer?.toString();
-
-			// Skip if already in our peers list
-			if (currentPeers.some((peer) => peer.peerId === peerIdStr)) {
-				return;
-			}
-
-			console.log('🔗 Found existing connection to:', formatPeerId(peerIdStr));
-
-			// Extract transports from the connection
-			const transports = extractTransportsFromConnection(connection);
-
-			// Add to peers list
-			peers.update((peers) => [
-				...peers,
-				{
-					peerId: peerIdStr,
-					transports: transports.length > 0 ? transports : ['websocket'] // fallback
-				}
-			]);
-
-			// Track connection transports
-			if (!peerConnectionTransports.has(peerIdStr)) {
-				peerConnectionTransports.set(peerIdStr, new Map());
-			}
-			peerConnectionTransports.get(peerIdStr).set(connection.id, new Set(transports));
-		});
-	}
-
+	// eslint-disable-next-line no-unused-vars
 	function setupPeerDiscoveryHandlers() {
 		// Handle peer discovery events
 		const onPeerDiscovery = async (event) => {
@@ -177,11 +134,52 @@
 			// Add to peers list if not already there
 			const existingPeer = currentPeers.find((peer) => peer.peerId === peerIdStr);
 			if (!existingPeer) {
-				const storedPeerInfo = discoveredPeersInfo.get(peerIdStr);
-				const transports = storedPeerInfo?.transports || ['webrtc'];
+				// Get actual transports from all active connections for this peer
+				const connections = libp2p.getConnections(peerId);
+				// eslint-disable-next-line svelte/prefer-svelte-reactivity
+				const allTransports = new Set();
+				if (connections && connections.length > 0) {
+					connections.forEach((conn) => {
+						const connTransports = extractTransportsFromConnection(conn);
+						connTransports.forEach((t) => allTransports.add(t));
+					});
+				}
+				
+				// Fallback to discovery info if no connections yet, or default to webrtc
+				const transports = allTransports.size > 0 
+					? Array.from(allTransports)
+					: (discoveredPeersInfo.get(peerIdStr)?.transports || ['webrtc']);
 
 				peers.update((peers) => [...peers, { peerId: peerIdStr, transports }]);
 				discoveredPeersInfo.delete(peerIdStr);
+				
+				// Track all connections for this peer
+				if (connections && connections.length > 0) {
+					if (!peerConnectionTransports.has(peerIdStr)) {
+						peerConnectionTransports.set(peerIdStr, new Map());
+					}
+					connections.forEach((conn) => {
+						const connTransports = extractTransportsFromConnection(conn);
+						if (connTransports.length > 0) {
+							peerConnectionTransports.get(peerIdStr).set(conn.id, new Set(connTransports));
+						}
+					});
+				}
+			} else {
+				// Peer already exists, refresh transports from actual connections
+				const connections = libp2p.getConnections(peerId);
+				if (connections && connections.length > 0) {
+					if (!peerConnectionTransports.has(peerIdStr)) {
+						peerConnectionTransports.set(peerIdStr, new Map());
+					}
+					connections.forEach((conn) => {
+						const connTransports = extractTransportsFromConnection(conn);
+						if (connTransports.length > 0) {
+							peerConnectionTransports.get(peerIdStr).set(conn.id, new Set(connTransports));
+						}
+					});
+					updatePeerTransports(peerIdStr);
+				}
 			}
 		};
 
@@ -213,6 +211,7 @@
 			if (!peerIdStr) return;
 
 			const connectionTransports = extractTransportsFromConnection(connection);
+			console.log(`🔍 Connection opened to ${peerIdStr.slice(0, 12)}... transports:`, connectionTransports);
 
 			if (connectionTransports.length > 0) {
 				if (!peerConnectionTransports.has(peerIdStr)) {
@@ -220,6 +219,8 @@
 				}
 				peerConnectionTransports.get(peerIdStr).set(connection.id, new Set(connectionTransports));
 				updatePeerTransports(peerIdStr);
+			} else {
+				console.warn(`⚠️ Connection opened but no transports detected for ${peerIdStr.slice(0, 12)}...`);
 			}
 		};
 
@@ -232,13 +233,21 @@
 
 			if (!peerIdStr) return;
 
+			// Remove from tracking map
 			if (peerConnectionTransports.has(peerIdStr)) {
 				const peerConnections = peerConnectionTransports.get(peerIdStr);
 				peerConnections.delete(connection.id);
+			}
 
-				if (peerConnections.size === 0) {
+			// Always refresh from live connections to ensure accuracy
+			if (libp2p) {
+				const remainingConnections = libp2p.getConnections(peerIdStr);
+				if (!remainingConnections || remainingConnections.length === 0) {
+					// No more connections, remove peer from list
+					peers.update((peers) => peers.filter((peer) => peer.peerId !== peerIdStr));
 					peerConnectionTransports.delete(peerIdStr);
 				} else {
+					// Still have connections, update transports from live connections
 					updatePeerTransports(peerIdStr);
 				}
 			}
@@ -282,38 +291,86 @@
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const transports = new Set();
 
-		if (!connection.remoteAddr) return [];
+		// Check remoteAddr first (primary method)
+		if (connection.remoteAddr) {
+			const addrStr = connection.remoteAddr.toString();
+			console.log('�� Connection address:', addrStr, 'for peer:', connection.remotePeer?.toString().slice(0, 12));
 
-		const addrStr = connection.remoteAddr.toString();
-
-		if (addrStr.includes('/webrtc') && !addrStr.includes('/p2p-circuit')) {
-			transports.add('webrtc');
-		} else if (addrStr.includes('/p2p-circuit')) {
-			transports.add('circuit-relay');
-		} else if (addrStr.includes('/webtransport')) {
-			transports.add('webtransport');
-		} else if (
-			(addrStr.includes('/ws') || addrStr.includes('/wss')) &&
-			!addrStr.includes('/p2p-circuit')
-		) {
-			transports.add('websocket');
-		} else if (addrStr.includes('/tcp/')) {
-			transports.add('tcp');
+			// Check for WebRTC (both /webrtc and /webrtc-direct)
+			if ((addrStr.includes('/webrtc') || addrStr.includes('/webrtc-direct')) && !addrStr.includes('/p2p-circuit')) {
+				transports.add('webrtc');
+			} else if (addrStr.includes('/p2p-circuit')) {
+				transports.add('circuit-relay');
+			} else if (addrStr.includes('/webtransport')) {
+				transports.add('webtransport');
+			} else if (
+				(addrStr.includes('/ws') || addrStr.includes('/wss')) &&
+				!addrStr.includes('/p2p-circuit')
+			) {
+				transports.add('websocket');
+			} else if (addrStr.includes('/tcp/')) {
+				transports.add('tcp');
+			}
+		}
+		
+		// Fallback: Check connection stat.transport if remoteAddr is not available
+		if (transports.size === 0 && connection.stat) {
+			const transport = connection.stat.transport;
+			if (transport) {
+				const transportStr = transport.toString().toLowerCase();
+				if (transportStr.includes('webrtc')) {
+					transports.add('webrtc');
+				} else if (transportStr.includes('websocket') || transportStr.includes('ws')) {
+					transports.add('websocket');
+				} else if (transportStr.includes('circuit') || transportStr.includes('relay')) {
+					transports.add('circuit-relay');
+				}
+			}
+		}
+		
+		// If still no transport detected, log for debugging
+		if (transports.size === 0) {
+			console.warn('⚠️ Could not detect transport for connection:', {
+				hasRemoteAddr: !!connection.remoteAddr,
+				remoteAddr: connection.remoteAddr?.toString(),
+				hasStat: !!connection.stat,
+				statTransport: connection.stat?.transport?.toString(),
+				connectionId: connection.id
+			});
 		}
 
 		return Array.from(transports);
 	}
 
 	function updatePeerTransports(peerIdStr) {
+		// Use live connections as the source of truth
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const allTransports = new Set();
 
-		if (peerConnectionTransports.has(peerIdStr)) {
-			const peerConnections = peerConnectionTransports.get(peerIdStr);
-			for (const [, connectionTransports] of peerConnections) {
-				for (const transport of connectionTransports) {
-					allTransports.add(transport);
+		if (libp2p) {
+			const connections = libp2p.getConnections(peerIdStr);
+			if (connections && connections.length > 0) {
+				connections.forEach((conn) => {
+					const connTransports = extractTransportsFromConnection(conn);
+					connTransports.forEach((t) => allTransports.add(t));
+				});
+				
+				// Also update the tracking map to keep it in sync
+				if (!peerConnectionTransports.has(peerIdStr)) {
+					peerConnectionTransports.set(peerIdStr, new Map());
 				}
+				const peerConnections = peerConnectionTransports.get(peerIdStr);
+				// Clear old tracking and rebuild from live connections
+				peerConnections.clear();
+				connections.forEach((conn) => {
+					const connTransports = extractTransportsFromConnection(conn);
+					if (connTransports.length > 0) {
+						peerConnections.set(conn.id, new Set(connTransports));
+					}
+				});
+			} else {
+				// No connections, remove from tracking
+				peerConnectionTransports.delete(peerIdStr);
 			}
 		}
 
@@ -326,6 +383,10 @@
 					transports: Array.from(allTransports)
 				};
 				return updatedPeers;
+			}
+			// If peer not in list yet, add it (shouldn't happen, but be safe)
+			if (allTransports.size > 0) {
+				return [...peers, { peerId: peerIdStr, transports: Array.from(allTransports) }];
 			}
 			return peers;
 		});

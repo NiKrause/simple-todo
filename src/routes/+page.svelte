@@ -602,6 +602,7 @@
 				const hash = `/${encodeURIComponent(currentAddress)}`;
 				if (window.location.hash !== `#${hash}`) {
 					// Use replaceState to avoid adding to history
+					// eslint-disable-next-line svelte/no-navigation-without-resolve
 					replaceState(`#${hash}`, { replaceState: true });
 				}
 			}

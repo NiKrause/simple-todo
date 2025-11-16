@@ -87,12 +87,11 @@ export async function openTodoList(
 		write: [identityId]
 	});
 
-	const headsStorage = await MemoryStorage();
-	const entryStorage = await MemoryStorage();
-
 	// Open the database
 	if (!enablePersistentStorage && !enableNetworkConnection) {
 		// In-memory storage only
+		const headsStorage = await MemoryStorage();
+		const entryStorage = await MemoryStorage();
 		todoDB = await orbitdb.open(dbName, {
 			type: 'keyvalue',
 			create: true,
@@ -262,17 +261,10 @@ export async function openDatabaseByAddress(
 		throw new Error('OrbitDB instance not initialized. Please initialize P2P first.');
 	}
 
-	// Initialize currentIdentity only if it doesn't exist (first time)
-	// But don't modify it after opening databases - preserve the original identity
+	// Initialize currentIdentity only if it doesn't exist
 	if (!currentIdentity) {
 		currentIdentity = orbitdb.identity;
 	}
-
-	// Don't modify currentIdentity - preserve the original identity
-	// The database's access controller is read from the manifest, not set by us
-	const currentInstanceIdentity = currentIdentity?.id || orbitdb.identity?.id;
-	console.log(`📂 Opening database by address: ${dbAddress}`);
-	console.log('🔑 Current OrbitDB instance identity:', currentInstanceIdentity);
 
 	// Close existing database if open
 	if (todoDB) {
@@ -281,246 +273,32 @@ export async function openDatabaseByAddress(
 		todoDB = null;
 	}
 
-	// Extract CID from address (e.g., /orbitdb/zdpuAohjYazaPMsw4V8VmpyauTeTwzU64MzwQmAmcAiLQvoTz)
-	const cidString = dbAddress.replace('/orbitdb/', '');
-	
-	// Retry loop to handle access controller recreation
-	// OrbitDB should load the manifest from IPFS, but if it's not immediately available,
-	// it may create a new access controller. We retry to allow time for network sync.
-	const maxRetries = 3;
-	let retryCount = 0;
-	
-	try {
-		while (retryCount < maxRetries) {
-			try {
-				console.log('🔧 Opening database by address (all config from manifest)');
-				console.log('🔧 Database address:', dbAddress);
-				console.log('🔑 Current OrbitDB instance identity:', currentInstanceIdentity);
-				if (retryCount > 0) {
-					console.log(`🔄 Retry attempt ${retryCount} of ${maxRetries} - waiting for manifest to sync from network`);
-				}
+	// Extract preferences
+	const { enableNetworkConnection = true, enablePeerConnections = true } = preferences;
 
-				// CRITICAL: Wait for manifest block AND access controller block to be available before opening
-				// This prevents OrbitDB from creating a new access controller
-				console.log('📥 Waiting for manifest block and access controller to be available in blockstore...');
-				const manifestResult = await waitForManifestBlock(helia, cidString, 20000); // Wait up to 20 seconds
-				
-				if (!manifestResult.available) {
-					if (retryCount < maxRetries - 1) {
-						console.warn('⚠️ Manifest block not available yet, retrying...');
-						retryCount++;
-						await new Promise(resolve => setTimeout(resolve, 3000 * retryCount));
-						continue;
-					} else {
-						console.error('❌ Manifest block not available after all retries');
-						throw new Error('Manifest block not available on network');
-					}
-				}
-				
-				if (manifestResult.accessControllerAddress) {
-					console.log('✅ Manifest and access controller blocks are available, opening database...');
-				} else {
-					console.log('✅ Manifest block is available, opening database...');
-				}
+	// Open database with sync enabled so it can discover peers via pubsub
+	// Note: sync is a runtime option, not stored in manifest, so we must pass it explicitly
+	console.log('⏳ Opening database...');
+	todoDB = await orbitdb.open(dbAddress, {
+		sync: enableNetworkConnection
+	});
 
-				// Add timeout wrapper to prevent hanging indefinitely
-				const openPromise = orbitdb.open(dbAddress);
-				const timeoutPromise = new Promise((_, reject) =>
-					setTimeout(() => reject(new Error('Database open timeout after 30 seconds')), 30000)
-				);
+	// Log database sync state to debug
+	console.log('🔍 Database sync state:', {
+		address: todoDB.address,
+		name: todoDB.name,
+		opened: todoDB.opened,
+		sync: todoDB.sync,
+		peers: todoDB.peers?.length || 0
+	});
 
-				console.log('⏳ Waiting for database to open (this may take time if syncing from network)...');
-				todoDB = await Promise.race([openPromise, timeoutPromise]);
+	const entryCount = (await todoDB.all()).length;
+	console.log(`✅ Database opened successfully (${entryCount} entries)`);
 
-				// Wait for initial sync to complete before checking records
-				console.log('⏳ Waiting for database sync...');
-				let shouldStopSyncCheck = false;
-				await new Promise((resolve) => {
-					// Wait up to 10 seconds for sync
-					const syncTimeout = setTimeout(() => {
-						console.log('⏰ Sync timeout - proceeding anyway');
-						resolve();
-					}, 10000);
-					
-					// Check if database has entries or wait for 'ready' event
-					const checkSync = async () => {
-						// Stop checking if we're retrying (todoDB was closed)
-						if (shouldStopSyncCheck || !todoDB) {
-							clearTimeout(syncTimeout);
-							resolve();
-							return;
-						}
-						
-						try {
-							const entries = await todoDB.all();
-							if (entries.length > 0) {
-								console.log('✅ Database sync complete, found', entries.length, 'entries');
-								clearTimeout(syncTimeout);
-								resolve();
-							} else {
-								// Wait a bit and check again
-								setTimeout(checkSync, 500);
-							}
-						} catch (error) {
-							// If todoDB is null, we're probably retrying - just resolve
-							if (!todoDB) {
-								clearTimeout(syncTimeout);
-								resolve();
-								return;
-							}
-							console.warn('⚠️ Error checking sync:', error);
-							clearTimeout(syncTimeout);
-							resolve();
-						}
-					};
-					
-					// Start checking after a short delay to allow sync to start
-					setTimeout(checkSync, 1000);
-					
-					// Store resolve function so we can call it when retrying
-					// This will stop the sync check
-					checkSync.resolve = resolve;
-					checkSync.stop = () => {
-						shouldStopSyncCheck = true;
-						clearTimeout(syncTimeout);
-						resolve();
-					};
-				});
+	// Initialize database stores and actions
+	await initializeDatabase(orbitdb, todoDB, preferences);
 
-				console.log('🔍 TodoDB records:', (await todoDB.all()).length);
-				console.log('✅ Database opened successfully by address:', todoDB);
-				console.log('🔧 Database address after open:', todoDB.address);
-				console.log('🔧 Database name:', todoDB.name);
-
-				// Extract the database's original identity from its name
-				const dbNameIdentity = todoDB.name?.split('_')[0];
-				console.log('🔧 Database original identity (from db name):', dbNameIdentity);
-				console.log('🔧 Current instance identity:', currentInstanceIdentity);
-
-				if (dbNameIdentity && dbNameIdentity !== currentInstanceIdentity) {
-					console.log(
-						'ℹ️  Database belongs to different identity - opening in read/write mode based on access controller permissions'
-					);
-				}
-
-				console.log('🔧 Access controller address:', todoDB.access?.address);
-				console.log('🔧 Access controller write permissions:', todoDB.access?.write);
-
-				// Verify identity wasn't changed
-				const identityAfterOpen = currentIdentity?.id || orbitdb.identity?.id;
-				console.log('🔑 Instance identity after open (should be unchanged):', identityAfterOpen);
-				if (identityAfterOpen !== currentInstanceIdentity) {
-					console.warn(
-						'⚠️ WARNING: Instance identity changed after opening database! Original:',
-						currentInstanceIdentity,
-						'Current:',
-						identityAfterOpen
-					);
-				}
-
-				// Verify database address wasn't changed
-				if (todoDB.address !== dbAddress) {
-					console.warn(
-						'⚠️ WARNING: Database address changed! Original:',
-						dbAddress,
-						'Current:',
-						todoDB.address
-					);
-				}
-
-				// Check if access controller was recreated
-				const hasWriteAccess = todoDB.access?.write?.includes(currentInstanceIdentity);
-				if (dbNameIdentity && dbNameIdentity !== currentInstanceIdentity && hasWriteAccess) {
-					if (retryCount < maxRetries - 1) {
-						console.warn('⚠️ Access controller was recreated, retrying after network sync...');
-						console.warn('   This suggests the manifest wasn\'t available yet. Waiting for network sync...');
-						
-						// Stop any ongoing sync checks before closing
-						shouldStopSyncCheck = true;
-						
-						await todoDB.close();
-						todoDB = null;
-						
-						// Wait for network sync - exponential backoff
-						const waitTime = 2000 * (retryCount + 1);
-						console.log(`⏳ Waiting ${waitTime}ms for network sync before retry...`);
-						await new Promise(resolve => setTimeout(resolve, waitTime));
-						retryCount++;
-						continue; // Retry the loop
-					} else {
-						console.error('❌ Access controller was recreated after all retries. This may indicate the manifest is not available on the network.');
-						// Fall through to return the database anyway
-					}
-				}
-				
-				// Success - break out of retry loop
-				break;
-			} catch (error) {
-				if (retryCount < maxRetries - 1) {
-					console.warn(`⚠️ Error opening database (attempt ${retryCount + 1}), retrying...`, error);
-					retryCount++;
-					// Wait before retry
-					await new Promise(resolve => setTimeout(resolve, 2000 * retryCount));
-					continue;
-				} else {
-					// Last retry failed, throw the error
-					throw error;
-				}
-			}
-		}
-
-		// Initialize database stores and actions
-		await initializeDatabase(orbitdb, todoDB, preferences);
-
-		return todoDB;
-	} catch (error) {
-		console.error('❌ Error opening database by address:', error);
-		throw error;
-	}
-}
-
-/**
- * Wait for a manifest block to be available in the blockstore
- * @param {Object} helia - Helia/IPFS instance
- * @param {string} cidString - CID string (e.g., "zdpuAohjYazaPMsw4V8VmpyauTeTwzU64MzwQmAmcAiLQvoTz")
- * @param {number} timeoutMs - Maximum time to wait in milliseconds
- * @returns {Promise<boolean>} True if manifest is available, false if timeout
- */
-async function waitForManifestBlock(helia, cidString, timeoutMs = 10000) {
-	if (!helia || !helia.blockstore) {
-		console.warn('⚠️ No blockstore available');
-		return false;
-	}
-
-	try {
-		// Import CID parser
-		const { CID } = await import('multiformats');
-		const { base58btc } = await import('multiformats/bases/base58');
-		
-		// Parse CID from base58btc string
-		const cid = CID.parse(cidString);
-		
-		const startTime = Date.now();
-		const checkInterval = 500; // Check every 500ms
-		
-		while (Date.now() - startTime < timeoutMs) {
-			try {
-				// Try to get the block - this will throw if not available
-				await helia.blockstore.get(cid);
-				console.log('✅ Manifest block found in blockstore');
-				return true;
-			} catch (error) {
-				// Block not available yet, wait and retry
-				await new Promise(resolve => setTimeout(resolve, checkInterval));
-			}
-		}
-		
-		console.warn('⏰ Timeout waiting for manifest block');
-		return false;
-	} catch (error) {
-		console.warn('⚠️ Error waiting for manifest block:', error);
-		return false;
-	}
+	return todoDB;
 }
 
 /**
@@ -569,20 +347,53 @@ export async function initializeP2P(preferences = {}) {
 		console.log(
 			`✅ libp2p node created with network connection: ${enableNetworkConnection ? 'enabled' : 'disabled'}, peer connections: ${enablePeerConnections ? 'enabled' : 'disabled'}`
 		);
-		
+
+		// Add pubsub event listeners to debug OrbitDB subscriptions
+		if (libp2p.services.pubsub) {
+			// Listen for subscription changes (when OrbitDB subscribes/unsubscribes to topics)
+			libp2p.services.pubsub.addEventListener('subscription-change', (event) => {
+				const { peerId, subscriptions } = event.detail;
+				subscriptions.forEach((sub) => {
+					if (sub.topic.startsWith('/orbitdb/')) {
+						console.log(
+							`📡 Pubsub subscription ${sub.subscribe ? 'SUBSCRIBED' : 'UNSUBSCRIBED'}:`,
+							{
+								topic: sub.topic,
+								peerId: peerId?.toString().slice(0, 12) + '...',
+								isLocal: !peerId // undefined peerId means it's our own subscription
+							}
+						);
+					}
+				});
+			});
+
+			// Listen for pubsub messages (when OrbitDB publishes/receives messages)
+			libp2p.services.pubsub.addEventListener('message', (event) => {
+				const message = event.detail;
+				if (message.topic && message.topic.startsWith('/orbitdb/')) {
+					console.log('💬 OrbitDB pubsub message:', {
+						topic: message.topic,
+						from: message.from?.toString().slice(0, 12) + '...',
+						dataLength: message.data?.length,
+						isLocal: !message.from // undefined from means it's our own message
+					});
+				}
+			});
+		}
+
 		// Add WebRTC connection debugging
 		libp2p.addEventListener('peer:discovery', (event) => {
 			const { id: peerId, multiaddrs } = event.detail || {};
 			if (!peerId || !multiaddrs) return;
-			const webrtcAddrs = multiaddrs.filter(addr => addr.toString().includes('/webrtc'));
+			const webrtcAddrs = multiaddrs.filter((addr) => addr.toString().includes('/webrtc'));
 			if (webrtcAddrs.length > 0) {
 				console.log('🌐 WebRTC: Peer discovered with WebRTC addresses:', {
 					peerId: peerId.toString().slice(0, 12) + '...',
-					webrtcAddresses: webrtcAddrs.map(a => a.toString())
+					webrtcAddresses: webrtcAddrs.map((a) => a.toString())
 				});
 			}
 		});
-		
+
 		libp2p.addEventListener('peer:connect', (event) => {
 			const connection = event.detail?.connection || event.detail;
 			if (connection?.remoteAddr) {
@@ -595,7 +406,7 @@ export async function initializeP2P(preferences = {}) {
 				}
 			}
 		});
-		
+
 		libp2p.addEventListener('connection:open', (event) => {
 			const connection = event.detail;
 			if (connection?.remoteAddr) {
@@ -663,7 +474,7 @@ export async function initializeP2P(preferences = {}) {
 		console.log(
 			`✅ Helia created with ${actuallyUsePersistentStorage ? 'persistent' : 'in-memory'} storage`
 		);
-		
+
 		// Wrap Helia's blockstore with adapter after creation
 		// Helia might wrap our blockstore, so we need to wrap it again
 		if (helia.blockstore) {

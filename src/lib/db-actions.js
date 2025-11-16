@@ -28,13 +28,14 @@ export async function initializeDatabase(orbitdb, todoDB, preferences) {
 		}
 	}
 
-	// Load existing todos if no storge is enabled and no network we don't need to load anything
+	// Set up event listeners FIRST - so they catch data as it syncs from peers/IPFS
+	setupDatabaseListeners(todoDB);
+
+	// Then load existing todos (if any are already available)
+	// If data arrives later via sync, the event listeners will trigger loadTodos()
 	if (preferences.enablePersistentStorage || preferences.enableNetworkConnection) {
 		await loadTodos();
 	}
-
-	// Set up event listeners for database changes
-	setupDatabaseListeners(todoDB);
 }
 
 // Load all todos from the database
@@ -104,16 +105,22 @@ export async function loadTodos() {
 function setupDatabaseListeners(todoDB) {
 	if (!todoDB) return;
 
-	// Listen for new entries being added
-	todoDB.events.on('join', async (address, entry) => {
-		console.log('📝 New entry added:', entry);
+	// Listen for 'update' event - fires when entries are added/updated (local or from peers)
+	// This is the main event for data synchronization
+	todoDB.events.on('update', async () => {
+		console.log('🔄 Update event fired - database entries changed');
 		await loadTodos();
 	});
 
-	// Listen for entries being updated
-	todoDB.events.on('update', async (entry) => {
-		console.log('🔄 Entry updated:', entry);
-		await loadTodos();
+	// Listen for 'join' event - fires when a peer connects
+	// Only reload if the peer has new data (heads array has entries)
+	todoDB.events.on('join', async (peerId, heads) => {
+		console.log(`👤 Peer joined: ${peerId}, heads: ${heads?.length || 0}`);
+		// Only reload if peer has new data to share
+		if (heads && heads.length > 0) {
+			console.log('📥 Peer has new data, reloading todos...');
+			await loadTodos();
+		}
 	});
 }
 
