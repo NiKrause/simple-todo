@@ -911,11 +911,11 @@
 			</div>
 		</div>
 
-		<!-- Breadcrumb Navigation -->
-		<BreadcrumbNavigation {preferences} {enableEncryption} {encryptionPassword} />
-
 		<!-- Add TODO Form -->
 		<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
+
+		<!-- Breadcrumb Navigation -->
+		<BreadcrumbNavigation {preferences} {enableEncryption} {encryptionPassword} />
 
 		<!-- TODO List -->
 		<TodoList

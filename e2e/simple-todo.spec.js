@@ -258,7 +258,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('🎉 Todo operations test completed successfully!');
 	});
 
-	test.only('should connect two browsers and see each other as connected peers', async ({ browser }) => {
+	test('should connect two browsers and see each other as connected peers', async ({ browser }) => {
 		// Create two separate browser contexts (simulating two different browsers)
 		const context1 = await browser.newContext();
 		const context2 = await browser.newContext();
@@ -393,7 +393,7 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('✅ Two-browser peer connection test completed!');
 	});
 
-	test.only('should share database between browsers and sync todos', async ({ browser }) => {
+	test('should share database between browsers and sync todos', async ({ browser }) => {
 		// Create two separate browser contexts (simulating two different browsers)
 		const context1 = await browser.newContext();
 		const context2 = await browser.newContext();
@@ -627,5 +627,148 @@ test.describe('Simple Todo P2P Application', () => {
 		await context2.close();
 
 		console.log('🎉 Database sharing test completed successfully!');
+	});
+
+	test('should replicate database when Browser B opens Browser A database by name', async ({
+		browser
+	}) => {
+		// Create two separate browser contexts (simulating two different browsers)
+		const context1 = await browser.newContext();
+		const context2 = await browser.newContext();
+
+		const page1 = await context1.newPage();
+		const page2 = await context2.newPage();
+
+		// Enable console logging for debugging
+		page1.on('console', (msg) => console.log('Page1:', msg.text()));
+		page2.on('console', (msg) => console.log('Page2:', msg.text()));
+
+		console.log('🚀 Starting database replication by name test (A -> B)...');
+
+		// ===== BROWSER A (Page 1) =====
+		console.log('📱 Browser A: Initializing...');
+		await page1.goto('/');
+
+		// Wait for SvelteKit to finish hydrating
+		await page1.waitForFunction(
+			() => {
+				const hasMain = document.querySelector('main') !== null;
+				const hasModal = document.querySelector('[data-testid="consent-modal"]') !== null;
+				return hasMain || hasModal;
+			},
+			{ timeout: 30000 }
+		);
+
+		await page1.waitForTimeout(1000);
+
+		// Accept consent and initialize P2P
+		await acceptConsentAndInitialize(page1);
+		await waitForP2PInitialization(page1);
+
+		// Wait for todo input to be ready
+		const todoInput1 = page1.locator('[data-testid="todo-input"]');
+		await expect(todoInput1).toBeVisible({ timeout: 15000 });
+
+		// Get Browser A's identity ID from the database name
+		const browserAIdentityId = await page1.evaluate(() => {
+			// Try to extract from database name pattern identityId_projects
+			if (window.__todoDB__ && window.__todoDB__.name) {
+				const name = window.__todoDB__.name;
+				if (name.includes('_')) {
+					return name.split('_')[0];
+				}
+			}
+			return null;
+		});
+
+		// If not found, wait a bit and try again
+		let identityIdA = browserAIdentityId;
+		if (!identityIdA) {
+			await page1.waitForTimeout(2000);
+			identityIdA = await page1.evaluate(() => {
+				if (window.__todoDB__ && window.__todoDB__.name) {
+					const name = window.__todoDB__.name;
+					if (name.includes('_')) {
+						return name.split('_')[0];
+					}
+				}
+				return null;
+			});
+		}
+
+		expect(identityIdA).toBeTruthy();
+		console.log(`📱 Browser A Identity ID: ${identityIdA?.slice(0, 16)}...`);
+
+		// Add a todo in Browser A
+		const testTodoA = 'Todo from Browser A for replication test';
+		await todoInput1.fill(testTodoA);
+		await page1.locator('[data-testid="add-todo-button"]').click();
+
+		// Wait for todo to appear
+		await expect(page1.locator('text=' + testTodoA)).toBeVisible({ timeout: 5000 });
+		console.log(`✅ Browser A: Added todo "${testTodoA}"`);
+
+		// Wait a bit for the todo to be saved
+		await page1.waitForTimeout(2000);
+
+		// ===== BROWSER B (Page 2) =====
+		console.log('📱 Browser B: Initializing...');
+		await page2.goto('/');
+
+		// Wait for SvelteKit to finish hydrating
+		await page2.waitForFunction(
+			() => {
+				const hasMain = document.querySelector('main') !== null;
+				const hasModal = document.querySelector('[data-testid="consent-modal"]') !== null;
+				return hasMain || hasModal;
+			},
+			{ timeout: 30000 }
+		);
+
+		await page2.waitForTimeout(1000);
+
+		// Accept consent and initialize P2P
+		await acceptConsentAndInitialize(page2);
+		await waitForP2PInitialization(page2);
+
+		// Wait for todo input to be ready
+		const todoInput2 = page2.locator('[data-testid="todo-input"]');
+		await expect(todoInput2).toBeVisible({ timeout: 15000 });
+
+		// Wait for peer connections
+		console.log('🔗 Browser B: Waiting for peer connections...');
+		await waitForPeerCount(page2, 1, 90000);
+
+		// Wait a bit for peer discovery
+		await page2.waitForTimeout(5000);
+
+		// Find the Users List input field and paste Browser A's identity ID
+		console.log('📋 Browser B: Adding Browser A as tracked user...');
+		const usersListInput = page2.locator('#users-list');
+		await expect(usersListInput).toBeVisible({ timeout: 10000 });
+
+		// Click on the input to focus it
+		await usersListInput.click();
+		await page2.waitForTimeout(500);
+
+		// Paste the identity ID and press Enter (simulating user behavior)
+		await usersListInput.fill(identityIdA);
+		await usersListInput.press('Enter');
+
+		// Wait for the database to be discovered and opened
+		// The database should automatically load and replicate
+		console.log('⏳ Browser B: Waiting for database discovery and replication...');
+		
+		// Wait for the todo to appear (with longer timeout for replication)
+		// The database should automatically switch and show Browser A's todos
+		await expect(page2.locator('text=' + testTodoA)).toBeVisible({ timeout: 30000 });
+
+		console.log(`✅ Browser B: Found replicated todo "${testTodoA}"`);
+
+		// Clean up
+		await context1.close();
+		await context2.close();
+
+		console.log('✅ Database replication by name test completed successfully!');
 	});
 });

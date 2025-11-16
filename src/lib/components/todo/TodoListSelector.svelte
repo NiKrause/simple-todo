@@ -8,7 +8,7 @@
 		removeTodoListFromRegistry,
 		selectedUserIdStore
 	} from '../../todo-list-manager.js';
-	import { openDatabaseByAddress } from '../../p2p.js';
+	import { openDatabaseByAddress, getCurrentIdentityId } from '../../p2p.js';
 	import { initializationStore } from '../../p2p.js';
 	import { get } from 'svelte/store';
 	import { currentDbNameStore, currentDbAddressStore } from '../../todo-list-manager.js';
@@ -18,6 +18,20 @@
 	let filteredLists = [];
 	let isCreating = false;
 	let isUserTyping = false; // Track if user is actively typing
+
+	// Check if current database belongs to another user
+	$: currentDbName = $currentDbNameStore;
+	$: currentUserIdentity = $initializationStore.isInitialized ? getCurrentIdentityId() : null;
+	$: currentDbIdentity = currentDbName && currentDbName.includes('_') 
+		? currentDbName.split('_')[0] 
+		: null;
+	$: isViewingOtherUser = currentDbIdentity && currentUserIdentity && currentDbIdentity !== currentUserIdentity;
+
+	// React to selectedUserIdStore changes and refresh available lists
+	$: if ($selectedUserIdStore && $initializationStore.isInitialized) {
+		// When a user is selected, refresh available lists to ensure we have their lists
+		listAvailableTodoLists();
+	}
 
 	// Update inputValue when currentTodoListNameStore changes (but not when user is typing)
 	$: if ($initializationStore.isInitialized && !isUserTyping) {
@@ -196,6 +210,11 @@
 <div class="relative w-full">
 	<label for="todo-list-selector" class="mb-1 block text-sm font-medium text-gray-700">
 		Todo List
+		{#if isViewingOtherUser}
+			<span class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800" title="Viewing another user's database">
+				👤 {currentDbIdentity?.slice(0, 8)}...
+			</span>
+		{/if}
 	</label>
 	<div class="relative">
 		<input
@@ -207,9 +226,14 @@
 			on:input={handleInputInput}
 			on:keydown={handleKeydown}
 			placeholder="Type to create or select a todo list..."
-			class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 pr-10 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+			class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 {isViewingOtherUser ? 'pr-24' : 'pr-10'} text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none {isViewingOtherUser ? 'border-amber-300 bg-amber-50' : ''}"
 			disabled={isCreating || !$initializationStore.isInitialized}
 		/>
+		{#if isViewingOtherUser}
+			<span class="absolute top-1/2 right-12 -translate-y-1/2 text-xs text-amber-600 font-mono" title="Viewing another user's database">
+				{currentDbIdentity?.slice(0, 6)}...
+			</span>
+		{/if}
 		<button
 			type="button"
 			on:click={handleCreate}
@@ -228,6 +252,8 @@
 		>
 			{#if filteredLists.length > 0}
 				{#each filteredLists as list (list.dbName)}
+					{@const listIdentity = list.dbName && list.dbName.includes('_') ? list.dbName.split('_')[0] : null}
+					{@const isOtherUser = listIdentity && currentUserIdentity && listIdentity !== currentUserIdentity}
 					<div
 						class="group relative flex w-full items-center hover:bg-blue-50 {list.displayName ===
 						$currentTodoListNameStore
@@ -244,36 +270,45 @@
 								? 'font-medium'
 								: ''}"
 						>
-							{#if list.parent}
-								<span class="flex items-center pl-6 text-gray-700">
-									<span class="mr-2 inline-block w-3 text-xs text-gray-400">└─</span>
-									<span>{list.displayName}</span>
-								</span>
-							{:else}
-								<span class="font-medium">{list.displayName}</span>
-							{/if}
+							<div class="flex items-center gap-2">
+								{#if list.parent}
+									<span class="flex items-center pl-6 text-gray-700">
+										<span class="mr-2 inline-block w-3 text-xs text-gray-400">└─</span>
+										<span>{list.displayName}</span>
+									</span>
+								{:else}
+									<span class="font-medium">{list.displayName}</span>
+								{/if}
+								{#if isOtherUser}
+									<span class="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 font-mono" title="Another user's database">
+										{listIdentity?.slice(0, 6)}...
+									</span>
+								{/if}
+							</div>
 						</button>
-						<button
-							type="button"
-							on:click={(e) => handleDelete(e, list)}
-							class="px-2 py-2 text-red-600 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-800 focus:outline-none"
-							title="Delete this todo list"
-						>
-							<svg
-								xmlns="http://www.w3.org/2000/svg"
-								class="h-4 w-4"
-								fill="none"
-								viewBox="0 0 24 24"
-								stroke="currentColor"
+						{#if !isOtherUser}
+							<button
+								type="button"
+								on:click={(e) => handleDelete(e, list)}
+								class="px-2 py-2 text-red-600 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-800 focus:outline-none"
+								title="Delete this todo list"
 							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M20 12H4"
-								/>
-							</svg>
-						</button>
+								<svg
+									xmlns="http://www.w3.org/2000/svg"
+									class="h-4 w-4"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M20 12H4"
+									/>
+								</svg>
+							</button>
+						{/if}
 					</div>
 				{/each}
 			{/if}

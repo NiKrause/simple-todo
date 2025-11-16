@@ -459,9 +459,148 @@ export async function switchToTodoList(
 	const trimmedName = todoListName.trim();
 
 	try {
-		const identityId = getCurrentIdentityId();
-		const dbName = identityId ? `${identityId}_${trimmedName}` : trimmedName;
-
+		const currentUserIdentity = getCurrentIdentityId();
+		let targetIdentityId = currentUserIdentity; // Default to current user
+		
+		// First, check if the target list exists in availableTodoListsStore
+		// This tells us which identity it belongs to
+		const availableLists = get(availableTodoListsStore);
+		const targetListInStore = availableLists.find((list) => {
+			const nameMatches = list.displayName === trimmedName;
+			const parentMatches = parentListName 
+				? list.parent === parentListName 
+				: !list.parent; // If no parent specified, match lists without parent
+			return nameMatches && parentMatches;
+		});
+		
+		// If we found the list, use its identity
+		if (targetListInStore && targetListInStore.dbName && targetListInStore.dbName.includes('_')) {
+			const listIdentity = targetListInStore.dbName.split('_')[0];
+			targetIdentityId = listIdentity;
+			console.log(`🔍 Found target list in store. Using identity: ${targetIdentityId.slice(0, 16)}...`);
+		} else if (parentListName) {
+			// If we're navigating to a sublist (has parent), check if parent belongs to another user
+			const currentDbName = get(currentDbNameStore);
+			if (currentDbName && currentDbName.includes('_')) {
+				const currentDbIdentity = currentDbName.split('_')[0];
+				// Only use parent's identity if parent belongs to another user
+				if (currentDbIdentity !== currentUserIdentity) {
+					targetIdentityId = currentDbIdentity;
+					console.log(`🔍 Navigating to sublist. Using parent's identity: ${targetIdentityId.slice(0, 16)}...`);
+				}
+			}
+		}
+		// Otherwise, use current user's identity (default)
+		
+		// Now try to find the exact list with the target identity
+		const existingList = availableLists.find((list) => {
+			const nameMatches = list.displayName === trimmedName;
+			const parentMatches = parentListName 
+				? list.parent === parentListName 
+				: !list.parent;
+			
+			if (list.dbName && list.dbName.includes('_')) {
+				const listIdentity = list.dbName.split('_')[0];
+				return nameMatches && parentMatches && listIdentity === targetIdentityId;
+			}
+			return nameMatches && parentMatches;
+		});
+		
+		// If we found the list with an address, open it by address
+		if (existingList && existingList.address) {
+			console.log(`✅ Found existing list in registry, opening by address: ${existingList.address.slice(0, 30)}...`);
+			const { openDatabaseByAddress } = await import('./p2p.js');
+			
+			await openDatabaseByAddress(
+				existingList.address,
+				preferences,
+				enableEncryption,
+				encryptionPassword
+			);
+			
+			currentTodoListNameStore.set(trimmedName);
+			currentDbNameStore.set(existingList.dbName);
+			currentDbAddressStore.set(existingList.address);
+			
+			// Update hierarchy
+			const currentHierarchy = get(todoListHierarchyStore);
+			if (parentListName) {
+				const parentIndex = currentHierarchy.findIndex((item) => item.name === parentListName);
+				if (parentIndex >= 0) {
+					todoListHierarchyStore.set([
+						...currentHierarchy.slice(0, parentIndex + 1),
+						{ name: trimmedName, parent: parentListName }
+					]);
+				} else {
+					const fullHierarchy = await buildHierarchyPath(trimmedName);
+					todoListHierarchyStore.set(fullHierarchy);
+				}
+			} else {
+				const fullHierarchy = await buildHierarchyPath(trimmedName);
+				todoListHierarchyStore.set(fullHierarchy);
+			}
+			
+			// Refresh available lists
+			await listAvailableTodoLists();
+			await listUniqueUsers();
+			
+			showToast(`Switched to todo list: ${trimmedName}`, 'success');
+			return true;
+		}
+		
+		// If not found, try to open by name using the target identity
+		const dbName = targetIdentityId ? `${targetIdentityId}_${trimmedName}` : trimmedName;
+		
+		// If it's not our identity, use openDatabaseByName instead of openTodoList
+		if (targetIdentityId !== currentUserIdentity) {
+			console.log(`🔍 Opening list by name (different identity): ${dbName}`);
+			const { openDatabaseByName } = await import('./p2p.js');
+			
+			const openedDB = await openDatabaseByName(
+				dbName,
+				preferences,
+				enableEncryption,
+				encryptionPassword
+			);
+			
+			currentTodoListNameStore.set(trimmedName);
+			currentDbNameStore.set(dbName);
+			currentDbAddressStore.set(openedDB?.address || null);
+			
+			// Update hierarchy
+			const currentHierarchy = get(todoListHierarchyStore);
+			if (parentListName) {
+				const parentIndex = currentHierarchy.findIndex((item) => item.name === parentListName);
+				if (parentIndex >= 0) {
+					todoListHierarchyStore.set([
+						...currentHierarchy.slice(0, parentIndex + 1),
+						{ name: trimmedName, parent: parentListName }
+					]);
+				} else {
+					// For other user's sublists, we can't build hierarchy from their registry
+					const newHierarchy = parentListName 
+						? [...currentHierarchy, { name: trimmedName, parent: parentListName }]
+						: [{ name: trimmedName, parent: null }];
+					todoListHierarchyStore.set(newHierarchy);
+				}
+			} else {
+				todoListHierarchyStore.set([{ name: trimmedName, parent: null }]);
+			}
+			
+			// Add to registry so it's available for future navigation
+			if (openedDB?.address) {
+				await addTodoListToRegistry(trimmedName, dbName, openedDB.address, parentListName);
+			}
+			
+			// Refresh available lists
+			await listAvailableTodoLists();
+			await listUniqueUsers();
+			
+			showToast(`Switched to todo list: ${trimmedName}`, 'success');
+			return true;
+		}
+		
+		// Original logic for our own databases
 		const openedDB = await openTodoList(
 			trimmedName,
 			preferences,
@@ -469,18 +608,15 @@ export async function switchToTodoList(
 			encryptionPassword
 		);
 		currentTodoListNameStore.set(trimmedName);
-		currentDbNameStore.set(dbName); // Store the full database name
-
-		// Get database address if available
-		const dbAddress = openedDB?.address || null;
-		currentDbAddressStore.set(dbAddress); // Store the database address
+		currentDbNameStore.set(dbName);
+		currentDbAddressStore.set(openedDB?.address || null);
 
 		// Determine parent from parameter or registry
 		let actualParent = parentListName;
-		if (!actualParent && identityId) {
+		if (!actualParent && currentUserIdentity) {
 			// Look up parent from registry
 			try {
-				const registryDb = await openRegistryDatabase(identityId);
+				const registryDb = await openRegistryDatabase(currentUserIdentity);
 				const entry = await registryDb.get(trimmedName);
 				if (entry && entry.parent) {
 					actualParent = entry.parent;
@@ -513,8 +649,8 @@ export async function switchToTodoList(
 		}
 
 		// Add to registry database (not localStorage)
-		if (identityId) {
-			await addTodoListToRegistry(trimmedName, dbName, dbAddress, actualParent);
+		if (currentUserIdentity) {
+			await addTodoListToRegistry(trimmedName, dbName, openedDB?.address || null, actualParent);
 		}
 
 		// Refresh available todo lists and unique users
@@ -635,6 +771,13 @@ export async function listUniqueUsers() {
 	try {
 		const uniqueIds = new Set();
 
+		// ALWAYS include the current user's identity, even if not in available lists
+		const currentIdentityId = getCurrentIdentityId();
+		if (currentIdentityId) {
+			uniqueIds.add(currentIdentityId);
+			console.log('  - Added current identity:', currentIdentityId);
+		}
+
 		// Extract identity IDs from database names (format: identityId_displayName)
 		// Take only the part before the first underscore
 		const availableLists = get(availableTodoListsStore);
@@ -661,6 +804,11 @@ export async function listUniqueUsers() {
 		return uniqueUsersArray;
 	} catch (error) {
 		console.error('❌ Error listing unique users:', error);
+		// Even on error, ensure current identity is included
+		const currentIdentityId = getCurrentIdentityId();
+		if (currentIdentityId) {
+			uniqueUsersStore.set([currentIdentityId]);
+		}
 		return [];
 	}
 }

@@ -33,6 +33,41 @@ let todoDB = null;
 let currentIdentity = null;
 
 /**
+ * Build standard database options for OrbitDB
+ * @param {string} identityId - The identity ID that should have write access
+ * @param {Object} preferences - Network preferences
+ * @param {boolean} enableEncryption - Whether encryption is enabled
+ * @param {Object|null} encryption - Encryption configuration (if enabled)
+ * @param {boolean} create - Whether to create the database if it doesn't exist
+ * @returns {Object} Database options for orbitdb.open()
+ */
+function buildDatabaseOptions(identityId, preferences = {}, enableEncryption = false, encryption = null, create = false) {
+	const {
+		enablePersistentStorage = true,
+		enableNetworkConnection = true
+	} = preferences;
+
+	// Set up access controller - allow the specified identity to write
+	const accessController = OrbitDBAccessController({
+		write: [identityId]
+	});
+
+	const baseOptions = {
+		type: 'keyvalue',
+		create: create,
+		sync: enableNetworkConnection,
+		AccessController: accessController
+	};
+
+	// Add encryption if enabled
+	if (enableEncryption && encryption) {
+		baseOptions.encryption = encryption;
+	}
+
+	return baseOptions;
+}
+
+/**
  * Open or create a todo list database
  * @param {string} todoListName - Name of the todo list (default: 'projects')
  * @param {Object} preferences - Network preferences
@@ -82,10 +117,8 @@ export async function openTodoList(
 		encryption = { data: dataEncryption, replication: replicationEncryption };
 	}
 
-	// Set up access controller - only allow the current identity to write
-	const accessController = OrbitDBAccessController({
-		write: [identityId]
-	});
+	// Build standard database options using shared function
+	const dbOptions = buildDatabaseOptions(identityId, preferences, enableEncryption, encryption, true);
 
 	// Open the database
 	if (!enablePersistentStorage && !enableNetworkConnection) {
@@ -93,21 +126,12 @@ export async function openTodoList(
 		const headsStorage = await MemoryStorage();
 		const entryStorage = await MemoryStorage();
 		todoDB = await orbitdb.open(dbName, {
-			type: 'keyvalue',
-			create: true,
+			...dbOptions,
 			headsStorage,
-			entryStorage,
-			AccessController: accessController,
-			encryption
+			entryStorage
 		});
 	} else {
-		todoDB = await orbitdb.open(dbName, {
-			type: 'keyvalue',
-			create: true,
-			sync: enableNetworkConnection,
-			AccessController: accessController,
-			encryption
-		});
+		todoDB = await orbitdb.open(dbName, dbOptions);
 	}
 
 	console.log('🔍 TodoDB records:', (await todoDB.all()).length);
@@ -165,16 +189,29 @@ export async function openDatabaseByName(
 		todoDB = null;
 	}
 
-	// If it's NOT our identity, use NO options (like openDatabaseByAddress)
-	// Everything should be read from the database manifest
+	// If it's NOT our identity, use the same standard options but with the other identity's ID
+	// This ensures we calculate the correct address that matches how Browser A created it
 	if (!isOurIdentity && dbNameIdentity) {
 		console.log(
-			'🔧 Opening database from different identity - using NO options (all config from manifest)'
+			'🔧 Opening database from different identity - using standard options with their identity ID'
 		);
 
 		try {
-			// Open with NO options - OrbitDB will read everything from the manifest
-			todoDB = await orbitdb.open(dbName);
+			// Set up encryption if enabled (though unlikely for other user's databases)
+			let encryption = null;
+			if (enableEncryption && encryptionPassword) {
+				console.log('🔐 Setting up encryption for database...');
+				const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
+				const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
+				encryption = { data: dataEncryption, replication: replicationEncryption };
+			}
+
+			// Build standard database options using the OTHER identity's ID
+			// This ensures we use the same AccessController configuration that Browser A used
+			const dbOptions = buildDatabaseOptions(dbNameIdentity, preferences, enableEncryption, encryption, false);
+			
+			// Open with the same standard options - this will calculate the correct address
+			todoDB = await orbitdb.open(dbName, dbOptions);
 
 			console.log('🔍 TodoDB records:', (await todoDB.all()).length);
 			console.log('✅ Database opened successfully by name:', todoDB);
@@ -191,7 +228,7 @@ export async function openDatabaseByName(
 		}
 	}
 
-	// If it's our identity, we can use options (but still minimal)
+	// If it's our identity, use standard options with our own identity ID
 	const {
 		enablePersistentStorage = true,
 		enableNetworkConnection = true,
@@ -208,24 +245,23 @@ export async function openDatabaseByName(
 		encryption = { data: dataEncryption, replication: replicationEncryption };
 	}
 
+	// Build standard database options using shared function
+	const dbOptions = buildDatabaseOptions(currentInstanceIdentity, preferences, enableEncryption, encryption, false);
+
 	// Try to open the database by name (our identity)
-	// Note: For our own databases, we can provide options
 	try {
 		if (!enablePersistentStorage && !enableNetworkConnection) {
 			// In-memory storage only
+			const headsStorage = await MemoryStorage();
+			const entryStorage = await MemoryStorage();
 			todoDB = await orbitdb.open(dbName, {
-				type: 'keyvalue',
-				create: false, // Don't create if it doesn't exist
-				sync: false,
-				encryption
+				...dbOptions,
+				headsStorage,
+				entryStorage,
+				sync: false // Override sync for in-memory
 			});
 		} else {
-			todoDB = await orbitdb.open(dbName, {
-				type: 'keyvalue',
-				create: false, // Don't create if it doesn't exist
-				sync: enableNetworkConnection,
-				encryption
-			});
+			todoDB = await orbitdb.open(dbName, dbOptions);
 		}
 
 		console.log('🔍 TodoDB records:', (await todoDB.all()).length);

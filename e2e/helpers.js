@@ -324,3 +324,47 @@ export async function getCurrentDatabaseAddress(page, timeout = 15000) {
 	console.warn('⚠️ Could not find database address');
 	return null;
 }
+
+/**
+ * Helper to get the current identity ID from the page
+ *
+ * @param {import('@playwright/test').Page} page - Playwright page instance
+ * @param {number} [timeout=15000] - Timeout in milliseconds
+ * @returns {Promise<string|null>} Identity ID or null if not found
+ */
+export async function getIdentityId(page, timeout = 15000) {
+	console.log('🔍 Getting current identity ID...');
+
+	const identityId = await page
+		.waitForFunction(
+			() => {
+				// Try to get from window object if exposed
+				if (window.__currentIdentityId__) {
+					return window.__currentIdentityId__;
+				}
+
+				// Try to get from orbitdb if available
+				if (window.__orbitdb__ && window.__orbitdb__.identity && window.__orbitdb__.identity.id) {
+					return window.__orbitdb__.identity.id;
+				}
+
+				// Try to get from todoDB if available
+				if (window.__todoDB__ && window.__todoDB__.id) {
+					return window.__todoDB__.id;
+				}
+
+				return null;
+			},
+			{ timeout }
+		)
+		.then((handle) => handle.jsonValue())
+		.catch(() => null);
+
+	if (identityId) {
+		console.log(`✅ Found identity ID: ${identityId.slice(0, 16)}...`);
+		return identityId;
+	}
+
+	console.warn('⚠️ Could not find identity ID');
+	return null;
+}
