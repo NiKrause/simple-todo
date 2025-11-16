@@ -12,7 +12,7 @@ import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
 import { bootstrap } from '@libp2p/bootstrap';
 import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
-
+import { ping } from '@libp2p/ping';
 // Environment variables
 const RELAY_BOOTSTRAP_ADDR_DEV =
 	import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV ||
@@ -75,7 +75,7 @@ export async function createLibp2pConfig(options = {}) {
 			emitSelf: false, // Don't emit our own messages (matches example project)
 			allowPublishToZeroTopicPeers: true
 		})
-		//   ping: ping(),
+		  , ping: ping()
 	};
 	// Only add bootstrap service if network connections are enabled
 	if (enableNetworkConnection) {
