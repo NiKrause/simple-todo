@@ -389,7 +389,7 @@ export async function waitForTodoText(page, todoText, timeout = 30000, options =
 		// Strategy 2: data-testid with text filter
 		() => page.locator('[data-testid="todo-text"]').filter({ hasText: todoText }),
 		// Strategy 3: Text locator (fallback for browsers that might not have data attributes yet)
-		() => page.locator(`text=${todoText}`),
+		() => page.locator(`text=${todoText}`)
 	];
 
 	// Adjust timeout for Firefox (tends to be slower)
@@ -404,9 +404,11 @@ export async function waitForTodoText(page, todoText, timeout = 30000, options =
 			return;
 		} catch (error) {
 			// If page is closed, don't try other strategies - throw immediately
-			if (error.message?.includes('Target page, context or browser has been closed') ||
+			if (
+				error.message?.includes('Target page, context or browser has been closed') ||
 				error.message?.includes('Page closed') ||
-				error.message?.includes('Browser closed')) {
+				error.message?.includes('Browser closed')
+			) {
 				throw new Error(`Page was closed while waiting for todo "${todoText}": ${error.message}`);
 			}
 			lastError = error;

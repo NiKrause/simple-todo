@@ -171,7 +171,10 @@
 			if (!peerIdStr) return;
 
 			const connectionTransports = extractTransportsFromConnection(connection);
-			console.log(`🔍 Connection opened to ${peerIdStr.slice(0, 12)}... transports:`, connectionTransports);
+			console.log(
+				`🔍 Connection opened to ${peerIdStr.slice(0, 12)}... transports:`,
+				connectionTransports
+			);
 
 			// Detect DCUtR upgrade: check if we had a relay connection and now have a direct connection
 			if (libp2p) {
@@ -185,9 +188,10 @@
 					});
 
 					// Check if the new connection is direct (not relay)
-					const isDirectConnection = connectionTransports.some((t) => 
-						t === 'webrtc' || t === 'websocket' || t === 'webtransport'
-					) && !connectionTransports.includes('circuit-relay');
+					const isDirectConnection =
+						connectionTransports.some(
+							(t) => t === 'webrtc' || t === 'websocket' || t === 'webtransport'
+						) && !connectionTransports.includes('circuit-relay');
 
 					// Check connection timeline for upgrade info
 					const wasUpgraded = connection.timeline?.upgraded !== undefined;
@@ -211,7 +215,9 @@
 				peerConnectionTransports.get(peerIdStr).set(connection.id, new Set(connectionTransports));
 				updatePeerTransports(peerIdStr);
 			} else {
-				console.warn(`⚠️ Connection opened but no transports detected for ${peerIdStr.slice(0, 12)}...`);
+				console.warn(
+					`⚠️ Connection opened but no transports detected for ${peerIdStr.slice(0, 12)}...`
+				);
 			}
 		};
 
@@ -244,8 +250,10 @@
 					// Check if we still have direct connections (DCUtR upgrade scenario)
 					const hasDirectConnection = remainingConnections.some((conn) => {
 						const addr = conn.remoteAddr?.toString() || '';
-						return (addr.includes('/webrtc') || addr.includes('/ws') || addr.includes('/wss')) 
-							&& !addr.includes('/p2p-circuit');
+						return (
+							(addr.includes('/webrtc') || addr.includes('/ws') || addr.includes('/wss')) &&
+							!addr.includes('/p2p-circuit')
+						);
 					});
 
 					if (wasRelayConnection && hasDirectConnection) {
@@ -303,10 +311,18 @@
 		// Check remoteAddr first (primary method)
 		if (connection.remoteAddr) {
 			const addrStr = connection.remoteAddr.toString();
-			console.log('�� Connection address:', addrStr, 'for peer:', connection.remotePeer?.toString().slice(0, 12));
+			console.log(
+				'�� Connection address:',
+				addrStr,
+				'for peer:',
+				connection.remotePeer?.toString().slice(0, 12)
+			);
 
 			// Check for WebRTC (both /webrtc and /webrtc-direct)
-			if ((addrStr.includes('/webrtc') || addrStr.includes('/webrtc-direct')) && !addrStr.includes('/p2p-circuit')) {
+			if (
+				(addrStr.includes('/webrtc') || addrStr.includes('/webrtc-direct')) &&
+				!addrStr.includes('/p2p-circuit')
+			) {
 				transports.add('webrtc');
 			} else if (addrStr.includes('/p2p-circuit')) {
 				transports.add('circuit-relay');
@@ -321,7 +337,7 @@
 				transports.add('tcp');
 			}
 		}
-		
+
 		// Fallback: Check connection stat.transport if remoteAddr is not available
 		if (transports.size === 0 && connection.stat) {
 			const transport = connection.stat.transport;
@@ -336,7 +352,7 @@
 				}
 			}
 		}
-		
+
 		// If still no transport detected, log for debugging
 		if (transports.size === 0) {
 			console.warn('⚠️ Could not detect transport for connection:', {
@@ -363,7 +379,7 @@
 					const connTransports = extractTransportsFromConnection(conn);
 					connTransports.forEach((t) => allTransports.add(t));
 				});
-				
+
 				// Also update the tracking map to keep it in sync
 				if (!peerConnectionTransports.has(peerIdStr)) {
 					peerConnectionTransports.set(peerIdStr, new Map());

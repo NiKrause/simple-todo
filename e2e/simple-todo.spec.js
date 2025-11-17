@@ -759,7 +759,7 @@ test.describe('Simple Todo P2P Application', () => {
 		// Wait for the database to be discovered and opened
 		// The database should automatically load and replicate
 		console.log('⏳ Browser B: Waiting for database discovery and replication...');
-		
+
 		// Wait for the todo to appear (with longer timeout for replication)
 		// The database should automatically switch and show Browser A's todos
 		// Use robust helper with browser-specific timeout adjustments
@@ -769,30 +769,33 @@ test.describe('Simple Todo P2P Application', () => {
 
 		// ===== SWITCH BACK TO BROWSER B's OWN IDENTITY =====
 		console.log('🔄 Browser B: Switching back to own identity...');
-		
+
 		// Click on the users list input to open dropdown first
 		await usersListInput.click();
 		await page2.waitForTimeout(500);
-		
+
 		// Wait for dropdown to appear
 		await page2.waitForSelector('[role="listbox"]', { timeout: 5000 });
-		
+
 		// Get Browser B's identity ID from the dropdown options (the one that's NOT Browser A's)
-		const identityIdB = await page2.evaluate((browserAIdentityPrefix) => {
-			const usersListDiv = document.querySelector('[role="listbox"]');
-			if (usersListDiv) {
-				const options = usersListDiv.querySelectorAll('[role="option"]');
-				for (const option of options) {
-					const text = option.textContent?.trim() || '';
-					// Identity IDs are long (66 chars), and we want the one that's NOT Browser A's
-					if (text && text.length > 50 && !text.startsWith(browserAIdentityPrefix)) {
-						return text;
+		const identityIdB = await page2.evaluate(
+			(browserAIdentityPrefix) => {
+				const usersListDiv = document.querySelector('[role="listbox"]');
+				if (usersListDiv) {
+					const options = usersListDiv.querySelectorAll('[role="option"]');
+					for (const option of options) {
+						const text = option.textContent?.trim() || '';
+						// Identity IDs are long (66 chars), and we want the one that's NOT Browser A's
+						if (text && text.length > 50 && !text.startsWith(browserAIdentityPrefix)) {
+							return text;
+						}
 					}
 				}
-			}
-			return null;
-		}, identityIdA.slice(0, 16));
-		
+				return null;
+			},
+			identityIdA.slice(0, 16)
+		);
+
 		expect(identityIdB).toBeTruthy();
 		console.log(`📱 Browser B Identity ID: ${identityIdB?.slice(0, 16)}...`);
 
@@ -846,10 +849,10 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('📋 Browser B: Clicking on own identity to copy it...');
 		await usersListInput.click();
 		await page2.waitForTimeout(500);
-		
+
 		// Wait for dropdown
 		await page2.waitForSelector('[role="listbox"]', { timeout: 5000 });
-		
+
 		// Click on Browser B's identity again (this will copy it to clipboard)
 		await browserBIdentityOption.click();
 		await page2.waitForTimeout(1000);
@@ -860,7 +863,7 @@ test.describe('Simple Todo P2P Application', () => {
 
 		// ===== GO BACK TO BROWSER A AND ADD BROWSER B's IDENTITY =====
 		console.log('🔄 Browser A: Adding Browser B as tracked user...');
-		
+
 		// Find the Users List input field in Browser A
 		const usersListInputA = page1.locator('#users-list');
 		await expect(usersListInputA).toBeVisible({ timeout: 10000 });
@@ -890,5 +893,79 @@ test.describe('Simple Todo P2P Application', () => {
 		await context2.close();
 
 		console.log('✅ Database replication by name test completed successfully!');
+	});
+
+	test('should load todo list in embed mode via hash URL', async ({ page }) => {
+		console.log('🧪 Testing embed URL functionality...');
+
+		// Step 1: Initialize P2P and create a todo
+		await page.goto('/');
+		await page.waitForFunction(
+			() => {
+				const hasMain = document.querySelector('main') !== null;
+				const hasModal = document.querySelector('[data-testid="consent-modal"]') !== null;
+				return hasMain || hasModal;
+			},
+			{ timeout: 30000 }
+		);
+		await page.waitForTimeout(1000);
+
+		await acceptConsentAndInitialize(page);
+		await waitForP2PInitialization(page);
+
+		// Add a test todo
+		const testTodoEmbed = 'Todo for embed test';
+		const todoInput = page.locator('[data-testid="todo-input"]');
+		await expect(todoInput).toBeVisible({ timeout: 10000 });
+		await todoInput.fill(testTodoEmbed);
+		await page.locator('[data-testid="add-todo-button"]').click();
+
+		// Wait for todo to appear
+		await waitForTodoText(page, testTodoEmbed, 10000, { browserName: test.info().project.name });
+		console.log(`✅ Added todo "${testTodoEmbed}"`);
+
+		// Step 2: Get the database address
+		const dbAddress = await getCurrentDatabaseAddress(page);
+		expect(dbAddress).toBeTruthy();
+		console.log(`📋 Database address: ${dbAddress?.slice(0, 20)}...`);
+
+		// Step 3: Navigate to embed URL using hash
+		const embedUrl = `/#/embed/${encodeURIComponent(dbAddress)}`;
+		console.log(`🔗 Navigating to embed URL: ${embedUrl}`);
+		await page.goto(embedUrl);
+
+		// Step 4: Wait for embed page to load and initialize
+		// Wait for the page to be ready (main element should be visible)
+		await page.waitForSelector('main', { timeout: 30000 });
+
+		// Wait for P2P initialization in embed mode
+		await page.waitForFunction(
+			() => {
+				// Check if we're past the loading state
+				const main = document.querySelector('main');
+				if (!main) return false;
+				// Check if there's content (either todos or error)
+				const hasContent = main.textContent && main.textContent.trim().length > 0;
+				const isLoading = main.textContent?.includes('Loading todo list');
+				return hasContent && !isLoading;
+			},
+			{ timeout: 30000 }
+		);
+
+		// Wait a bit more for the embed to fully load
+		await page.waitForTimeout(2000);
+
+		// Step 5: Verify the todo appears in embed view
+		await waitForTodoText(page, testTodoEmbed, 30000, { browserName: test.info().project.name });
+		console.log(`✅ Todo "${testTodoEmbed}" found in embed view`);
+
+		// Step 6: Verify embed-specific UI elements
+		// The embed view should not show the add todo form by default (unless allowAdd=true)
+		// Check for the todo input field which should not be visible in read-only embed mode
+		const todoInputInEmbed = page.locator('[data-testid="todo-input"]');
+		await expect(todoInputInEmbed).not.toBeVisible({ timeout: 5000 });
+		console.log('✅ Embed view is read-only by default (no add form)');
+
+		console.log('✅ Embed URL test completed successfully!');
 	});
 });

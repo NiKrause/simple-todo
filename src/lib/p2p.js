@@ -41,11 +41,14 @@ let currentIdentity = null;
  * @param {boolean} create - Whether to create the database if it doesn't exist
  * @returns {Object} Database options for orbitdb.open()
  */
-function buildDatabaseOptions(identityId, preferences = {}, enableEncryption = false, encryption = null, create = false) {
-	const {
-		enablePersistentStorage = true,
-		enableNetworkConnection = true
-	} = preferences;
+function buildDatabaseOptions(
+	identityId,
+	preferences = {},
+	enableEncryption = false,
+	encryption = null,
+	create = false
+) {
+	const { enablePersistentStorage = true, enableNetworkConnection = true } = preferences;
 
 	// Set up access controller - allow the specified identity to write
 	const accessController = OrbitDBAccessController({
@@ -118,7 +121,13 @@ export async function openTodoList(
 	}
 
 	// Build standard database options using shared function
-	const dbOptions = buildDatabaseOptions(identityId, preferences, enableEncryption, encryption, true);
+	const dbOptions = buildDatabaseOptions(
+		identityId,
+		preferences,
+		enableEncryption,
+		encryption,
+		true
+	);
 
 	// Open the database
 	if (!enablePersistentStorage && !enableNetworkConnection) {
@@ -208,8 +217,14 @@ export async function openDatabaseByName(
 
 			// Build standard database options using the OTHER identity's ID
 			// This ensures we use the same AccessController configuration that Browser A used
-			const dbOptions = buildDatabaseOptions(dbNameIdentity, preferences, enableEncryption, encryption, false);
-			
+			const dbOptions = buildDatabaseOptions(
+				dbNameIdentity,
+				preferences,
+				enableEncryption,
+				encryption,
+				false
+			);
+
 			// Open with the same standard options - this will calculate the correct address
 			todoDB = await orbitdb.open(dbName, dbOptions);
 
@@ -246,7 +261,13 @@ export async function openDatabaseByName(
 	}
 
 	// Build standard database options using shared function
-	const dbOptions = buildDatabaseOptions(currentInstanceIdentity, preferences, enableEncryption, encryption, false);
+	const dbOptions = buildDatabaseOptions(
+		currentInstanceIdentity,
+		preferences,
+		enableEncryption,
+		encryption,
+		false
+	);
 
 	// Try to open the database by name (our identity)
 	try {

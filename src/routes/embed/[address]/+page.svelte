@@ -32,8 +32,9 @@
 	let loading = true;
 	let dbAddress = null;
 	let allowAdd = false;
+	// Use memory-only storage for embeds (no local persistence needed)
 	const preferences = {
-		enablePersistentStorage: true,
+		enablePersistentStorage: false,
 		enableNetworkConnection: true,
 		enablePeerConnections: true
 	};
@@ -147,7 +148,7 @@
 
 			if (!$initializationStore.isInitialized) {
 				await initializeP2P({
-					enablePersistentStorage: true,
+					enablePersistentStorage: false, // Memory-only for embeds
 					enableNetworkConnection: true,
 					enablePeerConnections: true
 				});
@@ -166,7 +167,7 @@
 			await openDatabaseByAddress(
 				dbAddress,
 				{
-					enablePersistentStorage: true,
+					enablePersistentStorage: false, // Memory-only for embeds
 					enableNetworkConnection: true,
 					enablePeerConnections: true
 				},

@@ -22,10 +22,10 @@
 	// Check if current database belongs to another user
 	$: currentDbName = $currentDbNameStore;
 	$: currentUserIdentity = $initializationStore.isInitialized ? getCurrentIdentityId() : null;
-	$: currentDbIdentity = currentDbName && currentDbName.includes('_') 
-		? currentDbName.split('_')[0] 
-		: null;
-	$: isViewingOtherUser = currentDbIdentity && currentUserIdentity && currentDbIdentity !== currentUserIdentity;
+	$: currentDbIdentity =
+		currentDbName && currentDbName.includes('_') ? currentDbName.split('_')[0] : null;
+	$: isViewingOtherUser =
+		currentDbIdentity && currentUserIdentity && currentDbIdentity !== currentUserIdentity;
 
 	// React to selectedUserIdStore changes and refresh available lists
 	$: if ($selectedUserIdStore && $initializationStore.isInitialized) {
@@ -211,7 +211,10 @@
 	<label for="todo-list-selector" class="mb-1 block text-sm font-medium text-gray-700">
 		Todo List
 		{#if isViewingOtherUser}
-			<span class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800" title="Viewing another user's database">
+			<span
+				class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
+				title="Viewing another user's database"
+			>
 				👤 {currentDbIdentity?.slice(0, 8)}...
 			</span>
 		{/if}
@@ -226,11 +229,18 @@
 			on:input={handleInputInput}
 			on:keydown={handleKeydown}
 			placeholder="Type to create or select a todo list..."
-			class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 {isViewingOtherUser ? 'pr-24' : 'pr-10'} text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none {isViewingOtherUser ? 'border-amber-300 bg-amber-50' : ''}"
+			class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 {isViewingOtherUser
+				? 'pr-24'
+				: 'pr-10'} text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none {isViewingOtherUser
+				? 'border-amber-300 bg-amber-50'
+				: ''}"
 			disabled={isCreating || !$initializationStore.isInitialized}
 		/>
 		{#if isViewingOtherUser}
-			<span class="absolute top-1/2 right-12 -translate-y-1/2 text-xs text-amber-600 font-mono" title="Viewing another user's database">
+			<span
+				class="absolute top-1/2 right-12 -translate-y-1/2 font-mono text-xs text-amber-600"
+				title="Viewing another user's database"
+			>
 				{currentDbIdentity?.slice(0, 6)}...
 			</span>
 		{/if}
@@ -252,8 +262,10 @@
 		>
 			{#if filteredLists.length > 0}
 				{#each filteredLists as list (list.dbName)}
-					{@const listIdentity = list.dbName && list.dbName.includes('_') ? list.dbName.split('_')[0] : null}
-					{@const isOtherUser = listIdentity && currentUserIdentity && listIdentity !== currentUserIdentity}
+					{@const listIdentity =
+						list.dbName && list.dbName.includes('_') ? list.dbName.split('_')[0] : null}
+					{@const isOtherUser =
+						listIdentity && currentUserIdentity && listIdentity !== currentUserIdentity}
 					<div
 						class="group relative flex w-full items-center hover:bg-blue-50 {list.displayName ===
 						$currentTodoListNameStore
@@ -280,7 +292,10 @@
 									<span class="font-medium">{list.displayName}</span>
 								{/if}
 								{#if isOtherUser}
-									<span class="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 font-mono" title="Another user's database">
+									<span
+										class="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 font-mono text-xs font-medium text-amber-700"
+										title="Another user's database"
+									>
 										{listIdentity?.slice(0, 6)}...
 									</span>
 								{/if}
