@@ -765,6 +765,121 @@ test.describe('Simple Todo P2P Application', () => {
 
 		console.log(`✅ Browser B: Found replicated todo "${testTodoA}"`);
 
+		// ===== SWITCH BACK TO BROWSER B's OWN IDENTITY =====
+		console.log('🔄 Browser B: Switching back to own identity...');
+		
+		// Click on the users list input to open dropdown first
+		await usersListInput.click();
+		await page2.waitForTimeout(500);
+		
+		// Wait for dropdown to appear
+		await page2.waitForSelector('[role="listbox"]', { timeout: 5000 });
+		
+		// Get Browser B's identity ID from the dropdown options (the one that's NOT Browser A's)
+		const identityIdB = await page2.evaluate((browserAIdentityPrefix) => {
+			const usersListDiv = document.querySelector('[role="listbox"]');
+			if (usersListDiv) {
+				const options = usersListDiv.querySelectorAll('[role="option"]');
+				for (const option of options) {
+					const text = option.textContent?.trim() || '';
+					// Identity IDs are long (66 chars), and we want the one that's NOT Browser A's
+					if (text && text.length > 50 && !text.startsWith(browserAIdentityPrefix)) {
+						return text;
+					}
+				}
+			}
+			return null;
+		}, identityIdA.slice(0, 16));
+		
+		expect(identityIdB).toBeTruthy();
+		console.log(`📱 Browser B Identity ID: ${identityIdB?.slice(0, 16)}...`);
+
+		// Dropdown is already open from above, no need to click again
+
+		// Find and click on Browser B's own identity in the dropdown
+		// The identity should be in the filtered users list
+		// Use filter to find the option containing the identity ID (may be truncated in display)
+		const browserBIdentityOption = page2
+			.locator('[role="option"]')
+			.filter({ hasText: identityIdB.slice(0, 16) });
+		await expect(browserBIdentityOption).toBeVisible({ timeout: 5000 });
+		await browserBIdentityOption.click();
+		await page2.waitForTimeout(1000);
+
+		// Wait for the database to switch back to Browser B's own database
+		console.log('⏳ Browser B: Waiting for database to switch to own identity...');
+		await page2.waitForTimeout(2000);
+
+		// Verify todo input is still available
+		await expect(todoInput2).toBeVisible({ timeout: 10000 });
+
+		// Verify Browser B's todo list is empty (testTodoA should not be visible)
+		await expect(page2.locator('text=' + testTodoA)).not.toBeVisible({ timeout: 5000 });
+		console.log('✅ Browser B: Switched to own identity, todo list is empty');
+
+		// ===== ADD TWO NEW TODOS IN BROWSER B =====
+		console.log('📝 Browser B: Adding two new todos...');
+		const testTodoB1 = 'Todo 1 from Browser B';
+		const testTodoB2 = 'Todo 2 from Browser B';
+
+		// Add first todo
+		await todoInput2.fill(testTodoB1);
+		await page2.locator('[data-testid="add-todo-button"]').click();
+		await expect(page2.locator('text=' + testTodoB1)).toBeVisible({ timeout: 5000 });
+		console.log(`✅ Browser B: Added todo "${testTodoB1}"`);
+
+		// Add second todo
+		await todoInput2.fill(testTodoB2);
+		await page2.locator('[data-testid="add-todo-button"]').click();
+		await expect(page2.locator('text=' + testTodoB2)).toBeVisible({ timeout: 5000 });
+		console.log(`✅ Browser B: Added todo "${testTodoB2}"`);
+
+		// Wait a bit for todos to be saved
+		await page2.waitForTimeout(2000);
+
+		// ===== CLICK ON BROWSER B's IDENTITY IN USERLIST TO COPY IT =====
+		console.log('📋 Browser B: Clicking on own identity to copy it...');
+		await usersListInput.click();
+		await page2.waitForTimeout(500);
+		
+		// Wait for dropdown
+		await page2.waitForSelector('[role="listbox"]', { timeout: 5000 });
+		
+		// Click on Browser B's identity again (this will copy it to clipboard)
+		await browserBIdentityOption.click();
+		await page2.waitForTimeout(1000);
+
+		// Get the identity ID from clipboard (or use the one we already have)
+		// Note: Playwright clipboard access might be limited, so we'll use the identityIdB we already have
+		console.log(`📋 Browser B: Identity ID copied (${identityIdB?.slice(0, 16)}...)`);
+
+		// ===== GO BACK TO BROWSER A AND ADD BROWSER B's IDENTITY =====
+		console.log('🔄 Browser A: Adding Browser B as tracked user...');
+		
+		// Find the Users List input field in Browser A
+		const usersListInputA = page1.locator('#users-list');
+		await expect(usersListInputA).toBeVisible({ timeout: 10000 });
+
+		// Click on the input to focus it
+		await usersListInputA.click();
+		await page1.waitForTimeout(500);
+
+		// Paste Browser B's identity ID and press Enter
+		await usersListInputA.fill(identityIdB);
+		await usersListInputA.press('Enter');
+
+		// Wait for the database to be discovered and opened
+		console.log('⏳ Browser A: Waiting for Browser B database discovery and replication...');
+		await page1.waitForTimeout(2000); // Give time for database discovery
+
+		// Wait for Browser B's todos to appear in Browser A
+		await expect(page1.locator('text=' + testTodoB1)).toBeVisible({ timeout: 30000 });
+		await expect(page1.locator('text=' + testTodoB2)).toBeVisible({ timeout: 30000 });
+
+		console.log(`✅ Browser A: Found replicated todos from Browser B`);
+		console.log(`   - "${testTodoB1}"`);
+		console.log(`   - "${testTodoB2}"`);
+
 		// Clean up
 		await context1.close();
 		await context2.close();
