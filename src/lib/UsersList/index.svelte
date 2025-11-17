@@ -85,12 +85,95 @@
 			// Don't show error toast - selection should still work even if copy fails
 		}
 
-		// Toggle selection: if already selected, deselect (show all)
+		// Get current user identity
+		const { getCurrentIdentityId } = await import('../p2p.js');
+		const currentUserIdentity = getCurrentIdentityId();
 		const currentSelected = get(selectedUserIdStore);
+
+		// Determine target user ID (null means show all/own, otherwise the selected user)
+		let targetUserId = null;
 		if (currentSelected === userId) {
-			selectedUserIdStore.set(null); // Show all users
+			// Toggling off - show all (which means own)
+			selectedUserIdStore.set(null);
+			targetUserId = currentUserIdentity; // Switch to own projects
 		} else {
-			selectedUserIdStore.set(userId); // Filter to this user
+			// Selecting a user - filter to this user
+			selectedUserIdStore.set(userId);
+			targetUserId = userId; // Switch to their projects
+		}
+
+		// Refresh available lists first to ensure we have latest data
+		const { listAvailableTodoLists } = await import('../todo-list-manager.js');
+		await listAvailableTodoLists();
+
+		// Find the "projects" database for the target user
+		const availableLists = get(availableTodoListsStore);
+		const targetProjects = availableLists.find((list) => {
+			if (!list.dbName || !list.dbName.includes('_')) return false;
+			const identityId = list.dbName.split('_')[0];
+			return identityId === targetUserId && list.displayName === 'projects';
+		});
+
+		const preferences = {
+			enablePersistentStorage: true,
+			enableNetworkConnection: true,
+			enablePeerConnections: true
+		};
+
+		// Import necessary functions
+		const { openDatabaseByAddress, openDatabaseByName } = await import('../p2p.js');
+		const { currentTodoListNameStore, currentDbNameStore, currentDbAddressStore } = await import('../todo-list-manager.js');
+		const { replaceState } = await import('$app/navigation');
+
+		if (targetProjects && targetProjects.address) {
+			// Update stores immediately
+			currentTodoListNameStore.set('projects');
+			if (targetProjects.dbName) {
+				currentDbNameStore.set(targetProjects.dbName);
+			}
+			currentDbAddressStore.set(targetProjects.address);
+
+			// Open by address to ensure we load the same DB
+			try {
+				await openDatabaseByAddress(targetProjects.address, preferences, false, '');
+				if (typeof window !== 'undefined') {
+					const hash = `/${encodeURIComponent(targetProjects.address)}`;
+					replaceState(`#${hash}`, { replaceState: true });
+				}
+			} catch (e) {
+				console.error('Failed to open projects database by address:', e);
+				// Fallback to opening by name
+				const dbName = `${targetUserId}_projects`;
+				try {
+					await openDatabaseByName(dbName, preferences, false, '');
+					currentTodoListNameStore.set('projects');
+					currentDbNameStore.set(dbName);
+					if (typeof window !== 'undefined') {
+						const { replaceState } = await import('$app/navigation');
+						// Try to get address from opened DB if available
+						// Note: openDatabaseByName might not return address immediately
+					}
+				} catch (e2) {
+					console.error('Failed to open projects database by name:', e2);
+				}
+			}
+		} else {
+			// Try opening by name if not found in available lists
+			const dbName = `${targetUserId}_projects`;
+			try {
+				const openedDB = await openDatabaseByName(dbName, preferences, false, '');
+				currentTodoListNameStore.set('projects');
+				currentDbNameStore.set(dbName);
+				currentDbAddressStore.set(openedDB?.address || null);
+
+				// Update URL hash if we have an address
+				if (openedDB?.address && typeof window !== 'undefined') {
+					const hash = `/${encodeURIComponent(openedDB.address)}`;
+					replaceState(`#${hash}`, { replaceState: true });
+				}
+			} catch (e) {
+				console.error('Failed to open projects database by name:', e);
+			}
 		}
 	}
 

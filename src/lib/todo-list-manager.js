@@ -522,6 +522,14 @@ export async function switchToTodoList(
 			currentDbNameStore.set(existingList.dbName);
 			currentDbAddressStore.set(existingList.address);
 			
+			// Update URL hash to match the database address
+			if (typeof window !== 'undefined' && existingList.address) {
+				const hash = `/${encodeURIComponent(existingList.address)}`;
+				if (window.location.hash !== `#${hash}`) {
+					window.history.replaceState(null, '', `#${hash}`);
+				}
+			}
+			
 			// Update hierarchy
 			const currentHierarchy = get(todoListHierarchyStore);
 			if (parentListName) {
@@ -611,6 +619,14 @@ export async function switchToTodoList(
 		currentDbNameStore.set(dbName);
 		currentDbAddressStore.set(openedDB?.address || null);
 
+		// Update URL hash to match the database address
+		if (typeof window !== 'undefined' && openedDB?.address) {
+			const hash = `/${encodeURIComponent(openedDB.address)}`;
+			if (window.location.hash !== `#${hash}`) {
+				window.history.replaceState(null, '', `#${hash}`);
+			}
+		}
+
 		// Determine parent from parameter or registry
 		let actualParent = parentListName;
 		if (!actualParent && currentUserIdentity) {
@@ -656,8 +672,6 @@ export async function switchToTodoList(
 		// Refresh available todo lists and unique users
 		await listAvailableTodoLists();
 		await listUniqueUsers();
-
-		// Note: URL hash is updated automatically by reactive statement in +page.svelte
 
 		showToast(`Switched to todo list: ${trimmedName}`, 'success');
 		return true;

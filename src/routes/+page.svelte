@@ -24,7 +24,7 @@
 	import StorachaIntegration from '$lib/components/integration/StorachaIntegration.svelte';
 	import QRCodeModal from '$lib/components/ui/QRCodeModal.svelte';
 	import TodoListSelector from '$lib/components/todo/TodoListSelector.svelte';
-	import UsersList from '$lib/components/p2p/UsersList.svelte';
+	import UsersList from '$lib/UsersList/index.svelte';
 	import BreadcrumbNavigation from '$lib/components/todo/BreadcrumbNavigation.svelte';
 	import ShareEmbedButtons from '$lib/components/todo/ShareEmbedButtons.svelte';
 	import {
