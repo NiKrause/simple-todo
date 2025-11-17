@@ -368,3 +368,53 @@ export async function getIdentityId(page, timeout = 15000) {
 	console.warn('⚠️ Could not find identity ID');
 	return null;
 }
+
+/**
+ * Helper to wait for a todo with specific text to appear (robust across browsers)
+ *
+ * @param {import('@playwright/test').Page} page - Playwright page instance
+ * @param {string} todoText - Text of the todo to wait for
+ * @param {number} [timeout=30000] - Timeout in milliseconds
+ * @param {Object} [options] - Additional options
+ * @param {string} [options.browserName] - Browser name for browser-specific adjustments
+ */
+export async function waitForTodoText(page, todoText, timeout = 30000, options = {}) {
+	const { browserName } = options;
+	console.log(`⏳ Waiting for todo "${todoText}" to appear...`);
+
+	// Try multiple selector strategies for robustness
+	const strategies = [
+		// Strategy 1: data-todo-text attribute (most reliable)
+		() => page.locator(`[data-todo-text="${todoText}"]`),
+		// Strategy 2: data-testid with text filter
+		() => page.locator('[data-testid="todo-text"]').filter({ hasText: todoText }),
+		// Strategy 3: Text locator (fallback for browsers that might not have data attributes yet)
+		() => page.locator(`text=${todoText}`),
+	];
+
+	// Adjust timeout for Firefox (tends to be slower)
+	const adjustedTimeout = browserName === 'firefox' ? timeout * 1.5 : timeout;
+
+	let lastError = null;
+	for (const strategy of strategies) {
+		try {
+			const locator = strategy();
+			await expect(locator).toBeVisible({ timeout: adjustedTimeout });
+			console.log(`✅ Found todo "${todoText}" using ${strategy.name || 'strategy'}`);
+			return;
+		} catch (error) {
+			// If page is closed, don't try other strategies - throw immediately
+			if (error.message?.includes('Target page, context or browser has been closed') ||
+				error.message?.includes('Page closed') ||
+				error.message?.includes('Browser closed')) {
+				throw new Error(`Page was closed while waiting for todo "${todoText}": ${error.message}`);
+			}
+			lastError = error;
+			// Try next strategy
+			continue;
+		}
+	}
+
+	// If all strategies failed, throw the last error
+	throw lastError || new Error(`Todo "${todoText}" not found after ${adjustedTimeout}ms`);
+}

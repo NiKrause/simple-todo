@@ -218,6 +218,8 @@
 			<div class="min-w-0 flex-1">
 				<div class="mb-1 flex items-start gap-2">
 					<span
+						data-testid="todo-text"
+						data-todo-text={text}
 						class={completed
 							? 'flex-1 text-gray-500 line-through'
 							: 'flex-1 font-medium text-gray-800'}

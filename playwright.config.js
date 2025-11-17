@@ -7,15 +7,16 @@ export default defineConfig({
 
 	// Web server configuration
 	webServer: {
-		command: 'npm run preview',
+		// Build first, then start preview server
+		command: 'npm run build && npm run preview',
 		port: 4174,
 		// Use the test environment file and set development mode
 		env: {
 			// VITE_ENV_FILE: '.env.development',
 			VITE_NODE_ENV: 'development'
 		},
-		// Wait for server to be ready
-		timeout: 60000 // Increased timeout for act/CI environments
+		// Wait for server to be ready (increased for build time)
+		timeout: 120000 // Increased timeout to allow for build + server startup
 		// reuseExistingServer: !process.env.CI
 	},
 

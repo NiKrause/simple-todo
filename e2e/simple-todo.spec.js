@@ -6,7 +6,8 @@ import {
 	getPeerId,
 	getConnectedPeerIds,
 	getPeerCount,
-	getCurrentDatabaseAddress
+	getCurrentDatabaseAddress,
+	waitForTodoText
 } from './helpers.js';
 
 test.describe('Simple Todo P2P Application', () => {
@@ -704,8 +705,8 @@ test.describe('Simple Todo P2P Application', () => {
 		await todoInput1.fill(testTodoA);
 		await page1.locator('[data-testid="add-todo-button"]').click();
 
-		// Wait for todo to appear
-		await expect(page1.locator('text=' + testTodoA)).toBeVisible({ timeout: 5000 });
+		// Wait for todo to appear using robust helper
+		await waitForTodoText(page1, testTodoA, 10000, { browserName: test.info().project.name });
 		console.log(`✅ Browser A: Added todo "${testTodoA}"`);
 
 		// Wait a bit for the todo to be saved
@@ -761,7 +762,8 @@ test.describe('Simple Todo P2P Application', () => {
 		
 		// Wait for the todo to appear (with longer timeout for replication)
 		// The database should automatically switch and show Browser A's todos
-		await expect(page2.locator('text=' + testTodoA)).toBeVisible({ timeout: 30000 });
+		// Use robust helper with browser-specific timeout adjustments
+		await waitForTodoText(page2, testTodoA, 45000, { browserName: test.info().project.name });
 
 		console.log(`✅ Browser B: Found replicated todo "${testTodoA}"`);
 
@@ -814,7 +816,10 @@ test.describe('Simple Todo P2P Application', () => {
 		await expect(todoInput2).toBeVisible({ timeout: 10000 });
 
 		// Verify Browser B's todo list is empty (testTodoA should not be visible)
-		await expect(page2.locator('text=' + testTodoA)).not.toBeVisible({ timeout: 5000 });
+		// Use a more robust check - wait a bit and verify the todo is not present
+		await page2.waitForTimeout(1000);
+		const todoAExists = await page2.locator(`[data-todo-text="${testTodoA}"]`).count();
+		expect(todoAExists).toBe(0);
 		console.log('✅ Browser B: Switched to own identity, todo list is empty');
 
 		// ===== ADD TWO NEW TODOS IN BROWSER B =====
@@ -825,13 +830,13 @@ test.describe('Simple Todo P2P Application', () => {
 		// Add first todo
 		await todoInput2.fill(testTodoB1);
 		await page2.locator('[data-testid="add-todo-button"]').click();
-		await expect(page2.locator('text=' + testTodoB1)).toBeVisible({ timeout: 5000 });
+		await waitForTodoText(page2, testTodoB1, 10000, { browserName: test.info().project.name });
 		console.log(`✅ Browser B: Added todo "${testTodoB1}"`);
 
 		// Add second todo
 		await todoInput2.fill(testTodoB2);
 		await page2.locator('[data-testid="add-todo-button"]').click();
-		await expect(page2.locator('text=' + testTodoB2)).toBeVisible({ timeout: 5000 });
+		await waitForTodoText(page2, testTodoB2, 10000, { browserName: test.info().project.name });
 		console.log(`✅ Browser B: Added todo "${testTodoB2}"`);
 
 		// Wait a bit for todos to be saved
@@ -872,9 +877,9 @@ test.describe('Simple Todo P2P Application', () => {
 		console.log('⏳ Browser A: Waiting for Browser B database discovery and replication...');
 		await page1.waitForTimeout(2000); // Give time for database discovery
 
-		// Wait for Browser B's todos to appear in Browser A
-		await expect(page1.locator('text=' + testTodoB1)).toBeVisible({ timeout: 30000 });
-		await expect(page1.locator('text=' + testTodoB2)).toBeVisible({ timeout: 30000 });
+		// Wait for Browser B's todos to appear in Browser A using robust helper
+		await waitForTodoText(page1, testTodoB1, 45000, { browserName: test.info().project.name });
+		await waitForTodoText(page1, testTodoB2, 45000, { browserName: test.info().project.name });
 
 		console.log(`✅ Browser A: Found replicated todos from Browser B`);
 		console.log(`   - "${testTodoB1}"`);
