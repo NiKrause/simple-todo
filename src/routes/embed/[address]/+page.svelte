@@ -1,6 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { initializeP2P, openDatabaseByAddress } from '$lib/p2p.js';
 	import { initializationStore } from '$lib/p2p.js';
 	import {
@@ -26,7 +27,6 @@
 		todoListHierarchyStore
 	} from '$lib/todo-list-manager.js';
 	import { get } from 'svelte/store';
-	import { pushState } from '$app/navigation';
 
 	let error = null;
 	let loading = true;
@@ -107,12 +107,12 @@
 						console.warn('Could not update hierarchy:', hierarchyError);
 					}
 
-					// Update URL without reloading using history API
+					// Navigate to new embed route
 					const embedPath = `/embed/${encodeURIComponent(newListAddress)}`;
 					const queryParams = allowAdd ? '?allowAdd=true' : '';
 					const newUrl = embedPath + queryParams;
-					// eslint-disable-next-line svelte/no-navigation-without-resolve
-					pushState(newUrl, {});
+					// Navigate to new embed URL
+					await goto(newUrl, { noScroll: true });
 
 					// Update local dbAddress to match
 					dbAddress = newListAddress;

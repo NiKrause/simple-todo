@@ -26,9 +26,10 @@
 	import TodoListSelector from '$lib/components/todo/TodoListSelector.svelte';
 	import UsersList from '$lib/UsersList/index.svelte';
 	import BreadcrumbNavigation from '$lib/components/todo/BreadcrumbNavigation.svelte';
-	import ShareEmbedButtons from '$lib/components/todo/ShareEmbedButtons.svelte';
-	import {
-		switchToTodoList,
+import ShareEmbedButtons from '$lib/components/todo/ShareEmbedButtons.svelte';
+import PasswordModal from '$lib/components/ui/PasswordModal.svelte';
+import {
+	switchToTodoList,
 		createSubList,
 		currentTodoListNameStore,
 		currentDbNameStore,
@@ -66,6 +67,19 @@
 		}
 	}
 
+	// Expose orbitdb and identity ID to window for e2e testing
+	$: if (browser && $orbitdbStore) {
+		window.__orbitdb__ = $orbitdbStore;
+		if ($orbitdbStore.identity && $orbitdbStore.identity.id) {
+			window.__currentIdentityId__ = $orbitdbStore.identity.id;
+		}
+	}
+
+	// Expose currentDbNameStore to window for e2e testing
+	$: if (browser && $currentDbNameStore) {
+		window.__currentDbName__ = $currentDbNameStore;
+	}
+
 	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
 
 	let error = null;
@@ -89,6 +103,12 @@
 	// Encryption state
 	let enableEncryption = false;
 	let encryptionPassword = '';
+
+	// Password modal state
+	let showPasswordModal = false;
+	let passwordModalDbName = '';
+	let passwordRetryCount = 0;
+	let pendingDatabaseOpen = null; // Store pending database open operation
 
 	// Flag to prevent infinite loop when updating hash from store changes
 	let isUpdatingFromHash = false;
@@ -180,15 +200,16 @@
 							console.log(`📂 Opening database from embed hash: ${normalizedAddress}`);
 							isUpdatingFromHash = true;
 
-							try {
-								toastStore.show('🌐 Loading database from network...', 'info', 5000);
-								await openDatabaseByAddress(
-									normalizedAddress,
-									preferences,
-									enableEncryption,
-									encryptionPassword
-								);
+						try {
+							toastStore.show('🌐 Loading database from network...', 'info', 5000);
+							const opened = await tryOpenDatabaseWithEncryptionDetection(normalizedAddress, preferences);
+							if (opened) {
 								await loadTodos();
+							} else {
+								// Password modal will be shown automatically, wait for user
+								toastStore.show('🔐 This database is encrypted. Please enter the password.', 'info');
+								return;
+							}
 
 								// Load hierarchy for breadcrumb navigation
 								try {
@@ -239,16 +260,20 @@
 
 					try {
 						console.log('🔧 DEBUG: Hash value:', hashValue);
-						if (hashValue.startsWith('/orbitdb/')) {
-							// It's an OrbitDB address - open directly by address
-							console.log(`🔗 Opening database by address from URL: ${hashValue}`);
-							toastStore.show('🌐 Loading database from network...', 'info', 5000);
-							const openedDB = await openDatabaseByAddress(
-								hashValue,
-								preferences,
-								enableEncryption,
-								encryptionPassword
-							);
+					if (hashValue.startsWith('/orbitdb/')) {
+						// It's an OrbitDB address - open directly by address
+						console.log(`🔗 Opening database by address from URL: ${hashValue}`);
+						toastStore.show('🌐 Loading database from network...', 'info', 5000);
+						const opened = await tryOpenDatabaseWithEncryptionDetection(hashValue, preferences);
+						if (!opened) {
+							// Password modal will be shown automatically
+							toastStore.show('🔐 This database is encrypted. Please enter the password.', 'info');
+							let waitForPassword = true;
+							while (waitForPassword && showPasswordModal) {
+								await new Promise((resolve) => setTimeout(resolve, 100));
+							}
+						}
+						const openedDB = get(todoDBStore);
 
 							// Log database information
 							console.log('📊 Database Information:');
@@ -609,6 +634,87 @@
 		}
 	}
 
+	// Password modal handlers
+	const handlePasswordSubmit = async (event) => {
+		const { password } = event.detail;
+		if (!pendingDatabaseOpen) {
+			console.error('No pending database open operation');
+			showPasswordModal = false;
+			return;
+		}
+
+		try {
+			console.log('🔐 Attempting to open database with provided password...');
+			const { address, preferences: pendingPreferences } = pendingDatabaseOpen;
+
+			await openDatabaseByAddress(address, pendingPreferences, true, password);
+			await loadTodos();
+
+			toastStore.show('✅ Database unlocked successfully!', 'success');
+			showPasswordModal = false;
+			pendingDatabaseOpen = null;
+			passwordRetryCount = 0;
+		} catch (err) {
+			console.error('❌ Failed to open database with password:', err);
+			passwordRetryCount++;
+			if (passwordRetryCount >= 3) {
+				toastStore.show('❌ Too many failed attempts. Please try again later.', 'error');
+				showPasswordModal = false;
+				pendingDatabaseOpen = null;
+				passwordRetryCount = 0;
+				isUpdatingFromHash = false;
+			} else {
+				toastStore.show(`❌ Incorrect password. Attempt ${passwordRetryCount}/3`, 'error');
+			}
+		}
+	};
+
+	const handlePasswordCancel = () => {
+		showPasswordModal = false;
+		pendingDatabaseOpen = null;
+		passwordRetryCount = 0;
+		isUpdatingFromHash = false;
+		toastStore.show('⚠️ Database open cancelled', 'info');
+	};
+
+	const tryOpenDatabaseWithEncryptionDetection = async (address, preferences) => {
+		try {
+			console.log('🔍 Attempting to open database without encryption...');
+			// Try to open without encryption first
+			await openDatabaseByAddress(address, preferences, false, null);
+			const entries = await get(todoDBStore).all();
+
+			// Check if data looks valid (not corrupted)
+			if (entries.length === 0 || isDataLooksValid(entries)) {
+				console.log('✅ Database opened successfully without encryption');
+				await loadTodos();
+				return true;
+			}
+		} catch (err) {
+			console.log('⚠️ Error opening without encryption:', err.message);
+		}
+
+		// If unencrypted attempt failed or data looks corrupted, prompt for password
+		console.log('🔐 Database appears to be encrypted, prompting for password...');
+		passwordModalDbName = address.split('/').pop() || address;
+		pendingDatabaseOpen = { address, preferences };
+		passwordRetryCount = 0;
+		showPasswordModal = true;
+		return false;
+	};
+
+	const isDataLooksValid = (entries) => {
+		// Simple heuristic: check if any entry looks like valid todo data
+		return entries.some((entry) => {
+			if (entry && entry.value) {
+				const value = entry.value;
+				// Check if it has todo-like properties
+				return typeof value === 'object' && (value.text || value.title || value.content);
+			}
+			return false;
+		});
+	};
+
 	const handleAddTodo = async (event) => {
 		const { text, description, priority, estimatedTime, estimatedCosts } = event.detail;
 		const success = await addTodo(
@@ -793,6 +899,15 @@
 		on:proceed={handleModalClose}
 	/>
 {/if}
+
+<!-- Password modal for encrypted databases -->
+<PasswordModal
+	isOpen={showPasswordModal}
+	dbName={passwordModalDbName}
+	retryCount={passwordRetryCount}
+	on:submit={handlePasswordSubmit}
+	on:cancel={handlePasswordCancel}
+/>
 
 <main class="container mx-auto max-w-4xl p-6">
 	{#if !isEmbedMode}

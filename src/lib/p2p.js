@@ -309,9 +309,7 @@ export async function openDatabaseByName(
 export async function openDatabaseByAddress(
 	dbAddress,
 	preferences = {},
-	// eslint-disable-next-line no-unused-vars
 	enableEncryption = false,
-	// eslint-disable-next-line no-unused-vars
 	encryptionPassword = null
 ) {
 	if (!orbitdb) {
@@ -333,12 +331,28 @@ export async function openDatabaseByAddress(
 	// Extract preferences
 	const { enableNetworkConnection = true, enablePeerConnections = true } = preferences;
 
+	// Set up encryption if enabled
+	let encryption = null;
+	if (enableEncryption && encryptionPassword) {
+		console.log('🔐 Setting up encryption for database...');
+		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
+		const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
+		encryption = { data: dataEncryption, replication: replicationEncryption };
+	}
+
 	// Open database with sync enabled so it can discover peers via pubsub
 	// Note: sync is a runtime option, not stored in manifest, so we must pass it explicitly
 	console.log('⏳ Opening database...');
-	todoDB = await orbitdb.open(dbAddress, {
+	const dbOptions = {
 		sync: enableNetworkConnection
-	});
+	};
+
+	// Add encryption if enabled
+	if (encryption) {
+		dbOptions.encryption = encryption;
+	}
+
+	todoDB = await orbitdb.open(dbAddress, dbOptions);
 
 	// Log database sync state to debug
 	console.log('🔍 Database sync state:', {
@@ -346,7 +360,8 @@ export async function openDatabaseByAddress(
 		name: todoDB.name,
 		opened: todoDB.opened,
 		sync: todoDB.sync,
-		peers: todoDB.peers?.length || 0
+		peers: todoDB.peers?.length || 0,
+		encryption: encryption ? 'enabled' : 'disabled'
 	});
 
 	const entryCount = (await todoDB.all()).length;
