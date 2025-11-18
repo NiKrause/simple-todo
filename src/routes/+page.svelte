@@ -103,6 +103,7 @@ import {
 	// Encryption state
 	let enableEncryption = false;
 	let encryptionPassword = '';
+	let isCurrentDbEncrypted = false; // Track if currently open database is encrypted
 
 	// Password modal state
 	let showPasswordModal = false;
@@ -503,6 +504,12 @@ import {
 										enableEncryption,
 										encryptionPassword
 									);
+									// Track encryption state
+									isCurrentDbEncrypted = enableEncryption && !!encryptionPassword;
+									if (isCurrentDbEncrypted) {
+										enableEncryption = false;
+										encryptionPassword = '';
+									}
 									currentTodoListNameStore.set(list.displayName);
 									currentDbNameStore.set(list.dbName);
 									currentDbAddressStore.set(list.address);
@@ -514,6 +521,12 @@ import {
 										enableEncryption,
 										encryptionPassword
 									);
+									// Track encryption state
+									isCurrentDbEncrypted = enableEncryption && !!encryptionPassword;
+									if (isCurrentDbEncrypted) {
+										enableEncryption = false;
+										encryptionPassword = '';
+									}
 								}
 							} else if (identityId && hashValue.startsWith(`${identityId}_`)) {
 								// It's a full dbName from current identity
@@ -524,6 +537,12 @@ import {
 									enableEncryption,
 									encryptionPassword
 								);
+								// Track encryption state
+								isCurrentDbEncrypted = enableEncryption && !!encryptionPassword;
+								if (isCurrentDbEncrypted) {
+									enableEncryption = false;
+									encryptionPassword = '';
+								}
 							} else {
 								// Not found, try to open as displayName (will create if doesn't exist)
 								await switchToTodoList(
@@ -532,6 +551,12 @@ import {
 									enableEncryption,
 									encryptionPassword
 								);
+								// Track encryption state
+								isCurrentDbEncrypted = enableEncryption && !!encryptionPassword;
+								if (isCurrentDbEncrypted) {
+									enableEncryption = false;
+									encryptionPassword = '';
+								}
 							}
 						}
 					} catch (error) {
@@ -649,6 +674,11 @@ import {
 
 			await openDatabaseByAddress(address, pendingPreferences, true, password);
 			await loadTodos();
+			
+			// Mark database as encrypted since we needed password to open it
+			isCurrentDbEncrypted = true;
+			enableEncryption = false; // Reset form state
+			encryptionPassword = '';
 
 			toastStore.show('✅ Database unlocked successfully!', 'success');
 			showPasswordModal = false;
@@ -687,6 +717,9 @@ import {
 			// Check if data looks valid (not corrupted)
 			if (entries.length === 0 || isDataLooksValid(entries)) {
 				console.log('✅ Database opened successfully without encryption');
+				isCurrentDbEncrypted = false; // Database is unencrypted
+				enableEncryption = false; // Reset form state
+				encryptionPassword = '';
 				await loadTodos();
 				return true;
 			}
@@ -974,54 +1007,91 @@ import {
 				</div>
 			</div>
 			<div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
-				<div class="group relative">
-					<label class="flex cursor-pointer items-center gap-2">
-						<input
-							type="checkbox"
-							bind:checked={enableEncryption}
-							class="h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
-						/>
-						<span class="text-sm font-medium text-gray-700">Enable Encryption</span>
-					</label>
-					<div
-						class="invisible absolute top-full left-0 z-10 mt-2 w-64 rounded-md bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100"
-						role="tooltip"
-					>
-						Without encryption, the todo list will be visible unencrypted on the internet and might
-						be wanted or not wanted.
-					</div>
-				</div>
-				{#if enableEncryption}
-					<div class="flex-1">
-						<label for="encryption-password" class="mb-1 block text-sm font-medium text-gray-700">
-							Encryption Password
-						</label>
-						<input
-							id="encryption-password"
-							type="password"
-							bind:value={encryptionPassword}
-							placeholder="Enter password for encryption"
-							class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
-						/>
+				{#if isCurrentDbEncrypted}
+					<!-- Encryption is active - show status -->
+					<div class="flex items-center gap-2 rounded-md bg-green-50 px-3 py-2 border border-green-200">
+						<span class="text-green-600">🔐</span>
+						<span class="text-sm font-medium text-green-800">Encryption: Active</span>
 					</div>
 					<button
 						type="button"
 						on:click={async () => {
-							if (enableEncryption && !encryptionPassword.trim()) {
-								alert('Please enter an encryption password');
+							if (!confirm('Disable encryption? This will recreate the database without encryption. All data will remain, but it will no longer be encrypted.')) {
 								return;
 							}
 							// Get current todo list name from store
 							const { currentTodoListNameStore } = await import('$lib/todo-list-manager.js');
 							const { get } = await import('svelte/store');
 							const currentList = get(currentTodoListNameStore);
-							await switchToTodoList(currentList || 'projects', preferences, enableEncryption, encryptionPassword);
+							await switchToTodoList(currentList || 'projects', preferences, false, '');
+							isCurrentDbEncrypted = false;
+							enableEncryption = false;
+							encryptionPassword = '';
+							toastStore.show('✅ Encryption disabled', 'success');
 						}}
-						disabled={!$initializationStore.isInitialized || !encryptionPassword.trim()}
-						class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+						disabled={!$initializationStore.isInitialized}
+						class="rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 					>
-						Apply Encryption
+						Disable Encryption
 					</button>
+				{:else}
+					<!-- Encryption is not active - show enable form -->
+					<div class="group relative">
+						<label class="flex cursor-pointer items-center gap-2">
+							<input
+								type="checkbox"
+								bind:checked={enableEncryption}
+								class="h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
+							/>
+							<span class="text-sm font-medium text-gray-700">Enable Encryption</span>
+						</label>
+						<div
+							class="invisible absolute top-full left-0 z-10 mt-2 w-64 rounded-md bg-gray-900 px-3 py-2 text-xs text-white opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100"
+							role="tooltip"
+						>
+							Without encryption, the todo list will be visible unencrypted on the internet and might
+							be wanted or not wanted.
+						</div>
+					</div>
+					{#if enableEncryption}
+						<div class="flex-1">
+							<label for="encryption-password" class="mb-1 block text-sm font-medium text-gray-700">
+								Encryption Password
+							</label>
+							<input
+								id="encryption-password"
+								type="password"
+								bind:value={encryptionPassword}
+								placeholder="Enter password for encryption"
+								class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+							/>
+						</div>
+						<button
+							type="button"
+							on:click={async () => {
+								if (enableEncryption && !encryptionPassword.trim()) {
+									alert('Please enter an encryption password');
+									return;
+								}
+								// Get current todo list name from store
+								const { currentTodoListNameStore } = await import('$lib/todo-list-manager.js');
+								const { get } = await import('svelte/store');
+								const currentList = get(currentTodoListNameStore);
+								await switchToTodoList(currentList || 'projects', preferences, enableEncryption, encryptionPassword);
+								
+								// Update encryption state after applying
+								if (enableEncryption && encryptionPassword) {
+									isCurrentDbEncrypted = true;
+									enableEncryption = false; // Reset form
+									encryptionPassword = '';
+								}
+							}}
+							disabled={!$initializationStore.isInitialized || !encryptionPassword.trim()}
+							class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							Apply Encryption
+						</button>
+					{/if}
 				{/if}
 			</div>
 		</div>
