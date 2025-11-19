@@ -131,28 +131,6 @@ export default defineConfig({
 			mainFields: ['module', 'main']
 		}
 	},
-	ssr: {
-		// Exclude libp2p and related browser-only packages from SSR
-		noExternal: [],
-		external: [
-			'libp2p',
-			'@libp2p/gossipsub',
-			'@libp2p/websockets',
-			'@libp2p/webrtc',
-			'@libp2p/circuit-relay-v2',
-			'@libp2p/identify',
-			'@libp2p/dcutr',
-			'@libp2p/autonat',
-			'@libp2p/pubsub-peer-discovery',
-			'@libp2p/bootstrap',
-			'@chainsafe/libp2p-noise',
-			'@chainsafe/libp2p-yamux',
-			'helia',
-			'@orbitdb/core',
-			'blockstore-level',
-			'datastore-level'
-		]
-	},
 	resolve: {
 		// Prevent Vite from trying to process .d.ts files
 		extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json', '.svelte'],
