@@ -21,7 +21,7 @@
 		if (!browser || !$currentDbAddressStore) return;
 
 		const currentUrl = window.location.origin + window.location.pathname;
-		const hash = `#/${encodeURIComponent($currentDbAddressStore)}`;
+		const hash = `#/${$currentDbAddressStore}`;
 		const fullUrl = currentUrl + hash;
 
 		try {
@@ -53,7 +53,7 @@
 		if (!browser || !$currentDbAddressStore) return;
 
 		const currentUrl = window.location.origin + window.location.pathname;
-		const hash = `#/${encodeURIComponent($currentDbAddressStore)}`;
+		const hash = `#/${$currentDbAddressStore}`;
 		const fullUrl = currentUrl + hash;
 		const listName = $currentTodoListNameStore || 'Todo List';
 

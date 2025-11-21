@@ -29,7 +29,7 @@
 import ShareEmbedButtons from '$lib/components/todo/ShareEmbedButtons.svelte';
 import PasswordModal from '$lib/components/ui/PasswordModal.svelte';
 import {
-	switchToTodoList,
+switchToTodoList,
 		createSubList,
 		currentTodoListNameStore,
 		currentDbNameStore,
@@ -39,7 +39,8 @@ import {
 		availableTodoListsStore,
 		todoListHierarchyStore,
 		buildHierarchyPath,
-		listUniqueUsers
+		listUniqueUsers,
+		selectedUserIdStore
 	} from '$lib/todo-list-manager.js';
 	import { getCurrentIdentityId, openDatabaseByAddress } from '$lib/p2p.js';
 	import { get } from 'svelte/store';
@@ -176,10 +177,10 @@ import {
 					// Check if this is an embed route
 					if (hash.startsWith('#/embed/')) {
 						isEmbedMode = true;
-						// Extract address and query params from #/embed/orbitdb/...?allowAdd=true
-						const embedPath = hash.slice(8); // Remove '#/embed/'
-						const [addressPart, queryString] = embedPath.split('?');
-						const address = decodeURIComponent(addressPart);
+					// Extract address and query params from #/embed/orbitdb/...?allowAdd=true
+					const embedPath = hash.slice(8); // Remove '#/embed/'
+					const [addressPart, queryString] = embedPath.split('?');
+					const address = addressPart;
 
 						// Parse query params
 						if (queryString) {
@@ -244,12 +245,12 @@ import {
 						}
 						return; // Don't process as regular hash
 					} else {
-						isEmbedMode = false;
-						embedAllowAdd = false;
-					}
+			isEmbedMode = false;
+			embedAllowAdd = false;
+		}
 
-					const hashValue = decodeURIComponent(hash.slice(2)); // Remove '#/'
-					if (!hashValue) return;
+		const hashValue = hash.slice(2); // Remove '#/'
+		if (!hashValue) return;
 
 					const currentAddress = get(currentDbAddressStore);
 					if (hashValue === currentAddress) {
@@ -259,22 +260,27 @@ import {
 					console.log(`📂 Opening database from URL hash: ${hashValue}`);
 					isUpdatingFromHash = true;
 
-					try {
-						console.log('🔧 DEBUG: Hash value:', hashValue);
-					if (hashValue.startsWith('/orbitdb/')) {
-						// It's an OrbitDB address - open directly by address
-						console.log(`🔗 Opening database by address from URL: ${hashValue}`);
-						toastStore.show('🌐 Loading database from network...', 'info', 5000);
-						const opened = await tryOpenDatabaseWithEncryptionDetection(hashValue, preferences);
-						if (!opened) {
-							// Password modal will be shown automatically
-							toastStore.show('🔐 This database is encrypted. Please enter the password.', 'info');
-							let waitForPassword = true;
-							while (waitForPassword && showPasswordModal) {
-								await new Promise((resolve) => setTimeout(resolve, 100));
-							}
+				try {
+					console.log('🔧 DEBUG: Hash value:', hashValue);
+				if (hashValue.startsWith('orbitdb/') || hashValue.startsWith('/orbitdb/')) {
+					// It's an OrbitDB address - open directly by address
+					// Normalize to have leading slash
+					const normalizedAddress = hashValue.startsWith('/') ? hashValue : `/${hashValue}`;
+					console.log(`🔗 Opening database by address from URL: ${normalizedAddress}`);
+					toastStore.show('🌐 Loading database from network...', 'info', 5000);
+					const opened = await tryOpenDatabaseWithEncryptionDetection(normalizedAddress, preferences);
+					if (!opened) {
+						// Password modal will be shown automatically
+						toastStore.show('🔐 This database is encrypted. Please enter the password.', 'info');
+						let waitForPassword = true;
+						while (waitForPassword && showPasswordModal) {
+							await new Promise((resolve) => setTimeout(resolve, 100));
 						}
-						const openedDB = get(todoDBStore);
+					}
+					const openedDB = get(todoDBStore);
+					
+					// Also use normalizedAddress when looking up in registry and storing
+					const hashValueForLookup = normalizedAddress;
 
 							// Log database information
 							console.log('📊 Database Information:');
@@ -326,22 +332,14 @@ import {
 							let dbName = openedDB.name || null;
 							let extractedIdentityId = null;
 
-							// If database name has identity prefix, extract display name (part after first _)
-							if (dbName && dbName.includes('_')) {
-								const underscoreIndex = dbName.indexOf('_');
-								if (underscoreIndex > 0) {
-									extractedIdentityId = dbName.substring(0, underscoreIndex);
-									displayName = dbName.substring(underscoreIndex + 1);
-								}
-							}
-
-							if (currentIdentityId) {
-								// Try to find this address in our registry
-								await listAvailableTodoLists();
-								const availableLists = get(availableTodoListsStore);
-								const list = availableLists.find((l) => l.address === hashValue);
+					if (currentIdentityId) {
+						// Try to find this address in our registry FIRST
+						await listAvailableTodoLists();
+						const availableLists = get(availableTodoListsStore);
+						const list = availableLists.find((l) => l.address === hashValueForLookup);
 
 								if (list) {
+									// Found in registry - use registry values (most reliable)
 									displayName = list.displayName;
 									dbName = list.dbName;
 									console.log('  - Found in registry:', {
@@ -358,12 +356,55 @@ import {
 										}
 									}
 
-									// Update users list from dbName prefixes (even if found in registry)
-									await listUniqueUsers();
+								// Update users list from dbName prefixes (even if found in registry)
+								await listUniqueUsers();
+								
+								// If this is a foreign database, select that user in the userlist
+								if (extractedIdentityId && extractedIdentityId !== currentIdentityId) {
+									console.log('  - Setting selected user to foreign identity:', extractedIdentityId);
+									selectedUserIdStore.set(extractedIdentityId);
+								}
 								} else {
-									// Not in our registry - add it to available lists
-									// Use database name as display name if we can extract it
-									if (!displayName || displayName === 'Unknown' || !dbName) {
+									// Not in registry - extract from database name
+									// The dbName should have format: identityId_displayName or identityId_displayName_timestamp
+									if (dbName && dbName.includes('_')) {
+										const parts = dbName.split('_');
+										if (parts.length >= 2) {
+											extractedIdentityId = parts[0];
+											
+											// Check if last part is a timestamp (all digits)
+											const lastPart = parts[parts.length - 1];
+											const isTimestamp = /^\d+$/.test(lastPart);
+											
+											if (isTimestamp && parts.length >= 3) {
+												// Format: identityId_displayName_timestamp
+												// Join all middle parts (in case displayName has underscores)
+												displayName = parts.slice(1, -1).join('_');
+											} else {
+												// Format: identityId_displayName (no timestamp)
+												displayName = parts.slice(1).join('_');
+											}
+											
+											console.log('  - Extracted from database name:', {
+												displayName,
+												dbName,
+												extractedIdentityId,
+												isTimestamp
+											});
+										}
+									} else if (displayName && displayName !== 'Unknown') {
+										// We have a displayName without identity prefix
+										// Try to construct proper dbName with current identity if available
+										if (currentIdentityId && !dbName) {
+											dbName = `${currentIdentityId}_${displayName}`;
+											extractedIdentityId = currentIdentityId;
+											console.log('  - Constructed dbName with current identity:', {
+												displayName,
+												dbName
+											});
+										}
+									} else {
+										// Fallback: create display name from address
 										displayName = `Database ${hashValue.slice(-8)}`;
 										if (!dbName) {
 											dbName = `unknown_${displayName}`;
@@ -374,7 +415,7 @@ import {
 									const newList = {
 										dbName: dbName,
 										displayName: displayName,
-										address: hashValue,
+										address: hashValueForLookup,
 										parent: null
 									};
 
@@ -385,7 +426,7 @@ import {
 									// Persist in our registry so it survives refreshes/switches
 									try {
 										const { addTodoListToRegistry } = await import('$lib/todo-list-manager.js');
-										await addTodoListToRegistry(displayName, dbName, hashValue, null);
+										await addTodoListToRegistry(displayName, dbName, hashValueForLookup, null);
 										console.log('  - Persisted in registry');
 									} catch (e) {
 										console.warn('  ⚠️ Could not persist to registry:', e);
@@ -407,7 +448,7 @@ import {
 								const newList = {
 									dbName: dbName,
 									displayName: displayName,
-									address: hashValue,
+									address: hashValueForLookup,
 									parent: null
 								};
 
@@ -419,7 +460,7 @@ import {
 								// Persist in our registry if possible (may fail if not initialized yet)
 								try {
 									const { addTodoListToRegistry } = await import('$lib/todo-list-manager.js');
-									await addTodoListToRegistry(displayName, dbName, hashValue, null);
+									await addTodoListToRegistry(displayName, dbName, hashValueForLookup, null);
 									console.log('  - Persisted in registry');
 								} catch (e) {
 									console.warn('  ⚠️ Could not persist to registry (no identity yet?):', e);
@@ -427,6 +468,12 @@ import {
 
 								// Update users list from dbName prefixes
 								await listUniqueUsers();
+								
+								// If this is a foreign database, select that user in the userlist
+								if (extractedIdentityId && extractedIdentityId !== currentIdentityId) {
+									console.log('  - Setting selected user to foreign identity:', extractedIdentityId);
+									selectedUserIdStore.set(extractedIdentityId);
+								}
 							}
 
 							// Update stores
@@ -434,7 +481,7 @@ import {
 							if (dbName) {
 								currentDbNameStore.set(dbName);
 							}
-							currentDbAddressStore.set(hashValue);
+							currentDbAddressStore.set(hashValueForLookup);
 
 							// Re-extract identity from final dbName to ensure we have it
 							if (dbName && dbName.includes('_')) {
@@ -469,7 +516,7 @@ import {
 							if (currentIdentityId) {
 								await listAvailableTodoLists();
 								const availableLists = get(availableTodoListsStore);
-								const list = availableLists.find((l) => l.address === hashValue);
+								const list = availableLists.find((l) => l.address === hashValueForLookup);
 								if (list && list.parent) {
 									// Build hierarchy for this list
 									const hierarchy = await buildHierarchyPath(list.displayName);
@@ -577,14 +624,14 @@ import {
 				if (state.isInitialized && hasHash && !hashHandled) {
 					// Only handle hash once after initialization
 					const currentAddress = get(currentDbAddressStore);
-					const hash = window.location.hash;
-					if (hash && hash.startsWith('#/')) {
-						const hashValue = decodeURIComponent(hash.slice(2));
-						if (hashValue !== currentAddress) {
-							hashHandled = true;
-							await handleHashChange();
-						}
-					}
+			const hash = window.location.hash;
+			if (hash && hash.startsWith('#/')) {
+				const hashValue = hash.slice(2);
+				if (hashValue !== currentAddress) {
+					hashHandled = true;
+					await handleHashChange();
+				}
+			}
 				}
 			});
 
@@ -649,7 +696,7 @@ import {
 		) {
 			const currentAddress = $currentDbAddressStore;
 			if (currentAddress) {
-				const hash = `/${encodeURIComponent(currentAddress)}`;
+				const hash = currentAddress.startsWith('/') ? currentAddress : `/${currentAddress}`;
 				if (window.location.hash !== `#${hash}`) {
 					// Use replaceState to avoid adding to history
 					// eslint-disable-next-line svelte/no-navigation-without-resolve
@@ -661,7 +708,7 @@ import {
 
 	// Password modal handlers
 	const handlePasswordSubmit = async (event) => {
-		const { password } = event.detail;
+		const { password, rememberForSession } = event.detail;
 		if (!pendingDatabaseOpen) {
 			console.error('No pending database open operation');
 			showPasswordModal = false;
@@ -670,15 +717,25 @@ import {
 
 		try {
 			console.log('🔐 Attempting to open database with provided password...');
-			const { address, preferences: pendingPreferences } = pendingDatabaseOpen;
-
-			await openDatabaseByAddress(address, pendingPreferences, true, password);
-			await loadTodos();
 			
-			// Mark database as encrypted since we needed password to open it
-			isCurrentDbEncrypted = true;
-			enableEncryption = false; // Reset form state
-			encryptionPassword = '';
+			// Check if this is an address-based open or list-name-based open
+			if (pendingDatabaseOpen.address) {
+				// Address-based open (from hash/URL)
+				const { address, preferences: pendingPreferences } = pendingDatabaseOpen;
+				await openDatabaseByAddress(address, pendingPreferences, true, password);
+				await loadTodos();
+				
+				// Mark database as encrypted
+				isCurrentDbEncrypted = true;
+				enableEncryption = false;
+				encryptionPassword = '';
+			} else if (pendingDatabaseOpen.listName) {
+				// List-name-based open (from TodoListSelector)
+				const { listName, preferences: pendingPreferences, parentList } = pendingDatabaseOpen;
+				await switchToTodoList(listName, pendingPreferences, true, password, parentList);
+				// Password is now cached automatically by switchToTodoList
+				isCurrentDbEncrypted = true;
+			}
 
 			toastStore.show('✅ Database unlocked successfully!', 'success');
 			showPasswordModal = false;
@@ -708,44 +765,118 @@ import {
 	};
 
 	const tryOpenDatabaseWithEncryptionDetection = async (address, preferences) => {
+		let dataLooksEncrypted = false;
+		
 		try {
 			console.log('🔍 Attempting to open database without encryption...');
 			// Try to open without encryption first
 			await openDatabaseByAddress(address, preferences, false, null);
-			const entries = await get(todoDBStore).all();
+			const db = get(todoDBStore);
+			const entries = await db.all();
+			
+			console.log('🔍 Database opened, checking entries:', entries.length, 'entries');
 
-			// Check if data looks valid (not corrupted)
-			if (entries.length === 0 || isDataLooksValid(entries)) {
-				console.log('✅ Database opened successfully without encryption');
-				isCurrentDbEncrypted = false; // Database is unencrypted
-				enableEncryption = false; // Reset form state
+			// If database has entries, check if they look encrypted/corrupted
+			if (entries.length > 0) {
+				// Check if data looks valid OR encrypted
+				const validCount = entries.filter(isDataLooksValid).length;
+				const invalidCount = entries.length - validCount;
+				
+				console.log(`🔍 Valid entries: ${validCount}, Invalid/Encrypted entries: ${invalidCount}`);
+				
+				// If more than 50% of entries are invalid, likely encrypted
+				if (invalidCount > entries.length / 2) {
+					console.log('⚠️ Most entries appear corrupted/encrypted');
+					dataLooksEncrypted = true;
+				} else if (validCount > 0) {
+					// Some valid entries found, database is unencrypted
+					console.log('✅ Database opened successfully without encryption (has valid entries)');
+					isCurrentDbEncrypted = false;
+					enableEncryption = false;
+					encryptionPassword = '';
+					await loadTodos();
+					return true;
+				} else {
+					// All entries invalid, likely encrypted
+					console.log('⚠️ All entries appear corrupted/encrypted');
+					dataLooksEncrypted = true;
+				}
+			} else {
+				// Empty database - not encrypted, just empty
+				console.log('✅ Database opened successfully (empty, not encrypted)');
+				isCurrentDbEncrypted = false;
+				enableEncryption = false;
 				encryptionPassword = '';
 				await loadTodos();
 				return true;
 			}
 		} catch (err) {
 			console.log('⚠️ Error opening without encryption:', err.message);
+			// Opening failed - might be encrypted or other error
+			dataLooksEncrypted = true;
 		}
 
-		// If unencrypted attempt failed or data looks corrupted, prompt for password
-		console.log('🔐 Database appears to be encrypted, prompting for password...');
-		passwordModalDbName = address.split('/').pop() || address;
-		pendingDatabaseOpen = { address, preferences };
-		passwordRetryCount = 0;
-		showPasswordModal = true;
-		return false;
+		// If we detected encryption, prompt for password
+		if (dataLooksEncrypted) {
+			console.log('🔐 Database appears to be encrypted, prompting for password...');
+			passwordModalDbName = address.split('/').pop() || address;
+			pendingDatabaseOpen = { address, preferences };
+			passwordRetryCount = 0;
+			showPasswordModal = true;
+			return false;
+		}
+		
+		// Unexpected case - database opened but all entries invalid and not clearly encrypted
+		console.warn('⚠️ Database in unexpected state');
+		return true;
 	};
 
-	const isDataLooksValid = (entries) => {
-		// Simple heuristic: check if any entry looks like valid todo data
-		return entries.some((entry) => {
-			if (entry && entry.value) {
-				const value = entry.value;
-				// Check if it has todo-like properties
-				return typeof value === 'object' && (value.text || value.title || value.content);
-			}
+	const isDataLooksValid = (entry) => {
+		// Check if a single entry looks like valid todo data
+		if (!entry || !entry.value) {
 			return false;
-		});
+		}
+		
+		try {
+			const value = entry.value;
+			
+			// If value is a string (might be encrypted), it's invalid
+			if (typeof value === 'string') {
+				return false;
+			}
+			
+			// If value is an object, check if it has expected todo properties
+			if (typeof value === 'object' && value !== null) {
+				// Valid if it has typical todo properties
+				return Boolean(value.text || value.title || value.content || value.completed !== undefined);
+			}
+			
+			return false;
+		} catch (err) {
+			// If we can't parse/check the entry, consider it invalid
+			return false;
+		}
+	};
+
+	// Handle switching to an encrypted list - prompt for password if needed
+	const handleEncryptedListSwitch = async (listName, prefs, parentList = null) => {
+		try {
+			await switchToTodoList(listName, prefs, false, '', parentList);
+			return true;
+		} catch (error) {
+			if (error.message === 'ENCRYPTION_PASSWORD_REQUIRED') {
+				// Show password modal
+				console.log('🔐 Password required for encrypted list:', listName);
+				passwordModalDbName = listName;
+				pendingDatabaseOpen = { listName, preferences: prefs, parentList };
+				passwordRetryCount = 0;
+				showPasswordModal = true;
+				return false; // Will retry after password is entered
+			} else {
+				// Other error
+				throw error;
+			}
+		}
 	};
 
 	const handleAddTodo = async (event) => {
@@ -840,6 +971,30 @@ import {
 			toastStore.show('❌ Failed to create sub-list', 'error');
 		}
 	};
+
+	// Reactively update encryption state based on current list
+	$: if ($currentTodoListNameStore && $availableTodoListsStore.length > 0) {
+		const currentList = $availableTodoListsStore.find(
+			(list) => list.displayName === $currentTodoListNameStore
+		);
+		
+		if (currentList) {
+			// Update encryption state to match the current database
+			const wasEncrypted = isCurrentDbEncrypted;
+			isCurrentDbEncrypted = currentList.encryptionEnabled || false;
+			
+			// Log state change for debugging
+			if (wasEncrypted !== isCurrentDbEncrypted) {
+				console.log(`🔐 Encryption state changed: ${wasEncrypted} → ${isCurrentDbEncrypted} for list: ${$currentTodoListNameStore}`);
+			}
+			
+			// Reset form state when switching to unencrypted database
+			if (!isCurrentDbEncrypted) {
+				enableEncryption = false;
+				encryptionPassword = '';
+			}
+		}
+	}
 
 	// Subscribe to the peerIdStore
 	$: myPeerId = $peerIdStore;
@@ -1016,18 +1171,46 @@ import {
 					<button
 						type="button"
 						on:click={async () => {
-							if (!confirm('Disable encryption? This will recreate the database without encryption. All data will remain, but it will no longer be encrypted.')) {
+							if (!confirm('Disable encryption? This will create a new unencrypted database and copy all your data to it. The old encrypted database will remain but won\'t be used.')) {
 								return;
 							}
-							// Get current todo list name from store
-							const { currentTodoListNameStore } = await import('$lib/todo-list-manager.js');
-							const { get } = await import('svelte/store');
-							const currentList = get(currentTodoListNameStore);
-							await switchToTodoList(currentList || 'projects', preferences, false, '');
-							isCurrentDbEncrypted = false;
-							enableEncryption = false;
-							encryptionPassword = '';
-							toastStore.show('✅ Encryption disabled', 'success');
+							
+							// Prompt for current password
+							const currentPassword = prompt('Enter current encryption password:');
+							if (!currentPassword) {
+								return;
+							}
+							
+							try {
+								// Get current database info
+								const { currentTodoListNameStore, currentDbNameStore, currentDbAddressStore } = await import('$lib/todo-list-manager.js');
+								const { disableDatabaseEncryption } = await import('$lib/encryption-migration.js');
+								const { get } = await import('svelte/store');
+								
+								const currentList = get(currentTodoListNameStore);
+								const currentDbName = get(currentDbNameStore);
+								const currentAddress = get(currentDbAddressStore);
+								
+								// Migrate to unencrypted
+								const result = await disableDatabaseEncryption(
+									currentList,
+									currentDbName,
+									currentAddress,
+									currentPassword,
+									preferences,
+									null
+								);
+								
+								if (result.success) {
+									// Reopen the new unencrypted database
+									await switchToTodoList(currentList, preferences, false, '');
+									isCurrentDbEncrypted = false;
+									enableEncryption = false;
+									encryptionPassword = '';
+								}
+							} catch (error) {
+								toastStore.show(`Failed to disable encryption: ${error.message}`, 'error');
+							}
 						}}
 						disabled={!$initializationStore.isInitialized}
 						class="rounded-md bg-gray-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -1063,27 +1246,61 @@ import {
 								type="password"
 								bind:value={encryptionPassword}
 								placeholder="Enter password for encryption"
+								on:keydown={(e) => {
+									if (e.key === 'Enter' && encryptionPassword.trim() && $initializationStore.isInitialized) {
+										e.preventDefault();
+										document.getElementById('apply-encryption-button')?.click();
+									}
+								}}
 								class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
 							/>
 						</div>
 						<button
+							id="apply-encryption-button"
 							type="button"
 							on:click={async () => {
 								if (enableEncryption && !encryptionPassword.trim()) {
 									alert('Please enter an encryption password');
 									return;
 								}
-								// Get current todo list name from store
-								const { currentTodoListNameStore } = await import('$lib/todo-list-manager.js');
-								const { get } = await import('svelte/store');
-								const currentList = get(currentTodoListNameStore);
-								await switchToTodoList(currentList || 'projects', preferences, enableEncryption, encryptionPassword);
 								
-								// Update encryption state after applying
-								if (enableEncryption && encryptionPassword) {
+								try {
+									// Get current database info
+									const { currentTodoListNameStore, currentDbNameStore, currentDbAddressStore } = await import('$lib/todo-list-manager.js');
+									const { enableDatabaseEncryption } = await import('$lib/encryption-migration.js');
+									const { get } = await import('svelte/store');
+									
+									const currentList = get(currentTodoListNameStore);
+									const currentDbName = get(currentDbNameStore);
+									const currentAddress = get(currentDbAddressStore);
+									
+									// Migrate to encrypted
+									const result = await enableDatabaseEncryption(
+										currentList,
+										currentDbName,
+										currentAddress,
+										encryptionPassword,
+										preferences,
+										null
+									);
+									
+								if (result.success) {
+									// Reopen the new encrypted database
+									await switchToTodoList(currentList, preferences, true, encryptionPassword);
+									
+									// Update UI state
 									isCurrentDbEncrypted = true;
-									enableEncryption = false; // Reset form
+									enableEncryption = false; // Reset checkbox
+									// Don't clear password yet - keep it for next operations in this session
+									
+									// Load todos from the newly encrypted database
+									await loadTodos();
+									
+									// Now clear password field after everything is loaded
 									encryptionPassword = '';
+								}
+								} catch (error) {
+									toastStore.show(`Failed to enable encryption: ${error.message}`, 'error');
 								}
 							}}
 							disabled={!$initializationStore.isInitialized || !encryptionPassword.trim()}

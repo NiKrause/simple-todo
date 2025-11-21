@@ -137,7 +137,29 @@
 
 			// Open by address to ensure we load the same DB
 			try {
-				await openDatabaseByAddress(targetProjects.address, preferences, false, '');
+				// Check if database is encrypted
+				const isEncrypted = targetProjects.encryptionEnabled || false;
+				
+				if (isEncrypted) {
+					console.log('🔐 Target projects database is encrypted, attempting to open...');
+					// Try to open without password first - will trigger password modal if needed
+					try {
+						await openDatabaseByAddress(targetProjects.address, preferences, false, '');
+						// If this succeeds, the database wasn't actually encrypted or opened without encryption
+					} catch (encErr) {
+						// Expected if encrypted - trigger password flow via +page.svelte
+						console.log('🔐 Database requires encryption, delegating to main page handler');
+						// Set the hash so +page.svelte can handle encryption detection
+						if (typeof window !== 'undefined') {
+							const hash = `/${encodeURIComponent(targetProjects.address)}`;
+							window.location.hash = hash;
+						}
+						return; // Let +page.svelte handle it
+					}
+				} else {
+					await openDatabaseByAddress(targetProjects.address, preferences, false, '');
+				}
+				
 				if (typeof window !== 'undefined') {
 					const hash = `/${encodeURIComponent(targetProjects.address)}`;
 					replaceState(`#${hash}`, { replaceState: true });
@@ -163,18 +185,55 @@
 			// Try opening by name if not found in available lists
 			const dbName = `${targetUserId}_projects`;
 			try {
-				const openedDB = await openDatabaseByName(dbName, preferences, false, '');
-				currentTodoListNameStore.set('projects');
-				currentDbNameStore.set(dbName);
-				currentDbAddressStore.set(openedDB?.address || null);
+				// Try to open without encryption first
+				try {
+					const openedDB = await openDatabaseByName(dbName, preferences, false, '');
+					currentTodoListNameStore.set('projects');
+					currentDbNameStore.set(dbName);
+					currentDbAddressStore.set(openedDB?.address || null);
 
-				// Update URL hash if we have an address
-				if (openedDB?.address && typeof window !== 'undefined') {
-					const hash = `/${encodeURIComponent(openedDB.address)}`;
-					replaceState(`#${hash}`, { replaceState: true });
+					// Update URL hash if we have an address
+					if (openedDB?.address && typeof window !== 'undefined') {
+						const hash = `/${encodeURIComponent(openedDB.address)}`;
+						replaceState(`#${hash}`, { replaceState: true });
+					}
+				} catch (openErr) {
+					// Check if this might be an encrypted database
+					console.log('🔐 Database might be encrypted, checking...');
+					
+					// Try to get the database info to determine if it's encrypted
+					// Set hash and let +page.svelte handle encryption detection
+					const { getCurrentIdentityId } = await import('../p2p.js');
+					const currentIdent = getCurrentIdentityId();
+					
+					// Track this user so they appear in the list
+					if (targetUserId !== currentIdent) {
+						const success = await addTrackedUser(targetUserId);
+						if (success) {
+							// User added and database discovered - get the address
+							await listAvailableTodoLists();
+							const lists = get(availableTodoListsStore);
+							const projectsList = lists.find(
+								(l) => l.dbName === dbName && l.displayName === 'projects'
+							);
+							
+							if (projectsList?.address) {
+								// Set hash to trigger encryption detection in +page.svelte
+								if (typeof window !== 'undefined') {
+									const hash = `/${encodeURIComponent(projectsList.address)}`;
+									window.location.hash = hash;
+								}
+								return; // Let +page.svelte handle it
+							}
+						}
+					}
+					
+					// If we couldn't find the database, just throw the original error
+					throw openErr;
 				}
 			} catch (e) {
 				console.error('Failed to open projects database by name:', e);
+				showToast('Failed to open projects database. It may be encrypted or unavailable.', 'error', 4000);
 			}
 		}
 	}

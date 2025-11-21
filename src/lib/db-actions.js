@@ -10,11 +10,17 @@ export const todoDBStore = writable(null);
 // Store for todos
 export const todosStore = writable([]);
 
+// Keep track of previous database to remove event listeners
+let previousTodoDB = null;
+
 // Derived store that updates when todos change
 export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
 
 // Initialize database and load existing todos
 export async function initializeDatabase(orbitdb, todoDB, preferences) {
+	// Clear todos from previous database first
+	todosStore.set([]);
+	
 	orbitdbStore.set(orbitdb);
 	todoDBStore.set(todoDB);
 
@@ -28,8 +34,16 @@ export async function initializeDatabase(orbitdb, todoDB, preferences) {
 		}
 	}
 
+	// Remove event listeners from previous database before setting up new ones
+	if (previousTodoDB && previousTodoDB !== todoDB) {
+		removeDatabaseListeners(previousTodoDB);
+	}
+
 	// Set up event listeners FIRST - so they catch data as it syncs from peers/IPFS
 	setupDatabaseListeners(todoDB);
+	
+	// Update reference to current database
+	previousTodoDB = todoDB;
 
 	// Then load existing todos (if any are already available)
 	// If data arrives later via sync, the event listeners will trigger loadTodos()
@@ -101,27 +115,59 @@ export async function loadTodos() {
 	}
 }
 
+// Store event listener references so we can remove them later
+const eventListeners = new WeakMap();
+
 // Set up database event listeners
 function setupDatabaseListeners(todoDB) {
 	if (!todoDB) return;
 
-	// Listen for 'update' event - fires when entries are added/updated (local or from peers)
-	// This is the main event for data synchronization
-	todoDB.events.on('update', async () => {
+	// Create event handler functions
+	const updateHandler = async () => {
 		console.log('🔄 Update event fired - database entries changed');
 		await loadTodos();
-	});
+	};
 
-	// Listen for 'join' event - fires when a peer connects
-	// Only reload if the peer has new data (heads array has entries)
-	todoDB.events.on('join', async (peerId, heads) => {
+	const joinHandler = async (peerId, heads) => {
 		console.log(`👤 Peer joined: ${peerId}, heads: ${heads?.length || 0}`);
 		// Only reload if peer has new data to share
 		if (heads && heads.length > 0) {
 			console.log('📥 Peer has new data, reloading todos...');
 			await loadTodos();
 		}
-	});
+	};
+
+	// Store references to handlers for later removal
+	eventListeners.set(todoDB, { updateHandler, joinHandler });
+
+	// Listen for 'update' event - fires when entries are added/updated (local or from peers)
+	// This is the main event for data synchronization
+	todoDB.events.on('update', updateHandler);
+
+	// Listen for 'join' event - fires when a peer connects
+	// Only reload if the peer has new data (heads array has entries)
+	todoDB.events.on('join', joinHandler);
+}
+
+// Remove database event listeners
+function removeDatabaseListeners(todoDB) {
+	if (!todoDB || !todoDB.events) return;
+
+	const handlers = eventListeners.get(todoDB);
+	if (!handlers) return;
+
+	console.log('🧹 Removing event listeners from previous database');
+
+	// Remove the specific handlers we added
+	if (handlers.updateHandler) {
+		todoDB.events.off('update', handlers.updateHandler);
+	}
+	if (handlers.joinHandler) {
+		todoDB.events.off('join', handlers.joinHandler);
+	}
+
+	// Clean up the reference
+	eventListeners.delete(todoDB);
 }
 
 // Add a new todo

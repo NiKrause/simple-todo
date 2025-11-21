@@ -20,6 +20,11 @@
 	let isCreating = false;
 	let isUserTyping = false; // Track if user is actively typing
 
+	// Check if current list is encrypted
+	$: currentListEncrypted = $availableTodoListsStore.find(
+		(list) => list.displayName === $currentTodoListNameStore
+	)?.encryptionEnabled || false;
+
 	// Update inputValue when currentTodoListNameStore changes (but not when user is typing)
 	$: if ($initializationStore.isInitialized && !isUserTyping) {
 		// Always sync inputValue with currentTodoListNameStore when not typing
@@ -196,6 +201,9 @@
 <div class="relative w-full">
 	<label for="todo-list-selector" class="mb-1 block text-sm font-medium text-gray-700">
 		Todo List
+		{#if currentListEncrypted}
+			<span class="ml-2 text-xs" title="Current list is encrypted">🔐</span>
+		{/if}
 	</label>
 	<div class="relative">
 		<input
@@ -244,14 +252,19 @@
 								? 'font-medium'
 								: ''}"
 						>
-							{#if list.parent}
-								<span class="flex items-center pl-6 text-gray-700">
-									<span class="mr-2 inline-block w-3 text-xs text-gray-400">└─</span>
-									<span>{list.displayName}</span>
-								</span>
-							{:else}
-								<span class="font-medium">{list.displayName}</span>
-							{/if}
+							<div class="flex items-center gap-2">
+								{#if list.parent}
+									<span class="flex items-center pl-6 text-gray-700">
+										<span class="mr-2 inline-block w-3 text-xs text-gray-400">└─</span>
+										<span>{list.displayName}</span>
+									</span>
+								{:else}
+									<span class="font-medium">{list.displayName}</span>
+								{/if}
+								{#if list.encryptionEnabled}
+									<span class="text-xs" title="Encrypted database">🔐</span>
+								{/if}
+							</div>
 						</button>
 						<button
 							type="button"

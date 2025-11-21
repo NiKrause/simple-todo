@@ -1,8 +1,6 @@
 import { writable, get } from 'svelte/store';
-import { orbitDBStore } from './p2p.js';
 import { openTodoList, getCurrentIdentityId } from './p2p.js';
 import { showToast } from './toast-store.js';
-import { OrbitDBAccessController } from '@orbitdb/core';
 
 // Store for current todo list name (display name, without ID prefix)
 export const currentTodoListNameStore = writable('projects');
@@ -16,12 +14,6 @@ export const currentDbAddressStore = writable(null);
 // Store for list of available todo lists
 export const availableTodoListsStore = writable([]);
 
-// Store for encryption settings
-export const encryptionStore = writable({
-	enabled: false,
-	password: ''
-});
-
 // Store for list of unique user IDs/DIDs
 export const uniqueUsersStore = writable([]);
 
@@ -34,11 +26,43 @@ export const todoListHierarchyStore = writable([]);
 // Store to track the selected user for filtering todo lists
 export const selectedUserIdStore = writable(null); // null means show all users
 
-// Cache for registry database instances (identityId -> database instance)
-const registryDbCache = new Map();
+// In-memory cache for encryption passwords (per session only, not persisted)
+const sessionPasswordCache = new Map(); // key: dbName, value: password
 
-// Track ongoing registry database opens to prevent concurrent opens
-const registryDbOpening = new Set();
+/**
+ * Get cached encryption password for a database
+ * @param {string} dbName - Database name
+ * @returns {string|null} Cached password or null
+ */
+export function getCachedPassword(dbName) {
+	return sessionPasswordCache.get(dbName) || null;
+}
+
+/**
+ * Cache encryption password for a database (session only)
+ * @param {string} dbName - Database name
+ * @param {string} password - Encryption password
+ */
+export function cachePassword(dbName, password) {
+	if (password) {
+		sessionPasswordCache.set(dbName, password);
+	}
+}
+
+/**
+ * Clear cached password for a database
+ * @param {string} dbName - Database name
+ */
+export function clearCachedPassword(dbName) {
+	sessionPasswordCache.delete(dbName);
+}
+
+/**
+ * Clear all cached passwords
+ */
+export function clearAllCachedPasswords() {
+	sessionPasswordCache.clear();
+}
 
 /**
  * Extract display name from database name (remove identity ID prefix)
@@ -56,107 +80,86 @@ export function extractDisplayName(dbName, identityId) {
 }
 
 /**
- * Get the registry database name for an identity
- * The registry database stores the list of all todo lists for an identity
+ * Get the localStorage key for the registry
  * @param {string} identityId - The identity ID
- * @returns {string} Registry database name (just the identityId itself)
+ * @returns {string} LocalStorage key for registry
  */
-function getRegistryDbName(identityId) {
-	return identityId; // Use identityId as the registry DB name
+function getRegistryKey(identityId) {
+	return `todoListRegistry_${identityId}`;
 }
 
 /**
- * Open the registry database for an identity
- * This database stores metadata about all todo lists for this identity
- * Uses caching to prevent opening the same database multiple times
+ * Get registry from localStorage
  * @param {string} identityId - The identity ID
- * @returns {Promise<Object>} The registry database
+ * @returns {Object} Registry object with todo lists (key: displayName, value: metadata)
  */
-async function openRegistryDatabase(identityId) {
-	// Check if we already have this registry database open
-	if (registryDbCache.has(identityId)) {
-		const cachedDb = registryDbCache.get(identityId);
-		// Check if it's still open
-		try {
-			if (cachedDb && cachedDb.opened) {
-				return cachedDb;
-			} else {
-				// Database was closed, remove from cache
-				registryDbCache.delete(identityId);
-			}
-		} catch {
-			// Error checking, remove from cache and reopen
-			registryDbCache.delete(identityId);
-		}
-	}
-
-	// Check if this database is currently being opened
-	if (registryDbOpening.has(identityId)) {
-		// Wait for the ongoing open to complete
-		// Poll until it's in cache or opening completes
-		let attempts = 0;
-		while (registryDbOpening.has(identityId) && attempts < 50) {
-			await new Promise((resolve) => setTimeout(resolve, 100));
-			attempts++;
-			// Check if it's now in cache
-			if (registryDbCache.has(identityId)) {
-				const cachedDb = registryDbCache.get(identityId);
-				if (cachedDb && cachedDb.opened) {
-					return cachedDb;
-				}
-			}
-		}
-		// If still opening after timeout, proceed anyway (might be stuck)
-		if (registryDbOpening.has(identityId)) {
-			console.warn(`⚠️ Registry database ${identityId} opening seems stuck, proceeding anyway`);
-			registryDbOpening.delete(identityId);
-		}
-	}
-
-	const orbitdb = get(orbitDBStore);
-	if (!orbitdb) {
-		throw new Error('OrbitDB instance not initialized');
-	}
-
-	const registryDbName = getRegistryDbName(identityId);
-
-	// Mark as opening
-	registryDbOpening.add(identityId);
-
+function getRegistryFromLocalStorage(identityId) {
 	try {
-		// Set up access controller - only allow the current identity to write
-		const accessController = OrbitDBAccessController({
-			write: [identityId]
-		});
-
-		// Open registry database
-		const registryDb = await orbitdb.open(registryDbName, {
-			type: 'keyvalue',
-			create: true,
-			sync: true,
-			AccessController: accessController
-		});
-
-		// Cache the database instance
-		registryDbCache.set(identityId, registryDb);
-
-		return registryDb;
+		const key = getRegistryKey(identityId);
+		const data = localStorage.getItem(key);
+		if (data) {
+			return JSON.parse(data);
+		}
+		return {};
 	} catch (error) {
-		// Remove from opening set on error
-		registryDbOpening.delete(identityId);
-		throw error;
-	} finally {
-		// Always remove from opening set when done
-		registryDbOpening.delete(identityId);
+		console.error('❌ Error reading registry from localStorage:', error);
+		return {};
 	}
 }
 
 /**
- * List all available todo list databases from the registry database
- * Reads from the identity's registry database (identityId) which stores all todo list metadata
- * @returns {Promise<Array>} Array of todo list objects with dbName and displayName
+ * Save registry to localStorage
+ * @param {string} identityId - The identity ID
+ * @param {Object} registry - Registry object to save
  */
-export async function listAvailableTodoLists() {
+function saveRegistryToLocalStorage(identityId, registry) {
+	try {
+		const key = getRegistryKey(identityId);
+		localStorage.setItem(key, JSON.stringify(registry));
+	} catch (error) {
+		console.error('❌ Error saving registry to localStorage:', error);
+	}
+}
+
+/**
+ * Get a todo list entry from registry
+ * @param {string} identityId - The identity ID
+ * @param {string} displayName - Display name of the todo list
+ * @returns {Object|null} Todo list metadata or null if not found
+ */
+function getRegistryEntry(identityId, displayName) {
+	const registry = getRegistryFromLocalStorage(identityId);
+	return registry[displayName] || null;
+}
+
+/**
+ * Set a todo list entry in registry
+ * @param {string} identityId - The identity ID
+ * @param {string} displayName - Display name of the todo list
+ * @param {Object} metadata - Todo list metadata
+ */
+function setRegistryEntry(identityId, displayName, metadata) {
+	const registry = getRegistryFromLocalStorage(identityId);
+	registry[displayName] = metadata;
+	saveRegistryToLocalStorage(identityId, registry);
+}
+
+/**
+ * Delete a todo list entry from registry
+ * @param {string} identityId - The identity ID
+ * @param {string} displayName - Display name of the todo list
+ */
+function deleteRegistryEntry(identityId, displayName) {
+	const registry = getRegistryFromLocalStorage(identityId);
+	delete registry[displayName];
+	saveRegistryToLocalStorage(identityId, registry);
+}
+
+/**
+ * List all available todo list databases from the localStorage registry
+ * @returns {Array} Array of todo list objects with dbName, displayName, encryptionEnabled
+ */
+export function listAvailableTodoLists() {
 	const identityId = getCurrentIdentityId();
 
 	if (!identityId) {
@@ -165,58 +168,20 @@ export async function listAvailableTodoLists() {
 	}
 
 	try {
-		// Open the registry database
-		const registryDb = await openRegistryDatabase(identityId);
-
-		// Read all entries from the registry
-		const allEntries = await registryDb.all();
+		// Read registry from localStorage
+		const registry = getRegistryFromLocalStorage(identityId);
 		const todoLists = [];
 
-		// OrbitDB 3.0 all() returns an array, not an object
-		if (Array.isArray(allEntries)) {
-			// Iterate over array entries
-			for (const entry of allEntries) {
-				if (entry && entry.value) {
-					const value = entry.value;
-					const key = entry.key || entry.hash;
-
-					if (value && typeof value === 'object') {
-						// Entry format: { displayName, dbName, address, parent, ... }
-						todoLists.push({
-							dbName: value.dbName || `${identityId}_${value.displayName || key}`,
-							displayName: value.displayName || key,
-							address: value.address || null,
-							parent: value.parent || null
-						});
-					} else if (typeof value === 'string') {
-						// Simple format: just the display name
-						todoLists.push({
-							dbName: `${identityId}_${value}`,
-							displayName: value,
-							address: null,
-							parent: null
-						});
-					}
-				}
-			}
-		} else {
-			// Fallback: if it's an object (older format or different structure)
-			for (const [key, value] of Object.entries(allEntries)) {
-				if (value && typeof value === 'object') {
-					todoLists.push({
-						dbName: value.dbName || `${identityId}_${value.displayName || key}`,
-						displayName: value.displayName || key,
-						address: value.address || null,
-						parent: value.parent || null
-					});
-				} else if (typeof value === 'string') {
-					todoLists.push({
-						dbName: `${identityId}_${value}`,
-						displayName: value,
-						address: null,
-						parent: null
-					});
-				}
+		// Convert registry object to array
+		for (const [displayName, metadata] of Object.entries(registry)) {
+			if (metadata && typeof metadata === 'object') {
+				todoLists.push({
+					dbName: metadata.dbName || `${identityId}_${displayName}`,
+					displayName: displayName,
+					address: metadata.address || null,
+					parent: metadata.parent || null,
+					encryptionEnabled: metadata.encryptionEnabled || false
+				});
 			}
 		}
 
@@ -226,13 +191,17 @@ export async function listAvailableTodoLists() {
 				dbName: `${identityId}_projects`,
 				displayName: 'projects',
 				address: null,
-				parent: null
+				parent: null,
+				encryptionEnabled: false
 			});
 			// Also add it to registry
-			await registryDb.put('projects', {
+			setRegistryEntry(identityId, 'projects', {
 				displayName: 'projects',
 				dbName: `${identityId}_projects`,
-				parent: null
+				address: null,
+				parent: null,
+				encryptionEnabled: false,
+				createdAt: new Date().toISOString()
 			});
 		}
 
@@ -297,16 +266,15 @@ export async function listAvailableTodoLists() {
 /**
  * Build hierarchy path for a todo list by traversing up the parent chain
  * @param {string} todoListName - Display name of the todo list
- * @returns {Promise<Array<{name: string, parent: string|null}>>} Hierarchy path from root to the list
+ * @returns {Array<{name: string, parent: string|null}>} Hierarchy path from root to the list
  */
-export async function buildHierarchyPath(todoListName) {
+export function buildHierarchyPath(todoListName) {
 	const identityId = getCurrentIdentityId();
 	if (!identityId) {
 		return [{ name: todoListName, parent: null }];
 	}
 
 	try {
-		const registryDb = await openRegistryDatabase(identityId);
 		const hierarchy = [];
 		const visited = new Set(); // Prevent infinite loops
 		let currentName = todoListName;
@@ -315,7 +283,7 @@ export async function buildHierarchyPath(todoListName) {
 		while (currentName && !visited.has(currentName)) {
 			visited.add(currentName);
 
-			const entry = await registryDb.get(currentName);
+			const entry = getRegistryEntry(identityId, currentName);
 			if (entry) {
 				// Add to beginning of hierarchy (root first)
 				hierarchy.unshift({ name: currentName, parent: entry.parent || null });
@@ -344,19 +312,24 @@ export async function buildHierarchyPath(todoListName) {
 }
 
 /**
- * Add a todo list to the registry database
+ * Add a todo list to the localStorage registry
  * @param {string} displayName - Display name of the todo list
  * @param {string} dbName - Full database name
  * @param {string|null} address - Database address
  * @param {string|null} parent - Parent todo list name (for sub-lists)
+ * @param {boolean} encryptionEnabled - Whether encryption is enabled for this list
  */
-export async function addTodoListToRegistry(displayName, dbName, address = null, parent = null) {
+export function addTodoListToRegistry(
+	displayName,
+	dbName,
+	address = null,
+	parent = null,
+	encryptionEnabled = false
+) {
 	const identityId = getCurrentIdentityId();
 	if (!identityId) return;
 
 	try {
-		const registryDb = await openRegistryDatabase(identityId);
-
 		// Extract identity from dbName (part before first underscore)
 		let dbNameIdentity = null;
 		if (dbName && dbName.includes('_')) {
@@ -388,18 +361,27 @@ export async function addTodoListToRegistry(displayName, dbName, address = null,
 			dbName = `${identityId}_${displayName}`;
 		}
 
+		// Get existing entry to preserve encryption state if not explicitly set
+		const existingEntry = getRegistryEntry(identityId, displayName);
+		const finalEncryptionEnabled =
+			encryptionEnabled !== undefined
+				? encryptionEnabled
+				: existingEntry?.encryptionEnabled || false;
+
 		// Store in registry with displayName as key
-		await registryDb.put(displayName, {
+		setRegistryEntry(identityId, displayName, {
 			displayName: displayName,
 			dbName: dbName,
 			address: address || null,
 			parent: parent || null,
-			createdAt: new Date().toISOString()
+			encryptionEnabled: finalEncryptionEnabled,
+			createdAt: existingEntry?.createdAt || new Date().toISOString()
 		});
 
 		const parentInfo = parent ? ` (child of: ${parent})` : '';
+		const encryptionInfo = finalEncryptionEnabled ? ' 🔐' : '';
 		console.log(
-			`💾 Added to registry: ${displayName} (${dbName})${address ? ` [${address}]` : ''}${parentInfo}`
+			`💾 Added to registry: ${displayName} (${dbName})${address ? ` [${address}]` : ''}${parentInfo}${encryptionInfo}`
 		);
 	} catch (error) {
 		console.error('❌ Error adding todo list to registry:', error);
@@ -407,11 +389,11 @@ export async function addTodoListToRegistry(displayName, dbName, address = null,
 }
 
 /**
- * Remove a todo list from the registry database
+ * Remove a todo list from the localStorage registry
  * @param {string} displayName - Display name of the todo list to remove
- * @returns {Promise<boolean>} Success status
+ * @returns {boolean} Success status
  */
-export async function removeTodoListFromRegistry(displayName) {
+export function removeTodoListFromRegistry(displayName) {
 	const identityId = getCurrentIdentityId();
 	if (!identityId) {
 		console.warn('⚠️ Cannot remove todo list: no identity available');
@@ -419,14 +401,12 @@ export async function removeTodoListFromRegistry(displayName) {
 	}
 
 	try {
-		const registryDb = await openRegistryDatabase(identityId);
-
 		// Delete from registry
-		await registryDb.del(displayName);
+		deleteRegistryEntry(identityId, displayName);
 		console.log(`🗑️ Removed from registry: ${displayName}`);
 
 		// Refresh the available lists
-		await listAvailableTodoLists();
+		listAvailableTodoLists();
 
 		return true;
 	} catch (error) {
@@ -461,6 +441,38 @@ export async function switchToTodoList(
 	try {
 		const currentUserIdentity = getCurrentIdentityId();
 		let targetIdentityId = currentUserIdentity; // Default to current user
+
+		// Check if this list requires encryption and handle password
+		if (currentUserIdentity) {
+			const registryEntry = getRegistryEntry(currentUserIdentity, trimmedName);
+			
+			// If list is encrypted but no password provided
+			if (registryEntry?.encryptionEnabled && !encryptionPassword) {
+				const dbName = `${currentUserIdentity}_${trimmedName}`;
+				const cachedPassword = getCachedPassword(dbName);
+				
+				if (cachedPassword) {
+					// Use cached password from this session
+					console.log('🔐 Using cached password for encrypted database');
+					encryptionPassword = cachedPassword;
+					enableEncryption = true;
+				} else {
+					// Password required but not in cache - need to prompt user
+					console.log('🔐 Encryption password required');
+					const error = new Error('ENCRYPTION_PASSWORD_REQUIRED');
+					error.dbName = dbName;
+					error.displayName = trimmedName;
+					throw error;
+				}
+			}
+			
+			// If encryption enabled, cache the password for this session
+			if (enableEncryption && encryptionPassword) {
+				const dbName = `${currentUserIdentity}_${trimmedName}`;
+				cachePassword(dbName, encryptionPassword);
+				console.log('🔐 Cached encryption password for session');
+			}
+		}
 
 		// First, check if the target list exists in availableTodoListsStore
 		// This tells us which identity it belongs to
@@ -524,13 +536,13 @@ export async function switchToTodoList(
 			currentDbNameStore.set(existingList.dbName);
 			currentDbAddressStore.set(existingList.address);
 
-			// Update URL hash to match the database address
-			if (typeof window !== 'undefined' && existingList.address) {
-				const hash = `/${encodeURIComponent(existingList.address)}`;
-				if (window.location.hash !== `#${hash}`) {
-					window.history.replaceState(null, '', `#${hash}`);
-				}
+		// Update URL hash to match the database address
+		if (typeof window !== 'undefined' && existingList.address) {
+			const hash = existingList.address.startsWith('/') ? existingList.address : `/${existingList.address}`;
+			if (window.location.hash !== `#${hash}`) {
+				window.history.replaceState(null, '', `#${hash}`);
 			}
+		}
 
 			// Update hierarchy
 			const currentHierarchy = get(todoListHierarchyStore);
@@ -542,16 +554,16 @@ export async function switchToTodoList(
 						{ name: trimmedName, parent: parentListName }
 					]);
 				} else {
-					const fullHierarchy = await buildHierarchyPath(trimmedName);
+					const fullHierarchy = buildHierarchyPath(trimmedName);
 					todoListHierarchyStore.set(fullHierarchy);
 				}
 			} else {
-				const fullHierarchy = await buildHierarchyPath(trimmedName);
+				const fullHierarchy = buildHierarchyPath(trimmedName);
 				todoListHierarchyStore.set(fullHierarchy);
 			}
 
 			// Refresh available lists
-			await listAvailableTodoLists();
+			listAvailableTodoLists();
 			await listUniqueUsers();
 
 			showToast(`Switched to todo list: ${trimmedName}`, 'success');
@@ -599,11 +611,11 @@ export async function switchToTodoList(
 
 			// Add to registry so it's available for future navigation
 			if (openedDB?.address) {
-				await addTodoListToRegistry(trimmedName, dbName, openedDB.address, parentListName);
+				addTodoListToRegistry(trimmedName, dbName, openedDB.address, parentListName);
 			}
 
 			// Refresh available lists
-			await listAvailableTodoLists();
+			listAvailableTodoLists();
 			await listUniqueUsers();
 
 			showToast(`Switched to todo list: ${trimmedName}`, 'success');
@@ -621,9 +633,9 @@ export async function switchToTodoList(
 		currentDbNameStore.set(dbName);
 		currentDbAddressStore.set(openedDB?.address || null);
 
-		// Update URL hash to match the database address
+	// Update URL hash to match the database address
 		if (typeof window !== 'undefined' && openedDB?.address) {
-			const hash = `/${encodeURIComponent(openedDB.address)}`;
+			const hash = openedDB.address.startsWith('/') ? openedDB.address : `/${openedDB.address}`;
 			if (window.location.hash !== `#${hash}`) {
 				window.history.replaceState(null, '', `#${hash}`);
 			}
@@ -633,14 +645,9 @@ export async function switchToTodoList(
 		let actualParent = parentListName;
 		if (!actualParent && currentUserIdentity) {
 			// Look up parent from registry
-			try {
-				const registryDb = await openRegistryDatabase(currentUserIdentity);
-				const entry = await registryDb.get(trimmedName);
-				if (entry && entry.parent) {
-					actualParent = entry.parent;
-				}
-			} catch (error) {
-				console.warn('⚠️ Could not look up parent from registry:', error);
+			const entry = getRegistryEntry(currentUserIdentity, trimmedName);
+			if (entry && entry.parent) {
+				actualParent = entry.parent;
 			}
 		}
 
@@ -657,29 +664,34 @@ export async function switchToTodoList(
 				]);
 			} else {
 				// Parent not in current hierarchy - build full path from registry
-				const fullHierarchy = await buildHierarchyPath(trimmedName);
+				const fullHierarchy = buildHierarchyPath(trimmedName);
 				todoListHierarchyStore.set(fullHierarchy);
 			}
 		} else {
 			// Root level - build hierarchy from registry to ensure we have the full path
-			const fullHierarchy = await buildHierarchyPath(trimmedName);
+			const fullHierarchy = buildHierarchyPath(trimmedName);
 			todoListHierarchyStore.set(fullHierarchy);
 		}
 
-		// Add to registry database (not localStorage)
+		// Add to registry (now localStorage)
 		if (currentUserIdentity) {
-			await addTodoListToRegistry(trimmedName, dbName, openedDB?.address || null, actualParent);
+			addTodoListToRegistry(trimmedName, dbName, openedDB?.address || null, actualParent);
 		}
 
 		// Refresh available todo lists and unique users
-		await listAvailableTodoLists();
+		listAvailableTodoLists();
 		await listUniqueUsers();
 
 		showToast(`Switched to todo list: ${trimmedName}`, 'success');
 		return true;
 	} catch (error) {
-		console.error('❌ Error switching to todo list:', error);
-		showToast(`Failed to switch to todo list: ${error.message}`, 'error');
+		// Don't show error toast for encryption password required - this is expected
+		if (error.message !== 'ENCRYPTION_PASSWORD_REQUIRED') {
+			console.error('❌ Error switching to todo list:', error);
+			showToast(`Failed to switch to todo list: ${error.message}`, 'error');
+		} else {
+			console.log('🔐 Password required - cached password not available');
+		}
 		return false;
 	}
 }

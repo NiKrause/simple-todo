@@ -19,6 +19,11 @@
 	let isCreating = false;
 	let isUserTyping = false; // Track if user is actively typing
 
+	// Check if current list is encrypted
+	$: currentListEncrypted = $availableTodoListsStore.find(
+		(list) => list.displayName === $currentTodoListNameStore
+	)?.encryptionEnabled || false;
+
 	// Check if current database belongs to another user
 	$: currentDbName = $currentDbNameStore;
 	$: currentUserIdentity = $initializationStore.isInitialized ? getCurrentIdentityId() : null;
@@ -81,44 +86,26 @@
 		isUserTyping = false; // Reset typing flag when selecting
 		inputValue = list.displayName; // Set immediately for visual feedback
 
-		// IMPORTANT: Update the store immediately so the combo box shows the selected item
-		currentTodoListNameStore.set(list.displayName);
-		if (list.dbName) {
-			currentDbNameStore.set(list.dbName);
-		}
-		if (list.address) {
-			currentDbAddressStore.set(list.address);
-		}
-
 		const preferences = {
 			enablePersistentStorage: true,
 			enableNetworkConnection: true,
 			enablePeerConnections: true
 		};
 
-		// If this list has an OrbitDB address, open it by address to ensure we load the same DB
-		if (list.address) {
-			try {
-				await openDatabaseByAddress(list.address, preferences, false, '');
-				// Sync URL hash so global hash handler updates stores and persists
-				if (typeof window !== 'undefined') {
-					const hash = `/${encodeURIComponent(list.address)}`;
-					if (window.location.hash !== `#${hash}`) {
-						window.history.replaceState(null, '', `#${hash}`);
-					}
-				}
-				// The hash handler will update stores again, but we've already set them for immediate UI feedback
-			} catch (e) {
-				console.error('Failed to open database by address from selector:', e);
-				// On error, revert the store updates
-				const previousName = get(currentTodoListNameStore);
-				if (previousName !== list.displayName) {
-					currentTodoListNameStore.set(previousName);
-				}
+		// switchToTodoList checks registry for encryption and uses cached password if available
+		// Returns false if encrypted and password not cached - password will be prompted via URL hash
+		const success = await switchToTodoList(list.displayName, preferences, false, '', list.parent || null);
+		
+		if (!success && list.encryptionEnabled && list.address) {
+			// Encrypted database without cached password - trigger password prompt via hash
+			console.log('🔐 Encrypted list selected, triggering password prompt via hash');
+			if (typeof window !== 'undefined') {
+				const hash = list.address.startsWith('/') ? list.address : `/${list.address}`;
+				window.location.hash = hash;
 			}
-		} else {
-			await switchToTodoList(list.displayName, preferences, false, '');
-			// switchToTodoList already updates currentTodoListNameStore, so we're good
+		} else if (!success) {
+			// Other error - revert input
+			inputValue = get(currentTodoListNameStore);
 		}
 	}
 
@@ -210,6 +197,9 @@
 <div class="relative w-full">
 	<label for="todo-list-selector" class="mb-1 block text-sm font-medium text-gray-700">
 		Todo List
+		{#if currentListEncrypted}
+			<span class="ml-2 text-xs" title="Current list is encrypted">🔐</span>
+		{/if}
 		{#if isViewingOtherUser}
 			<span
 				class="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
@@ -290,6 +280,9 @@
 									</span>
 								{:else}
 									<span class="font-medium">{list.displayName}</span>
+								{/if}
+								{#if list.encryptionEnabled}
+									<span class="text-xs" title="Encrypted database">🔐</span>
 								{/if}
 								{#if isOtherUser}
 									<span
