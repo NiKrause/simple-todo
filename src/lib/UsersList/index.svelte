@@ -151,7 +151,7 @@
 						console.log('🔐 Database requires encryption, delegating to main page handler');
 						// Set the hash so +page.svelte can handle encryption detection
 						if (typeof window !== 'undefined') {
-							const hash = `/${encodeURIComponent(targetProjects.address)}`;
+							const hash = targetProjects.address.startsWith('/') ? targetProjects.address : `/${targetProjects.address}`;
 							window.location.hash = hash;
 						}
 						return; // Let +page.svelte handle it
@@ -160,10 +160,10 @@
 					await openDatabaseByAddress(targetProjects.address, preferences, false, '');
 				}
 				
-				if (typeof window !== 'undefined') {
-					const hash = `/${encodeURIComponent(targetProjects.address)}`;
-					replaceState(`#${hash}`, { replaceState: true });
-				}
+						if (typeof window !== 'undefined') {
+							const hash = targetProjects.address.startsWith('/') ? targetProjects.address : `/${targetProjects.address}`;
+							replaceState(`#${hash}`, { replaceState: true });
+						}
 			} catch (e) {
 				console.error('Failed to open projects database by address:', e);
 				// Fallback to opening by name
@@ -194,7 +194,7 @@
 
 					// Update URL hash if we have an address
 					if (openedDB?.address && typeof window !== 'undefined') {
-						const hash = `/${encodeURIComponent(openedDB.address)}`;
+						const hash = openedDB.address.startsWith('/') ? openedDB.address : `/${openedDB.address}`;
 						replaceState(`#${hash}`, { replaceState: true });
 					}
 				} catch (openErr) {
@@ -220,7 +220,7 @@
 							if (projectsList?.address) {
 								// Set hash to trigger encryption detection in +page.svelte
 								if (typeof window !== 'undefined') {
-									const hash = `/${encodeURIComponent(projectsList.address)}`;
+									const hash = projectsList.address.startsWith('/') ? projectsList.address : `/${projectsList.address}`;
 									window.location.hash = hash;
 								}
 								return; // Let +page.svelte handle it
