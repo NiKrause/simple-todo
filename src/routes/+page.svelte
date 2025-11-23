@@ -2,7 +2,8 @@
 	/* eslint-disable no-undef */
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
-	import { peerIdStore, initializeP2P, initializationStore, libp2pStore } from '$lib/p2p.js';
+	import { initializeP2P, initializationStore, libp2pStore } from '$lib/p2p.js';
+	import { peerIdStore } from '$lib/stores.js';
 	import {
 		todosStore,
 		addTodo,
@@ -42,7 +43,8 @@ switchToTodoList,
 		listUniqueUsers,
 		selectedUserIdStore
 	} from '$lib/todo-list-manager.js';
-	import { getCurrentIdentityId, openDatabaseByAddress } from '$lib/p2p.js';
+	import { openDatabaseByAddress } from '$lib/p2p.js';
+	import { getCurrentIdentityId } from '$lib/stores.js';
 	import { get } from 'svelte/store';
 	// import { Cloud } from 'lucide-svelte'; // Unused for now
 	import { toastStore } from '$lib/toast-store.js';

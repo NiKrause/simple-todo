@@ -1,18 +1,21 @@
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 
 import { createLibp2p } from 'libp2p';
 import { createHelia } from 'helia';
 import { createOrbitDB, OrbitDBAccessController, MemoryStorage } from '@orbitdb/core';
 import SimpleEncryption from '@orbitdb/simple-encryption';
 import { createLibp2pConfig } from './libp2p-config.js';
-import { initializeDatabase } from './db-actions.js';
+// Dynamic import to avoid circular dependency with db-actions.js
+// import { initializeDatabase } from './db-actions.js';
 import { LevelBlockstore } from 'blockstore-level';
 import { LevelDatastore } from 'datastore-level';
 import { systemToasts } from './toast-store.js';
+import { currentIdentityStore, peerIdStore } from './stores.js';
 
 // Export libp2p instance for plugins
 export const libp2pStore = writable(null);
-export const peerIdStore = writable(null);
+// Remove this line - don't re-export peerIdStore
+// export { peerIdStore };
 
 // Export OrbitDB instance for backup/restore operations
 export const orbitDBStore = writable(null);
@@ -30,7 +33,8 @@ let orbitdb = null;
 
 let peerId = null;
 let todoDB = null;
-let currentIdentity = null;
+// currentIdentity moved to stores.js to break circular dependency
+// let currentIdentity = null;
 
 /**
  * Build standard database options for OrbitDB
@@ -88,12 +92,14 @@ export async function openTodoList(
 		throw new Error('OrbitDB instance not initialized. Please initialize P2P first.');
 	}
 
-	if (!currentIdentity) {
-		currentIdentity = orbitdb.identity;
+	let identity = get(currentIdentityStore);
+	if (!identity) {
+		identity = orbitdb.identity;
+		currentIdentityStore.set(identity);
 	}
 
 	// Create database name: identityId + "_" + todoListName
-	const identityId = currentIdentity.id;
+	const identityId = identity.id;
 	const dbName = `${identityId}_${todoListName}`;
 	console.log(`📂 Opening todo list database: ${dbName} (display name: ${todoListName})`);
 
@@ -146,7 +152,8 @@ export async function openTodoList(
 	console.log('🔍 TodoDB records:', (await todoDB.all()).length);
 	console.log('✅ Database opened successfully:', todoDB);
 
-	// Initialize database stores and actions
+	// Initialize database stores and actions (dynamic import to avoid circular dependency)
+	const { initializeDatabase } = await import('./db-actions.js');
 	await initializeDatabase(orbitdb, todoDB, preferences);
 
 	return todoDB;
@@ -170,11 +177,13 @@ export async function openDatabaseByName(
 		throw new Error('OrbitDB instance not initialized. Please initialize P2P first.');
 	}
 
-	if (!currentIdentity) {
-		currentIdentity = orbitdb.identity;
+	let identity = get(currentIdentityStore);
+	if (!identity) {
+		identity = orbitdb.identity;
+		currentIdentityStore.set(identity);
 	}
 
-	const currentInstanceIdentity = currentIdentity?.id || orbitdb.identity?.id;
+	const currentInstanceIdentity = identity?.id || orbitdb.identity?.id;
 	console.log(`📂 Opening database by name: ${dbName}`);
 	console.log('🔑 Current OrbitDB instance identity:', currentInstanceIdentity);
 
@@ -233,7 +242,8 @@ export async function openDatabaseByName(
 			console.log('🔧 Database address after open:', todoDB.address);
 			console.log('🔧 Database name:', todoDB.name);
 
-			// Initialize database stores and actions
+			// Initialize database stores and actions (dynamic import to avoid circular dependency)
+			const { initializeDatabase } = await import('./db-actions.js');
 			await initializeDatabase(orbitdb, todoDB, preferences);
 
 			return todoDB;
@@ -285,11 +295,12 @@ export async function openDatabaseByName(
 			todoDB = await orbitdb.open(dbName, dbOptions);
 		}
 
-		console.log('🔍 TodoDB records:', (await todoDB.all()).length);
-		console.log('✅ Database opened successfully by name:', todoDB);
+	console.log('🔍 TodoDB records:', (await todoDB.all()).length);
+	console.log('✅ Database opened successfully by name:', todoDB);
 
-		// Initialize database stores and actions
-		await initializeDatabase(orbitdb, todoDB, preferences);
+	// Initialize database stores and actions (dynamic import to avoid circular dependency)
+	const { initializeDatabase } = await import('./db-actions.js');
+	await initializeDatabase(orbitdb, todoDB, preferences);
 
 		return todoDB;
 	} catch (error) {
@@ -317,8 +328,10 @@ export async function openDatabaseByAddress(
 	}
 
 	// Initialize currentIdentity only if it doesn't exist
-	if (!currentIdentity) {
-		currentIdentity = orbitdb.identity;
+	let identity = get(currentIdentityStore);
+	if (!identity) {
+		identity = orbitdb.identity;
+		currentIdentityStore.set(identity);
 	}
 
 	// Close existing database if open
@@ -367,7 +380,8 @@ export async function openDatabaseByAddress(
 	const entryCount = (await todoDB.all()).length;
 	console.log(`✅ Database opened successfully (${entryCount} entries)`);
 
-	// Initialize database stores and actions
+	// Initialize database stores and actions (dynamic import to avoid circular dependency)
+	const { initializeDatabase } = await import('./db-actions.js');
 	await initializeDatabase(orbitdb, todoDB, preferences);
 
 	return todoDB;
@@ -377,9 +391,9 @@ export async function openDatabaseByAddress(
  * Get the current identity ID
  * @returns {string|null} The identity ID or null if not initialized
  */
-export function getCurrentIdentityId() {
-	return currentIdentity?.id || null;
-}
+// getCurrentIdentityId moved to stores.js to break circular dependency
+// Remove the re-export - import directly from stores.js instead
+// export { getCurrentIdentityId } from './stores.js';
 
 /**
  * Initialize the P2P network after user consent
@@ -578,12 +592,13 @@ export async function initializeP2P(preferences = {}) {
 		// Make OrbitDB instance available to other components
 		orbitDBStore.set(orbitdb);
 
-		// Get the identity from OrbitDB instance
-		currentIdentity = orbitdb.identity;
-		console.log('🔑 Current identity:', currentIdentity.id);
+		// Get the identity from OrbitDB instance and store it
+		const identity = orbitdb.identity;
+		currentIdentityStore.set(identity);
+		console.log('🔑 Current identity:', identity.id);
 
 		// Initialize the registry database for this identity
-		const identityId = currentIdentity.id;
+		const identityId = identity?.id || null;
 		const registryDbName = identityId; // Registry DB is just the identityId
 
 		console.log('📋 Initializing registry database...');

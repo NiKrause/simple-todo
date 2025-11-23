@@ -11,7 +11,8 @@
 	import { openDatabaseByAddress } from '../p2p.js';
 	import { initializationStore } from '../p2p.js';
 	import { get } from 'svelte/store';
-	import { currentDbNameStore, currentDbAddressStore } from '../todo-list-manager.js';
+	import { currentDbNameStore } from '../todo-list-manager.js';
+	import { currentDbAddressStore } from '../stores.js';
 	import { replaceState } from '$app/navigation';
 
 	let showDropdown = false;

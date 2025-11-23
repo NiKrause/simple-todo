@@ -1,6 +1,8 @@
 import { writable, get } from 'svelte/store';
-import { openTodoList, getCurrentIdentityId } from './p2p.js';
 import { showToast } from './toast-store.js';
+import { currentDbAddressStore, getCurrentIdentityId } from './stores.js';
+// Dynamic import for openTodoList to avoid circular dependency
+// import { openTodoList } from './p2p.js';
 
 // Store for current todo list name (display name, without ID prefix)
 export const currentTodoListNameStore = writable('projects');
@@ -8,8 +10,8 @@ export const currentTodoListNameStore = writable('projects');
 // Store for current database name (full name with identity ID prefix)
 export const currentDbNameStore = writable(null);
 
-// Store for current database address (OrbitDB address, e.g., "/orbitdb/zdpuA...")
-export const currentDbAddressStore = writable(null);
+// Re-export for backward compatibility (but import from stores.js to avoid circular dependency)
+export { currentDbAddressStore };
 
 // Store for list of available todo lists
 export const availableTodoListsStore = writable([]);
@@ -623,6 +625,8 @@ export async function switchToTodoList(
 		}
 
 		// Original logic for our own databases
+		// Dynamic import to avoid circular dependency
+		const { openTodoList } = await import('./p2p.js');
 		const openedDB = await openTodoList(
 			trimmedName,
 			preferences,

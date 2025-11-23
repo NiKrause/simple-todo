@@ -358,7 +358,28 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		// ============================================================================
 		console.log('📱 BROWSER A: Setting up encrypted database...');
 
-		await browserAPage.goto('/');
+		// Navigate to the app with error handling
+		console.log('🌐 Navigating to app...');
+		let response;
+		try {
+			response = await browserAPage.goto('/', { 
+				waitUntil: 'networkidle',
+				timeout: 30000 
+			});
+			console.log(`✅ Navigation successful (status: ${response?.status() || 'unknown'})`);
+		} catch (error) {
+			console.error('❌ Navigation failed:', error.message);
+			// Check response status if available
+			if (response) {
+				throw new Error(`Failed to load app. Server returned status ${response.status()}. Error: ${error.message}`);
+			}
+			// Check if it's a timeout or connection error
+			if (error.message.includes('timeout') || error.message.includes('net::ERR')) {
+				throw new Error(`Failed to connect to app at http://localhost:4174. Server may not be running or not ready. Error: ${error.message}`);
+			}
+			throw error;
+		}
+
 		await acceptConsentAndInitialize(browserAPage);
 		await waitForP2PInitialization(browserAPage);
 
@@ -405,10 +426,16 @@ test('should encrypt projects list in browser A, decrypt via URL in browser B, a
 		const contextB = await browserB.newContext();
 		const pageBrowserB = await contextB.newPage();
 
+		// Navigate directly to the encrypted database URL
 		await pageBrowserB.goto(`/?#/${dbAddressA}`);
 		
-		// Initialize P2P in Browser B (needed for database detection)
-		await acceptConsentAndInitialize(pageBrowserB);
+		// Wait for page to load
+		// Note: When navigating with a hash, the app auto-initializes without showing consent modal
+		await pageBrowserB.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+		await pageBrowserB.waitForTimeout(1000);
+		
+		// Accept consent (skip if not found - hash URLs auto-initialize without modal)
+		await acceptConsentAndInitialize(pageBrowserB, { skipIfNotFound: true });
 		await waitForP2PInitialization(pageBrowserB);
 		
 		// Wait for password modal to appear (it appears when encrypted DB is detected)

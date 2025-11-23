@@ -2,7 +2,8 @@
 	import { Share2, Code, Copy, Check, X } from 'lucide-svelte';
 	import { fade } from 'svelte/transition';
 	import { browser } from '$app/environment';
-	import { currentDbAddressStore, currentTodoListNameStore } from '$lib/todo-list-manager.js';
+	import { currentTodoListNameStore } from '$lib/todo-list-manager.js';
+	import { currentDbAddressStore } from '$lib/stores.js';
 	import { toastStore } from '$lib/toast-store.js';
 
 	let showEmbedModal = false;

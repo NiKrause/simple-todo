@@ -1,7 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
-import { peerIdStore } from './p2p.js';
 import { systemToasts } from './toast-store.js';
-import { currentDbAddressStore } from './todo-list-manager.js';
+import { currentDbAddressStore, peerIdStore } from './stores.js';
 
 // Store for OrbitDB instances
 export const orbitdbStore = writable(null);

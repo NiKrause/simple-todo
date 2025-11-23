@@ -86,7 +86,7 @@
 		}
 
 		// Get current user identity
-		const { getCurrentIdentityId } = await import('../p2p.js');
+		const { getCurrentIdentityId } = await import('../stores.js');
 		const currentUserIdentity = getCurrentIdentityId();
 		const currentSelected = get(selectedUserIdStore);
 
@@ -203,7 +203,7 @@
 					
 					// Try to get the database info to determine if it's encrypted
 					// Set hash and let +page.svelte handle encryption detection
-					const { getCurrentIdentityId } = await import('../p2p.js');
+					const { getCurrentIdentityId } = await import('../stores.js');
 					const currentIdent = getCurrentIdentityId();
 					
 					// Track this user so they appear in the list

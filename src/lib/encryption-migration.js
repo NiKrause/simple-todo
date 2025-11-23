@@ -1,5 +1,6 @@
 import { get } from 'svelte/store';
-import { orbitDBStore, getCurrentIdentityId } from './p2p.js';
+import { orbitDBStore } from './p2p.js';
+import { getCurrentIdentityId } from './stores.js';
 import { showToast } from './toast-store.js';
 import { addTodoListToRegistry } from './todo-list-manager.js';
 
