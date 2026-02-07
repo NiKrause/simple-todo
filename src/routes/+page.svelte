@@ -1,17 +1,16 @@
 <script>
 	import { onMount } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
-	import { initializeP2P, initializationStore, libp2pStore } from '$lib/p2p.js';
-	import { peerIdStore } from '$lib/stores.js';
+	import { initializeP2P, initializationStore } from '$lib/p2p.js';
 	import { todosStore, todoDBStore, orbitdbStore } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/components/ui/ConsentModal.svelte';
+	import WebAuthnSetup from '$lib/components/identity/WebAuthnSetup.svelte';
 	import SystemToast from '$lib/components/ui/SystemToast.svelte';
 	import LoadingSpinner from '$lib/components/ui/LoadingSpinner.svelte';
 	import ErrorAlert from '$lib/components/ui/ErrorAlert.svelte';
 	import AddTodoForm from '$lib/components/todo/AddTodoForm.svelte';
 	import TodoList from '$lib/components/todo/TodoList.svelte';
-	import ConnectedPeers from '$lib/components/p2p/ConnectedPeers.svelte';
-	import PeerIdCard from '$lib/components/p2p/PeerIdCard.svelte';
+	import AppFooter from '$lib/components/layout/AppFooter.svelte';
 	import StorachaIntegration from '$lib/components/integration/StorachaIntegration.svelte';
 	import QRCodeModal from '$lib/components/ui/QRCodeModal.svelte';
 	import TodoListSelector from '$lib/components/todo/TodoListSelector.svelte';
@@ -69,10 +68,10 @@
 	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
 
 	let error = null;
-	let myPeerId = null;
 
 	// Modal state
 	let showModal = true;
+	let showWebAuthnSetup = false;
 	let rememberDecision = false;
 	let preferences = {
 		enablePersistentStorage: true,
@@ -104,6 +103,9 @@
 		// Extract preferences from the event detail
 		preferences = event?.detail || {};
 		console.log('🔧 DEBUG: Received preferences from ConsentModal:', preferences);
+		if (browser) {
+			window.__lastConsentPreferences__ = preferences;
+		}
 
 		try {
 			if (rememberDecision) {
@@ -111,6 +113,19 @@
 			}
 		} catch {
 			// ignore storage errors
+		}
+
+		// Show WebAuthn setup modal before initializing P2P
+		showWebAuthnSetup = true;
+	};
+
+	const handleWebAuthnSetupComplete = async (event) => {
+		showWebAuthnSetup = false;
+
+		// If WebAuthn credential was created, store flag to use it
+		if (event?.detail?.identity) {
+			console.log('✅ WebAuthn credential created, will use for P2P initialization');
+			// The flag is already stored by the WebAuthn identity module
 		}
 
 		try {
@@ -278,11 +293,6 @@
 		}
 	}
 
-	// Subscribe to the peerIdStore
-	$: myPeerId = $peerIdStore;
-
-	let connectedPeersRef;
-
 	// Setup database debugging utilities
 	setupDatabaseDebug();
 </script>
@@ -313,12 +323,22 @@
 	/>
 {/if}
 
+<!-- WebAuthn Setup Modal - shown after consent -->
+{#if showWebAuthnSetup}
+	<WebAuthnSetup
+		bind:show={showWebAuthnSetup}
+		optional={true}
+		on:created={handleWebAuthnSetupComplete}
+		on:skip={handleWebAuthnSetupComplete}
+	/>
+{/if}
+
 <!-- Password modal for encrypted databases -->
 <ManagedPasswordModal />
 
-<main class="container mx-auto max-w-4xl p-6">
+<main class="container mx-auto max-w-4xl p-6 pb-20">
 	{#if !isEmbedMode}
-		<AppHeader on:qrcode={() => (showQRCodeModal = true)} />
+		<AppHeader onQRCodeClick={() => (showQRCodeModal = true)} />
 	{/if}
 
 	{#if $initializationStore.isInitializing}
@@ -406,15 +426,6 @@
 			on:createSubList={handleCreateSubList}
 		/>
 
-		<!-- P2P Status -->
-		<div class="grid gap-6 md:grid-cols-2">
-			<!-- Connected Peers -->
-			<ConnectedPeers bind:this={connectedPeersRef} libp2p={$libp2pStore} />
-
-			<!-- My Identity -->
-			<PeerIdCard peerId={myPeerId} />
-		</div>
-
 		<!-- Storacha Test Suite - Temporarily disabled
 		<StorachaTest />
 		-->
@@ -493,3 +504,8 @@
 
 <!-- QR Code Modal -->
 <QRCodeModal bind:show={showQRCodeModal} />
+
+<!-- App Footer with Peer Info -->
+{#if $initializationStore.isInitialized && !isEmbedMode}
+	<AppFooter />
+{/if}

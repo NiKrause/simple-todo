@@ -7,8 +7,10 @@ export default defineConfig({
 
 	// Web server configuration
 	webServer: {
-		// Build first, then start preview server
-		command: 'npm run build && npm run preview',
+		// Build first in CI, reuse existing build locally
+		command: process.env.CI
+			? 'npm run build && npm run preview -- --host 127.0.0.1 --port 4174'
+			: 'npm run preview -- --host 127.0.0.1 --port 4174',
 		port: 4174,
 		// Use the test environment file and set development mode
 		env: {
@@ -16,8 +18,8 @@ export default defineConfig({
 			VITE_NODE_ENV: 'development'
 		},
 		// Wait for server to be ready (increased for build time)
-		timeout: 120000 // Increased timeout to allow for build + server startup
-		// reuseExistingServer: !process.env.CI
+		timeout: 120000, // Increased timeout to allow for build + server startup
+		reuseExistingServer: !process.env.CI
 	},
 
 	// Test configuration
@@ -46,7 +48,7 @@ export default defineConfig({
 					]
 				},
 				// Grant permissions needed for WebRTC
-				permissions: ['microphone', 'camera', 'clipboard-read', 'clipboard-write'], // Add clipboard permissions
+				permissions: ['microphone', 'camera', 'clipboard-read', 'clipboard-write'],
 				// Set user agent to avoid blocking
 				userAgent:
 					'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -62,41 +64,41 @@ export default defineConfig({
 		// 		launchOptions: {
 		// 			firefoxUserPrefs: {
 		// 				// Core WebRTC enablement
-		// 				'media.peerconnection.enabled': true,
-		// 				'media.navigator.enabled': true,
-		// 				'media.navigator.permission.disabled': true,
+		// 				'"'"'media.peerconnection.enabled'"'"': true,
+		// 				'"'"'media.navigator.enabled'"'"': true,
+		// 				'"'"'media.navigator.permission.disabled'"'"': true,
 
 		// 				// CRITICAL: Allow host candidates and disable obfuscation
-		// 				'media.peerconnection.ice.default_address_only': false,
-		// 				'media.peerconnection.ice.no_host': false,
-		// 				'media.peerconnection.ice.obfuscate_host_addresses': false, // NEW! Critical for host IPs
-		// 				'media.peerconnection.ice.obfuscate_host_addresses.blocklist': '', // NEW! Empty blocklist
+		// 				'"'"'media.peerconnection.ice.default_address_only'"'"': false,
+		// 				'"'"'media.peerconnection.ice.no_host'"'"': false,
+		// 				'"'"'media.peerconnection.ice.obfuscate_host_addresses'"'"': false, // NEW! Critical for host IPs
+		// 				'"'"'media.peerconnection.ice.obfuscate_host_addresses.blocklist'"'"': '', // NEW! Empty blocklist
 
 		// 				// Enable ICE protocols
-		// 				'media.peerconnection.ice.tcp': true,
-		// 				'media.peerconnection.ice.relay_only': false,
-		// 				'media.peerconnection.ice.loopback': true, // Enable loopback candidates for localhost
-		// 				'media.peerconnection.ice.link_local': true, // Enable link-local addresses
+		// 				'"'"'media.peerconnection.ice.tcp'"'"': true,
+		// 				'"'"'media.peerconnection.ice.relay_only'"'"': false,
+		// 				'"'"'media.peerconnection.ice.loopback'"'"': true, // Enable loopback candidates for localhost
+		// 				'"'"'media.peerconnection.ice.link_local'"'"': true, // Enable link-local addresses
 
 		// 				// Disable ALL privacy protections that interfere with ICE
-		// 				'media.peerconnection.ice.proxy_only_if_behind_proxy': false,
-		// 				'media.peerconnection.identity.enabled': true,
-		// 				'privacy.resistFingerprinting': false, // NEW! Disable fingerprinting protection
+		// 				'"'"'media.peerconnection.ice.proxy_only_if_behind_proxy'"'"': false,
+		// 				'"'"'media.peerconnection.identity.enabled'"'"': true,
+		// 				'"'"'privacy.resistFingerprinting'"'"': false, // NEW! Disable fingerprinting protection
 
 		// 				// Allow insecure connections for localhost testing
-		// 				'media.getusermedia.insecure.enabled': true, // NEW! Allow getUserMedia on http://
+		// 				'"'"'media.getusermedia.insecure.enabled'"'"': true, // NEW! Allow getUserMedia on http://
 
 		// 				// Connection settings
-		// 				'media.peerconnection.use_document_iceservers': true,
+		// 				'"'"'media.peerconnection.use_document_iceservers'"'"': true,
 
 		// 				// Enable necessary permissions without prompts
-		// 				'permissions.default.camera': 1,
-		// 				'permissions.default.microphone': 1,
-		// 				'permissions.default.desktop-notification': 1,
+		// 				'"'"'permissions.default.camera'"'"': 1,
+		// 				'"'"'permissions.default.microphone'"'"': 1,
+		// 				'"'"'permissions.default.desktop-notification'"'"': 1,
 
 		// 				// Disable security restrictions for testing
-		// 				'network.http.referer.disallowCrossSiteRelaxingDefault': false, // NEW!
-		// 				'security.fileuri.strict_origin_policy': false // NEW!
+		// 				'"'"'network.http.referer.disallowCrossSiteRelaxingDefault'"'"': false, // NEW!
+		// 				'"'"'security.fileuri.strict_origin_policy'"'"': false // NEW!
 		// 			}
 		// 		}
 		// 	}
@@ -121,7 +123,7 @@ export default defineConfig({
 
 	// Use baseURL for all tests
 	use: {
-		baseURL: 'http://localhost:4174',
+		baseURL: 'http://127.0.0.1:4174',
 		// Take screenshots on failure
 		screenshot: 'only-on-failure',
 		// Record video on failure

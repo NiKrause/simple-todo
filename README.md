@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/NiKrause/simple-todo/workflows/CI/badge.svg)](https://github.com/NiKrause/simple-todo/actions)
 [![Version](https://img.shields.io/badge/version-0.1.23-blue.svg)](https://github.com/NiKrause/simple-todo)
-[![IPFS](https://img.shields.io/badge/IPFS-k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs-brightgreen.svg)](https://dweb.link/ipfs/QmQnFAod3WuXfKzT17H3F4GgbWSVXrHnm9kDyEhadiVBAm)
+[![IPFS](https://img.shields.io/badge/IPFS-bafybeieg3sxigt3rqlwmxr2vx67hlspg3ylv2nokpfatrspmeup6gsu4ge-brightgreen.svg)](https://bafybeieg3sxigt3rqlwmxr2vx67hlspg3ylv2nokpfatrspmeup6gsu4ge.ipfs.dweb.link)
 [![License](https://img.shields.io/badge/license-Open%20Source-blue.svg)](./LICENSE)
 
 <div align="center" style="width: 100%;">
@@ -13,7 +13,10 @@
   <a href="https://filecoin.io/" target="_blank"><img src="static/filecoin.svg" alt="Filecoin" height="50"></a>
   <a href="https://storacha.network/" target="_blank"><img src="static/storacha-logo.jpeg" alt="Storacha" height="50"></a>
 </div>
+
 A basic decentralized, local-first, peer-to-peer todo application built with `libp2p`, `IPFS`, and `OrbitDB`. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
+
+See `docs/WEBAUTHN_VARSIG_CHANGES.md` for the WebAuthn varsig/PRF flow details and sequence diagrams.
 
 > **Unstoppable** - This application demonstrates technology that continues operating even when cloud providers fail, governments attempt censorship, or software vendors shut down their services. Your data and functionality remain under your control, distributed across a resilient peer-to-peer network or self-hosted signaling or relay nodes. Imagine traditional software which was sold on a compact disc in the past - once installed it could never be stopped. A USP which should convince every client around the globe.
 
@@ -25,9 +28,8 @@ A basic decentralized, local-first, peer-to-peer todo application built with `li
 ## 🚀 Live Demo
 
 - **HTTP**: https://simple-todo.le-space.de
-- **IPFS (dweb.link)**: https://dweb.link/ipfs/QmQnFAod3WuXfKzT17H3F4GgbWSVXrHnm9kDyEhadiVBAm
-- **IPFS (w3s.link)**: https://w3s.link/ipfs/QmQnFAod3WuXfKzT17H3F4GgbWSVXrHnm9kDyEhadiVBAm
-- **IPFS (storacha.link)**: https://storacha.link/ipfs/QmQnFAod3WuXfKzT17H3F4GgbWSVXrHnm9kDyEhadiVBAm
+- **IPFS (dweb.link)**: https://bafybeieg3sxigt3rqlwmxr2vx67hlspg3ylv2nokpfatrspmeup6gsu4ge.ipfs.dweb.link
+- **IPFS (dweb.link, orbitdb demo)**: https://bafybeieg3sxigt3rqlwmxr2vx67hlspg3ylv2nokpfatrspmeup6gsu4ge.ipfs.dweb.link/#/orbitdb/zdpuAskw4Xes4nxR1YNV8TxK2qmrDgceAqEoGHDtTAUhQWvDP
 
 ### Key Features
 
@@ -82,7 +84,7 @@ For detailed relay server configuration options and HTTP API endpoints, see **[R
 5. **Copy URL from browser A to browser B** - If both browsers open the same todo-list they can see each other's todos (only A has write permission at the moment)
 6. **Add Todos** - Create todos in one browser and watch them appear in the other
 
-**[�� Tutorial](./docs/TUTORIAL.md)**
+**[Tutorial](./docs/TUTORIAL.md)**
 
 The tutorial covers:
 
@@ -102,7 +104,6 @@ git checkout simplified-tutorial
 
 # run (like this you don't need to cut and paste anything)
 ./tutorial-01.js
-
 ```
 
 ## 📄 License

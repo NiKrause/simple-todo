@@ -1,6 +1,7 @@
 import { writable, get } from 'svelte/store';
 import { showToast } from './toast-store.js';
 import { currentDbAddressStore, getCurrentIdentityId } from './stores.js';
+import { getWebAuthnEncryptionKey } from './encryption/webauthn-encryption.js';
 // Dynamic import for openTodoList to avoid circular dependency
 // import { openTodoList } from './p2p.js';
 
@@ -27,6 +28,24 @@ export const todoListHierarchyStore = writable([]);
 
 // Store to track the selected user for filtering todo lists
 export const selectedUserIdStore = writable(null); // null means show all users
+
+function describeEncryptionSecret(secret) {
+	if (!secret) return 'NO';
+	if (typeof secret === 'string') {
+		return `YES (length: ${secret.length}, first 3: ${secret.substring(0, 3)}***)`;
+	}
+	if (secret?.subarray) {
+		return `YES (bytes: ${secret.length})`;
+	}
+	return 'YES';
+}
+
+function getEncryptionMethodFromSecret(secret) {
+	if (!secret) return null;
+	if (secret?.subarray) return 'webauthn-prf';
+	if (typeof secret === 'string' && secret.trim()) return 'password';
+	return null;
+}
 
 // In-memory cache for encryption passwords (per session only, not persisted)
 const sessionPasswordCache = new Map(); // key: dbName, value: password
@@ -326,7 +345,8 @@ export function addTodoListToRegistry(
 	dbName,
 	address = null,
 	parent = null,
-	encryptionEnabled = false
+	encryptionEnabled = false,
+	encryptionMethod = null
 ) {
 	const identityId = getCurrentIdentityId();
 	if (!identityId) return;
@@ -369,6 +389,10 @@ export function addTodoListToRegistry(
 			encryptionEnabled !== undefined
 				? encryptionEnabled
 				: existingEntry?.encryptionEnabled || false;
+		const finalEncryptionMethod =
+			encryptionMethod !== null && encryptionMethod !== undefined
+				? encryptionMethod
+				: existingEntry?.encryptionMethod || null;
 
 		// Store in registry with displayName as key
 		setRegistryEntry(identityId, displayName, {
@@ -377,6 +401,7 @@ export function addTodoListToRegistry(
 			address: address || null,
 			parent: parent || null,
 			encryptionEnabled: finalEncryptionEnabled,
+			encryptionMethod: finalEncryptionMethod,
 			createdAt: existingEntry?.createdAt || new Date().toISOString()
 		});
 
@@ -505,11 +530,21 @@ export async function switchToTodoList(
 		// Use targetIdentityId (which may be different from currentUserIdentity)
 		if (targetIdentityId) {
 			const registryEntry = getRegistryEntry(targetIdentityId, trimmedName);
+			console.log(`🔍 Registry lookup for ${trimmedName}:`, {
+				targetIdentityId,
+				trimmedName,
+				found: !!registryEntry,
+				encryptionEnabled: registryEntry?.encryptionEnabled,
+				dbName: registryEntry?.dbName,
+				address: registryEntry?.address
+			});
 
 			// If list is encrypted but no password provided
 			if (registryEntry?.encryptionEnabled && !encryptionPassword) {
 				const dbName = `${targetIdentityId}_${trimmedName}`;
+				console.log(`  → Database is encrypted, checking password cache for dbName: ${dbName}`);
 				const cachedPassword = getCachedPassword(dbName);
+				console.log(`  → Password cache lookup result: ${cachedPassword ? 'FOUND' : 'NOT FOUND'}`);
 
 				if (cachedPassword) {
 					// Use cached password from this session
@@ -517,18 +552,34 @@ export async function switchToTodoList(
 					encryptionPassword = cachedPassword;
 					enableEncryption = true;
 				} else {
-					// Password required but not in cache - need to prompt user
-					console.log('🔐 Encryption password required');
-					const error = new Error('ENCRYPTION_PASSWORD_REQUIRED');
-					error.dbName = dbName;
-					error.displayName = trimmedName;
-					throw error;
+					if (registryEntry?.encryptionMethod === 'webauthn-prf') {
+						const webauthnKey = await getWebAuthnEncryptionKey({ allowCreate: false });
+						if (webauthnKey) {
+							console.log('🔐 Using WebAuthn-derived encryption key');
+							encryptionPassword = webauthnKey;
+							enableEncryption = true;
+						} else {
+							console.log('🔐 WebAuthn key unavailable, password required');
+							const error = new Error('ENCRYPTION_PASSWORD_REQUIRED');
+							error.dbName = dbName;
+							error.displayName = trimmedName;
+							throw error;
+						}
+					} else {
+						// Password required but not in cache - need to prompt user
+						console.log('🔐 Encryption password required');
+						const error = new Error('ENCRYPTION_PASSWORD_REQUIRED');
+						error.dbName = dbName;
+						error.displayName = trimmedName;
+						throw error;
+					}
 				}
 			}
 
 			// If encryption enabled, cache the password for this session
 			if (enableEncryption && encryptionPassword) {
 				const dbName = `${targetIdentityId}_${trimmedName}`;
+				console.log(`  → Caching password for dbName: ${dbName}`);
 				cachePassword(dbName, encryptionPassword);
 				console.log('🔐 Cached encryption password for session');
 			}
@@ -551,6 +602,9 @@ export async function switchToTodoList(
 			console.log(
 				`✅ Found existing list in registry, opening by address: ${existingList.address.slice(0, 30)}...`
 			);
+			console.log(`  → Registry entry encryptionEnabled: ${existingList.encryptionEnabled}`);
+			console.log(`  → enableEncryption parameter: ${enableEncryption}`);
+			console.log(`  → Password provided: ${describeEncryptionSecret(encryptionPassword)}`);
 			const { openDatabaseByAddress } = await import('./p2p.js');
 
 			await openDatabaseByAddress(
@@ -641,7 +695,14 @@ export async function switchToTodoList(
 
 			// Add to registry so it's available for future navigation
 			if (openedDB?.address) {
-				addTodoListToRegistry(trimmedName, dbName, openedDB.address, parentListName);
+				addTodoListToRegistry(
+					trimmedName,
+					dbName,
+					openedDB.address,
+					parentListName,
+					enableEncryption,
+					getEncryptionMethodFromSecret(encryptionPassword)
+				);
 			}
 
 			// Refresh available lists
@@ -707,7 +768,14 @@ export async function switchToTodoList(
 
 		// Add to registry (now localStorage)
 		if (currentUserIdentity) {
-			addTodoListToRegistry(trimmedName, dbName, openedDB?.address || null, actualParent);
+			addTodoListToRegistry(
+				trimmedName,
+				dbName,
+				openedDB?.address || null,
+				actualParent,
+				enableEncryption,
+				getEncryptionMethodFromSecret(encryptionPassword)
+			);
 		}
 
 		// Refresh available todo lists and unique users
@@ -909,7 +977,7 @@ export async function addTrackedUser(identityId) {
 
 		if (projectsDb && projectsDb.address) {
 			// Add to our registry
-			await addTodoListToRegistry('projects', dbName, projectsDb.address, null);
+			await addTodoListToRegistry('projects', dbName, projectsDb.address, null, false, null);
 
 			// Refresh available lists
 			await listAvailableTodoLists();

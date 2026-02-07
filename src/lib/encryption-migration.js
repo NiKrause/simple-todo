@@ -4,6 +4,17 @@ import { getCurrentIdentityId } from './stores.js';
 import { showToast } from './toast-store.js';
 import { addTodoListToRegistry } from './todo-list-manager.js';
 
+function describeEncryptionSecret(secret) {
+	if (!secret) return 'NO';
+	if (typeof secret === 'string') {
+		return `YES (length: ${secret.length}, first 3 chars: ${secret.substring(0, 3)}***)`;
+	}
+	if (secret?.subarray) {
+		return `YES (bytes: ${secret.length})`;
+	}
+	return 'YES';
+}
+
 /**
  * Migrate a database to a different encryption state
  * This creates a new database with the target encryption settings and copies all data
@@ -27,6 +38,7 @@ export async function migrateDatabaseEncryption(
 	currentPassword,
 	targetEncryption,
 	targetPassword,
+	targetEncryptionMethod,
 	preferences = {},
 	parent = null
 ) {
@@ -126,6 +138,9 @@ export async function migrateDatabaseEncryption(
 		// Step 9: Create the final database with the ORIGINAL name and target encryption
 		// Use orbitdb.open() directly to avoid switching global todoDB state during migration
 		console.log(`✨ Creating final database with original name: ${identityId}_${displayName}`);
+		console.log(`  → Original address: ${currentAddress}`);
+		console.log(`  → Target encryption: ${targetEncryption}`);
+		console.log(`  → Password provided: ${describeEncryptionSecret(targetPassword)}`);
 		const finalDbName = `${identityId}_${displayName}`;
 
 		// Set up encryption for final database
@@ -133,9 +148,10 @@ export async function migrateDatabaseEncryption(
 		const SimpleEncryption = (await import('@le-space/orbitdb-simple-encryption')).default;
 		let finalEncryption = null;
 		if (targetEncryption && targetPassword) {
+			console.log(`  → Creating encryption instances with password...`);
 			const dataEncryption = await SimpleEncryption({ password: targetPassword });
-			const replicationEncryption = await SimpleEncryption({ password: targetPassword });
-			finalEncryption = { data: dataEncryption, replication: replicationEncryption };
+			finalEncryption = { data: dataEncryption };
+			console.log(`  → Encryption instances created successfully`);
 		}
 
 		// Build options for final database
@@ -155,6 +171,10 @@ export async function migrateDatabaseEncryption(
 
 		const finalAddress = finalDb.address;
 		console.log(`📍 Final database address: ${finalAddress}`);
+		console.log(`  → Address comparison: original=${currentAddress}, final=${finalAddress}`);
+		console.log(
+			`  → Address match: ${currentAddress === finalAddress ? 'YES ✅ (expected)' : 'NO ❌ (unexpected - address changed!)'}`
+		);
 
 		// Step 10: Copy all entries from temp to final database
 		console.log('📝 Copying entries to final database...');
@@ -200,7 +220,24 @@ export async function migrateDatabaseEncryption(
 
 		// Step 12: Update the registry with the final database info (original name!)
 		console.log('💾 Updating registry...');
-		addTodoListToRegistry(displayName, finalDbName, finalAddress, parent, targetEncryption);
+		console.log(
+			`  → Registry update: displayName=${displayName}, dbName=${finalDbName}, address=${finalAddress}, encryptionEnabled=${targetEncryption}`
+		);
+		const { listAvailableTodoLists } = await import('./todo-list-manager.js');
+		addTodoListToRegistry(
+			displayName,
+			finalDbName,
+			finalAddress,
+			parent,
+			targetEncryption,
+			targetEncryption ? targetEncryptionMethod || null : null
+		);
+		console.log(
+			`  → Registry entry added for ${displayName} with encryptionEnabled=${targetEncryption}`
+		);
+		// Refresh the available lists store so switchToTodoList can find the updated address
+		listAvailableTodoLists();
+		console.log(`  → Available lists refreshed after registry update`);
 
 		// Step 13: Close the final database (it will be reopened by the caller)
 		await finalDbToUse.close();
@@ -244,10 +281,11 @@ export async function enableDatabaseEncryption(
 	currentDbName,
 	currentAddress,
 	password,
+	encryptionMethod = null,
 	preferences = {},
 	parent = null
 ) {
-	if (!password || !password.trim()) {
+	if (!password || (typeof password === 'string' && !password.trim())) {
 		throw new Error('Encryption password is required');
 	}
 
@@ -259,6 +297,7 @@ export async function enableDatabaseEncryption(
 		'', // no current password
 		true, // target: encrypted
 		password,
+		encryptionMethod,
 		preferences,
 		parent
 	);
@@ -283,7 +322,7 @@ export async function disableDatabaseEncryption(
 	preferences = {},
 	parent = null
 ) {
-	if (!currentPassword || !currentPassword.trim()) {
+	if (!currentPassword || (typeof currentPassword === 'string' && !currentPassword.trim())) {
 		throw new Error('Current encryption password is required');
 	}
 
@@ -295,6 +334,7 @@ export async function disableDatabaseEncryption(
 		currentPassword,
 		false, // target: not encrypted
 		'', // no target password
+		null,
 		preferences,
 		parent
 	);

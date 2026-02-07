@@ -2,15 +2,44 @@ import { writable, get } from 'svelte/store';
 
 import { createLibp2p } from 'libp2p';
 import { createHelia } from 'helia';
-import { createOrbitDB, OrbitDBAccessController, MemoryStorage } from '@orbitdb/core';
+import {
+	createOrbitDB,
+	OrbitDBAccessController,
+	MemoryStorage,
+	Identities,
+	useIdentityProvider
+} from '@orbitdb/core';
 import SimpleEncryption from '@le-space/orbitdb-simple-encryption';
 import { createLibp2pConfig } from './libp2p-config.js';
 // Dynamic import to avoid circular dependency with db-actions.js
 // import { initializeDatabase } from './db-actions.js';
 import { LevelBlockstore } from 'blockstore-level';
 import { LevelDatastore } from 'datastore-level';
-import { systemToasts } from './toast-store.js';
+import { systemToasts, showToast } from './toast-store.js';
 import { currentIdentityStore, peerIdStore } from './stores.js';
+import { isWebAuthnAvailable, hasExistingCredentials } from './identity/webauthn-identity.js';
+import {
+	getOrCreateVarsigIdentity,
+	createWebAuthnVarsigIdentitiesWithStorage,
+	createIpfsIdentityStorage
+} from './identity/varsig-identity.js';
+import {
+	OrbitDBWebAuthnIdentityProviderFunction,
+	loadWebAuthnCredential,
+	loadWebAuthnVarsigCredential,
+	WebAuthnVarsigProvider
+} from '@le-space/orbitdb-identity-provider-webauthn-did';
+
+function describeEncryptionSecret(secret) {
+	if (!secret) return 'NO';
+	if (typeof secret === 'string') {
+		return `YES (length: ${secret.length}, first 3 chars: ${secret.substring(0, 3)}***)`;
+	}
+	if (secret?.subarray) {
+		return `YES (bytes: ${secret.length})`;
+	}
+	return 'YES';
+}
 
 // Export libp2p instance for plugins
 export const libp2pStore = writable(null);
@@ -122,8 +151,7 @@ export async function openTodoList(
 	if (enableEncryption && encryptionPassword) {
 		console.log('🔐 Setting up encryption for database...');
 		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-		const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
-		encryption = { data: dataEncryption, replication: replicationEncryption };
+		encryption = { data: dataEncryption };
 	}
 
 	// Build standard database options using shared function
@@ -149,7 +177,25 @@ export async function openTodoList(
 		todoDB = await orbitdb.open(dbName, dbOptions);
 	}
 
-	console.log('🔍 TodoDB records:', (await todoDB.all()).length);
+	// Try to read entries, but handle decryption errors gracefully
+	// This can happen after migration if old entries are still in cache
+	let entryCount = 0;
+	try {
+		entryCount = (await todoDB.all()).length;
+		console.log('🔍 TodoDB records:', entryCount);
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		if (errorMessage.includes('decrypt')) {
+			console.warn(
+				'⚠️ Could not read entries immediately after opening (decryption error):',
+				errorMessage
+			);
+			console.warn('   This may happen after migration - entries will be loaded after sync');
+			entryCount = 0;
+		} else {
+			throw error; // Re-throw if it's not a decryption error
+		}
+	}
 	console.log('✅ Database opened successfully:', todoDB);
 
 	// Initialize database stores and actions (dynamic import to avoid circular dependency)
@@ -220,8 +266,7 @@ export async function openDatabaseByName(
 			if (enableEncryption && encryptionPassword) {
 				console.log('🔐 Setting up encryption for database...');
 				const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-				const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
-				encryption = { data: dataEncryption, replication: replicationEncryption };
+				encryption = { data: dataEncryption };
 			}
 
 			// Build standard database options using the OTHER identity's ID
@@ -266,8 +311,7 @@ export async function openDatabaseByName(
 	if (enableEncryption && encryptionPassword) {
 		console.log('🔐 Setting up encryption for database...');
 		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-		const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
-		encryption = { data: dataEncryption, replication: replicationEncryption };
+		encryption = { data: dataEncryption };
 	}
 
 	// Build standard database options using shared function
@@ -295,7 +339,25 @@ export async function openDatabaseByName(
 			todoDB = await orbitdb.open(dbName, dbOptions);
 		}
 
-		console.log('🔍 TodoDB records:', (await todoDB.all()).length);
+		// Try to read entries, but handle decryption errors gracefully
+		// This can happen after migration if old entries are still in cache
+		let entryCount = 0;
+		try {
+			entryCount = (await todoDB.all()).length;
+			console.log('🔍 TodoDB records:', entryCount);
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			if (errorMessage.includes('decrypt')) {
+				console.warn(
+					'⚠️ Could not read entries immediately after opening (decryption error):',
+					errorMessage
+				);
+				console.warn('   This may happen after migration - entries will be loaded after sync');
+				entryCount = 0;
+			} else {
+				throw error; // Re-throw if it's not a decryption error
+			}
+		}
 		console.log('✅ Database opened successfully by name:', todoDB);
 
 		// Initialize database stores and actions (dynamic import to avoid circular dependency)
@@ -352,14 +414,23 @@ export async function openDatabaseByAddress(
 	let encryption = null;
 	if (enableEncryption && encryptionPassword) {
 		console.log('🔐 Setting up encryption for database...');
+		console.log(`  → Password provided: ${describeEncryptionSecret(encryptionPassword)}`);
 		const dataEncryption = await SimpleEncryption({ password: encryptionPassword });
-		const replicationEncryption = await SimpleEncryption({ password: encryptionPassword });
-		encryption = { data: dataEncryption, replication: replicationEncryption };
+		encryption = {
+			data: dataEncryption
+		};
+
+		console.log(`  → Encryption instances created successfully`);
+	} else if (enableEncryption && !encryptionPassword) {
+		console.warn('⚠️ Encryption enabled but no password provided!');
 	}
 
 	// Open database with sync enabled so it can discover peers via pubsub
 	// Note: sync is a runtime option, not stored in manifest, so we must pass it explicitly
-	console.log('⏳ Opening database...');
+	console.log('⏳ Opening database by address...');
+	console.log(`  → Address: ${dbAddress}`);
+	console.log(`  → Encryption enabled: ${enableEncryption}`);
+	console.log(`  → Password provided: ${describeEncryptionSecret(encryptionPassword)}`);
 	const dbOptions = {
 		sync: enableNetworkConnection
 	};
@@ -367,9 +438,12 @@ export async function openDatabaseByAddress(
 	// Add encryption if enabled
 	if (encryption) {
 		dbOptions.encryption = encryption;
+		console.log(`  → Encryption added to dbOptions`);
 	}
 
 	todoDB = await orbitdb.open(dbAddress, dbOptions);
+	console.log(`  → Database opened, address: ${todoDB.address}`);
+	console.log(`  → Address match: ${dbAddress === todoDB.address ? 'YES ✅' : 'NO ❌'}`);
 
 	// Log database sync state to debug
 	console.log('🔍 Database sync state:', {
@@ -381,8 +455,25 @@ export async function openDatabaseByAddress(
 		encryption: encryption ? 'enabled' : 'disabled'
 	});
 
-	const entryCount = (await todoDB.all()).length;
-	console.log(`✅ Database opened successfully (${entryCount} entries)`);
+	// Try to read entries, but handle decryption errors gracefully
+	// This can happen after migration if old entries are still in cache
+	let entryCount = 0;
+	try {
+		entryCount = (await todoDB.all()).length;
+		console.log(`✅ Database opened successfully (${entryCount} entries)`);
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		if (errorMessage.includes('decrypt')) {
+			console.warn(
+				'⚠️ Could not read entries immediately after opening (decryption error):',
+				errorMessage
+			);
+			console.warn('   This may happen after migration - entries will be loaded after sync');
+			console.log(`✅ Database opened successfully (entries will load after sync)`);
+		} else {
+			throw error; // Re-throw if it's not a decryption error
+		}
+	}
 
 	// Initialize database stores and actions (dynamic import to avoid circular dependency)
 	const { initializeDatabase } = await import('./db-actions.js');
@@ -434,6 +525,12 @@ export async function initializeP2P(preferences = {}) {
 
 		libp2p = await createLibp2p(config);
 		libp2pStore.set(libp2p); // Make available to plugins
+
+		// Expose to window for e2e testing
+		if (typeof window !== 'undefined') {
+			window.__libp2p__ = libp2p;
+		}
+
 		console.log(
 			`✅ libp2p node created with network connection: ${enableNetworkConnection ? 'enabled' : 'disabled'}, peer connections: ${enablePeerConnections ? 'enabled' : 'disabled'}`
 		);
@@ -471,16 +568,54 @@ export async function initializeP2P(preferences = {}) {
 			});
 		}
 
-		// Add WebRTC connection debugging
+		// Auto-dial discovered peers
 		libp2p.addEventListener('peer:discovery', (event) => {
 			const { id: peerId, multiaddrs } = event.detail || {};
 			if (!peerId || !multiaddrs) return;
-			const webrtcAddrs = multiaddrs.filter((addr) => addr.toString().includes('/webrtc'));
-			if (webrtcAddrs.length > 0) {
-				console.log('🌐 WebRTC: Peer discovered with WebRTC addresses:', {
-					peerId: peerId.toString().slice(0, 12) + '...',
-					webrtcAddresses: webrtcAddrs.map((a) => a.toString())
-				});
+
+			// Filter for dialable addresses (webrtc, webtransport, websocket)
+			const dialableAddrs = multiaddrs.filter((addr) => {
+				const addrStr = addr.toString();
+				return (
+					addrStr.includes('/webrtc') ||
+					addrStr.includes('/webtransport') ||
+					addrStr.includes('/ws')
+				);
+			});
+
+			if (dialableAddrs.length === 0) return;
+
+			const peerIdShort = peerId.toString().slice(0, 12) + '...';
+			console.log('🔍 Peer discovered with dialable addresses:', {
+				peerId: peerIdShort,
+				addresses: dialableAddrs.map((a) => a.toString())
+			});
+
+			// Check if we already have a direct connection
+			const existingConnections = libp2p.getConnections(peerId);
+			const hasDirectConnection = existingConnections?.some((conn) => {
+				const addr = conn.remoteAddr?.toString() || '';
+				return !addr.includes('/p2p-circuit');
+			});
+
+			if (hasDirectConnection) {
+				console.log('✅ Already have direct connection to:', peerIdShort);
+				return;
+			}
+
+			// Auto-dial if peer connections are enabled (fire-and-forget)
+			if (enablePeerConnections) {
+				console.log('🔗 Auto-dialing peer:', peerIdShort);
+				// Don't await - let dial happen in background
+				// Dial by peerId to let libp2p route through relay and upgrade to direct
+				libp2p
+					.dial(peerId)
+					.then(() => {
+						console.log('✅ Successfully dialed peer:', peerIdShort);
+					})
+					.catch((error) => {
+						console.warn('⚠️ Failed to dial peer:', peerIdShort, error.message);
+					});
 			}
 		});
 
@@ -584,11 +719,156 @@ export async function initializeP2P(preferences = {}) {
 
 		// Create OrbitDB instance
 		console.log('🛬 Creating OrbitDB instance...');
-		orbitdb = await createOrbitDB({
-			ipfs: helia,
-			id: 'simple-todo-app',
-			directory: './orbitdb'
-		});
+
+		// Try to use WebAuthn identity if available and enabled
+		let webauthnCredential = null;
+		let varsigCredential = null;
+		let useVarsig = false;
+		const useWebAuthn = preferences.useWebAuthn !== false; // Default to true
+
+		if (useWebAuthn && isWebAuthnAvailable() && hasExistingCredentials()) {
+			try {
+				if (WebAuthnVarsigProvider.isSupported()) {
+					console.log('🔐 Loading WebAuthn varsig credential...');
+					varsigCredential = loadWebAuthnVarsigCredential();
+					if (varsigCredential) {
+						useVarsig = true;
+						console.log('✅ WebAuthn varsig credential loaded successfully');
+						showToast('🔐 Using hardware-secured identity (varsig)', 'success', 3000);
+					}
+				}
+
+				if (!useVarsig) {
+					console.log('🔐 Loading WebAuthn keystore credential...');
+					webauthnCredential = loadWebAuthnCredential();
+					if (webauthnCredential) {
+						console.log('✅ WebAuthn credential loaded successfully');
+						showToast('🔐 Using WebAuthn-encrypted keystore', 'success', 3000);
+					}
+				}
+			} catch (error) {
+				console.warn('⚠️ Failed to load WebAuthn credential, falling back to default:', error);
+				showToast('⚠️ WebAuthn load failed, using software identity', 'warning', 3000);
+			}
+		}
+
+		let orbitdbCreated = false;
+
+		// Create OrbitDB with WebAuthn varsig identity if available
+		if (useVarsig && varsigCredential) {
+			try {
+				const identity = await getOrCreateVarsigIdentity(varsigCredential);
+				const identityStorage = createIpfsIdentityStorage(helia);
+				const identities = createWebAuthnVarsigIdentitiesWithStorage(
+					identity,
+					identityStorage,
+					varsigCredential
+				);
+
+				console.log('🔍 Created WebAuthn varsig identity:', {
+					id: identity.id,
+					type: identity.type,
+					hash: identity.hash
+				});
+
+				orbitdb = await createOrbitDB({
+					ipfs: helia,
+					identities,
+					identity,
+					id: 'simple-todo-app',
+					directory: './orbitdb'
+				});
+
+				const orbitdbIdentity = orbitdb?.identity;
+				console.log('🔍 OrbitDB identity after varsig init:', {
+					id: orbitdbIdentity?.id,
+					type: orbitdbIdentity?.type,
+					expectedId: identity.id,
+					expectedType: identity.type
+				});
+				if (typeof identity.id === 'string' && !identity.id.startsWith('did:key:')) {
+					throw new Error(`Varsig identity id is not did:key (got "${identity.id}")`);
+				}
+				if (
+					!orbitdbIdentity ||
+					orbitdbIdentity.type !== 'webauthn-varsig' ||
+					orbitdbIdentity.id !== identity.id
+				) {
+					throw new Error('Varsig identity was not applied to OrbitDB (identity mismatch).');
+				}
+
+				orbitdbCreated = true;
+				showToast('✅ Authenticated with hardware-secured identity (varsig)', 'success', 3000);
+			} catch (error) {
+				console.error('❌ Failed to create OrbitDB with varsig identity:', error);
+				showToast(
+					'❌ Varsig identity required but not applied. Initialization stopped.',
+					'error',
+					5000
+				);
+				throw error;
+			}
+		}
+
+		// Create OrbitDB with WebAuthn keystore identity if available
+		if (!orbitdbCreated && !useVarsig && webauthnCredential) {
+			try {
+				// Register WebAuthn provider
+				useIdentityProvider(OrbitDBWebAuthnIdentityProviderFunction);
+
+				// Create identities instance
+				const identities = await Identities({ ipfs: helia });
+
+				// Create WebAuthn identity
+				const identity = await identities.createIdentity({
+					provider: OrbitDBWebAuthnIdentityProviderFunction({
+						webauthnCredential,
+						useKeystoreDID: true,
+						keystore: identities.keystore,
+						keystoreKeyType: 'Ed25519',
+						encryptKeystore: true,
+						keystoreEncryptionMethod: 'prf'
+					})
+				});
+
+				console.log('🔍 Created WebAuthn identity:', {
+					id: identity.id,
+					type: identity.type,
+					hash: identity.hash
+				});
+
+				// Create OrbitDB with WebAuthn identity
+				orbitdb = await createOrbitDB({
+					ipfs: helia,
+					identities,
+					identity,
+					id: 'simple-todo-app',
+					directory: './orbitdb'
+				});
+
+				orbitdbCreated = true;
+				showToast('✅ Authenticated with WebAuthn-encrypted keystore', 'success', 3000);
+			} catch (error) {
+				console.error('❌ Failed to create OrbitDB with WebAuthn identity:', error);
+				showToast('⚠️ WebAuthn failed, using software identity', 'warning', 3000);
+
+				// Fall back to default identity
+				orbitdb = await createOrbitDB({
+					ipfs: helia,
+					id: 'simple-todo-app',
+					directory: './orbitdb'
+				});
+				orbitdbCreated = true;
+			}
+		} else if (!orbitdbCreated) {
+			// Create OrbitDB with default identity
+			orbitdb = await createOrbitDB({
+				ipfs: helia,
+				id: 'simple-todo-app',
+				directory: './orbitdb'
+			});
+			orbitdbCreated = true;
+		}
 
 		// Show toast for OrbitDB creation
 		systemToasts.showOrbitDBCreated();

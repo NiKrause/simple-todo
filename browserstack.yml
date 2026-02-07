@@ -1,0 +1,95 @@
+# =============================
+# Set BrowserStack Credentials
+# =============================
+userName: ${BROWSERSTACK_USERNAME}
+accessKey: ${BROWSERSTACK_ACCESS_KEY}
+
+# ======================
+# BrowserStack Reporting
+# ======================
+projectName: Simple Todo Consent Screen Tests
+buildName: Consent Screen Cross-Browser Tests
+buildIdentifier: '#${BUILD_NUMBER}'
+
+# =======================================
+# Platforms (Browsers / Devices to test)
+# =======================================
+platforms:
+  # - os: Windows
+  #   osVersion: 11
+  #   browserName: chrome
+  #   browserVersion: latest
+  #   # Add explicit channel specification
+  # - os: Windows
+  #   osVersion: 11
+  #   browserName: firefox  # Changed from playwright-firefox
+  #   browserVersion: latest
+  # - os: Windows
+  #   osVersion: 11
+  #   browserName: edge
+  #   browserVersion: latest
+  - os: OS X
+    osVersion: Sequoia
+    browserName: chrome
+    browserVersion: latest
+  - os: OS X
+    osVersion: Sequoia
+    browserName: firefox # Changed from playwright-firefox
+    browserVersion: latest
+  - os: OS X
+    osVersion: Sequoia
+    browserName: safari # Changed from playwright-webkit
+    browserVersion: latest
+  # Linux platform removed - not supported by BrowserStack with Playwright
+  - osVersion: 16.0
+    deviceName: Samsung Galaxy S22
+    browserName: chrome
+    realMobile: true
+  - osVersion: 15.0
+    deviceName: Samsung Galaxy S22
+    browserName: chrome
+    realMobile: true
+  - osVersion: 14.0
+    deviceName: Samsung Galaxy S22
+    browserName: chrome
+    realMobile: true
+  - osVersion: 26
+    deviceName: iPhone 17
+    browserName: safari
+    realMobile: true
+  - osVersion: 18.0 #iPhone 16 2024
+    deviceName: iPhone 16
+    browserName: safari
+    realMobile: true
+
+# =======================
+# Parallels per Platform
+# =======================
+parallelsPerPlatform: 2
+
+# ==========================================
+# BrowserStack Local
+# (For localhost, staging/private websites)
+# ==========================================
+browserstackLocal: false # We're using deployed URL
+
+# ===================
+# Framework & Source
+# ===================
+framework: playwright
+source: simple-todo-consent-tests:v1.0.0
+
+# ===================
+# Test Configuration
+# ===================
+testDir: e2e
+
+# ===================
+# Debugging features
+# ===================
+debug: true
+networkLogs: true
+consoleLogs: errors
+
+# Test Observability
+testObservability: true

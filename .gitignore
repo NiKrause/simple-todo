@@ -17,6 +17,7 @@ p2p-todo-demo
 .wrangler
 /.svelte-kit
 /build
+log/
 
 # OS
 .DS_Store
