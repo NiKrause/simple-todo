@@ -102,9 +102,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24.x'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Set up shared tooling
-        run: pnpm install --frozen-lockfile
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
 
       - name: Link custom domain
         if: inputs.domain != '' || env.ALEPH_SITE_DOMAIN != ''
