@@ -43,7 +43,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
+          node-version: '24.x'
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
@@ -80,7 +80,7 @@ jobs:
           ALEPH_SITE_REF: simple-todo
           ALEPH_SITE_CHANNEL: ALEPH-CLOUDSOLUTIONS
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
-        run: node packages/node/src/site-runner.ts
+        run: node -e "import('./packages/node/src/site-runner.ts').then(m => m.runSiteMode())"
 
   link-domain:
     needs: build-and-deploy
@@ -95,10 +95,16 @@ jobs:
           repository: NiKrause/shared-aleph-tooling
           ref: main
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
       - name: Set up shared tooling
-        run: |
-          corepack enable
-          pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Link custom domain
         if: inputs.domain != '' || env.ALEPH_SITE_DOMAIN != ''
@@ -109,4 +115,4 @@ jobs:
           ALEPH_SITE_DOMAIN: ${{ inputs.domain || secrets.ALEPH_SITE_DOMAIN }}
           ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
-        run: node packages/node/src/site-runner.ts
+        run: node -e "import('./packages/node/src/site-runner.ts').then(m => m.runSiteMode())"
