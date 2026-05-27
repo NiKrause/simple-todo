@@ -86,8 +86,7 @@ jobs:
     needs: build-and-deploy
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      needs.build-and-deploy.outputs.item_hash != '' &&
-      (inputs.domain != '' || secrets.ALEPH_SITE_DOMAIN != '')
+      needs.build-and-deploy.outputs.item_hash != ''
     runs-on: ubuntu-latest
     steps:
       - name: Checkout shared-aleph-tooling
@@ -102,6 +101,7 @@ jobs:
           pnpm install --frozen-lockfile
 
       - name: Link custom domain
+        if: inputs.domain != '' || env.ALEPH_SITE_DOMAIN != ''
         id: domain
         env:
           ALEPH_VM_MODE: site-domain-link

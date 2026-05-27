@@ -1,143 +1,0 @@
-
-
-Tue Aug 19 2025 22:15:46:906 GMT+0200 (CEST) -- Setting output as verbose
-Tue Aug 19 2025 22:15:46:906 GMT+0200 (CEST) -- ***
-Tue Aug 19 2025 22:15:46:906 GMT+0200 (CEST) -- Setting the --only-automate parameter will stop local testing via command line from working with BrowserStack Live and BrowserStack Screenshots.
-Tue Aug 19 2025 22:15:46:906 GMT+0200 (CEST) -- To enable local testing via the command line for Live and Screenshots, rerun BrowserStackLocal without --only-automate.
-Tue Aug 19 2025 22:15:46:907 GMT+0200 (CEST) -- ***
-
-Tue Aug 19 2025 22:15:47:933 GMT+0200 (CEST) -- Starting configuration console on http://localhost:45454
-Tue Aug 19 2025 22:15:49:277 GMT+0200 (CEST) -- [SUCCESS] You can now access your local server(s) in our remote browser
-
-Tue Aug 19 2025 22:15:50:181 GMT+0200 (CEST) -- Connecting to BrowserStack using WebSocket protocol...
-Tue Aug 19 2025 22:15:50:181 GMT+0200 (CEST) -- Platform supports WebSocket connections.
-
-Tue Aug 19 2025 22:15:50:723 GMT+0200 (CEST) -- Connecting to BrowserStack using WebSocket protocol...
-Tue Aug 19 2025 22:15:50:724 GMT+0200 (CEST) -- Platform supports WebSocket connections.
-
-Tue Aug 19 2025 22:15:50:725 GMT+0200 (CEST) -- Press Ctrl-C to exit
-
-
-Wed Aug 20 2025 00:09:41:828 GMT+0200 (CEST) -- 35 repeaters connected out of 30
-Wed Aug 20 2025 00:09:41:829 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:41:830 GMT+0200 (CEST) -- 34 repeaters connected out of 30
-Wed Aug 20 2025 00:09:41:830 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:41:830 GMT+0200 (CEST) -- 33 repeaters connected out of 30
-Wed Aug 20 2025 00:09:41:830 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:41:831 GMT+0200 (CEST) -- 32 repeaters connected out of 30
-Wed Aug 20 2025 00:09:41:831 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:41:832 GMT+0200 (CEST) -- 31 repeaters connected out of 30
-Wed Aug 20 2025 00:09:41:832 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:41:832 GMT+0200 (CEST) -- 30 repeaters connected out of 30
-Wed Aug 20 2025 00:09:41:832 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:41:833 GMT+0200 (CEST) -- 29 repeaters connected out of 30
-Wed Aug 20 2025 00:09:41:833 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:41:882 GMT+0200 (CEST) -- Connecting to BrowserStack using WebSocket protocol...
-Wed Aug 20 2025 00:09:41:883 GMT+0200 (CEST) -- Platform supports WebSocket connections.
-
-Wed Aug 20 2025 00:09:42:247 GMT+0200 (CEST) -- 33 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:247 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:251 GMT+0200 (CEST) -- 32 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:251 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:252 GMT+0200 (CEST) -- 31 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:252 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:254 GMT+0200 (CEST) -- 30 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:254 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:254 GMT+0200 (CEST) -- 29 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:254 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:255 GMT+0200 (CEST) -- 28 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:255 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:255 GMT+0200 (CEST) -- 27 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:256 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:257 GMT+0200 (CEST) -- 26 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:257 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:260 GMT+0200 (CEST) -- 25 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:260 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:260 GMT+0200 (CEST) -- 24 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:260 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:260 GMT+0200 (CEST) -- 23 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:260 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:260 GMT+0200 (CEST) -- 22 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:260 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:458 GMT+0200 (CEST) -- 34 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:459 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:464 GMT+0200 (CEST) -- 35 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:464 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:568 GMT+0200 (CEST) -- 37 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:568 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:573 GMT+0200 (CEST) -- 36 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:573 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:576 GMT+0200 (CEST) -- 35 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:576 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:578 GMT+0200 (CEST) -- 34 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:578 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:581 GMT+0200 (CEST) -- 33 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:581 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:583 GMT+0200 (CEST) -- 32 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:583 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:583 GMT+0200 (CEST) -- 31 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:583 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:585 GMT+0200 (CEST) -- 30 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:585 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:585 GMT+0200 (CEST) -- 29 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:585 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:586 GMT+0200 (CEST) -- 28 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:586 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:587 GMT+0200 (CEST) -- 27 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:587 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:587 GMT+0200 (CEST) -- 26 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:587 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:587 GMT+0200 (CEST) -- 25 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:587 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:588 GMT+0200 (CEST) -- 24 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:588 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:588 GMT+0200 (CEST) -- 23 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:588 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:725 GMT+0200 (CEST) -- 23 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:725 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:731 GMT+0200 (CEST) -- 22 repeaters connected out of 30
-Wed Aug 20 2025 00:09:42:731 GMT+0200 (CEST) -- Connection closed by remote host.
-Wed Aug 20 2025 00:09:42:854 GMT+0200 (CEST) -- Connecting to BrowserStack using WebSocket protocol...
-Wed Aug 20 2025 00:09:42:854 GMT+0200 (CEST) -- Platform supports WebSocket connections.
-
-Wed Aug 20 2025 00:09:43:152 GMT+0200 (CEST) -- Connecting to BrowserStack using WebSocket protocol...
-Wed Aug 20 2025 00:09:43:152 GMT+0200 (CEST) -- Platform supports WebSocket connections.
-
-Wed Aug 20 2025 00:25:02:674 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:674 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:02:719 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:719 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:02:751 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:751 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:02:771 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:771 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:02:802 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:802 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:02:855 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:855 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:02:888 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:888 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:02:916 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:916 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:02:918 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:918 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:02:932 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:932 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:02:946 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:946 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:02:951 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:951 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:02:963 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:964 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:02:989 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:02:989 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:03:1 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:03:1 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:03:7 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:03:7 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:03:52 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:03:52 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:03:62 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:03:62 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
-Wed Aug 20 2025 00:25:03:233 GMT+0200 (CEST) --        
-Wed Aug 20 2025 00:25:03:233 GMT+0200 (CEST) -- You can learn more about BrowserStack Binary flags by running ./BrowserStackLocal --help
