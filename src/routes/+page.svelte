@@ -12,8 +12,8 @@
 	import TodoList from '$lib/TodoList.svelte';
 	import ConnectedPeers from '$lib/ConnectedPeers.svelte';
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
-	import StorachaIntegration from '$lib/StorachaIntegration.svelte';
 	import { libp2pStore } from '$lib/p2p.js';
+	import SponsorRelayFab from '@le-space/ui/svelte';
 
 	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
 
@@ -201,7 +201,14 @@
 			<PeerIdCard peerId={myPeerId} />
 		</div>
 
-		<!-- Storacha Integration -->
-		<StorachaIntegration />
 	{/if}
 </main>
+
+<!-- Floating Sponsor Relay FAB -->
+{#if $libp2pStore}
+	<SponsorRelayFab
+		libp2p={$libp2pStore}
+		manifestUrl="./rootfs-manifest.json"
+		showInstances={true}
+	/>
+{/if}

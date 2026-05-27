@@ -58,6 +58,7 @@
 		]
 	},
 	"dependencies": {
+		"@le-space/ui": "^0.2.0",
 		"@chainsafe/libp2p-gossipsub": "^14.1.1",
 		"@chainsafe/libp2p-noise": "^16.1.4",
 		"@chainsafe/libp2p-yamux": "^7.0.4",
@@ -72,10 +73,6 @@
 		"@libp2p/webrtc": "^5.2.23",
 		"@libp2p/websockets": "^9.2.18",
 		"@orbitdb/core": "^3.0.2",
-		"@ucanto/core": "^10.4.0",
-		"@ucanto/principal": "^9.0.2",
-		"@web3-storage/capabilities": "^18.1.0",
-		"@web3-storage/w3up-client": "^17.2.0",
 		"buffer": "^6.0.3",
 		"helia": "^5.5.0",
 		"libp2p": "^2.9.0",

@@ -1,0 +1,112 @@
+name: Build & Deploy to Aleph IPFS
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      relay_bootstrap_addr:
+        description: >-
+          Override relay bootstrap multiaddr(s) for production build.
+          Comma-separated. Leave empty to use the default from .env.example.
+        required: false
+        default: ''
+      domain:
+        description: >-
+          Aleph custom domain to link (e.g. simple-todo.le-space.de).
+          Leave empty to skip domain linking.
+        required: false
+        default: ''
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    outputs:
+      ipfs_cid_v0: ${{ steps.publish.outputs.ipfs_cid_v0 }}
+      ipfs_cid_v1: ${{ steps.publish.outputs.ipfs_cid_v1 }}
+      item_hash: ${{ steps.publish.outputs.item_hash }}
+      url: ${{ steps.publish.outputs.url }}
+    steps:
+      - name: Checkout simple-todo
+        uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        env:
+          VITE_RELAY_BOOTSTRAP_ADDR_PROD: ${{ inputs.relay_bootstrap_addr || secrets.RELAY_BOOTSTRAP_ADDR_PROD || '' }}
+          VITE_NODE_ENV: production
+        run: pnpm build
+
+      - name: Checkout shared-aleph-tooling
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v4
+        with:
+          repository: NiKrause/shared-aleph-tooling
+          ref: main
+          path: shared-aleph-tooling
+
+      - name: Set up shared tooling
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        working-directory: shared-aleph-tooling
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Publish to Aleph IPFS
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        id: publish
+        working-directory: shared-aleph-tooling
+        env:
+          ALEPH_VM_MODE: site-publish
+          ALEPH_SITE_DIRECTORY: ${{ github.workspace }}/build
+          ALEPH_SITE_PIN: 'true'
+          ALEPH_SITE_REF: simple-todo
+          ALEPH_SITE_CHANNEL: ALEPH-CLOUDSOLUTIONS
+          ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
+        run: node packages/node/src/site-runner.ts
+
+  link-domain:
+    needs: build-and-deploy
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.build-and-deploy.outputs.item_hash != '' &&
+      (inputs.domain != '' || secrets.ALEPH_SITE_DOMAIN != '')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout shared-aleph-tooling
+        uses: actions/checkout@v4
+        with:
+          repository: NiKrause/shared-aleph-tooling
+          ref: main
+
+      - name: Set up shared tooling
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Link custom domain
+        id: domain
+        env:
+          ALEPH_VM_MODE: site-domain-link
+          ALEPH_SITE_ITEM_HASH: ${{ needs.build-and-deploy.outputs.item_hash }}
+          ALEPH_SITE_DOMAIN: ${{ inputs.domain || secrets.ALEPH_SITE_DOMAIN }}
+          ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
+          ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
+        run: node packages/node/src/site-runner.ts
