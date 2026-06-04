@@ -2,10 +2,14 @@
 	export let message = 'Loading...';
 	export let submessage = '';
 	export let version = '';
+	/** @type {'small' | 'medium' | 'large'} */
 	export let size = 'medium'; // 'small', 'medium', 'large'
 
 	$: spinnerClasses = getSpinnerClasses(size);
 
+	/**
+	 * @param {'small' | 'medium' | 'large'} size
+	 */
 	function getSpinnerClasses(size) {
 		switch (size) {
 			case 'small':

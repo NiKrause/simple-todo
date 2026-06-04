@@ -5,12 +5,13 @@
 
 <div class="flex space-x-3 {className}">
 	<!-- GitHub -->
-	<a
-		href="https://github.com/NiKrause/simple-todo"
-		target="_blank"
-		rel="noopener noreferrer"
-		class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-900"
-		title="GitHub (/NiKrause/simple-todo)"
+		<a
+			href="https://github.com/NiKrause/simple-todo"
+			target="_blank"
+			rel="noopener noreferrer"
+			aria-label="GitHub"
+			class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-900"
+			title="GitHub (/NiKrause/simple-todo)"
 	>
 		<svg class={size} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 			<path
@@ -22,12 +23,13 @@
 	</a>
 
 	<!-- Twitter/X -->
-	<a
-		href="https://twitter.com/NicoKrauseX"
-		target="_blank"
-		rel="noopener noreferrer"
-		class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-blue-500"
-		title="X (@NicoKrauseX)"
+		<a
+			href="https://twitter.com/NicoKrauseX"
+			target="_blank"
+			rel="noopener noreferrer"
+			aria-label="X"
+			class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-blue-500"
+			title="X (@NicoKrauseX)"
 	>
 		<svg class={size} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 			<path
@@ -37,12 +39,13 @@
 	</a>
 
 	<!-- LinkedIn -->
-	<a
-		href="https://linkedin.com/in/nicokrause"
-		target="_blank"
-		rel="noopener noreferrer"
-		class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-blue-700"
-		title="LinkedIn (/in/nicokrause)"
+		<a
+			href="https://linkedin.com/in/nicokrause"
+			target="_blank"
+			rel="noopener noreferrer"
+			aria-label="LinkedIn"
+			class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-blue-700"
+			title="LinkedIn (/in/nicokrause)"
 	>
 		<svg class={size} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 			<path

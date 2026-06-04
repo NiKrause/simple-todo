@@ -15,16 +15,26 @@
 	import { libp2pStore } from '$lib/p2p.js';
 	import SponsorRelayFab from '@le-space/ui/svelte';
 
+	/** @typedef {'default' | 'success' | 'error' | 'warning'} ToastType */
+	/** @typedef {{ detail: { text: string } }} AddTodoEvent */
+	/** @typedef {{ detail: { key: string } }} TodoActionEvent */
+	/** @typedef {{ label: string, checked: boolean }} ConsentCheckbox */
+
 	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
 
+	/** @type {string | null} */
 	let toastMessage = null;
+	/** @type {ToastType} */
 	let toastType = 'default';
+	/** @type {string | null} */
 	let error = null;
+	/** @type {string | null} */
 	let myPeerId = null;
 
 	// Modal state
 	let showModal = true;
 	let rememberDecision = false;
+	/** @type {{ relayConnection: ConsentCheckbox, dataVisibility: ConsentCheckbox, globalDatabase: ConsentCheckbox, replicationTesting: ConsentCheckbox }} */
 	let checkboxes = {
 		relayConnection: {
 			label:
@@ -57,13 +67,13 @@
 		} catch {
 			// ignore storage errors
 		}
-		try {
-			await initializeP2P();
-		} catch (err) {
-			error = `Failed to initialize P2P: ${err.message}`;
-			console.error('P2P initialization failed:', err);
-		}
-	};
+			try {
+				await initializeP2P();
+			} catch (err) {
+				error = `Failed to initialize P2P: ${err instanceof Error ? err.message : String(err)}`;
+				console.error('P2P initialization failed:', err);
+			}
+		};
 
 	onMount(async () => {
 		try {
@@ -76,6 +86,10 @@
 		}
 	});
 
+	/**
+	 * @param {string} message
+	 * @param {ToastType} [type='default']
+	 */
 	function showToast(message, type = 'default') {
 		toastMessage = message;
 		toastType = type;
@@ -84,6 +98,9 @@
 		}, 3000);
 	}
 
+	/**
+	 * @param {AddTodoEvent} event
+	 */
 	const handleAddTodo = async (event) => {
 		const success = await addTodo(event.detail.text);
 		if (success) {
@@ -93,6 +110,9 @@
 		}
 	};
 
+	/**
+	 * @param {TodoActionEvent} event
+	 */
 	const handleDelete = async (event) => {
 		const success = await deleteTodo(event.detail.key);
 		if (success) {
@@ -102,6 +122,9 @@
 		}
 	};
 
+	/**
+	 * @param {TodoActionEvent} event
+	 */
 	const handleToggleComplete = async (event) => {
 		const success = await toggleTodoComplete(event.detail.key);
 		if (success) {

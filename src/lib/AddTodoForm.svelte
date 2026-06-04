@@ -18,6 +18,9 @@
 		inputText = '';
 	}
 
+	/**
+	 * @param {KeyboardEvent} event
+	 */
 	function handleKeydown(event) {
 		if (event.key === 'Enter') {
 			handleSubmit();

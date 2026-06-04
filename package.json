@@ -53,13 +53,14 @@
 		]
 	},
 	"dependencies": {
-		"@le-space/ui": "^0.2.0",
 		"@chainsafe/libp2p-gossipsub": "^14.1.1",
 		"@chainsafe/libp2p-noise": "^16.1.4",
 		"@chainsafe/libp2p-yamux": "^7.0.4",
 		"@ipld/dag-cbor": "^9.2.1",
+		"@le-space/aleph-bootstrap": "^0.3.3",
+		"@le-space/ui": "^0.3.3",
 		"@libp2p/autonat": "^2.0.37",
-		"@libp2p/bootstrap": "^11.0.46",
+		"@libp2p/bootstrap": "^11.0.47",
 		"@libp2p/circuit-relay-v2": "^3.2.23",
 		"@libp2p/crypto": "^5.1.7",
 		"@libp2p/dcutr": "^2.0.37",

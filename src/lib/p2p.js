@@ -7,22 +7,22 @@ import { createLibp2pConfig } from './libp2p-config.js';
 import { initializeDatabase } from './db-actions.js';
 
 // Export libp2p instance for plugins
-export const libp2pStore = writable(null);
-export const peerIdStore = writable(null);
+export const libp2pStore = writable(/** @type {any} */ (null));
+export const peerIdStore = writable(/** @type {string | null} */ (null));
 
 // Add initialization state store
-export const initializationStore = writable({
+export const initializationStore = writable(/** @type {{ isInitializing: boolean, isInitialized: boolean, error: string | null }} */ ({
 	isInitializing: false,
 	isInitialized: false,
 	error: null
-});
+}));
 
-let libp2p = null;
-let helia = null;
-let orbitdb = null;
+let libp2p = /** @type {any} */ (null);
+let helia = /** @type {any} */ (null);
+let orbitdb = /** @type {any} */ (null);
 
-let peerId = null;
-let todoDB = null;
+let peerId = /** @type {string | null} */ (null);
+let todoDB = /** @type {any} */ (null);
 
 /**
  * Initialize the P2P network after user consent
@@ -72,13 +72,13 @@ export async function initializeP2P() {
 		// Mark initialization as complete
 		initializationStore.set({ isInitializing: false, isInitialized: true, error: null });
 		console.log('🎉 P2P initialization completed successfully!');
-	} catch (error) {
-		console.error('❌ Failed to initialize P2P:', error);
-		initializationStore.set({
-			isInitializing: false,
-			isInitialized: false,
-			error: error.message
-		});
-		throw error;
+		} catch (error) {
+			console.error('❌ Failed to initialize P2P:', error);
+			initializationStore.set({
+				isInitializing: false,
+				isInitialized: false,
+				error: error instanceof Error ? error.message : String(error)
+			});
+			throw error;
+		}
 	}
-}

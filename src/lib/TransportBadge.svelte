@@ -1,8 +1,12 @@
 <script>
+	/** @type {string} */
 	export let transport = '';
 
 	$: badgeConfig = getBadgeConfig(transport);
 
+	/**
+	 * @param {string} transport
+	 */
 	function getBadgeConfig(transport) {
 		switch (transport) {
 			case 'webrtc':
