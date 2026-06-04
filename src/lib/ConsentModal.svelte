@@ -21,7 +21,13 @@
 		'The relay server may cache your entered data, making it visible to other users in the internet',
 		'For decentralization purposes, this web app is hosted on the IPFS network'
 	];
-	export let checkboxes = {
+		/** @type {{
+		 *   relayConnection: { label: string, checked: boolean },
+		 *   dataVisibility: { label: string, checked: boolean },
+		 *   globalDatabase: { label: string, checked: boolean },
+		 *   replicationTesting: { label: string, checked: boolean }
+		 * }} */
+		export let checkboxes = {
 		relayConnection: {
 			label:
 				'I understand that this todo application is a demo app and will connect to a relay node and other browser or mobile devices directly running this app',
@@ -58,7 +64,11 @@
 		}
 	};
 
-	const handleCheckboxChange = (key, checked) => {
+		/**
+		 * @param {'relayConnection' | 'dataVisibility' | 'globalDatabase' | 'replicationTesting'} key
+		 * @param {boolean} checked
+		 */
+		const handleCheckboxChange = (key, checked) => {
 		if (checkboxes[key]) {
 			checkboxes[key].checked = checked;
 			checkboxes = { ...checkboxes };
@@ -98,7 +108,10 @@
 								on:click={(e) => {
 									const target = e.target;
 									if (target && target instanceof HTMLInputElement) {
-										handleCheckboxChange(key, target.checked);
+										handleCheckboxChange(
+											/** @type {'relayConnection' | 'dataVisibility' | 'globalDatabase' | 'replicationTesting'} */ (key),
+											target.checked
+										);
 									}
 								}}
 								class="mt-1 h-4 w-4 rounded text-blue-600 focus:ring-blue-500"

@@ -1,6 +1,7 @@
 <script>
 	import { formatPeerId } from './utils.js';
 
+	/** @type {string | null | undefined} */
 	export let peerId = null;
 	export let title = 'My Peer ID';
 	export let description = 'Share this ID with others to assign TODOs to you.';
@@ -25,6 +26,9 @@
 		}
 	}
 
+	/**
+	 * @param {string} text
+	 */
 	function fallbackCopyToClipboard(text) {
 		const textArea = document.createElement('textarea');
 		textArea.value = text;

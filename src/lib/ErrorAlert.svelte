@@ -1,5 +1,7 @@
 <script>
+	/** @type {string | null} */
 	export let error = null;
+	/** @type {'error' | 'warning' | 'info'} */
 	export let type = 'error'; // 'error', 'warning', 'info'
 	export let dismissible = false;
 	export let title = '';
@@ -9,6 +11,9 @@
 	$: alertClasses = getAlertClasses(type);
 	$: if (error) visible = true;
 
+	/**
+	 * @param {'error' | 'warning' | 'info'} type
+	 */
 	function getAlertClasses(type) {
 		const baseClasses = 'px-4 py-3 rounded mb-4 border';
 

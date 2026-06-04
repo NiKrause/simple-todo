@@ -2,16 +2,25 @@
 	import { createEventDispatcher } from 'svelte';
 	import TodoItem from './TodoItem.svelte';
 
+	/** @typedef {{ id: string, text: string, completed: boolean, assignee: string | null, createdBy: string, key: string }} TodoItemData */
+
+	/** @type {TodoItemData[]} */
 	export let todos = [];
 	export let title = 'TODO Items';
 	export let emptyMessage = 'No TODOs yet. Add one above!';
 
 	const dispatch = createEventDispatcher();
 
+	/**
+	 * @param {CustomEvent<{ key: string }>} event
+	 */
 	function handleDelete(event) {
 		dispatch('delete', event.detail);
 	}
 
+	/**
+	 * @param {CustomEvent<{ key: string }>} event
+	 */
 	function handleToggleComplete(event) {
 		dispatch('toggleComplete', event.detail);
 	}

@@ -1,17 +1,68 @@
 import { writable, derived, get } from 'svelte/store';
 import { peerIdStore } from './p2p.js';
 
+/**
+ * @typedef {{
+ *   text: string
+ *   completed: boolean
+ *   createdBy: string
+ *   assignee: string | null
+ *   createdAt: string
+ *   updatedAt: string
+ * }} TodoValue
+ */
+
+/**
+ * @typedef {TodoValue & {
+ *   id: string
+ *   key: string
+ * }} TodoItem
+ */
+
+/**
+ * @typedef {{
+ *   hash: string
+ *   key: string
+ *   value: TodoValue
+ * }} TodoRecord
+ */
+
+/**
+ * @typedef {{
+ *   all: () => Promise<TodoRecord[]>
+ *   get: (key: string) => Promise<TodoRecord | TodoValue | null | undefined>
+ *   put: (key: string, value: TodoValue) => Promise<unknown>
+ *   del: (key: string) => Promise<unknown>
+ *   drop: () => Promise<unknown>
+ *   events: {
+ *     on: (event: string, handler: (...args: any[]) => void | Promise<void>) => void
+ *   }
+ * }} TodoDatabase
+ */
+
+/**
+ * @param {TodoValue | TodoRecord} record
+ * @returns {TodoValue}
+ */
+function unwrapTodoValue(record) {
+	return 'value' in record ? record.value : record;
+}
+
 // Store for OrbitDB instances
-export const orbitdbStore = writable(null);
-export const todoDBStore = writable(null);
+export const orbitdbStore = writable(/** @type {any} */ (null));
+export const todoDBStore = writable(/** @type {TodoDatabase | null} */ (null));
 
 // Store for todos
-export const todosStore = writable([]);
+export const todosStore = writable(/** @type {TodoItem[]} */ ([]));
 
 // Derived store that updates when todos change
 export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
 
 // Initialize database and load existing todos
+/**
+ * @param {any} orbitdb
+ * @param {TodoDatabase} todoDB
+ */
 export async function initializeDatabase(orbitdb, todoDB) {
 	orbitdbStore.set(orbitdb);
 	todoDBStore.set(todoDB);
@@ -33,21 +84,22 @@ async function loadTodos() {
 		console.log('🔍 Raw database entries:', allTodos); // Add this debug log
 
 		// Handle both array and object structures
-		let todosArray;
-		todosArray = allTodos.map((todo) => {
-			return {
-				id: todo.hash,
-				key: todo.key,
+			/** @type {TodoItem[]} */
+			let todosArray;
+			todosArray = allTodos.map((/** @type {TodoRecord} */ todo) => {
+				return {
+					id: todo.hash,
+					key: todo.key,
 				...todo.value // Access the nested value property
 			};
 		});
 
 		// Sort by createdAt descending (newest first)
-		const sortedTodos = todosArray.sort((a, b) => {
-			const dateA = new Date(a.createdAt || 0);
-			const dateB = new Date(b.createdAt || 0);
-			return dateB - dateA;
-		});
+			const sortedTodos = todosArray.sort((/** @type {TodoItem} */ a, /** @type {TodoItem} */ b) => {
+				const dateA = new Date(a.createdAt || 0).getTime();
+				const dateB = new Date(b.createdAt || 0).getTime();
+				return dateB - dateA;
+			});
 
 		todosStore.set(sortedTodos);
 		console.log('todos', sortedTodos);
@@ -58,23 +110,30 @@ async function loadTodos() {
 }
 
 // Set up database event listeners
+/**
+ * @param {TodoDatabase} todoDB
+ */
 function setupDatabaseListeners(todoDB) {
 	if (!todoDB) return;
 
 	// Listen for new entries being added
-	todoDB.events.on('join', async (address, entry) => {
+	todoDB.events.on('join', async (_address, entry) => {
 		console.log('📝 New entry added:', entry);
 		await loadTodos();
 	});
 
 	// Listen for entries being updated
-	todoDB.events.on('update', async (address, entry) => {
+	todoDB.events.on('update', async (_address, entry) => {
 		console.log('🔄 Entry updated:', entry);
 		await loadTodos();
 	});
 }
 
 // Add a new todo
+/**
+ * @param {string} text
+ * @param {string | null} [assignee=null]
+ */
 export async function addTodo(text, assignee = null) {
 	const todoDB = get(todoDBStore);
 	const myPeerId = get(peerIdStore);
@@ -91,7 +150,8 @@ export async function addTodo(text, assignee = null) {
 
 	try {
 		const todoId = `todo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-		const todo = {
+			/** @type {TodoValue} */
+			const todo = {
 			text: text.trim(),
 			completed: false,
 			createdBy: myPeerId,
@@ -110,6 +170,9 @@ export async function addTodo(text, assignee = null) {
 }
 
 // Delete a todo
+/**
+ * @param {string | number} todoId
+ */
 export async function deleteTodo(todoId) {
 	const todoDB = get(todoDBStore);
 
@@ -125,7 +188,7 @@ export async function deleteTodo(todoId) {
 			// Get all todos to find the correct database key
 			const allTodos = await todoDB.all();
 			if (Array.isArray(allTodos)) {
-				const todo = allTodos[parseInt(todoId)];
+					const todo = allTodos[parseInt(String(todoId), 10)];
 				if (todo && todo.key) {
 					actualTodoId = todo.key; // Use the key, not the hash
 					console.log('🔍 Converted array index', todoId, 'to key:', actualTodoId);
@@ -134,7 +197,7 @@ export async function deleteTodo(todoId) {
 		}
 
 		// Delete the todo using the correct key
-		await todoDB.del(actualTodoId);
+			await todoDB.del(String(actualTodoId));
 		console.log('🗑️ Todo deleted:', todoId, 'actual key:', actualTodoId);
 
 		// Force a reload to ensure the UI is updated
@@ -148,6 +211,9 @@ export async function deleteTodo(todoId) {
 }
 
 // Toggle todo completion status
+/**
+ * @param {string | number} todoId
+ */
 export async function toggleTodoComplete(todoId) {
 	const todoDB = get(todoDBStore);
 
@@ -165,7 +231,7 @@ export async function toggleTodoComplete(todoId) {
 			// Get all todos to find the correct database key
 			const allTodos = await todoDB.all();
 			if (Array.isArray(allTodos)) {
-				const todo = allTodos[parseInt(todoId)];
+					const todo = allTodos[parseInt(String(todoId), 10)];
 				if (todo && todo.hash) {
 					actualTodoId = todo.hash;
 					console.log('🔍 Converted array index', todoId, 'to hash:', actualTodoId);
@@ -173,7 +239,7 @@ export async function toggleTodoComplete(todoId) {
 			}
 		}
 
-		const existingTodo = await todoDB.get(actualTodoId);
+			const existingTodo = await todoDB.get(String(actualTodoId));
 		console.log('🔍 Retrieved todo from database:', existingTodo); // Add this debug log
 
 		if (!existingTodo) {
@@ -185,7 +251,7 @@ export async function toggleTodoComplete(todoId) {
 		}
 
 		// Access the nested value property for the todo data
-		const todoData = existingTodo.value || existingTodo;
+			const todoData = unwrapTodoValue(existingTodo);
 		const currentCompleted = todoData.completed || false;
 
 		const updatedTodo = {
@@ -194,7 +260,7 @@ export async function toggleTodoComplete(todoId) {
 			updatedAt: new Date().toISOString()
 		};
 
-		await todoDB.put(actualTodoId, updatedTodo);
+			await todoDB.put(String(actualTodoId), updatedTodo);
 		console.log('✅ Todo toggled:', todoId, updatedTodo.completed);
 		return true;
 	} catch (error) {
@@ -204,6 +270,10 @@ export async function toggleTodoComplete(todoId) {
 }
 
 // Update todo assignee
+/**
+ * @param {string} todoId
+ * @param {string | null} assignee
+ */
 export async function updateTodoAssignee(todoId, assignee) {
 	const todoDB = get(todoDBStore);
 
@@ -220,7 +290,7 @@ export async function updateTodoAssignee(todoId, assignee) {
 		}
 
 		// Access the nested value property for the todo data
-		const todoData = existingTodo.value || existingTodo;
+			const todoData = unwrapTodoValue(existingTodo);
 
 		const updatedTodo = {
 			...todoData,
@@ -238,16 +308,25 @@ export async function updateTodoAssignee(todoId, assignee) {
 }
 
 // Get todos by assignee
+/**
+ * @param {string | null} assignee
+ */
 export function getTodosByAssignee(assignee) {
 	return derived(todosStore, ($todos) => $todos.filter((todo) => todo.assignee === assignee));
 }
 
 // Get todos by completion status
+/**
+ * @param {boolean} completed
+ */
 export function getTodosByStatus(completed) {
 	return derived(todosStore, ($todos) => $todos.filter((todo) => todo.completed === completed));
 }
 
 // Get todos created by a specific peer
+/**
+ * @param {string} creatorId
+ */
 export function getTodosByCreator(creatorId) {
 	return derived(todosStore, ($todos) => $todos.filter((todo) => todo.createdBy === creatorId));
 }
@@ -287,6 +366,7 @@ export async function deleteCurrentDatabase() {
 
 // Make the function available globally for browser console access
 if (typeof window !== 'undefined') {
-	window.deleteCurrentDatabase = deleteCurrentDatabase;
+	/** @type {Window & typeof globalThis & { deleteCurrentDatabase?: typeof deleteCurrentDatabase }} */ (window).deleteCurrentDatabase =
+		deleteCurrentDatabase;
 	console.log('🔧 deleteCurrentDatabase function is now available in browser console');
 }

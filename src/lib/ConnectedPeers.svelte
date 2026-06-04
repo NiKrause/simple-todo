@@ -4,7 +4,14 @@
 	import { formatPeerId } from './utils.js';
 	import TransportBadge from './TransportBadge.svelte';
 
+	/**
+	 * @typedef {{ peerId: string, transports: string[] }} PeerEntry
+	 * @typedef {{ peerId: string, transports: string[], multiaddrs: any[] }} DiscoveredPeerInfo
+	 * @typedef {{ event: string, handler: (event: Event) => void | Promise<void> }} EventListenerEntry
+	 */
+
 	// Plugin interface - only needs libp2p instance
+	/** @type {any} */
 	export let libp2p = null;
 	export let title = 'Connected Peers';
 	export let emptyMessage = 'No peers connected yet.';
@@ -12,7 +19,8 @@
 	export let autoConnect = true;
 
 	// Internal state - completely self-contained
-	const peers = writable([]);
+	const peers = writable(/** @type {PeerEntry[]} */ ([]));
+	/** @type {PeerEntry[]} */
 	let currentPeers = [];
 	peers.subscribe((p) => (currentPeers = p));
 
@@ -21,6 +29,7 @@
 	const discoveredPeersInfo = new Map();
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const peerConnectionTransports = new Map();
+	/** @type {EventListenerEntry[]} */
 	let eventListeners = [];
 
 	// Initialize when libp2p instance is provided
@@ -47,7 +56,7 @@
 		console.log('🔍 Checking for existing connections...');
 		const allConnections = libp2p.getConnections();
 
-		allConnections.forEach((connection) => {
+		allConnections.forEach((/** @type {any} */ connection) => {
 			const peerIdStr = connection.remotePeer.toString();
 
 			// Skip if already in our peers list
@@ -79,9 +88,12 @@
 
 	function setupPeerDiscoveryHandlers() {
 		// Handle peer discovery events
+		/** @type {(event: Event) => Promise<void>} */
 		const onPeerDiscovery = async (event) => {
-			const { id: peerId, multiaddrs } = event.detail;
+			const customEvent = /** @type {CustomEvent<{ id?: { toString(): string }, multiaddrs: any[] }>} */ (event);
+			const { id: peerId, multiaddrs } = customEvent.detail;
 			const peerIdStr = peerId?.toString();
+			if (!peerIdStr) return;
 
 			console.log('🔍 Peer discovered:', formatPeerId(peerIdStr));
 
@@ -111,15 +123,20 @@
 				try {
 					await libp2p.dial(peerId);
 				} catch (error) {
-					console.warn('❌ Failed to connect to peer:', formatPeerId(peerIdStr), error.message);
+					console.warn(
+						'❌ Failed to connect to peer:',
+						formatPeerId(peerIdStr),
+						error instanceof Error ? error.message : String(error)
+					);
 					discoveredPeersInfo.delete(peerIdStr);
 				}
 			}
 		};
 
 		// Handle successful connections
+		/** @type {EventListener} */
 		const onPeerConnect = (event) => {
-			const peerId = event.detail;
+			const peerId = /** @type {CustomEvent<any>} */ (event).detail;
 			const peerIdStr = peerId?.toString();
 
 			if (!peerIdStr) return;
@@ -136,8 +153,10 @@
 		};
 
 		// Handle disconnections
+		/** @type {EventListener} */
 		const onPeerDisconnect = (event) => {
-			const peerId = event.detail.id || event.detail;
+			const detail = /** @type {CustomEvent<any>} */ (event).detail;
+			const peerId = detail.id || detail;
 			const peerIdStr = peerId?.toString();
 
 			if (!peerIdStr) return;
@@ -148,8 +167,9 @@
 		};
 
 		// Handle connection events for transport tracking
+		/** @type {EventListener} */
 		const onConnectionOpen = (event) => {
-			const connection = event.detail;
+			const connection = /** @type {CustomEvent<any>} */ (event).detail;
 			const peerIdStr = connection.remotePeer?.toString();
 
 			if (!peerIdStr) return;
@@ -165,8 +185,9 @@
 			}
 		};
 
+		/** @type {EventListener} */
 		const onConnectionClose = (event) => {
-			const connection = event.detail;
+			const connection = /** @type {CustomEvent<any>} */ (event).detail;
 			const peerIdStr = connection.remotePeer?.toString();
 
 			if (!peerIdStr) return;
@@ -201,11 +222,14 @@
 	}
 
 	// Helper functions (moved from p2p.js)
+	/**
+	 * @param {any[]} multiaddrs
+	 */
 	function extractTransportsFromMultiaddrs(multiaddrs) {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const transports = new Set();
 
-		multiaddrs.forEach((multiaddr) => {
+		multiaddrs.forEach((/** @type {any} */ multiaddr) => {
 			const addrStr = multiaddr.toString();
 
 			if (addrStr.includes('/webrtc')) transports.add('webrtc');
@@ -217,6 +241,9 @@
 		return Array.from(transports);
 	}
 
+	/**
+	 * @param {any} connection
+	 */
 	function extractTransportsFromConnection(connection) {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const transports = new Set();
@@ -243,6 +270,9 @@
 		return Array.from(transports);
 	}
 
+	/**
+	 * @param {string} peerIdStr
+	 */
 	function updatePeerTransports(peerIdStr) {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const allTransports = new Set();
@@ -259,7 +289,8 @@
 		peers.update((peers) => {
 			const peerIndex = peers.findIndex((peer) => peer.peerId === peerIdStr);
 			if (peerIndex !== -1) {
-				const updatedPeers = [...peers];
+					/** @type {PeerEntry[]} */
+					const updatedPeers = [...peers];
 				updatedPeers[peerIndex] = {
 					...updatedPeers[peerIndex],
 					transports: Array.from(allTransports)
@@ -271,13 +302,19 @@
 	}
 
 	// Public API for external control
+	/**
+	 * @param {string} peerId
+	 */
 	export function disconnectPeer(peerId) {
 		if (!libp2p) return;
 
 		const connections = libp2p.getConnections(peerId);
-		connections.forEach((conn) => conn.close());
+		connections.forEach((/** @type {any} */ conn) => conn.close());
 	}
 
+	/**
+	 * @param {string} peerId
+	 */
 	export function reconnectPeer(peerId) {
 		if (!libp2p) return;
 

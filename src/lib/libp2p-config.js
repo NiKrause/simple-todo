@@ -10,6 +10,7 @@ import { autoNAT } from '@libp2p/autonat';
 import { gossipsub } from '@chainsafe/libp2p-gossipsub';
 import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
 import { bootstrap } from '@libp2p/bootstrap';
+import { discoverAlephBootstrapMultiaddrs } from '@le-space/aleph-bootstrap';
 import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
 import * as filters from '@libp2p/websockets/filters';
@@ -23,16 +24,20 @@ const RELAY_BOOTSTRAP_ADDR_PROD =
 	'/dns4/91-99-67-170.k51qzi5uqu5dl6dk0zoaocksijnghdrkxir5m4yfcodish4df6re6v3wbl6njf.libp2p.direct/tcp/4002/wss/p2p/12D3KooWPJYEZSwfmRL9SHehYAeQKEbCvzFu7vtKWb6jQfMSMb8W';
 const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discovery._p2p._pubsub')
 	.split(',')
-	.map((t) => t.trim());
+	.map((/** @type {string} */ t) => t.trim());
 
 // Determine which relay address to use based on environment
 const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development';
 console.log('isDevelopment', isDevelopment);
 const RELAY_BOOTSTRAP_ADDR = (isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_BOOTSTRAP_ADDR_PROD)
 	.split(',')
-	.map((addr) => addr.trim());
+	.map((/** @type {string} */ addr) => addr.trim());
 console.log('RELAY_BOOTSTRAP_ADDR', RELAY_BOOTSTRAP_ADDR);
 
+/**
+ * @param {unknown | null} [privateKey=null]
+ * @returns {Promise<any>}
+ */
 export async function createLibp2pConfig(privateKey = null) {
 	// Get fixed peer ID from environment variable
 	const testPeerId = import.meta.env.VITE_TEST_PEER_ID;
@@ -45,8 +50,19 @@ export async function createLibp2pConfig(privateKey = null) {
 		}
 	}
 
-	return {
-		...(privateKey && { privateKey }),
+	const discoveredBootstrapMultiaddrs =
+		isDevelopment
+			? []
+			: await discoverAlephBootstrapMultiaddrs().catch((error) => {
+					console.warn('Failed to discover Aleph bootstrap multiaddrs:', error);
+					return [];
+				});
+	const relayBootstrapAddrs =
+		discoveredBootstrapMultiaddrs.length > 0 ? discoveredBootstrapMultiaddrs : RELAY_BOOTSTRAP_ADDR;
+	const alephBootstrap = bootstrap({ list: relayBootstrapAddrs });
+
+	/** @type {any} */
+	const config = {
 		addresses: {
 			listen: ['/p2p-circuit', '/webrtc', '/webtransport', '/wss', '/ws']
 		},
@@ -55,9 +71,11 @@ export async function createLibp2pConfig(privateKey = null) {
 				filter: filters.all
 			}),
 			webRTC(),
-			circuitRelayTransport({
-				discoverRelays: 1
-			})
+			circuitRelayTransport(
+				/** @type {any} */ ({
+					discoverRelays: 1
+				})
+			)
 		],
 		connectionEncrypters: [noise()],
 		connectionGater: {
@@ -72,16 +90,18 @@ export async function createLibp2pConfig(privateKey = null) {
 		},
 		streamMuxers: [yamux()],
 		peerDiscovery: [
-			pubsubPeerDiscovery({
-				interval: 5000, // More frequent broadcasting
-				topics: PUBSUB_TOPICS, // Configurable topics
-				listenOnly: false,
-				emitSelf: true // Enable even when no peers are present initially
-			})
+			pubsubPeerDiscovery(
+				/** @type {any} */ ({
+					interval: 5000, // More frequent broadcasting
+					topics: PUBSUB_TOPICS, // Configurable topics
+					listenOnly: false,
+					emitSelf: true // Enable even when no peers are present initially
+				})
+			)
 		],
 		services: {
 			identify: identify(),
-			bootstrap: bootstrap({ list: RELAY_BOOTSTRAP_ADDR }),
+			bootstrap: alephBootstrap,
 			//   ping: ping(),
 			dcutr: dcutr(),
 			autonat: autoNAT(),
@@ -91,6 +111,12 @@ export async function createLibp2pConfig(privateKey = null) {
 			})
 		}
 	};
+
+	if (privateKey) {
+		config.privateKey = privateKey;
+	}
+
+	return config;
 }
 
 // Usage example:

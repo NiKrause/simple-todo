@@ -2,12 +2,13 @@
 	import { createEventDispatcher } from 'svelte';
 	import { formatPeerId } from './utils.js';
 
-	export let id;
-	export let text;
+	export const id = undefined;
+	export let text = '';
 	export let completed = false;
+	/** @type {string | null} */
 	export let assignee = null;
-	export let createdBy;
-	export let todoKey;
+	export let createdBy = '';
+	export let todoKey = '';
 
 	const dispatch = createEventDispatcher();
 

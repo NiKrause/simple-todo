@@ -16,11 +16,12 @@ const buildDate = new Date().toISOString().split('T')[0] + ' ' + new Date().toLo
 export default defineConfig({
 	plugins: [
 		tailwindcss(),
-		sveltekit(),
-		nodePolyfills({
-			include: [
-				'path',
-				'util',
+			sveltekit(),
+			nodePolyfills(
+				/** @type {any} */ ({
+				include: [
+					'path',
+					'util',
 				'buffer',
 				'process',
 				'events',
@@ -31,14 +32,15 @@ export default defineConfig({
 				'readable-stream',
 				'safe-buffer'
 			],
-			globals: {
-				Buffer: true,
-				global: true,
-				process: true
-			},
-			protocolImports: true
-		})
-	],
+				globals: {
+					Buffer: true,
+					global: true,
+					process: true
+				},
+				protocolImports: true
+				})
+			)
+		],
 	define: {
 		__APP_VERSION__: JSON.stringify(pkg.version),
 		__BUILD_DATE__: JSON.stringify(buildDate)
