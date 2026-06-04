@@ -35,6 +35,46 @@ const RELAY_BOOTSTRAP_ADDR = (isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_B
 console.log('RELAY_BOOTSTRAP_ADDR', RELAY_BOOTSTRAP_ADDR);
 
 /**
+ * Prefer browser-safe transports that match the transports this app actually enables.
+ *
+ * @param {string} addr
+ * @returns {boolean}
+ */
+function isSupportedBrowserBootstrapMultiaddr(addr) {
+	const normalized = addr.toLowerCase();
+
+	return (
+		normalized.includes('/tls/ws') ||
+		normalized.includes('/wss') ||
+		normalized.includes('/webrtc-direct')
+	);
+}
+
+/**
+ * @param {string} addr
+ * @returns {number}
+ */
+function rankBrowserBootstrapMultiaddr(addr) {
+	const normalized = addr.toLowerCase();
+
+	if (normalized.includes('/tcp/443/') && normalized.includes('/tls/ws')) return 0;
+	if (normalized.includes('/tls/ws')) return 1;
+	if (normalized.includes('/wss')) return 2;
+	if (normalized.includes('/webrtc-direct')) return 3;
+	return 10;
+}
+
+/**
+ * @param {string[]} addrs
+ * @returns {string[]}
+ */
+function selectBrowserBootstrapMultiaddrs(addrs) {
+	return [...new Set(addrs)]
+		.filter(isSupportedBrowserBootstrapMultiaddr)
+		.sort((a, b) => rankBrowserBootstrapMultiaddr(a) - rankBrowserBootstrapMultiaddr(b));
+}
+
+/**
  * @param {unknown | null} [privateKey=null]
  * @returns {Promise<any>}
  */
@@ -53,12 +93,20 @@ export async function createLibp2pConfig(privateKey = null) {
 	const discoveredBootstrapMultiaddrs =
 		isDevelopment
 			? []
-			: await discoverAlephBootstrapMultiaddrs().catch((error) => {
+			: await discoverAlephBootstrapMultiaddrs({ browserDialableOnly: true }).catch((error) => {
 					console.warn('Failed to discover Aleph bootstrap multiaddrs:', error);
 					return [];
 				});
+	const preferredDiscoveredBootstrapMultiaddrs = selectBrowserBootstrapMultiaddrs(
+		discoveredBootstrapMultiaddrs
+	);
+	const preferredFallbackBootstrapMultiaddrs = selectBrowserBootstrapMultiaddrs(RELAY_BOOTSTRAP_ADDR);
 	const relayBootstrapAddrs =
-		discoveredBootstrapMultiaddrs.length > 0 ? discoveredBootstrapMultiaddrs : RELAY_BOOTSTRAP_ADDR;
+		preferredDiscoveredBootstrapMultiaddrs.length > 0
+			? preferredDiscoveredBootstrapMultiaddrs
+			: preferredFallbackBootstrapMultiaddrs.length > 0
+				? preferredFallbackBootstrapMultiaddrs
+				: RELAY_BOOTSTRAP_ADDR;
 	const alephBootstrap = bootstrap({ list: relayBootstrapAddrs });
 
 	/** @type {any} */

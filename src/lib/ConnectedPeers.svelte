@@ -8,7 +8,11 @@
 	 * @typedef {{ peerId: string, transports: string[] }} PeerEntry
 	 * @typedef {{ peerId: string, transports: string[], multiaddrs: any[] }} DiscoveredPeerInfo
 	 * @typedef {{ event: string, handler: (event: Event) => void | Promise<void> }} EventListenerEntry
+	 * @typedef {{ lastFailureAt: number, warningCount: number }} FailedPeerDialState
 	 */
+
+	const FAILED_PEER_RETRY_COOLDOWN_MS = 60_000;
+	const MAX_WARNINGS_PER_PEER = 1;
 
 	// Plugin interface - only needs libp2p instance
 	/** @type {any} */
@@ -29,6 +33,8 @@
 	const discoveredPeersInfo = new Map();
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const peerConnectionTransports = new Map();
+	/** @type {Map<string, FailedPeerDialState>} */
+	const failedPeerDialState = new Map();
 	/** @type {EventListenerEntry[]} */
 	let eventListeners = [];
 
@@ -118,16 +124,13 @@
 				multiaddrs: multiaddrs
 			});
 
-			// Auto-connect if enabled
-			if (autoConnect) {
+			// Auto-connect only for browser-reachable transports, and back off after failures.
+			if (autoConnect && isAutoDialCandidate(detectedTransports) && shouldAttemptPeerDial(peerIdStr)) {
 				try {
 					await libp2p.dial(peerId);
+					failedPeerDialState.delete(peerIdStr);
 				} catch (error) {
-					console.warn(
-						'❌ Failed to connect to peer:',
-						formatPeerId(peerIdStr),
-						error instanceof Error ? error.message : String(error)
-					);
+					notePeerDialFailure(peerIdStr, error);
 					discoveredPeersInfo.delete(peerIdStr);
 				}
 			}
@@ -150,6 +153,8 @@
 				peers.update((peers) => [...peers, { peerId: peerIdStr, transports }]);
 				discoveredPeersInfo.delete(peerIdStr);
 			}
+
+			failedPeerDialState.delete(peerIdStr);
 		};
 
 		// Handle disconnections
@@ -338,6 +343,52 @@
 		eventListeners = [];
 		discoveredPeersInfo.clear();
 		peerConnectionTransports.clear();
+		failedPeerDialState.clear();
+	}
+
+	/**
+	 * @param {string[]} transports
+	 * @returns {boolean}
+	 */
+	function isAutoDialCandidate(transports) {
+		return transports.includes('websocket') || transports.includes('webrtc');
+	}
+
+	/**
+	 * @param {string} peerIdStr
+	 * @returns {boolean}
+	 */
+	function shouldAttemptPeerDial(peerIdStr) {
+		const state = failedPeerDialState.get(peerIdStr);
+
+		if (!state) return true;
+
+		return Date.now() - state.lastFailureAt >= FAILED_PEER_RETRY_COOLDOWN_MS;
+	}
+
+	/**
+	 * @param {string} peerIdStr
+	 * @param {unknown} error
+	 */
+	function notePeerDialFailure(peerIdStr, error) {
+		const state = failedPeerDialState.get(peerIdStr) ?? {
+			lastFailureAt: 0,
+			warningCount: 0
+		};
+
+		state.lastFailureAt = Date.now();
+		failedPeerDialState.set(peerIdStr, state);
+
+		if (state.warningCount >= MAX_WARNINGS_PER_PEER) {
+			return;
+		}
+
+		state.warningCount += 1;
+		console.warn(
+			'Peer dial failed, backing off retry for 60s:',
+			formatPeerId(peerIdStr),
+			error instanceof Error ? error.message : String(error)
+		);
 	}
 
 	onDestroy(cleanup);
