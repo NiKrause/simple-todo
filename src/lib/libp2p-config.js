@@ -6,12 +6,12 @@ import { webRTC } from '@libp2p/webrtc';
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
 import { identify } from '@libp2p/identify';
 import { dcutr } from '@libp2p/dcutr';
-import { autoNAT } from '@libp2p/autonat';
 import { gossipsub } from '@chainsafe/libp2p-gossipsub';
 import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
 import { bootstrap } from '@libp2p/bootstrap';
 import { discoverAlephBootstrapMultiaddrs } from '@le-space/aleph-bootstrap';
 import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
+import { multiaddr } from '@multiformats/multiaddr';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
 import * as filters from '@libp2p/websockets/filters';
 
@@ -75,6 +75,24 @@ function selectBrowserBootstrapMultiaddrs(addrs) {
 }
 
 /**
+ * Ensure bootstrap candidates are parseable multiaddrs and include a peer id,
+ * which @libp2p/bootstrap requires up front.
+ *
+ * @param {string[]} addrs
+ * @returns {string[]}
+ */
+function selectValidBootstrapPeerMultiaddrs(addrs) {
+	return selectBrowserBootstrapMultiaddrs(addrs).filter((addr) => {
+		try {
+			return multiaddr(addr).getPeerId() != null;
+		} catch (error) {
+			console.warn('Ignoring invalid bootstrap multiaddr:', addr, error);
+			return false;
+		}
+	});
+}
+
+/**
  * @param {unknown | null} [privateKey=null]
  * @returns {Promise<any>}
  */
@@ -97,10 +115,12 @@ export async function createLibp2pConfig(privateKey = null) {
 					console.warn('Failed to discover Aleph bootstrap multiaddrs:', error);
 					return [];
 				});
-	const preferredDiscoveredBootstrapMultiaddrs = selectBrowserBootstrapMultiaddrs(
+	const preferredDiscoveredBootstrapMultiaddrs = selectValidBootstrapPeerMultiaddrs(
 		discoveredBootstrapMultiaddrs
 	);
-	const preferredFallbackBootstrapMultiaddrs = selectBrowserBootstrapMultiaddrs(RELAY_BOOTSTRAP_ADDR);
+	const preferredFallbackBootstrapMultiaddrs = selectValidBootstrapPeerMultiaddrs(
+		RELAY_BOOTSTRAP_ADDR
+	);
 	const relayBootstrapAddrs =
 		preferredDiscoveredBootstrapMultiaddrs.length > 0
 			? preferredDiscoveredBootstrapMultiaddrs
@@ -152,7 +172,6 @@ export async function createLibp2pConfig(privateKey = null) {
 			bootstrap: alephBootstrap,
 			//   ping: ping(),
 			dcutr: dcutr(),
-			autonat: autoNAT(),
 			pubsub: gossipsub({
 				emitSelf: true, // Enable to see our own messages
 				allowPublishToZeroTopicPeers: true
