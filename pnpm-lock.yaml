@@ -62,6 +62,9 @@ importers:
       '@libp2p/websockets':
         specifier: ^9.2.19
         version: 9.2.19
+      '@multiformats/multiaddr':
+        specifier: ^12.5.1
+        version: 12.5.1
       '@orbitdb/core':
         specifier: ^3.0.2
         version: 3.0.2
