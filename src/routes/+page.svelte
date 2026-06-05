@@ -12,6 +12,7 @@
 	import TodoList from '$lib/TodoList.svelte';
 	import ConnectedPeers from '$lib/ConnectedPeers.svelte';
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
+	import ManualConnectForm from '$lib/ManualConnectForm.svelte';
 	import { libp2pStore } from '$lib/p2p.js';
 	import SponsorRelayFab from '@le-space/ui/svelte';
 
@@ -134,6 +135,20 @@
 		}
 	};
 
+	/**
+	 * @param {{ detail: { status: 'stable' | 'dropped', detail: string, remotePeer: string | null, remoteAddr: string } }} event
+	 */
+	const handleManualConnect = (event) => {
+		const peerTarget = event.detail.remotePeer || event.detail.remoteAddr;
+
+		if (event.detail.status === 'stable') {
+			showToast(`🔗 Connected to ${peerTarget}`, 'success');
+			return;
+		}
+
+		showToast(`⚠️ ${peerTarget} closed the connection shortly after connect`, 'warning');
+	};
+
 	// Subscribe to the peerIdStore
 	$: myPeerId = $peerIdStore;
 
@@ -217,6 +232,11 @@
 
 		<!-- P2P Status -->
 		<div class="grid gap-6 md:grid-cols-2">
+			<ManualConnectForm
+				disabled={!$initializationStore.isInitialized}
+				on:connected={handleManualConnect}
+			/>
+
 			<!-- Connected Peers -->
 			<ConnectedPeers bind:this={connectedPeersRef} libp2p={$libp2pStore} />
 
