@@ -30,11 +30,11 @@ importers:
         specifier: ^9.2.7
         version: 9.2.7
       '@le-space/aleph-bootstrap':
-        specifier: ^0.3.21
-        version: 0.3.21(typescript@5.9.2)
+        specifier: ^0.3.22
+        version: 0.3.22(typescript@5.9.2)
       '@le-space/ui':
-        specifier: ^0.3.21
-        version: 0.3.21(react-dom@19.2.6(react@19.1.1))(react@19.1.1)(svelte@5.37.2)(typescript@5.9.2)
+        specifier: ^0.3.22
+        version: 0.3.22(react-dom@19.2.6(react@19.1.1))(react@19.1.1)(svelte@5.37.2)(typescript@5.9.2)
       '@libp2p/autonat':
         specifier: ^2.0.38
         version: 2.0.38
@@ -718,20 +718,20 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@le-space/aleph-bootstrap@0.3.21':
-    resolution: {integrity: sha512-uh8hHIIpSZKvxMDP1a8pbcDLI61z3CEEvmknmxTbGtgMIYyCpXhj8kdZMkyubm6fZigb96zL2fYUjdKpX2FyiQ==}
+  '@le-space/aleph-bootstrap@0.3.22':
+    resolution: {integrity: sha512-GMaCuMSOrmiZbWOuGyTTMnTMjDFx4lD/e5/45fmY+pxPrkT5a2b38PgCxu79h9MKKPsCwaNKBd2D5xQJoEiK/Q==}
 
-  '@le-space/browser@0.3.21':
-    resolution: {integrity: sha512-ivsZmYcjDuppAzG5//p4L3q4YLey+ClkBaUxVHi8ZJC7r1MWMxyrLOnyjQoUp/v4TCU5bnvbIOLb/aF6+H7bJg==}
+  '@le-space/browser@0.3.22':
+    resolution: {integrity: sha512-5LCAoIk1bGz3keuJwEho6Q1VE+tQDktdunA2kYOlsH2YRohqi82g9ab/tdVPPsQOdQaGXzpO/pdC28EqOFvh4w==}
 
-  '@le-space/core@0.3.21':
-    resolution: {integrity: sha512-Itx/O3CuxIXIvX4D2WaWwZF+AmFu2DAEkalUqpywQdoivqhsQJy6YpkXLZ0A0iLL8CTfLZQ9Sw5qLcKsdLufCg==}
+  '@le-space/core@0.3.22':
+    resolution: {integrity: sha512-gn306zjPabQ4RH2uRrjq6yXOR3Q82oc1IV7jb7V7xa+s0+ZQChXRJQDoKsRoQPLbK+xdx8BO/3Ty2cBgbmPW/A==}
 
-  '@le-space/shared-types@0.3.21':
-    resolution: {integrity: sha512-qsH+S1w+4TB+476pxMABzvgK+ccWf+iFm2c7BsP0oIPwS0msCy99+G71mjl8i/JjUDnbc6XNkJklLVjktmAoWw==}
+  '@le-space/shared-types@0.3.22':
+    resolution: {integrity: sha512-Xftnq7Kn4AWZsubPXmEv5F/W0RBhd/fgNqjfQGIjVDov2YBsO+pGOIAsxUTiWqS3EQMjGwfUeQHlREDIMwHwEg==}
 
-  '@le-space/ui@0.3.21':
-    resolution: {integrity: sha512-jVSjGM40bHYfGhiv/q/Vu+FqmAIGm8MFtsI/1PgIxxIhGHWMnzUkhKXcnsB1BefDCFHmC+G41ezsC2a6qMTGrA==}
+  '@le-space/ui@0.3.22':
+    resolution: {integrity: sha512-+D+1qVEJMHJ8eKpZdZZP6wIcwrYqlELDWWF4MSpwYBut2H4a/5Zy8nDi+dbyAxzez92oeqljqDTLTQEa82kBWw==}
     peerDependencies:
       react: '>=18'
       react-dom: '>=18'
@@ -1053,56 +1053,67 @@ packages:
     resolution: {integrity: sha512-EtP8aquZ0xQg0ETFcxUbU71MZlHaw9MChwrQzatiE8U/bvi5uv/oChExXC4mWhjiqK7azGJBqU0tt5H123SzVA==}
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-arm-musleabihf@4.46.2':
     resolution: {integrity: sha512-qO7F7U3u1nfxYRPM8HqFtLd+raev2K137dsV08q/LRKRLEc7RsiDWihUnrINdsWQxPR9jqZ8DIIZ1zJJAm5PjQ==}
     cpu: [arm]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-arm64-gnu@4.46.2':
     resolution: {integrity: sha512-3dRaqLfcOXYsfvw5xMrxAk9Lb1f395gkoBYzSFcc/scgRFptRXL9DOaDpMiehf9CO8ZDRJW2z45b6fpU5nwjng==}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-arm64-musl@4.46.2':
     resolution: {integrity: sha512-fhHFTutA7SM+IrR6lIfiHskxmpmPTJUXpWIsBXpeEwNgZzZZSg/q4i6FU4J8qOGyJ0TR+wXBwx/L7Ho9z0+uDg==}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-loongarch64-gnu@4.46.2':
     resolution: {integrity: sha512-i7wfGFXu8x4+FRqPymzjD+Hyav8l95UIZ773j7J7zRYc3Xsxy2wIn4x+llpunexXe6laaO72iEjeeGyUFmjKeA==}
     cpu: [loong64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-ppc64-gnu@4.46.2':
     resolution: {integrity: sha512-B/l0dFcHVUnqcGZWKcWBSV2PF01YUt0Rvlurci5P+neqY/yMKchGU8ullZvIv5e8Y1C6wOn+U03mrDylP5q9Yw==}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-riscv64-gnu@4.46.2':
     resolution: {integrity: sha512-32k4ENb5ygtkMwPMucAb8MtV8olkPT03oiTxJbgkJa7lJ7dZMr0GCFJlyvy+K8iq7F/iuOr41ZdUHaOiqyR3iQ==}
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-riscv64-musl@4.46.2':
     resolution: {integrity: sha512-t5B2loThlFEauloaQkZg9gxV05BYeITLvLkWOkRXogP4qHXLkWSbSHKM9S6H1schf/0YGP/qNKtiISlxvfmmZw==}
     cpu: [riscv64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-linux-s390x-gnu@4.46.2':
     resolution: {integrity: sha512-YKjekwTEKgbB7n17gmODSmJVUIvj8CX7q5442/CK80L8nqOUbMtf8b01QkG3jOqyr1rotrAnW6B/qiHwfcuWQA==}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-x64-gnu@4.46.2':
     resolution: {integrity: sha512-Jj5a9RUoe5ra+MEyERkDKLwTXVu6s3aACP51nkfnK9wJTraCC8IMe3snOfALkrjTYd2G1ViE1hICj0fZ7ALBPA==}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@rollup/rollup-linux-x64-musl@4.46.2':
     resolution: {integrity: sha512-7kX69DIrBeD7yNp4A5b81izs8BqoZkCIaxQaOpumcJ1S/kmqNFjPhDu1LHeVXv0SexfHQv5cqHsxLOjETuqDuA==}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@rollup/rollup-win32-arm64-msvc@4.46.2':
     resolution: {integrity: sha512-wiJWMIpeaak/jsbaq2HMh/rzZxHVW1rU6coyeNNpMwk5isiPjSTx0a4YLSlYDwBH/WBvLz+EtsNqQScZTLJy3g==}
@@ -1230,24 +1241,28 @@ packages:
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@tailwindcss/oxide-linux-arm64-musl@4.1.11':
     resolution: {integrity: sha512-m/NVRFNGlEHJrNVk3O6I9ggVuNjXHIPoD6bqay/pubtYC9QIdAMpS+cswZQPBLvVvEF6GtSNONbDkZrjWZXYNQ==}
     engines: {node: '>= 10'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@tailwindcss/oxide-linux-x64-gnu@4.1.11':
     resolution: {integrity: sha512-YW6sblI7xukSD2TdbbaeQVDysIm/UPJtObHJHKxDEcW2exAtY47j52f8jZXkqE1krdnkhCMGqP3dbniu1Te2Fg==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@tailwindcss/oxide-linux-x64-musl@4.1.11':
     resolution: {integrity: sha512-e3C/RRhGunWYNC3aSF7exsQkdXzQ/M+aYuZHKnw4U7KQwTJotnWsGOIVih0s2qQzmEzOFIJ3+xt7iq67K/p56Q==}
     engines: {node: '>= 10'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@tailwindcss/oxide-wasm32-wasi@4.1.11':
     resolution: {integrity: sha512-Xo1+/GU0JEN/C/dvcammKHzeM6NqKovG+6921MR6oadee5XPBaKOumrJCXvopJ/Qb5TH7LX/UAywbqrP4lax0g==}
@@ -1582,8 +1597,8 @@ packages:
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
-  baseline-browser-mapping@2.10.34:
-    resolution: {integrity: sha512-IMDedajPifLnHNY0X9n8hKxRTQ6/eTHwr5bDo04WnuqxyKw6LYtQywCuuqPZwhl3aBXMvQpJov42GLCwRRdQzw==}
+  baseline-browser-mapping@2.10.35:
+    resolution: {integrity: sha512-honAfLBde0HAFLdNyBEfuuENkF6zR+ozxqxa/2zJKHBe1qzLqyTSeRKpdPEHAP03rlDGyQOPnCSxnVpVqQo9Mg==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -2824,24 +2839,28 @@ packages:
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   lightningcss-linux-arm64-musl@1.30.1:
     resolution: {integrity: sha512-jmUQVx4331m6LIX+0wUhBbmMX7TCfjF5FoOH6SD1CttzuYlGNVpA7QnrmLxrsub43ClTINfGSYyHe2HWeLl5CQ==}
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   lightningcss-linux-x64-gnu@1.30.1:
     resolution: {integrity: sha512-piWx3z4wN8J8z3+O5kO74+yr6ze/dKmPnI7vLqfSqI8bccaTGY5xiSGVIJBDd5K5BHlvVLpUB3S2YCfelyJ1bw==}
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   lightningcss-linux-x64-musl@1.30.1:
     resolution: {integrity: sha512-rRomAK7eIkL+tHY0YPxbc5Dra2gXlI63HL+v1Pdi1a3sC+tJTcFrHX+E86sulgAXeI7rSzDYhPSeHHjqFhqfeQ==}
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   lightningcss-win32-arm64-msvc@1.30.1:
     resolution: {integrity: sha512-mSL4rqPi4iXq5YVqzSsJgMVFENoa4nGTT/GjO2c0Yl9OuQfPsIfncvLrEW6RbbB24WtZ3xP/2CCmI3tNkNV4oA==}
@@ -5082,7 +5101,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@le-space/aleph-bootstrap@0.3.21(typescript@5.9.2)':
+  '@le-space/aleph-bootstrap@0.3.22(typescript@5.9.2)':
     dependencies:
       '@libp2p/bootstrap': 11.0.47
       viem: 2.52.2(typescript@5.9.2)
@@ -5092,24 +5111,24 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@le-space/browser@0.3.21': {}
+  '@le-space/browser@0.3.22': {}
 
-  '@le-space/core@0.3.21(typescript@5.9.2)':
+  '@le-space/core@0.3.22(typescript@5.9.2)':
     dependencies:
-      '@le-space/aleph-bootstrap': 0.3.21(typescript@5.9.2)
-      '@le-space/shared-types': 0.3.21
+      '@le-space/aleph-bootstrap': 0.3.22(typescript@5.9.2)
+      '@le-space/shared-types': 0.3.22
     transitivePeerDependencies:
       - bufferutil
       - typescript
       - utf-8-validate
       - zod
 
-  '@le-space/shared-types@0.3.21': {}
+  '@le-space/shared-types@0.3.22': {}
 
-  '@le-space/ui@0.3.21(react-dom@19.2.6(react@19.1.1))(react@19.1.1)(svelte@5.37.2)(typescript@5.9.2)':
+  '@le-space/ui@0.3.22(react-dom@19.2.6(react@19.1.1))(react@19.1.1)(svelte@5.37.2)(typescript@5.9.2)':
     dependencies:
-      '@le-space/browser': 0.3.21
-      '@le-space/core': 0.3.21(typescript@5.9.2)
+      '@le-space/browser': 0.3.22
+      '@le-space/core': 0.3.22(typescript@5.9.2)
       react: 19.1.1
       react-dom: 19.2.6(react@19.1.1)
       svelte: 5.37.2
@@ -6465,7 +6484,7 @@ snapshots:
 
   base64-js@1.5.1: {}
 
-  baseline-browser-mapping@2.10.34: {}
+  baseline-browser-mapping@2.10.35: {}
 
   bl@4.1.0:
     dependencies:
@@ -6562,7 +6581,7 @@ snapshots:
 
   browserslist@4.28.2:
     dependencies:
-      baseline-browser-mapping: 2.10.34
+      baseline-browser-mapping: 2.10.35
       caniuse-lite: 1.0.30001797
       electron-to-chromium: 1.5.370
       node-releases: 2.0.47

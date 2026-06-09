@@ -59,7 +59,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: NiKrause/shared-aleph-tooling
-          ref: 38545321d96046f735b4d762594ea162a33bb226
+          ref: e6aaa696d335fea793901dfabc8a0314c457aed2
           path: shared-aleph-tooling
 
       - name: Set up shared tooling
@@ -93,7 +93,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: NiKrause/shared-aleph-tooling
-          ref: 38545321d96046f735b4d762594ea162a33bb226
+          ref: e6aaa696d335fea793901dfabc8a0314c457aed2
 
       - uses: pnpm/action-setup@v6
 
