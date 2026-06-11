@@ -30,11 +30,11 @@ importers:
         specifier: ^9.2.7
         version: 9.2.7
       '@le-space/aleph-bootstrap':
-        specifier: ^0.3.22
-        version: 0.3.22(typescript@5.9.2)
+        specifier: ^0.3.28
+        version: 0.3.28(typescript@5.9.2)
       '@le-space/ui':
-        specifier: ^0.3.22
-        version: 0.3.22(react-dom@19.2.6(react@19.1.1))(react@19.1.1)(svelte@5.37.2)(typescript@5.9.2)
+        specifier: ^0.3.28
+        version: 0.3.28(react-dom@19.2.6(react@19.1.1))(react@19.1.1)(svelte@5.37.2)(typescript@5.9.2)
       '@libp2p/autonat':
         specifier: ^2.0.38
         version: 2.0.38
@@ -718,20 +718,20 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@le-space/aleph-bootstrap@0.3.22':
-    resolution: {integrity: sha512-GMaCuMSOrmiZbWOuGyTTMnTMjDFx4lD/e5/45fmY+pxPrkT5a2b38PgCxu79h9MKKPsCwaNKBd2D5xQJoEiK/Q==}
+  '@le-space/aleph-bootstrap@0.3.28':
+    resolution: {integrity: sha512-cQJjFHibqg8Tn6Wbo+ncAVCkeeMe62m6VYEU+jpkhSSlTvgA5CMSIR/i/Qb0VR0KbbxH9BsNfJ8C76wq/eLurA==}
 
-  '@le-space/browser@0.3.22':
-    resolution: {integrity: sha512-5LCAoIk1bGz3keuJwEho6Q1VE+tQDktdunA2kYOlsH2YRohqi82g9ab/tdVPPsQOdQaGXzpO/pdC28EqOFvh4w==}
+  '@le-space/browser@0.3.28':
+    resolution: {integrity: sha512-Vj5bIdCO/Q7fXoo8xmRI5MBpPe8o9w4KQTV0uTgRntWYjPpjilyyD0A1bL8uDJuN+ueE27/SzW/1W8kxGL9vTA==}
 
-  '@le-space/core@0.3.22':
-    resolution: {integrity: sha512-gn306zjPabQ4RH2uRrjq6yXOR3Q82oc1IV7jb7V7xa+s0+ZQChXRJQDoKsRoQPLbK+xdx8BO/3Ty2cBgbmPW/A==}
+  '@le-space/core@0.3.28':
+    resolution: {integrity: sha512-74FAyFdEMbkSxnZbxq2d/smRy32cfCnK70yWQkBULRfyAo4/B2pK3ZMdcNiC6jvU4c6hTEZsY5gLap3ltWtfjQ==}
 
-  '@le-space/shared-types@0.3.22':
-    resolution: {integrity: sha512-Xftnq7Kn4AWZsubPXmEv5F/W0RBhd/fgNqjfQGIjVDov2YBsO+pGOIAsxUTiWqS3EQMjGwfUeQHlREDIMwHwEg==}
+  '@le-space/shared-types@0.3.28':
+    resolution: {integrity: sha512-YAXhev7zEpx8pYLMxgnE3waZR7ArAwlweGXlPZkeNpUc/EQqq+ZYw+jLWKGE3ewY0OoTunvVPyjAlsRnOXPAcw==}
 
-  '@le-space/ui@0.3.22':
-    resolution: {integrity: sha512-+D+1qVEJMHJ8eKpZdZZP6wIcwrYqlELDWWF4MSpwYBut2H4a/5Zy8nDi+dbyAxzez92oeqljqDTLTQEa82kBWw==}
+  '@le-space/ui@0.3.28':
+    resolution: {integrity: sha512-HRFy7wfrVdksNmXZJm1yr4BJ6CschTyPRnBzDBQ2nNkMHPm6lJl272yggub9TLkIejp76Qaq0VAcCQNlIvMSXQ==}
     peerDependencies:
       react: '>=18'
       react-dom: '>=18'
@@ -5101,7 +5101,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@le-space/aleph-bootstrap@0.3.22(typescript@5.9.2)':
+  '@le-space/aleph-bootstrap@0.3.28(typescript@5.9.2)':
     dependencies:
       '@libp2p/bootstrap': 11.0.47
       viem: 2.52.2(typescript@5.9.2)
@@ -5111,24 +5111,24 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@le-space/browser@0.3.22': {}
+  '@le-space/browser@0.3.28': {}
 
-  '@le-space/core@0.3.22(typescript@5.9.2)':
+  '@le-space/core@0.3.28(typescript@5.9.2)':
     dependencies:
-      '@le-space/aleph-bootstrap': 0.3.22(typescript@5.9.2)
-      '@le-space/shared-types': 0.3.22
+      '@le-space/aleph-bootstrap': 0.3.28(typescript@5.9.2)
+      '@le-space/shared-types': 0.3.28
     transitivePeerDependencies:
       - bufferutil
       - typescript
       - utf-8-validate
       - zod
 
-  '@le-space/shared-types@0.3.22': {}
+  '@le-space/shared-types@0.3.28': {}
 
-  '@le-space/ui@0.3.22(react-dom@19.2.6(react@19.1.1))(react@19.1.1)(svelte@5.37.2)(typescript@5.9.2)':
+  '@le-space/ui@0.3.28(react-dom@19.2.6(react@19.1.1))(react@19.1.1)(svelte@5.37.2)(typescript@5.9.2)':
     dependencies:
-      '@le-space/browser': 0.3.22
-      '@le-space/core': 0.3.22(typescript@5.9.2)
+      '@le-space/browser': 0.3.28
+      '@le-space/core': 0.3.28(typescript@5.9.2)
       react: 19.1.1
       react-dom: 19.2.6(react@19.1.1)
       svelte: 5.37.2
@@ -5964,7 +5964,7 @@ snapshots:
 
   '@scure/bip32@1.7.0':
     dependencies:
-      '@noble/curves': 1.9.1
+      '@noble/curves': 1.9.6
       '@noble/hashes': 1.8.0
       '@scure/base': 1.2.6
 
