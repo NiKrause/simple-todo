@@ -248,10 +248,7 @@
 </main>
 
 <!-- Floating Sponsor Relay FAB -->
-{#if $libp2pStore}
-	<SponsorRelayFab
-		libp2p={$libp2pStore}
-		manifestUrl="./rootfs-manifest.json"
-		showInstances={true}
-	/>
-{/if}
+<SponsorRelayFab
+	manifestUrl="./rootfs-manifest.json"
+	showInstances={true}
+/>
