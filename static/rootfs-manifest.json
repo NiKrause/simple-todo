@@ -1,6 +1,6 @@
 {
-  "profile": "orbitdb-relay-pinner",
-  "version": "orbitdb-relay-pinner-v0.1.0",
+  "profile": "orbitdb-relay",
+  "version": "orbitdb-relay-v0.1.0",
   "note": "Placeholder manifest. This file will be updated by CI after the first rootfs build and publish.",
   "rootfsItemHash": "",
   "rootfsCid": "",

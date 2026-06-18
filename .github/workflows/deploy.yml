@@ -54,25 +54,9 @@ jobs:
           VITE_NODE_ENV: production
         run: pnpm build
 
-      - name: Checkout shared-aleph-tooling
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        uses: actions/checkout@v6
-        with:
-          repository: NiKrause/shared-aleph-tooling
-          ref: e6aaa696d335fea793901dfabc8a0314c457aed2
-          path: shared-aleph-tooling
-
-      - name: Set up shared tooling
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        working-directory: shared-aleph-tooling
-        run: |
-          corepack enable
-          pnpm install --frozen-lockfile
-
       - name: Publish to Aleph IPFS
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         id: publish
-        working-directory: shared-aleph-tooling
         env:
           ALEPH_VM_MODE: site-publish
           ALEPH_SITE_DIRECTORY: ${{ github.workspace }}/build
@@ -80,7 +64,7 @@ jobs:
           ALEPH_SITE_REF: simple-todo
           ALEPH_SITE_CHANNEL: ALEPH-CLOUDSOLUTIONS
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
-        run: node -e "import('./packages/node/src/site-runner.ts').then(m => m.runSiteMode())"
+        run: node --input-type=module -e "import('@le-space/node').then((m) => m.runSiteMode())"
 
   link-domain:
     needs: build-and-deploy
@@ -89,22 +73,19 @@ jobs:
       needs.build-and-deploy.outputs.item_hash != ''
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout shared-aleph-tooling
+      - name: Checkout simple-todo
         uses: actions/checkout@v6
-        with:
-          repository: NiKrause/shared-aleph-tooling
-          ref: e6aaa696d335fea793901dfabc8a0314c457aed2
 
       - uses: pnpm/action-setup@v6
+        with:
+          version: 9
 
       - uses: actions/setup-node@v6
         with:
           node-version: '24.x'
+          cache: pnpm
 
-      - name: Set up shared tooling
-        run: |
-          corepack enable
-          pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
 
       - name: Link custom domain
         if: inputs.domain != '' || env.ALEPH_SITE_DOMAIN != ''
@@ -115,4 +96,4 @@ jobs:
           ALEPH_SITE_DOMAIN: ${{ inputs.domain || secrets.ALEPH_SITE_DOMAIN }}
           ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
-        run: node -e "import('./packages/node/src/site-runner.ts').then(m => m.runSiteMode())"
+        run: node --input-type=module -e "import('@le-space/node').then((m) => m.runSiteMode())"
