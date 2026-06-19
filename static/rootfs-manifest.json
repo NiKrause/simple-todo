@@ -1,17 +1,57 @@
 {
   "profile": "orbitdb-relay",
-  "version": "orbitdb-relay-v0.1.0",
-  "note": "Placeholder manifest. This file will be updated by CI after the first rootfs build and publish.",
-  "rootfsItemHash": "",
-  "rootfsCid": "",
-  "rootfsSourceSizeBytes": 0,
+  "version": "orbitdb-relay-v0.9.2",
+  "rootfsInstallStrategy": "prebaked",
+  "requiresBootstrapNetwork": false,
+  "bootstrapSummary": "Dependencies are preinstalled in the image.",
   "requiredPortForwards": [
-    {"port": 22, "tcp": true, "udp": false, "purpose": "SSH"},
-    {"port": 80, "tcp": true, "udp": false, "purpose": "Temporary setup endpoint"},
-    {"port": 443, "tcp": true, "udp": false, "purpose": "Caddy HTTPS and WSS proxy"},
-    {"port": 9090, "tcp": true, "udp": false, "purpose": "Metrics and health API"},
-    {"port": 9091, "tcp": true, "udp": false, "purpose": "libp2p TCP"},
-    {"port": 9093, "tcp": false, "udp": true, "purpose": "WebRTC direct"},
-    {"port": 9094, "tcp": false, "udp": true, "purpose": "QUIC"}
-  ]
+    {
+      "port": 22,
+      "tcp": true,
+      "udp": false,
+      "purpose": "SSH"
+    },
+    {
+      "port": 80,
+      "tcp": true,
+      "udp": false,
+      "purpose": "Temporary setup endpoint"
+    },
+    {
+      "port": 9090,
+      "tcp": true,
+      "udp": false,
+      "purpose": "Metrics and health API"
+    },
+    {
+      "port": 9091,
+      "tcp": true,
+      "udp": false,
+      "purpose": "libp2p TCP"
+    },
+    {
+      "port": 443,
+      "tcp": true,
+      "udp": false,
+      "purpose": "Caddy HTTPS and WSS proxy"
+    },
+    {
+      "port": 9093,
+      "tcp": false,
+      "udp": true,
+      "purpose": "WebRTC direct"
+    },
+    {
+      "port": 9094,
+      "tcp": false,
+      "udp": true,
+      "purpose": "QUIC"
+    }
+  ],
+  "rootfsSizeMiB": 20480,
+  "createdAt": "2026-06-19T05:44:21.816Z",
+  "notes": "The OrbitDB relay image prebakes Node.js, production dependencies, and Caddy into the qcow2, delays first relay start until Aleph host port mappings are known, exposes a temporary setup endpoint on port 80, and uses Caddy on port 443 to front both HTTPS helper routes and secure libp2p WSS transport for the configured proxy hostname.",
+  "rootfsSourceSizeBytes": 657813812,
+  "rootfsCid": "QmWqweQ7tvgAGQ7KgDYBx9ey193ni3owDwyAk4qEqq3jMN",
+  "rootfsItemHash": "4018a9940756565108cbe53c00f109d7e7d140b0b44bdd6f9d0375b92a0fcaae"
 }
