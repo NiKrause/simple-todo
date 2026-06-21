@@ -58,6 +58,8 @@ export const todosStore = writable(/** @type {TodoItem[]} */ ([]));
 // Derived store that updates when todos change
 export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
 
+const observedDatabases = new WeakSet();
+
 // Initialize database and load existing todos
 /**
  * @param {any} orbitdb
@@ -74,6 +76,49 @@ export async function initializeDatabase(orbitdb, todoDB) {
 	setupDatabaseListeners(todoDB);
 }
 
+/**
+ * Open an OrbitDB todo database by address and make it the active todo list.
+ *
+ * @param {string} address
+ * @returns {Promise<{ address: string, count: number }>}
+ */
+export async function loadTodoDatabase(address) {
+	const orbitdb = get(orbitdbStore);
+	const normalizedAddress = address.trim();
+
+	if (!orbitdb) {
+		throw new Error('OrbitDB is not initialized yet.');
+	}
+
+	if (!normalizedAddress) {
+		throw new Error('Enter an OrbitDB database address.');
+	}
+
+	if (!normalizedAddress.startsWith('/orbitdb/')) {
+		throw new Error('The database address must start with "/orbitdb/".');
+	}
+
+	try {
+		const loadedTodoDB = await orbitdb.open(normalizedAddress, {
+			type: 'keyvalue',
+			sync: true
+		});
+
+		todoDBStore.set(loadedTodoDB);
+		setupDatabaseListeners(loadedTodoDB);
+		await loadTodos();
+
+		return {
+			address: normalizedAddress,
+			count: get(todosCountStore)
+		};
+	} catch (error) {
+		throw new Error(
+			`Failed to load Todo DB: ${error instanceof Error ? error.message : String(error)}`
+		);
+	}
+}
+
 // Load all todos from the database
 async function loadTodos() {
 	const todoDB = get(todoDBStore);
@@ -84,22 +129,22 @@ async function loadTodos() {
 		console.log('🔍 Raw database entries:', allTodos); // Add this debug log
 
 		// Handle both array and object structures
-			/** @type {TodoItem[]} */
-			let todosArray;
-			todosArray = allTodos.map((/** @type {TodoRecord} */ todo) => {
-				return {
-					id: todo.hash,
-					key: todo.key,
+		/** @type {TodoItem[]} */
+		let todosArray;
+		todosArray = allTodos.map((/** @type {TodoRecord} */ todo) => {
+			return {
+				id: todo.hash,
+				key: todo.key,
 				...todo.value // Access the nested value property
 			};
 		});
 
 		// Sort by createdAt descending (newest first)
-			const sortedTodos = todosArray.sort((/** @type {TodoItem} */ a, /** @type {TodoItem} */ b) => {
-				const dateA = new Date(a.createdAt || 0).getTime();
-				const dateB = new Date(b.createdAt || 0).getTime();
-				return dateB - dateA;
-			});
+		const sortedTodos = todosArray.sort((/** @type {TodoItem} */ a, /** @type {TodoItem} */ b) => {
+			const dateA = new Date(a.createdAt || 0).getTime();
+			const dateB = new Date(b.createdAt || 0).getTime();
+			return dateB - dateA;
+		});
 
 		todosStore.set(sortedTodos);
 		console.log('todos', sortedTodos);
@@ -115,6 +160,8 @@ async function loadTodos() {
  */
 function setupDatabaseListeners(todoDB) {
 	if (!todoDB) return;
+	if (observedDatabases.has(todoDB)) return;
+	observedDatabases.add(todoDB);
 
 	// Listen for new entries being added
 	todoDB.events.on('join', async (_address, entry) => {
@@ -150,8 +197,8 @@ export async function addTodo(text, assignee = null) {
 
 	try {
 		const todoId = `todo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-			/** @type {TodoValue} */
-			const todo = {
+		/** @type {TodoValue} */
+		const todo = {
 			text: text.trim(),
 			completed: false,
 			createdBy: myPeerId,
@@ -188,7 +235,7 @@ export async function deleteTodo(todoId) {
 			// Get all todos to find the correct database key
 			const allTodos = await todoDB.all();
 			if (Array.isArray(allTodos)) {
-					const todo = allTodos[parseInt(String(todoId), 10)];
+				const todo = allTodos[parseInt(String(todoId), 10)];
 				if (todo && todo.key) {
 					actualTodoId = todo.key; // Use the key, not the hash
 					console.log('🔍 Converted array index', todoId, 'to key:', actualTodoId);
@@ -197,7 +244,7 @@ export async function deleteTodo(todoId) {
 		}
 
 		// Delete the todo using the correct key
-			await todoDB.del(String(actualTodoId));
+		await todoDB.del(String(actualTodoId));
 		console.log('🗑️ Todo deleted:', todoId, 'actual key:', actualTodoId);
 
 		// Force a reload to ensure the UI is updated
@@ -231,7 +278,7 @@ export async function toggleTodoComplete(todoId) {
 			// Get all todos to find the correct database key
 			const allTodos = await todoDB.all();
 			if (Array.isArray(allTodos)) {
-					const todo = allTodos[parseInt(String(todoId), 10)];
+				const todo = allTodos[parseInt(String(todoId), 10)];
 				if (todo && todo.hash) {
 					actualTodoId = todo.hash;
 					console.log('🔍 Converted array index', todoId, 'to hash:', actualTodoId);
@@ -239,7 +286,7 @@ export async function toggleTodoComplete(todoId) {
 			}
 		}
 
-			const existingTodo = await todoDB.get(String(actualTodoId));
+		const existingTodo = await todoDB.get(String(actualTodoId));
 		console.log('🔍 Retrieved todo from database:', existingTodo); // Add this debug log
 
 		if (!existingTodo) {
@@ -251,7 +298,7 @@ export async function toggleTodoComplete(todoId) {
 		}
 
 		// Access the nested value property for the todo data
-			const todoData = unwrapTodoValue(existingTodo);
+		const todoData = unwrapTodoValue(existingTodo);
 		const currentCompleted = todoData.completed || false;
 
 		const updatedTodo = {
@@ -260,7 +307,7 @@ export async function toggleTodoComplete(todoId) {
 			updatedAt: new Date().toISOString()
 		};
 
-			await todoDB.put(String(actualTodoId), updatedTodo);
+		await todoDB.put(String(actualTodoId), updatedTodo);
 		console.log('✅ Todo toggled:', todoId, updatedTodo.completed);
 		return true;
 	} catch (error) {
@@ -290,7 +337,7 @@ export async function updateTodoAssignee(todoId, assignee) {
 		}
 
 		// Access the nested value property for the todo data
-			const todoData = unwrapTodoValue(existingTodo);
+		const todoData = unwrapTodoValue(existingTodo);
 
 		const updatedTodo = {
 			...todoData,
@@ -366,7 +413,8 @@ export async function deleteCurrentDatabase() {
 
 // Make the function available globally for browser console access
 if (typeof window !== 'undefined') {
-	/** @type {Window & typeof globalThis & { deleteCurrentDatabase?: typeof deleteCurrentDatabase }} */ (window).deleteCurrentDatabase =
-		deleteCurrentDatabase;
+	/** @type {Window & typeof globalThis & { deleteCurrentDatabase?: typeof deleteCurrentDatabase }} */ (
+		window
+	).deleteCurrentDatabase = deleteCurrentDatabase;
 	console.log('🔧 deleteCurrentDatabase function is now available in browser console');
 }

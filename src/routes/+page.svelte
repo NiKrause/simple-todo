@@ -9,6 +9,7 @@
 	import LoadingSpinner from '$lib/LoadingSpinner.svelte';
 	import ErrorAlert from '$lib/ErrorAlert.svelte';
 	import AddTodoForm from '$lib/AddTodoForm.svelte';
+	import LoadTodoDbForm from '$lib/LoadTodoDbForm.svelte';
 	import TodoList from '$lib/TodoList.svelte';
 	import ConnectedPeers from '$lib/ConnectedPeers.svelte';
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
@@ -68,13 +69,13 @@
 		} catch {
 			// ignore storage errors
 		}
-			try {
-				await initializeP2P();
-			} catch (err) {
-				error = `Failed to initialize P2P: ${err instanceof Error ? err.message : String(err)}`;
-				console.error('P2P initialization failed:', err);
-			}
-		};
+		try {
+			await initializeP2P();
+		} catch (err) {
+			error = `Failed to initialize P2P: ${err instanceof Error ? err.message : String(err)}`;
+			console.error('P2P initialization failed:', err);
+		}
+	};
 
 	onMount(async () => {
 		try {
@@ -133,6 +134,16 @@
 		} else {
 			showToast('❌ Failed to update todo', 'error');
 		}
+	};
+
+	/**
+	 * @param {{ detail: { address: string, count: number } }} event
+	 */
+	const handleLoadTodoDb = (event) => {
+		showToast(
+			`Loaded Todo DB with ${event.detail.count} item${event.detail.count === 1 ? '' : 's'}`,
+			'success'
+		);
 	};
 
 	/**
@@ -223,6 +234,9 @@
 		<!-- Add TODO Form -->
 		<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
 
+		<!-- Load TODO Database -->
+		<LoadTodoDbForm disabled={!$initializationStore.isInitialized} on:loaded={handleLoadTodoDb} />
+
 		<!-- TODO List -->
 		<TodoList
 			todos={$todosStore}
@@ -243,12 +257,8 @@
 			<!-- My Identity -->
 			<PeerIdCard peerId={myPeerId} />
 		</div>
-
 	{/if}
 </main>
 
 <!-- Floating Sponsor Relay FAB -->
-<SponsorRelayFab
-	manifestUrl="./rootfs-manifest.json"
-	showInstances={true}
-/>
+<SponsorRelayFab manifestUrl="./rootfs-manifest.json" showInstances={true} />
