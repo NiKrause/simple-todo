@@ -7,15 +7,14 @@
 3. [How the App Works](#how-the-app-works)
 4. [Prerequisites](#prerequisites)
 5. [Project Setup](#project-setup)
-6. [Publishing to IPFS/IPNS (`./ipfs-publish.sh`)](#publishing-to-ipfsipns-ipfs-publishsh)
-7. [Architecture Overview](#architecture-overview)
-8. [Step-by-Step Implementation](#step-by-step-implementation)
-9. [Testing the Application](#testing-the-application)
-10. [Understanding the Relay Node](#understanding-the-relay-node)
-11. [Security and Privacy Considerations](#security-and-privacy-considerations)
-12. [Advanced Features](#advanced-features)
-13. [Troubleshooting](#troubleshooting)
-14. [Conclusion](#conclusion)
+6. [Architecture Overview](#architecture-overview)
+7. [Step-by-Step Implementation](#step-by-step-implementation)
+8. [Testing the Application](#testing-the-application)
+9. [Understanding the Relay Node](#understanding-the-relay-node)
+10. [Security and Privacy Considerations](#security-and-privacy-considerations)
+11. [Advanced Features](#advanced-features)
+12. [Troubleshooting](#troubleshooting)
+13. [Conclusion](#conclusion)
 
 ## Introduction
 
@@ -143,44 +142,6 @@ simple-todo/
 ├── package.json
 └── README.md
 ```
-
-## 📦 Publishing to IPFS/IPNS (`./ipfs-publish.sh`)
-
-- **What it does**
-  - Builds the app and bumps the patch version
-  - Adds `build/` to IPFS and captures the new CID
-  - Publishes IPNS using the named key `IPNS_NAME` → `/ipfs/<CID>`
-  - Pins the CID on the remote node `IPFS_SERVER` over SSH
-  - Verifies that `ipfs name resolve` for `IPNS_KEY` matches the new CID
-  - Commits, tags (`vX.Y.Z`), and pushes to Git
-  - Optionally updates Nginx to serve the new CID
-
-- **Why we need it**
-  - One-command, repeatable release that updates your stable IPNS/DNSLink, ensures pinning, and keeps Git tags/releases in sync.
-
-- **Prerequisites**
-  - `ipfs` CLI with a generated key: `ipfs key gen <name>`
-  - Configure `IPNS_KEY`, `IPNS_NAME`, `IPFS_SERVER` in `./ipfs-publish.sh`
-  - SSH access to `IPFS_SERVER` with rights to `su ipfs`
-  - Node/npm available for build/version
-
-- **Usage**
-
-  ```bash
-  ./ipfs-publish.sh
-  ```
-
-- **Verify**
-  - IPNS points to the latest CID:
-    ```bash
-    ipfs name resolve --nocache /ipns/$IPNS_KEY
-    ```
-  - DNSLink TXT record (optional DNS-based publishing):
-    ```bash
-    dig +short TXT _dnslink.<your-domain>
-    dig @1.1.1.1 +short TXT _dnslink.<your-domain>
-    ```
-    Expected: `"dnslink=/ipns/<key>"` or `"dnslink=/ipfs/<CID>"`
 
 ## Architecture Overview
 
