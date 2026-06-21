@@ -24,13 +24,10 @@ export default defineConfig({
 	webServer: BS_LOCAL_ENABLED
 		? undefined
 		: {
-				command: 'pnpm run build && pnpm run preview',
-				env: {
-					...process.env,
-					VITE_E2E: 'true'
-				},
+				command: 'node e2e/start-e2e-server.mjs',
 				port: 4173,
-				timeout: 180000
+				reuseExistingServer: false,
+				timeout: 240000
 			},
 	testDir: 'e2e',
 	timeout: 60000,

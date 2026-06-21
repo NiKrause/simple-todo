@@ -2,10 +2,11 @@
 import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { webSockets } from '@libp2p/websockets';
-import { webRTC } from '@libp2p/webrtc';
+import { webRTC, webRTCDirect } from '@libp2p/webrtc';
 import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
-import { identify } from '@libp2p/identify';
+import { identify, identifyPush } from '@libp2p/identify';
 import { dcutr } from '@libp2p/dcutr';
+import { autoNAT } from '@libp2p/autonat';
 import { gossipsub } from '@chainsafe/libp2p-gossipsub';
 import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
 import { bootstrap } from '@libp2p/bootstrap';
@@ -25,9 +26,18 @@ const RELAY_BOOTSTRAP_ADDR_PROD =
 const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discovery._p2p._pubsub')
 	.split(',')
 	.map((/** @type {string} */ t) => t.trim());
+const WEBRTC_ICE_SERVERS = [
+	{
+		urls: ['stun:stun.l.google.com:19302', 'stun:global.stun.twilio.com:3478']
+	}
+];
 
 // Determine which relay address to use based on environment
-const isDevelopment = import.meta.env.DEV || import.meta.env.VITE_NODE_ENV === 'development';
+const isDevelopment =
+	import.meta.env.DEV ||
+	import.meta.env.VITE_NODE_ENV === 'development' ||
+	import.meta.env.MODE === 'test' ||
+	import.meta.env.MODE === 'e2e';
 console.log('isDevelopment', isDevelopment);
 const RELAY_BOOTSTRAP_ADDR = (isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_BOOTSTRAP_ADDR_PROD)
 	.split(',')
@@ -45,6 +55,7 @@ function isSupportedBrowserBootstrapMultiaddr(addr) {
 
 	return (
 		normalized.includes('/tls/ws') ||
+		normalized.includes('/ws') ||
 		normalized.includes('/wss') ||
 		normalized.includes('/webrtc-direct')
 	);
@@ -60,7 +71,9 @@ function rankBrowserBootstrapMultiaddr(addr) {
 	if (normalized.includes('/tcp/443/') && normalized.includes('/tls/ws')) return 0;
 	if (normalized.includes('/tls/ws')) return 1;
 	if (normalized.includes('/wss')) return 2;
-	if (normalized.includes('/webrtc-direct')) return 3;
+	if (normalized.includes('/ip4/127.0.0.1/') && normalized.includes('/ws')) return 3;
+	if (normalized.includes('/ws')) return 4;
+	if (normalized.includes('/webrtc-direct')) return 5;
 	return 10;
 }
 
@@ -108,19 +121,17 @@ export async function createLibp2pConfig(privateKey = null) {
 		}
 	}
 
-	const discoveredBootstrapMultiaddrs =
-		isDevelopment
-			? []
-			: await discoverAlephBootstrapMultiaddrs({ browserDialableOnly: true }).catch((error) => {
-					console.warn('Failed to discover Aleph bootstrap multiaddrs:', error);
-					return [];
-				});
+	const discoveredBootstrapMultiaddrs = isDevelopment
+		? []
+		: await discoverAlephBootstrapMultiaddrs({ browserDialableOnly: true }).catch((error) => {
+				console.warn('Failed to discover Aleph bootstrap multiaddrs:', error);
+				return [];
+			});
 	const preferredDiscoveredBootstrapMultiaddrs = selectValidBootstrapPeerMultiaddrs(
 		discoveredBootstrapMultiaddrs
 	);
-	const preferredFallbackBootstrapMultiaddrs = selectValidBootstrapPeerMultiaddrs(
-		RELAY_BOOTSTRAP_ADDR
-	);
+	const preferredFallbackBootstrapMultiaddrs =
+		selectValidBootstrapPeerMultiaddrs(RELAY_BOOTSTRAP_ADDR);
 	const relayBootstrapAddrs =
 		preferredDiscoveredBootstrapMultiaddrs.length > 0
 			? preferredDiscoveredBootstrapMultiaddrs
@@ -132,16 +143,26 @@ export async function createLibp2pConfig(privateKey = null) {
 	/** @type {any} */
 	const config = {
 		addresses: {
-			listen: ['/p2p-circuit', '/webrtc', '/webtransport', '/wss', '/ws']
+			listen: ['/p2p-circuit', '/webrtc']
 		},
 		transports: [
 			webSockets({
 				filter: filters.all
 			}),
-			webRTC(),
+			webRTCDirect({
+				rtcConfiguration: {
+					iceServers: WEBRTC_ICE_SERVERS
+				}
+			}),
+			webRTC({
+				rtcConfiguration: {
+					iceServers: WEBRTC_ICE_SERVERS
+				}
+			}),
 			circuitRelayTransport(
 				/** @type {any} */ ({
-					discoverRelays: 1
+					discoverRelays: 1,
+					reservationCompletionTimeout: 20_000
 				})
 			)
 		],
@@ -169,11 +190,13 @@ export async function createLibp2pConfig(privateKey = null) {
 		],
 		services: {
 			identify: identify(),
+			identifyPush: identifyPush(),
 			bootstrap: alephBootstrap,
+			autonat: autoNAT(),
 			//   ping: ping(),
 			dcutr: dcutr(),
 			pubsub: gossipsub({
-				emitSelf: true, // Enable to see our own messages
+				emitSelf: false,
 				allowPublishToZeroTopicPeers: true
 			})
 		}

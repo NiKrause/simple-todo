@@ -1,4 +1,7 @@
 test-results
+e2e/relay-info.json
+e2e/relay.log
+relay/
 node_modules
 coverage
 orbitdb*

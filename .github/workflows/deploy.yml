@@ -7,9 +7,7 @@ permissions:
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches: [collab01]
   workflow_dispatch:
     inputs:
       relay_bootstrap_addr:
@@ -27,6 +25,7 @@ on:
 
 jobs:
   build-and-deploy:
+    if: github.ref_name == 'collab01'
     runs-on: ubuntu-latest
     outputs:
       ipfs_cid_v0: ${{ steps.publish.outputs.ipfs_cid_v0 }}
@@ -34,7 +33,7 @@ jobs:
       item_hash: ${{ steps.publish.outputs.item_hash }}
       url: ${{ steps.publish.outputs.url }}
     steps:
-      - name: Checkout simple-todo
+      - name: Checkout collab01
         uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v6
@@ -61,7 +60,7 @@ jobs:
           ALEPH_VM_MODE: site-publish
           ALEPH_SITE_DIRECTORY: ${{ github.workspace }}/build
           ALEPH_SITE_PIN: 'true'
-          ALEPH_SITE_REF: simple-todo
+          ALEPH_SITE_REF: simple-todo-collab01
           ALEPH_SITE_CHANNEL: ALEPH-CLOUDSOLUTIONS
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
         run: node --input-type=module -e "import('@le-space/node').then((m) => m.runSiteMode())"
@@ -72,8 +71,10 @@ jobs:
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       needs.build-and-deploy.outputs.item_hash != ''
     runs-on: ubuntu-latest
+    env:
+      ALEPH_COLLAB01_SITE_DOMAIN: ${{ secrets.ALEPH_COLLAB01_SITE_DOMAIN }}
     steps:
-      - name: Checkout simple-todo
+      - name: Checkout collab01
         uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v6
@@ -88,12 +89,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Link custom domain
-        if: inputs.domain != '' || env.ALEPH_SITE_DOMAIN != ''
+        if: inputs.domain != '' || env.ALEPH_COLLAB01_SITE_DOMAIN != ''
         id: domain
         env:
           ALEPH_VM_MODE: site-domain-link
           ALEPH_SITE_ITEM_HASH: ${{ needs.build-and-deploy.outputs.item_hash }}
-          ALEPH_SITE_DOMAIN: ${{ inputs.domain || secrets.ALEPH_SITE_DOMAIN }}
+          ALEPH_SITE_DOMAIN: ${{ inputs.domain || secrets.ALEPH_COLLAB01_SITE_DOMAIN }}
           ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
         run: node --input-type=module -e "import('@le-space/node').then((m) => m.runSiteMode())"

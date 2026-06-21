@@ -35,6 +35,14 @@ import { peerIdStore } from './p2p.js';
  *   put: (key: string, value: TodoValue) => Promise<unknown>
  *   del: (key: string) => Promise<unknown>
  *   drop: () => Promise<unknown>
+ *   log?: {
+ *     values?: () => Promise<any[]>
+ *     heads?: () => Promise<any[]>
+ *   }
+ *   peers?: Set<string>
+ *   sync?: {
+ *     add?: (entry: any) => Promise<unknown>
+ *   }
  *   events: {
  *     on: (event: string, handler: (...args: any[]) => void | Promise<void>) => void
  *   }
@@ -147,7 +155,7 @@ export async function loadTodoDatabase(address) {
 }
 
 // Load all todos from the database
-async function loadTodos() {
+export async function loadTodos() {
 	const todoDB = get(todoDBStore);
 	if (!todoDB) return;
 
@@ -191,8 +199,9 @@ function setupDatabaseListeners(todoDB) {
 	observedDatabases.add(todoDB);
 
 	// Listen for new entries being added
-	todoDB.events.on('join', async (_address, entry) => {
-		console.log('📝 New entry added:', entry);
+	todoDB.events.on('join', async (_peerId, heads) => {
+		console.log('📝 Database peer joined:', heads);
+		await announceTodoDatabaseEntries(todoDB);
 		await loadTodos();
 	});
 
@@ -201,6 +210,29 @@ function setupDatabaseListeners(todoDB) {
 		console.log('🔄 Entry updated:', entry);
 		await loadTodos();
 	});
+}
+
+/**
+ * Republish the current log entries on the OrbitDB sync topic.
+ * This helps late-joining browser peers receive the current TODO set after
+ * they have opened an existing database address.
+ *
+ * @param {TodoDatabase | null} [database]
+ * @returns {Promise<number>}
+ */
+export async function announceTodoDatabaseEntries(database = get(todoDBStore)) {
+	if (!database?.sync?.add) return 0;
+
+	const entries =
+		(await database.log?.values?.().catch(() => null)) ??
+		(await database.log?.heads?.().catch(() => null)) ??
+		[];
+
+	for (const entry of entries) {
+		await database.sync.add(entry);
+	}
+
+	return entries.length;
 }
 
 // Add a new todo
@@ -440,8 +472,18 @@ export async function deleteCurrentDatabase() {
 
 // Make the function available globally for browser console access
 if (typeof window !== 'undefined') {
-	/** @type {Window & typeof globalThis & { deleteCurrentDatabase?: typeof deleteCurrentDatabase }} */ (
-		window
-	).deleteCurrentDatabase = deleteCurrentDatabase;
+	const browserWindow = /** @type {Window & typeof globalThis & {
+	 *   deleteCurrentDatabase?: typeof deleteCurrentDatabase,
+	 *   forceReloadTodos?: typeof loadTodos,
+	 *   announceTodoDatabaseEntries?: typeof announceTodoDatabaseEntries,
+	 *   getTodoDatabasePeerCount?: () => number,
+	 *   getTodoCount?: () => number
+	 * }} */ (window);
+
+	browserWindow.deleteCurrentDatabase = deleteCurrentDatabase;
+	browserWindow.forceReloadTodos = loadTodos;
+	browserWindow.announceTodoDatabaseEntries = announceTodoDatabaseEntries;
+	browserWindow.getTodoDatabasePeerCount = () => get(todoDBStore)?.peers?.size ?? 0;
+	browserWindow.getTodoCount = () => get(todosCountStore);
 	console.log('🔧 deleteCurrentDatabase function is now available in browser console');
 }

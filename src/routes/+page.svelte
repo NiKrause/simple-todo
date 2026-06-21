@@ -217,7 +217,7 @@
 			/>
 
 			<!-- Connected Peers -->
-			<ConnectedPeers bind:this={connectedPeersRef} libp2p={$libp2pStore} />
+			<ConnectedPeers bind:this={connectedPeersRef} libp2p={$libp2pStore} autoConnect={false} />
 
 			<!-- My Identity -->
 			<PeerIdCard peerId={myPeerId} />
