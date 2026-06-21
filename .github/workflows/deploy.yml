@@ -27,6 +27,8 @@ jobs:
   e2e:
     if: github.ref_name == 'collab01'
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.54.2-noble
     timeout-minutes: 15
     steps:
       - name: Checkout collab01
@@ -42,9 +44,6 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
-
-      - name: Install Chromium
-        run: pnpm exec playwright install chromium
 
       - name: Run collaboration E2E
         run: pnpm exec playwright test e2e/collaboration.spec.js --project=chromium
