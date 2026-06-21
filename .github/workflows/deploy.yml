@@ -119,7 +119,7 @@ jobs:
         env:
           ALEPH_VM_MODE: site-domain-link
           ALEPH_SITE_ITEM_HASH: ${{ needs.build-and-deploy.outputs.item_hash }}
-          ALEPH_SITE_DOMAIN: ${{ inputs.domain || secrets.ALEPH_COLLAB01_SITE_DOMAIN }}
+          ALEPH_SITE_DOMAIN: ${{ inputs.domain || env.ALEPH_COLLAB01_SITE_DOMAIN }}
           ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
         run: node --input-type=module -e "import('@le-space/node').then((m) => m.runSiteMode())"
