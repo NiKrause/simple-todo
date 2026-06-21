@@ -1,6 +1,6 @@
 # Simple Todo - A Local-First Peer-to-Peer Demo App
 
-A decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
+A basic decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
 ## 🚀 Live Demo
 
@@ -58,6 +58,50 @@ git checkout simple-todo
 ./tutorial-01.js 
 ```
 
+## 🛰️ Local Relay
+
+In development the app reads `VITE_RELAY_BOOTSTRAP_ADDR_DEV` from `.env`. If that variable is not set, it falls back to a hardcoded localhost relay address, so the safest local workflow is:
+
+1. Start an `orbitdb-relay` process.
+2. Copy its WebSocket multiaddr into `.env`.
+3. Start or restart the Vite dev server.
+
+Install and run the published npm package:
+
+```bash
+npm install -g orbitdb-relay
+
+ENABLE_GENERAL_LOGS=1 \
+RELAY_LISTEN_IPV4=127.0.0.1 \
+RELAY_DISABLE_IPV6=true \
+RELAY_DISABLE_QUIC=true \
+RELAY_DISABLE_WEBRTC=true \
+DATASTORE_PATH=/tmp/simple-todo-orbitdb-relay \
+orbitdb-relay --test
+```
+
+The relay exposes helper routes on `http://127.0.0.1:9090`. In another terminal, fetch the browser-dialable WebSocket address:
+
+```bash
+curl -s http://127.0.0.1:9090/multiaddrs | node -e "let d=''; process.stdin.on('data', c => d += c); process.stdin.on('end', () => { const j = JSON.parse(d); console.log(j.best.websocket || j.byTransport.websocket[0]); });"
+```
+
+Use exactly one printed `/ws` address. Do not paste the raw TCP address on port `9091`, and do not include quotes, commas, or multiple addresses in one value.
+
+Put the printed address in `.env`. If you copied `.env.example`, replace the existing `VITE_RELAY_BOOTSTRAP_ADDR_DEV` value:
+
+```bash
+VITE_RELAY_BOOTSTRAP_ADDR_DEV=/ip4/127.0.0.1/tcp/9092/ws/p2p/<relay-peer-id>
+```
+
+Then start the app:
+
+```bash
+pnpm dev
+```
+
+If you change `.env` while Vite is already running, restart `pnpm dev` so the new relay address is loaded.
+
 ## 🔧 Technologies Used
 
 - **libp2p** - Peer-to-peer networking stack
@@ -78,4 +122,3 @@ git checkout simple-todo
 This project is open source and available under the [LICENSE](./LICENSE) file.
 
 ---
-
