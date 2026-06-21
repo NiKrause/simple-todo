@@ -44,7 +44,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install chromium
 
       - name: Run collaboration E2E
         run: pnpm exec playwright test e2e/collaboration.spec.js --project=chromium
