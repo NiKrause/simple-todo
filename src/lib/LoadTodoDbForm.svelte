@@ -2,7 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { Check, Clipboard } from 'lucide-svelte';
 	import ErrorAlert from './ErrorAlert.svelte';
-	import { loadTodoDatabase, todoDBStore } from './db-actions.js';
+	import { loadTodoDatabase, todoDBAddressStore } from './db-actions.js';
 
 	export let disabled = false;
 
@@ -17,16 +17,7 @@
 
 	const dispatch = createEventDispatcher();
 
-	/**
-	 * @param {unknown} todoDB
-	 * @returns {string}
-	 */
-	function getTodoDbAddress(todoDB) {
-		const address = /** @type {{ address?: unknown } | null} */ (todoDB)?.address;
-		return address == null ? '' : String(address);
-	}
-
-	$: currentTodoDbAddress = getTodoDbAddress($todoDBStore);
+	$: currentTodoDbAddress = $todoDBAddressStore;
 	$: if (currentTodoDbAddress && !hasEditedAddress && dbAddress !== currentTodoDbAddress) {
 		dbAddress = currentTodoDbAddress;
 	}

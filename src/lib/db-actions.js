@@ -29,6 +29,7 @@ import { peerIdStore } from './p2p.js';
 
 /**
  * @typedef {{
+ *   address: unknown
  *   all: () => Promise<TodoRecord[]>
  *   get: (key: string) => Promise<TodoRecord | TodoValue | null | undefined>
  *   put: (key: string, value: TodoValue) => Promise<unknown>
@@ -51,6 +52,7 @@ function unwrapTodoValue(record) {
 // Store for OrbitDB instances
 export const orbitdbStore = writable(/** @type {any} */ (null));
 export const todoDBStore = writable(/** @type {TodoDatabase | null} */ (null));
+export const todoDBAddressStore = writable('');
 
 // Store for todos
 export const todosStore = writable(/** @type {TodoItem[]} */ ([]));
@@ -60,6 +62,31 @@ export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
 
 const observedDatabases = new WeakSet();
 
+/**
+ * @param {TodoDatabase | null | undefined} todoDB
+ * @returns {string}
+ */
+function getDatabaseAddress(todoDB) {
+	if (!todoDB) return '';
+
+	const address = todoDB.address;
+	if (typeof address === 'string') return address;
+
+	if (address && typeof address.toString === 'function') {
+		return address.toString();
+	}
+
+	return '';
+}
+
+/**
+ * @param {TodoDatabase | null} todoDB
+ */
+function setActiveTodoDatabase(todoDB) {
+	todoDBStore.set(todoDB);
+	todoDBAddressStore.set(getDatabaseAddress(todoDB));
+}
+
 // Initialize database and load existing todos
 /**
  * @param {any} orbitdb
@@ -67,7 +94,7 @@ const observedDatabases = new WeakSet();
  */
 export async function initializeDatabase(orbitdb, todoDB) {
 	orbitdbStore.set(orbitdb);
-	todoDBStore.set(todoDB);
+	setActiveTodoDatabase(todoDB);
 
 	// Load existing todos
 	await loadTodos();
@@ -104,12 +131,12 @@ export async function loadTodoDatabase(address) {
 			sync: true
 		});
 
-		todoDBStore.set(loadedTodoDB);
+		setActiveTodoDatabase(loadedTodoDB);
 		setupDatabaseListeners(loadedTodoDB);
 		await loadTodos();
 
 		return {
-			address: normalizedAddress,
+			address: getDatabaseAddress(loadedTodoDB) || normalizedAddress,
 			count: get(todosCountStore)
 		};
 	} catch (error) {
@@ -400,7 +427,7 @@ export async function deleteCurrentDatabase() {
 		console.log('✅ Database dropped from OrbitDB');
 
 		// Clear the stores
-		todoDBStore.set(null);
+		setActiveTodoDatabase(null);
 		todosStore.set([]);
 
 		console.log('✅ Database recreated successfully');
