@@ -131,7 +131,9 @@
 	<div class="space-y-4">
 		<div class="flex gap-2">
 			<input
+				data-testid="load-todo-db-input"
 				type="text"
+				aria-label="Todo database address"
 				bind:value={dbAddress}
 				placeholder="/orbitdb/zdpu..."
 				disabled={disabled || isLoading}
@@ -140,6 +142,7 @@
 				on:keydown={handleKeydown}
 			/>
 			<button
+				data-testid="copy-todo-db-address-button"
 				type="button"
 				on:click={copyToClipboard}
 				disabled={!dbAddress.trim()}
@@ -165,6 +168,7 @@
 
 		<div class="flex gap-2">
 			<button
+				data-testid="load-todo-db-button"
 				on:click={handleLoad}
 				disabled={disabled || isLoading}
 				class="rounded-md bg-slate-800 px-6 py-2 font-medium text-white transition-colors hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-gray-400"

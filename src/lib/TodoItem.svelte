@@ -22,6 +22,7 @@
 </script>
 
 <div
+	data-testid="todo-item"
 	class="flex items-center justify-between rounded-md border border-gray-200 p-3 hover:bg-gray-50"
 >
 	<div class="flex flex-1 items-center space-x-3">

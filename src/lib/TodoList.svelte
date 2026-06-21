@@ -26,7 +26,7 @@
 	}
 </script>
 
-<div class="mb-6 rounded-lg bg-white p-6 shadow-md">
+<div class="mb-6 rounded-lg bg-white p-6 shadow-md" data-testid="todo-list">
 	<h2 class="mb-4 text-xl font-semibold">{title} ({todos.length})</h2>
 	{#if todos.length > 0}
 		<div class="space-y-3">

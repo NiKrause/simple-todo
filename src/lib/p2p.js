@@ -12,11 +12,13 @@ export const libp2pStore = writable(/** @type {any} */ (null));
 export const peerIdStore = writable(/** @type {string | null} */ (null));
 
 // Add initialization state store
-export const initializationStore = writable(/** @type {{ isInitializing: boolean, isInitialized: boolean, error: string | null }} */ ({
-	isInitializing: false,
-	isInitialized: false,
-	error: null
-}));
+export const initializationStore = writable(
+	/** @type {{ isInitializing: boolean, isInitialized: boolean, error: string | null }} */ ({
+		isInitializing: false,
+		isInitialized: false,
+		error: null
+	})
+);
 
 let libp2p = /** @type {any} */ (null);
 let helia = /** @type {any} */ (null);
@@ -73,17 +75,32 @@ export async function initializeP2P() {
 
 		// Mark initialization as complete
 		initializationStore.set({ isInitializing: false, isInitialized: true, error: null });
+		installE2ETestHooks();
 		console.log('🎉 P2P initialization completed successfully!');
-		} catch (error) {
-			console.error('❌ Failed to initialize P2P:', error);
-			initializationStore.set({
-				isInitializing: false,
-				isInitialized: false,
-				error: error instanceof Error ? error.message : String(error)
-			});
-			throw error;
-		}
+	} catch (error) {
+		console.error('❌ Failed to initialize P2P:', error);
+		initializationStore.set({
+			isInitializing: false,
+			isInitialized: false,
+			error: error instanceof Error ? error.message : String(error)
+		});
+		throw error;
 	}
+}
+
+function installE2ETestHooks() {
+	if (typeof window === 'undefined' || import.meta.env.VITE_E2E !== 'true') return;
+
+	/** @type {Window & typeof globalThis & { __simpleTodoE2E?: Record<string, unknown> }} */ (
+		window
+	).__simpleTodoE2E = {
+		getPeerId: () => peerId,
+		getMultiaddrs: () =>
+			libp2p?.getMultiaddrs?.().map((/** @type {any} */ addr) => addr.toString()) ?? [],
+		getConnectionCount: () => libp2p?.getConnections?.().length ?? 0,
+		connectToMultiaddr
+	};
+}
 
 /**
  * Attempt to connect to a remote peer via a multiaddress.
