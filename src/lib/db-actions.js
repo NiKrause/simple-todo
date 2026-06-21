@@ -232,9 +232,9 @@ export async function toggleTodoComplete(todoId) {
 			const allTodos = await todoDB.all();
 			if (Array.isArray(allTodos)) {
 					const todo = allTodos[parseInt(String(todoId), 10)];
-				if (todo && todo.hash) {
-					actualTodoId = todo.hash;
-					console.log('🔍 Converted array index', todoId, 'to hash:', actualTodoId);
+				if (todo && todo.key) {
+					actualTodoId = todo.key;
+					console.log('🔍 Converted array index', todoId, 'to key:', actualTodoId);
 				}
 			}
 		}

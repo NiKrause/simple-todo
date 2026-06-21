@@ -30,7 +30,7 @@
 	<h2 class="mb-4 text-xl font-semibold">{title} ({todos.length})</h2>
 	{#if todos.length > 0}
 		<div class="space-y-3">
-			{#each todos as { id, text, completed, assignee, createdBy, key } (id)}
+			{#each todos as { id, text, completed, assignee, createdBy, key } (key)}
 				<TodoItem
 					{id}
 					{text}
