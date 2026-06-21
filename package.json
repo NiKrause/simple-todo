@@ -3,6 +3,9 @@
 	"private": true,
 	"version": "0.1.15",
 	"type": "module",
+	"exports": {
+		"./ConsentModal.svelte": "./src/lib/ConsentModal.svelte"
+	},
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
