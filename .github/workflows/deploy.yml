@@ -24,8 +24,34 @@ on:
         default: ''
 
 jobs:
+  e2e:
+    if: github.ref_name == 'collab01'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout collab01
+        uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run collaboration E2E
+        run: pnpm exec playwright test e2e/collaboration.spec.js --project=chromium
+
   build-and-deploy:
     if: github.ref_name == 'collab01'
+    needs: e2e
     runs-on: ubuntu-latest
     outputs:
       ipfs_cid_v0: ${{ steps.publish.outputs.ipfs_cid_v0 }}
