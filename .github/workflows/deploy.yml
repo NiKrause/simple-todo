@@ -97,7 +97,7 @@ jobs:
       needs.build-and-deploy.outputs.item_hash != ''
     runs-on: ubuntu-latest
     env:
-      ALEPH_COLLAB01_SITE_DOMAIN: ${{ secrets.ALEPH_COLLAB01_SITE_DOMAIN }}
+      ALEPH_COLLAB01_SITE_DOMAIN: collab01.le-space.de
     steps:
       - name: Checkout collab01
         uses: actions/checkout@v6
