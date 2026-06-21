@@ -26,7 +26,31 @@ on:
         default: ''
 
 jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.54.2-noble
+    timeout-minutes: 15
+    steps:
+      - name: Checkout simple-todo
+        uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run default database collaboration E2E
+        run: pnpm exec playwright test e2e/default-database-collaboration.spec.js --project=chromium
+
   build-and-deploy:
+    needs: e2e
     runs-on: ubuntu-latest
     outputs:
       ipfs_cid_v0: ${{ steps.publish.outputs.ipfs_cid_v0 }}

@@ -12,9 +12,13 @@ A basic decentralized, local-first, peer-to-peer todo application built with **l
 
 This is a **browser-only** local-first peer-to-peer todo application that operates without any traditional server infrastructure. It connects directly to other browsers and mobile devices through peer-to-peer connections, creating a truly decentralized experience. So far, a LibP2P signaling node is necessary to connect the peers, and in this version it also stores the todos since this browser version works with MemoryStorage only instead of local IPFSStorage (e.g. LevelBlockstore).
 
+### Main Branch Scope
+
+The `main` branch is the basic shared-list demo. Every browser opens the same default OrbitDB database (`simple-todos`); users only load the app URL, accept consent, and add todos. There is no manual OrbitDB address exchange in this branch. A Playwright E2E test verifies the default flow with Alice and Bob in separate browser contexts: each adds three todos, and both browsers must see all six replicated items.
+
 ### Key Features
 
-- ✅ **No Server Required** - Runs entirely in your browser 
+- ✅ **No Server Required** - Runs entirely in your browser
 - ✅ **Local Data** - Data is stored in your browser's level storage and replicated via OrbitDB and IPFS
 - ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of signaling nodes)
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
@@ -51,11 +55,11 @@ The tutorial covers:
 ```bash
 # Clone repository
 git clone https://github.com/NiKrause/simple-todo.git
-# checkout simple-todo branch
-git checkout simple-todo
+# checkout main branch
+git checkout main
 
 # run (like this you don't need to cut and paste anything)
-./tutorial-01.js 
+./tutorial-01.js
 ```
 
 ## 🛰️ Local Relay

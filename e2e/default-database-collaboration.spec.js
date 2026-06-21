@@ -1,0 +1,90 @@
+import { test, expect } from '@playwright/test';
+
+const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://simple-todo.le-space.de' : '/';
+const collaborationTimeout = 90000;
+
+test.describe('Default todo database collaboration', () => {
+	test.skip(
+		!!process.env.BROWSERSTACK_BUILD_NAME,
+		'Default database collaboration requires the local relay-backed Playwright server.'
+	);
+
+	test('Alice and Bob share the default OrbitDB todo list', async ({ browser }) => {
+		test.setTimeout(collaborationTimeout * 3);
+
+		const aliceContext = await browser.newContext();
+		const bobContext = await browser.newContext();
+		const alice = await aliceContext.newPage();
+		const bob = await bobContext.newPage();
+
+		const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+		const aliceTodos = [`alice-${runId}-todo-1`, `alice-${runId}-todo-2`, `alice-${runId}-todo-3`];
+		const bobTodos = [`bob-${runId}-todo-1`, `bob-${runId}-todo-2`, `bob-${runId}-todo-3`];
+		const allTodos = [...aliceTodos, ...bobTodos];
+
+		try {
+			await Promise.all([openReadyApp(alice), openReadyApp(bob)]);
+
+			for (const todo of aliceTodos) {
+				await addTodo(alice, todo);
+			}
+
+			for (const todo of bobTodos) {
+				await addTodo(bob, todo);
+			}
+
+			for (const todo of allTodos) {
+				await expectTodo(alice, todo);
+				await expectTodo(bob, todo);
+			}
+		} finally {
+			await bobContext.close();
+			await aliceContext.close();
+		}
+	});
+});
+
+/**
+ * @param {import('@playwright/test').Page} page
+ */
+async function openReadyApp(page) {
+	await page.goto(testUrl);
+
+	const modal = page.locator('div.fixed.inset-0.z-50');
+	await expect(modal).toBeVisible();
+
+	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
+		await checkbox.check();
+	}
+
+	await page.getByRole('button', { name: 'Proceed to Test the App' }).click();
+	await expect(modal).not.toBeVisible();
+	await expect(getTodoInput(page)).toBeEnabled({ timeout: collaborationTimeout });
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {string} text
+ */
+async function addTodo(page, text) {
+	await getTodoInput(page).fill(text);
+	await page.getByRole('button', { name: 'Add TODO' }).click();
+	await expectTodo(page, text);
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {string} text
+ */
+async function expectTodo(page, text) {
+	await expect(page.getByText(text, { exact: true })).toBeVisible({
+		timeout: collaborationTimeout
+	});
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ */
+function getTodoInput(page) {
+	return page.getByPlaceholder('What needs to be done?');
+}

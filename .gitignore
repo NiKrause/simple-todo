@@ -3,6 +3,9 @@ node_modules
 coverage
 orbitdb*
 p2p-todo-demo
+relay/
+e2e/relay-info.json
+e2e/relay.log
 
 # Output
 .output
