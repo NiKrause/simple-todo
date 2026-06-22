@@ -163,7 +163,19 @@ async function setWebRTCToggle(page, enabled) {
 
 	const currentValue = (await toggle.getAttribute('aria-checked')) === 'true';
 	if (currentValue !== enabled) {
+		const previousPeerId = await getPeerId(page);
 		await toggle.click();
+		await expect(page.getByTestId('todo-input')).toBeEnabled({ timeout: collaborationTimeout });
+		await expect
+			.poll(
+				() =>
+					page.evaluate(() => {
+						const hooks = window.__simpleTodoE2E;
+						return hooks?.getPeerId?.() ?? null;
+					}),
+				{ timeout: collaborationTimeout }
+			)
+			.not.toBe(previousPeerId);
 	}
 
 	await expectWebRTCToggleState(page, enabled);

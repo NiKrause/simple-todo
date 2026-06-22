@@ -1,11 +1,11 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 
 import { createLibp2p } from 'libp2p';
 import { createHelia } from 'helia';
 import { createOrbitDB, IPFSAccessController } from '@orbitdb/core';
 import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2pConfig } from './libp2p-config.js';
-import { initializeDatabase } from './db-actions.js';
+import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
 import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
 
 export { setWebRTCEnabled, webrtcEnabledStore };
@@ -29,8 +29,7 @@ let orbitdb = /** @type {any} */ (null);
 
 let peerId = /** @type {string | null} */ (null);
 let todoDB = /** @type {any} */ (null);
-/** @type {(() => void) | null} */
-let unsubscribeWebRTCSetting = null;
+let defaultTodoDbAddress = '';
 const MANUAL_CONNECT_STABILIZATION_MS = 3_000;
 const DISCOVERY_DIAL_RETRY_COOLDOWN_MS = 5_000;
 const DISCOVERY_DIAL_TIMEOUT_MS = 10_000;
@@ -41,7 +40,7 @@ const discoveredPeers = new Map();
  * Initialize the P2P network after user consent
  * This function should be called only after the user has accepted the consent modal
  */
-export async function initializeP2P() {
+export async function initializeP2P(options = /** @type {{ todoDbAddress?: string }} */ ({})) {
 	console.log('🚀 Starting P2P initialization after user consent...');
 
 	try {
@@ -60,7 +59,6 @@ export async function initializeP2P() {
 		peerIdStore.set(peerId);
 		discoveredPeers.clear();
 		setupPubsubDiscoveryAutoDial();
-		setupWebRTCSettingWatcher();
 
 		// Create Helia (IPFS) instance
 		helia = await createHelia({ libp2p });
@@ -69,12 +67,7 @@ export async function initializeP2P() {
 		// Create OrbitDB instance
 		console.log('🛬 Creating OrbitDB instance...');
 		orbitdb = await createOrbitDB({ ipfs: helia, id: 'simple-todo-app' });
-		todoDB = await orbitdb.open('simple-todos', {
-			type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
-			create: true, // Allows the database to be created if it doesn't exist
-			sync: true, // Enables automatic synchronization with other peers
-			AccessController: IPFSAccessController({ write: ['*'] }) //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
-		});
+		todoDB = await openInitialTodoDatabase(options.todoDbAddress);
 
 		console.log('✅ Database opened successfully with OrbitDBAccessController:', {
 			address: todoDB.address,
@@ -98,6 +91,61 @@ export async function initializeP2P() {
 		});
 		throw error;
 	}
+}
+
+/**
+ * Restart libp2p, Helia and OrbitDB with the current transport settings.
+ * The active Todo DB address is preserved when one is available.
+ */
+export async function restartP2P() {
+	const activeTodoDbAddress = get(todoDBAddressStore);
+	const shouldPreserveActiveTodoDb =
+		Boolean(activeTodoDbAddress) && activeTodoDbAddress !== defaultTodoDbAddress;
+
+	await stopP2P();
+	await initializeP2P({ todoDbAddress: shouldPreserveActiveTodoDb ? activeTodoDbAddress : '' });
+}
+
+async function stopP2P() {
+	initializationStore.set({ isInitializing: true, isInitialized: false, error: null });
+	libp2pStore.set(null);
+	peerIdStore.set(null);
+	peerId = null;
+	discoveredPeers.clear();
+
+	const resources = [todoDB, orbitdb, helia, libp2p];
+	todoDB = null;
+	orbitdb = null;
+	helia = null;
+	libp2p = null;
+
+	await Promise.allSettled(resources.map((resource) => resource?.stop?.() ?? resource?.close?.()));
+
+	todosStore.set([]);
+}
+
+/**
+ * @param {string | undefined} address
+ */
+async function openInitialTodoDatabase(address) {
+	const normalizedAddress = address?.trim() ?? '';
+
+	if (normalizedAddress.startsWith('/orbitdb/')) {
+		return orbitdb.open(normalizedAddress, {
+			type: 'keyvalue',
+			sync: true
+		});
+	}
+
+	const defaultTodoDB = await orbitdb.open('simple-todos', {
+		type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
+		create: true, // Allows the database to be created if it doesn't exist
+		sync: true, // Enables automatic synchronization with other peers
+		AccessController: IPFSAccessController({ write: ['*'] }) //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
+	});
+
+	defaultTodoDbAddress = defaultTodoDB.address?.toString?.() ?? '';
+	return defaultTodoDB;
 }
 
 function installE2ETestHooks() {
@@ -132,35 +180,6 @@ function installE2ETestHooks() {
 	};
 }
 
-function setupWebRTCSettingWatcher() {
-	unsubscribeWebRTCSetting?.();
-	unsubscribeWebRTCSetting = webrtcEnabledStore.subscribe((enabled) => {
-		if (!libp2p) return;
-
-		if (enabled) {
-			void retryDiscoveredPeerDials('webrtc:enabled', { force: true });
-			return;
-		}
-
-		void enforceRelayOnlyConnections();
-	});
-}
-
-async function enforceRelayOnlyConnections() {
-	if (!libp2p || getWebRTCEnabled()) return;
-
-	const webRTCConnections =
-		libp2p
-			.getConnections?.()
-			.filter((/** @type {any} */ connection) => isWebRTCConnection(connection)) ?? [];
-
-	await Promise.allSettled(
-		webRTCConnections.map((/** @type {any} */ connection) => connection.close?.())
-	);
-
-	await retryDiscoveredPeerDials('webrtc:disabled', { force: true });
-}
-
 function setupPubsubDiscoveryAutoDial() {
 	if (!libp2p) return;
 
@@ -182,23 +201,12 @@ function setupPubsubDiscoveryAutoDial() {
 	};
 
 	const handleConnectivityChanged = async () => {
-		await retryDiscoveredPeerDials('connectivity:update', { force: !getWebRTCEnabled() });
-	};
-
-	/** @type {EventListener} */
-	const handleConnectionOpen = (event) => {
-		const connection = /** @type {CustomEvent<any>} */ (event).detail;
-
-		if (!getWebRTCEnabled() && isWebRTCConnection(connection)) {
-			void connection.close?.();
-			void retryDiscoveredPeerDials('webrtc:connection-blocked', { force: true });
-		}
+		await retryDiscoveredPeerDials('connectivity:update');
 	};
 
 	libp2p.addEventListener('peer:discovery', handlePeerDiscovery);
 	libp2p.addEventListener('self:peer:update', handleConnectivityChanged);
 	libp2p.addEventListener('peer:update', handleConnectivityChanged);
-	libp2p.addEventListener('connection:open', handleConnectionOpen);
 	libp2p.addEventListener('connection:close', handleConnectivityChanged);
 }
 

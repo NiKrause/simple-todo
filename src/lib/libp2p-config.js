@@ -140,26 +140,31 @@ export async function createLibp2pConfig(privateKey = null) {
 				? preferredFallbackBootstrapMultiaddrs
 				: RELAY_BOOTSTRAP_ADDR;
 	const alephBootstrap = bootstrap({ list: relayBootstrapAddrs });
+	const webRTCEnabled = getWebRTCEnabled();
 
 	/** @type {any} */
 	const config = {
 		addresses: {
-			listen: ['/p2p-circuit', '/webrtc']
+			listen: webRTCEnabled ? ['/p2p-circuit', '/webrtc'] : ['/p2p-circuit']
 		},
 		transports: [
 			webSockets({
 				filter: filters.all
 			}),
-			webRTCDirect({
-				rtcConfiguration: {
-					iceServers: WEBRTC_ICE_SERVERS
-				}
-			}),
-			webRTC({
-				rtcConfiguration: {
-					iceServers: WEBRTC_ICE_SERVERS
-				}
-			}),
+			...(webRTCEnabled
+				? [
+						webRTCDirect({
+							rtcConfiguration: {
+								iceServers: WEBRTC_ICE_SERVERS
+							}
+						}),
+						webRTC({
+							rtcConfiguration: {
+								iceServers: WEBRTC_ICE_SERVERS
+							}
+						})
+					]
+				: []),
 			circuitRelayTransport(
 				/** @type {any} */ ({
 					discoverRelays: 1,
@@ -169,8 +174,7 @@ export async function createLibp2pConfig(privateKey = null) {
 		],
 		connectionEncrypters: [noise()],
 		connectionGater: {
-			denyDialMultiaddr: (/** @type {any} */ addr) =>
-				Boolean(!getWebRTCEnabled() && addr?.toString?.().toLowerCase().includes('/webrtc')),
+			denyDialMultiaddr: () => false,
 			denyDialPeer: () => false,
 			denyInboundConnection: () => false,
 			denyOutboundConnection: () => false,
@@ -196,7 +200,7 @@ export async function createLibp2pConfig(privateKey = null) {
 			bootstrap: alephBootstrap,
 			autonat: autoNAT(),
 			//   ping: ping(),
-			dcutr: dcutr(),
+			...(webRTCEnabled ? { dcutr: dcutr() } : {}),
 			pubsub: gossipsub({
 				emitSelf: false,
 				allowPublishToZeroTopicPeers: true
