@@ -2,6 +2,7 @@
 	/* eslint-disable no-undef */
 	import { onMount } from 'svelte';
 	import { peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js';
+	import { initializeWebRTCSetting } from '$lib/webrtc-settings.js';
 	import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
@@ -14,6 +15,7 @@
 	import ConnectedPeers from '$lib/ConnectedPeers.svelte';
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
 	import ManualConnectForm from '$lib/ManualConnectForm.svelte';
+	import WebRTCToggle from '$lib/WebRTCToggle.svelte';
 	import { libp2pStore } from '$lib/p2p.js';
 	import SponsorRelayFab from '@le-space/ui/svelte';
 
@@ -55,6 +57,8 @@
 
 	onMount(async () => {
 		try {
+			initializeWebRTCSetting();
+
 			if (localStorage.getItem(CONSENT_KEY) === 'true') {
 				showModal = false;
 				await initializeP2P();
@@ -215,6 +219,8 @@
 				disabled={!$initializationStore.isInitialized}
 				on:connected={handleManualConnect}
 			/>
+
+			<WebRTCToggle disabled={!$initializationStore.isInitialized} />
 
 			<!-- Connected Peers -->
 			<ConnectedPeers bind:this={connectedPeersRef} libp2p={$libp2pStore} autoConnect={false} />

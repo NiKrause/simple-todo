@@ -6,6 +6,9 @@ import { createOrbitDB, IPFSAccessController } from '@orbitdb/core';
 import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { initializeDatabase } from './db-actions.js';
+import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
+
+export { setWebRTCEnabled, webrtcEnabledStore };
 
 // Export libp2p instance for plugins
 export const libp2pStore = writable(/** @type {any} */ (null));
@@ -26,6 +29,8 @@ let orbitdb = /** @type {any} */ (null);
 
 let peerId = /** @type {string | null} */ (null);
 let todoDB = /** @type {any} */ (null);
+/** @type {(() => void) | null} */
+let unsubscribeWebRTCSetting = null;
 const MANUAL_CONNECT_STABILIZATION_MS = 3_000;
 const DISCOVERY_DIAL_RETRY_COOLDOWN_MS = 5_000;
 const DISCOVERY_DIAL_TIMEOUT_MS = 10_000;
@@ -55,6 +60,7 @@ export async function initializeP2P() {
 		peerIdStore.set(peerId);
 		discoveredPeers.clear();
 		setupPubsubDiscoveryAutoDial();
+		setupWebRTCSettingWatcher();
 
 		// Create Helia (IPFS) instance
 		helia = await createHelia({ libp2p });
@@ -120,8 +126,39 @@ function installE2ETestHooks() {
 				remotePeer: connection.remotePeer?.toString() ?? null,
 				remoteAddr: connection.remoteAddr?.toString() ?? null
 			})) ?? [],
+		getWebRTCEnabled,
+		setWebRTCEnabled,
 		connectToMultiaddr
 	};
+}
+
+function setupWebRTCSettingWatcher() {
+	unsubscribeWebRTCSetting?.();
+	unsubscribeWebRTCSetting = webrtcEnabledStore.subscribe((enabled) => {
+		if (!libp2p) return;
+
+		if (enabled) {
+			void retryDiscoveredPeerDials('webrtc:enabled', { force: true });
+			return;
+		}
+
+		void enforceRelayOnlyConnections();
+	});
+}
+
+async function enforceRelayOnlyConnections() {
+	if (!libp2p || getWebRTCEnabled()) return;
+
+	const webRTCConnections =
+		libp2p
+			.getConnections?.()
+			.filter((/** @type {any} */ connection) => isWebRTCConnection(connection)) ?? [];
+
+	await Promise.allSettled(
+		webRTCConnections.map((/** @type {any} */ connection) => connection.close?.())
+	);
+
+	await retryDiscoveredPeerDials('webrtc:disabled', { force: true });
 }
 
 function setupPubsubDiscoveryAutoDial() {
@@ -145,12 +182,23 @@ function setupPubsubDiscoveryAutoDial() {
 	};
 
 	const handleConnectivityChanged = async () => {
-		await retryDiscoveredPeerDials('connectivity:update');
+		await retryDiscoveredPeerDials('connectivity:update', { force: !getWebRTCEnabled() });
+	};
+
+	/** @type {EventListener} */
+	const handleConnectionOpen = (event) => {
+		const connection = /** @type {CustomEvent<any>} */ (event).detail;
+
+		if (!getWebRTCEnabled() && isWebRTCConnection(connection)) {
+			void connection.close?.();
+			void retryDiscoveredPeerDials('webrtc:connection-blocked', { force: true });
+		}
 	};
 
 	libp2p.addEventListener('peer:discovery', handlePeerDiscovery);
 	libp2p.addEventListener('self:peer:update', handleConnectivityChanged);
 	libp2p.addEventListener('peer:update', handleConnectivityChanged);
+	libp2p.addEventListener('connection:open', handleConnectionOpen);
 	libp2p.addEventListener('connection:close', handleConnectivityChanged);
 }
 
@@ -220,19 +268,35 @@ function dedupeMultiaddrs(multiaddrs) {
  * @param {string} reason
  */
 async function dialDiscoveredPeer(discoveredPeerId, peerInfo, reason) {
+	return dialDiscoveredPeerWithOptions(discoveredPeerId, peerInfo, reason, {});
+}
+
+/**
+ * @param {string} discoveredPeerId
+ * @param {{ peer: any, multiaddrs: any[], isDialing: boolean, lastDialAttemptAt: number }} peerInfo
+ * @param {string} reason
+ * @param {{ force?: boolean }} options
+ */
+async function dialDiscoveredPeerWithOptions(
+	discoveredPeerId,
+	peerInfo,
+	reason,
+	{ force = false } = {}
+) {
 	if (!libp2p) return;
 
 	if (peerInfo.isDialing) {
 		return;
 	}
 
-	if (!shouldDialDiscoveredPeer(peerInfo)) {
+	if (!force && !shouldDialDiscoveredPeer(peerInfo)) {
 		return;
 	}
 
 	const dialCandidates = selectDiscoveredDialCandidates(peerInfo.multiaddrs);
 	const existingConnections = libp2p.getConnections(peerInfo.peer) ?? [];
 	const shouldAttemptWebRTCUpgrade =
+		getWebRTCEnabled() &&
 		existingConnections.length > 0 &&
 		!hasWebRTCConnection(existingConnections) &&
 		dialCandidates.some(isWebRTCDialCandidate);
@@ -270,7 +334,15 @@ async function dialDiscoveredPeer(discoveredPeerId, peerInfo, reason) {
  * @returns {boolean}
  */
 function hasWebRTCConnection(connections) {
-	return connections.some((connection) => connection.remoteAddr?.toString().includes('/webrtc'));
+	return connections.some(isWebRTCConnection);
+}
+
+/**
+ * @param {any} connection
+ * @returns {boolean}
+ */
+function isWebRTCConnection(connection) {
+	return connection.remoteAddr?.toString().toLowerCase().includes('/webrtc') ?? false;
 }
 
 /**
@@ -301,6 +373,10 @@ async function dialDiscoveredPeerCandidates(peer, dialCandidates) {
 		}
 	}
 
+	if (!getWebRTCEnabled()) {
+		throw new Error(JSON.stringify(errors));
+	}
+
 	try {
 		return await libp2p.dial(peer, { signal: createDialTimeoutSignal() });
 	} catch (error) {
@@ -327,7 +403,15 @@ function createDialTimeoutSignal() {
  * @returns {any[]}
  */
 function selectDiscoveredDialCandidates(multiaddrs) {
-	return multiaddrs.filter(isBrowserDialableDiscoveredAddress).sort(rankDiscoveredDialCandidate);
+	const candidates = multiaddrs.filter(isBrowserDialableDiscoveredAddress);
+
+	if (!getWebRTCEnabled()) {
+		return candidates
+			.filter((addr) => !isWebRTCDialCandidate(addr))
+			.sort(rankDiscoveredDialCandidate);
+	}
+
+	return candidates.sort(rankDiscoveredDialCandidate);
 }
 
 /**
@@ -388,9 +472,9 @@ function isWebRTCDialCandidate(addr) {
 /**
  * @param {string} reason
  */
-async function retryDiscoveredPeerDials(reason) {
+async function retryDiscoveredPeerDials(reason, { force = false } = {}) {
 	for (const [discoveredPeerId, peerInfo] of discoveredPeers) {
-		await dialDiscoveredPeer(discoveredPeerId, peerInfo, reason);
+		await dialDiscoveredPeerWithOptions(discoveredPeerId, peerInfo, reason, { force });
 	}
 }
 
@@ -439,6 +523,10 @@ export async function connectToMultiaddr(address) {
 		throw new Error(
 			'The multiaddress must include a peer id, for example ending with "/p2p/<peer-id>".'
 		);
+	}
+
+	if (!getWebRTCEnabled() && normalizedAddress.toLowerCase().includes('/webrtc')) {
+		throw new Error('WebRTC is disabled. Use a relay circuit multiaddress instead.');
 	}
 
 	const connection = await libp2p.dial(target);

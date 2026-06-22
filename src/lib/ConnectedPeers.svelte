@@ -96,7 +96,8 @@
 		// Handle peer discovery events
 		/** @type {(event: Event) => Promise<void>} */
 		const onPeerDiscovery = async (event) => {
-			const customEvent = /** @type {CustomEvent<{ id?: { toString(): string }, multiaddrs: any[] }>} */ (event);
+			const customEvent =
+				/** @type {CustomEvent<{ id?: { toString(): string }, multiaddrs: any[] }>} */ (event);
 			const { id: peerId, multiaddrs } = customEvent.detail;
 			const peerIdStr = peerId?.toString();
 			if (!peerIdStr) return;
@@ -125,7 +126,11 @@
 			});
 
 			// Auto-connect only for browser-reachable transports, and back off after failures.
-			if (autoConnect && isAutoDialCandidate(detectedTransports) && shouldAttemptPeerDial(peerIdStr)) {
+			if (
+				autoConnect &&
+				isAutoDialCandidate(detectedTransports) &&
+				shouldAttemptPeerDial(peerIdStr)
+			) {
 				try {
 					await libp2p.dial(peerId);
 					failedPeerDialState.delete(peerIdStr);
@@ -148,7 +153,16 @@
 			const existingPeer = currentPeers.find((peer) => peer.peerId === peerIdStr);
 			if (!existingPeer) {
 				const storedPeerInfo = discoveredPeersInfo.get(peerIdStr);
-				const transports = storedPeerInfo?.transports || ['webrtc'];
+				const connections = libp2p.getConnections(peerId) ?? [];
+				const activeTransports = Array.from(
+					new Set(
+						connections.flatMap((/** @type {any} */ connection) =>
+							extractTransportsFromConnection(connection)
+						)
+					)
+				);
+				const transports =
+					activeTransports.length > 0 ? activeTransports : storedPeerInfo?.transports || ['webrtc'];
 
 				peers.update((peers) => [...peers, { peerId: peerIdStr, transports }]);
 				discoveredPeersInfo.delete(peerIdStr);

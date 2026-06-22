@@ -15,6 +15,7 @@ import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
 import { multiaddr } from '@multiformats/multiaddr';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
 import * as filters from '@libp2p/websockets/filters';
+import { getWebRTCEnabled } from './webrtc-settings.js';
 
 // Environment variables
 const RELAY_BOOTSTRAP_ADDR_DEV =
@@ -168,7 +169,8 @@ export async function createLibp2pConfig(privateKey = null) {
 		],
 		connectionEncrypters: [noise()],
 		connectionGater: {
-			denyDialMultiaddr: () => false,
+			denyDialMultiaddr: (/** @type {any} */ addr) =>
+				Boolean(!getWebRTCEnabled() && addr?.toString?.().toLowerCase().includes('/webrtc')),
 			denyDialPeer: () => false,
 			denyInboundConnection: () => false,
 			denyOutboundConnection: () => false,

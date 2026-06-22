@@ -3,6 +3,50 @@ import { test, expect } from '@playwright/test';
 const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://simple-todo.le-space.de' : '/';
 const collaborationTimeout = 90000;
 
+test.describe.serial('WebRTC transport toggle', () => {
+	test.skip(
+		!!process.env.BROWSERSTACK_BUILD_NAME,
+		'Collaboration tests require the local relay-backed Playwright server.'
+	);
+
+	test('keeps browser peers connected through relay when WebRTC is disabled', async ({
+		browser
+	}) => {
+		test.setTimeout(collaborationTimeout * 3);
+		const session = await createAliceAndBob(browser);
+
+		try {
+			const { alice, bob } = session;
+
+			await openReadyApp(alice);
+			await expectWebRTCToggleState(alice, true);
+			await setWebRTCToggle(alice, false);
+			const alicePeerId = await getPeerId(alice);
+			await waitForSelfDialableAddress(alice, 'Alice');
+
+			await openReadyApp(bob);
+			await expectWebRTCToggleState(bob, true);
+			await setWebRTCToggle(bob, false);
+			const bobPeerId = await getPeerId(bob);
+			await waitForSelfDialableAddress(bob, 'Bob');
+
+			await waitForPubsubDiscoveredDialablePeer(bob, alicePeerId, 'Bob -> Alice');
+			await waitForPubsubDiscoveredDialablePeer(alice, bobPeerId, 'Alice -> Bob');
+			await waitForConnectedPeer(bob, alicePeerId, 'Bob -> Alice');
+			await waitForConnectedPeer(alice, bobPeerId, 'Alice -> Bob');
+			await waitForConnectionCount(bob, 2);
+			await expectRelayOnlyTransportState(alice, bobPeerId, 'Alice UI -> Bob');
+			await expectRelayOnlyTransportState(bob, alicePeerId, 'Bob UI -> Alice');
+
+			await bob.waitForTimeout(10_000);
+			await expectRelayOnlyTransportState(alice, bobPeerId, 'Alice stable UI -> Bob');
+			await expectRelayOnlyTransportState(bob, alicePeerId, 'Bob stable UI -> Alice');
+		} finally {
+			await session.close();
+		}
+	});
+});
+
 test.describe.serial('Todo collaboration', () => {
 	test.skip(
 		!!process.env.BROWSERSTACK_BUILD_NAME,
@@ -107,6 +151,34 @@ async function openReadyApp(page) {
 	await expect(page.getByTestId('load-todo-db-input')).toHaveValue(/^\/orbitdb\//, {
 		timeout: collaborationTimeout
 	});
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {boolean} enabled
+ */
+async function setWebRTCToggle(page, enabled) {
+	const toggle = page.getByTestId('webrtc-toggle-button');
+	await expect(toggle).toBeVisible({ timeout: collaborationTimeout });
+
+	const currentValue = (await toggle.getAttribute('aria-checked')) === 'true';
+	if (currentValue !== enabled) {
+		await toggle.click();
+	}
+
+	await expectWebRTCToggleState(page, enabled);
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {boolean} enabled
+ */
+async function expectWebRTCToggleState(page, enabled) {
+	await expect(page.getByTestId('webrtc-toggle-button')).toHaveAttribute(
+		'aria-checked',
+		String(enabled),
+		{ timeout: collaborationTimeout }
+	);
 }
 
 /**
@@ -266,7 +338,8 @@ async function expectRelayAndWebRTCTransportState(page, remoteBrowserPeerId, lab
 		);
 		const remoteBrowserRelayConnection = state.connections.some(
 			(connection) =>
-				connection.remotePeer === remoteBrowserPeerId && connection.remoteAddr?.includes('/p2p-circuit')
+				connection.remotePeer === remoteBrowserPeerId &&
+				connection.remoteAddr?.includes('/p2p-circuit')
 		);
 		const remoteBrowserWebRTCConnection = state.connections.some(
 			(connection) =>
@@ -276,8 +349,49 @@ async function expectRelayAndWebRTCTransportState(page, remoteBrowserPeerId, lab
 		return relayConnection && remoteBrowserRelayConnection && remoteBrowserWebRTCConnection;
 	});
 
-	await expectPeerTransportBadge(page, remoteBrowserPeerId, 'circuit-relay', `${label} Relay badge`);
+	await expectPeerTransportBadge(
+		page,
+		remoteBrowserPeerId,
+		'circuit-relay',
+		`${label} Relay badge`
+	);
 	await expectPeerTransportBadge(page, remoteBrowserPeerId, 'webrtc', `${label} WebRTC badge`);
+	await expect(page.getByTestId('transport-badge').filter({ hasText: 'WS' })).toBeVisible({
+		timeout: collaborationTimeout
+	});
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {string} remoteBrowserPeerId
+ * @param {string} label
+ */
+async function expectRelayOnlyTransportState(page, remoteBrowserPeerId, label) {
+	await waitForP2PState(page, `${label} relay-only transport state`, (state) => {
+		const relayConnection = state.connections.some(
+			(connection) =>
+				connection.remotePeer !== remoteBrowserPeerId && connection.remoteAddr?.includes('/ws/')
+		);
+		const remoteBrowserRelayConnection = state.connections.some(
+			(connection) =>
+				connection.remotePeer === remoteBrowserPeerId &&
+				connection.remoteAddr?.includes('/p2p-circuit')
+		);
+		const remoteBrowserWebRTCConnection = state.connections.some(
+			(connection) =>
+				connection.remotePeer === remoteBrowserPeerId && connection.remoteAddr?.includes('/webrtc')
+		);
+
+		return relayConnection && remoteBrowserRelayConnection && !remoteBrowserWebRTCConnection;
+	});
+
+	await expectPeerTransportBadge(
+		page,
+		remoteBrowserPeerId,
+		'circuit-relay',
+		`${label} Relay badge`
+	);
+	await expectNoPeerTransportBadge(page, remoteBrowserPeerId, 'webrtc', `${label} no WebRTC badge`);
 	await expect(page.getByTestId('transport-badge').filter({ hasText: 'WS' })).toBeVisible({
 		timeout: collaborationTimeout
 	});
@@ -296,6 +410,21 @@ async function expectPeerTransportBadge(page, peerId, transport, label) {
 			.and(page.locator(`[data-peer-id="${peerId}"][data-transport="${transport}"]`)),
 		label
 	).toBeVisible({ timeout: collaborationTimeout });
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {string} peerId
+ * @param {string} transport
+ * @param {string} label
+ */
+async function expectNoPeerTransportBadge(page, peerId, transport, label) {
+	await expect(
+		page
+			.getByTestId('transport-badge')
+			.and(page.locator(`[data-peer-id="${peerId}"][data-transport="${transport}"]`)),
+		label
+	).toHaveCount(0, { timeout: collaborationTimeout });
 }
 
 /**
