@@ -29,39 +29,52 @@ test.describe.serial('Todo collaboration', () => {
 
 		await openReadyApp(alice);
 		const alicePeerId = await getPeerId(alice);
+		await waitForSelfDialableAddress(alice, 'Alice');
+
+		await openReadyApp(bob);
+		const bobPeerId = await getPeerId(bob);
+		await waitForSelfDialableAddress(bob, 'Bob');
+		await waitForPubsubDiscoveredDialablePeer(bob, alicePeerId, 'Bob -> Alice');
+		await waitForPubsubDiscoveredDialablePeer(alice, bobPeerId, 'Alice -> Bob');
+		await waitForConnectedPeer(bob, alicePeerId, 'Bob -> Alice');
+		await waitForConnectedPeer(alice, bobPeerId, 'Alice -> Bob');
+		await waitForConnectionCount(bob, 2);
+
 		for (const todo of aliceTodos) {
 			await addTodo(alice, todo);
 		}
 
 		const aliceTodoDbAddress = await getTodoDbAddress(alice);
-
-		await openReadyApp(bob);
-		const bobPeerId = await getPeerId(bob);
-		await waitForPubsubDiscoveredDialablePeer(bob, alicePeerId);
-		await waitForConnectedPeer(bob, alicePeerId);
-		await waitForConnectedPeer(alice, bobPeerId);
-		await waitForConnectionCount(bob, 2);
 		await bob.waitForTimeout(5000);
 		await loadTodoDb(bob, aliceTodoDbAddress);
 		await bob.waitForTimeout(5000);
+		await waitForTodoDatabasePeerCount(alice, 1, 'Alice Todo DB peers');
+		await waitForTodoDatabasePeerCount(bob, 1, 'Bob Todo DB peers');
 		await announceTodoDatabaseEntries(alice, { attempts: 3, delayMs: 3000 });
 
 		for (const todo of aliceTodos) {
-			await expectTodoWithReplicationPoll(bob, todo);
+			await expectTodoWithReplicationPoll(bob, todo, alice);
 		}
 	});
 
 	test('Alice sees Bob todo immediately after Bob loads Alice database', async () => {
 		test.setTimeout(collaborationTimeout * 3);
 		const { alice, bob } = requireSession(session);
+		const alicePeerId = await getPeerId(alice);
+		const bobPeerId = await getPeerId(bob);
 
 		for (const todo of aliceTodos) {
-			await expectTodoWithReplicationPoll(bob, todo);
+			await expectTodoWithReplicationPoll(bob, todo, alice);
 		}
 
+		await waitForConnectedPeer(bob, alicePeerId, 'Bob -> Alice');
+		await waitForConnectedPeer(alice, bobPeerId, 'Alice -> Bob');
+		await waitForConnectionCount(bob, 2);
+		await waitForTodoDatabasePeerCount(alice, 1, 'Alice Todo DB peers');
+		await waitForTodoDatabasePeerCount(bob, 1, 'Bob Todo DB peers');
 		await addTodo(bob, bobTodo);
 		await announceTodoDatabaseEntries(bob, { attempts: 3, delayMs: 3000 });
-		await expectTodoWithReplicationPoll(alice, bobTodo);
+		await expectTodoWithReplicationPoll(alice, bobTodo, bob);
 	});
 });
 
@@ -157,11 +170,16 @@ async function expectTodo(page, text) {
 /**
  * @param {import('@playwright/test').Page} page
  * @param {string} text
+ * @param {import('@playwright/test').Page} [sourcePage]
  */
-async function expectTodoWithReplicationPoll(page, text) {
+async function expectTodoWithReplicationPoll(page, text, sourcePage) {
 	const deadline = Date.now() + collaborationTimeout;
 
 	while (Date.now() < deadline) {
+		if (sourcePage) {
+			await announceTodoDatabaseEntries(sourcePage);
+		}
+
 		await page.evaluate(async () => {
 			if (typeof window.forceReloadTodos === 'function') {
 				await window.forceReloadTodos();
@@ -227,46 +245,34 @@ async function createAliceAndBob(browser) {
  * @param {import('@playwright/test').Page} page
  * @param {string} peerId
  */
-async function waitForConnectedPeer(page, peerId) {
-	await expect
-		.poll(
-			() =>
-				page.evaluate((expectedPeerId) => {
-					const hooks = window.__simpleTodoE2E;
-					if (!hooks?.getConnectedPeerIds) return false;
-					return hooks.getConnectedPeerIds().includes(expectedPeerId);
-				}, peerId),
-			{ timeout: collaborationTimeout }
-		)
-		.toBe(true);
+async function waitForConnectedPeer(page, peerId, label) {
+	await waitForP2PState(page, `${label} connection`, (state) =>
+		state.connectedPeerIds.includes(peerId)
+	);
 }
 
 /**
  * @param {import('@playwright/test').Page} page
  * @param {string} peerId
+ * @param {string} label
  */
-async function waitForPubsubDiscoveredDialablePeer(page, peerId) {
-	await expect
-		.poll(
-			() =>
-				page.evaluate((expectedPeerId) => {
-					const hooks = window.__simpleTodoE2E;
-					if (!hooks?.getDiscoveredPeers) return false;
-					const peer = hooks.getDiscoveredPeers().find((peer) => peer.peerId === expectedPeerId);
+async function waitForPubsubDiscoveredDialablePeer(page, peerId, label) {
+	await waitForP2PState(page, `${label} pubsub discovery`, (state) => {
+		if (state.connectedPeerIds.includes(peerId)) return true;
 
-					return (
-						peer?.multiaddrs.some(
-							(address) =>
-								address.includes('/p2p/') &&
-								(address.includes('/p2p-circuit') ||
-									address.includes('/webrtc') ||
-									address.includes('/ws'))
-						) ?? false
-					);
-				}, peerId),
-			{ timeout: collaborationTimeout }
-		)
-		.toBe(true);
+		const peer = state.discoveredPeers.find((peer) => peer.peerId === peerId);
+		return peer?.multiaddrs.some(isDialableBrowserAddress) ?? false;
+	});
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {string} label
+ */
+async function waitForSelfDialableAddress(page, label) {
+	await waitForP2PState(page, `${label} dialable self address`, (state) =>
+		state.multiaddrs.some(isDialableBrowserAddress)
+	);
 }
 
 /**
@@ -274,15 +280,86 @@ async function waitForPubsubDiscoveredDialablePeer(page, peerId) {
  * @param {number} minimumCount
  */
 async function waitForConnectionCount(page, minimumCount) {
+	await waitForP2PState(
+		page,
+		`at least ${minimumCount} P2P connections`,
+		(state) => state.connectionCount >= minimumCount
+	);
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {number} minimumCount
+ * @param {string} label
+ */
+async function waitForTodoDatabasePeerCount(page, minimumCount, label) {
 	await expect
 		.poll(
 			() =>
 				page.evaluate(() => {
-					const hooks = window.__simpleTodoE2E;
-					if (!hooks?.getConnectionCount) return 0;
-					return hooks.getConnectionCount();
+					if (typeof window.getTodoDatabasePeerCount !== 'function') return 0;
+					return window.getTodoDatabasePeerCount();
 				}),
 			{ timeout: collaborationTimeout }
 		)
 		.toBeGreaterThanOrEqual(minimumCount);
+
+	console.log(`${label}: at least ${minimumCount}`);
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {string} description
+ * @param {(state: Awaited<ReturnType<typeof getP2PState>>) => boolean} predicate
+ */
+async function waitForP2PState(page, description, predicate) {
+	const deadline = Date.now() + collaborationTimeout;
+	let lastState = await getP2PState(page);
+
+	while (Date.now() < deadline) {
+		lastState = await getP2PState(page);
+		if (predicate(lastState)) return;
+		await page.waitForTimeout(1000);
+	}
+
+	throw new Error(
+		`Timed out waiting for ${description}. Last P2P state:\n${JSON.stringify(lastState, null, 2)}`
+	);
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ */
+async function getP2PState(page) {
+	return page.evaluate(() => {
+		const hooks = window.__simpleTodoE2E;
+
+		return {
+			peerId: hooks?.getPeerId?.() ?? null,
+			multiaddrs: hooks?.getMultiaddrs?.() ?? [],
+			connectionCount: hooks?.getConnectionCount?.() ?? 0,
+			connectedPeerIds: hooks?.getConnectedPeerIds?.() ?? [],
+			connections: hooks?.getConnections?.() ?? [],
+			discoveredPeers: hooks?.getDiscoveredPeers?.() ?? []
+		};
+	});
+}
+
+/**
+ * @param {string} address
+ */
+function isDialableBrowserAddress(address) {
+	const usesBrowserReachableTransport =
+		address.includes('/ws') ||
+		address.includes('/wss') ||
+		address.includes('/webrtc') ||
+		address.includes('/webrtc-direct');
+
+	return (
+		address.includes('/p2p/') &&
+		usesBrowserReachableTransport &&
+		(address.includes('/p2p-circuit') ||
+			address.includes('/webrtc') ||
+			address.includes('/webrtc-direct'))
+	);
 }

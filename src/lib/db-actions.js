@@ -267,6 +267,7 @@ export async function addTodo(text, assignee = null) {
 		};
 
 		await todoDB.put(todoId, todo);
+		await announceTodoDatabaseEntries(todoDB);
 		console.log('✅ Todo added:', todoId);
 		return true;
 	} catch (error) {

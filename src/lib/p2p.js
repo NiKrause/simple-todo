@@ -319,14 +319,18 @@ function selectDiscoveredDialCandidates(multiaddrs) {
  */
 function isBrowserDialableDiscoveredAddress(addr) {
 	const normalized = addr.toString().toLowerCase();
+	const usesBrowserReachableTransport =
+		normalized.includes('/ws') ||
+		normalized.includes('/wss') ||
+		normalized.includes('/webrtc') ||
+		normalized.includes('/webrtc-direct');
 
 	return (
 		normalized.includes('/p2p/') &&
+		usesBrowserReachableTransport &&
 		(normalized.includes('/p2p-circuit') ||
 			normalized.includes('/webrtc') ||
-			normalized.includes('/webrtc-direct') ||
-			normalized.includes('/wss') ||
-			normalized.includes('/ws'))
+			normalized.includes('/webrtc-direct'))
 	);
 }
 
@@ -345,13 +349,14 @@ function rankDiscoveredDialCandidate(a, b) {
  */
 function rankDiscoveredDialCandidateAddress(addr) {
 	const normalized = addr.toString().toLowerCase();
+	const usesRelayCircuit = normalized.includes('/p2p-circuit');
+	const usesWebSocket = normalized.includes('/ws') || normalized.includes('/wss');
+	const usesWebRTC = normalized.includes('/webrtc');
 
-	if (normalized.includes('/p2p-circuit') && normalized.includes('/webrtc')) return 0;
-	if (normalized.includes('/p2p-circuit')) return 1;
+	if (usesRelayCircuit && usesWebSocket && !usesWebRTC) return 0;
+	if (usesRelayCircuit && usesWebSocket && usesWebRTC) return 1;
 	if (normalized.includes('/webrtc-direct')) return 2;
-	if (normalized.includes('/webrtc')) return 3;
-	if (normalized.includes('/wss')) return 4;
-	if (normalized.includes('/ws')) return 5;
+	if (usesWebRTC) return 3;
 	return 10;
 }
 
