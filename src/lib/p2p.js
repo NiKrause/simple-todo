@@ -222,7 +222,7 @@ function dedupeMultiaddrs(multiaddrs) {
 async function dialDiscoveredPeer(discoveredPeerId, peerInfo, reason) {
 	if (!libp2p) return;
 
-	if (peerInfo.isDialing || libp2p.getConnections(peerInfo.peer)?.length > 0) {
+	if (peerInfo.isDialing) {
 		return;
 	}
 
@@ -230,10 +230,19 @@ async function dialDiscoveredPeer(discoveredPeerId, peerInfo, reason) {
 		return;
 	}
 
+	const dialCandidates = selectDiscoveredDialCandidates(peerInfo.multiaddrs);
+	const existingConnections = libp2p.getConnections(peerInfo.peer) ?? [];
+	const shouldAttemptWebRTCUpgrade =
+		existingConnections.length > 0 &&
+		!hasWebRTCConnection(existingConnections) &&
+		dialCandidates.some(isWebRTCDialCandidate);
+
+	if (existingConnections.length > 0 && !shouldAttemptWebRTCUpgrade) {
+		return;
+	}
+
 	peerInfo.isDialing = true;
 	peerInfo.lastDialAttemptAt = Date.now();
-
-	const dialCandidates = selectDiscoveredDialCandidates(peerInfo.multiaddrs);
 
 	try {
 		await mergeDiscoveredPeerMultiaddrs(peerInfo.peer, dialCandidates);
@@ -254,6 +263,14 @@ async function dialDiscoveredPeer(discoveredPeerId, peerInfo, reason) {
 	} finally {
 		peerInfo.isDialing = false;
 	}
+}
+
+/**
+ * @param {any[]} connections
+ * @returns {boolean}
+ */
+function hasWebRTCConnection(connections) {
+	return connections.some((connection) => connection.remoteAddr?.toString().includes('/webrtc'));
 }
 
 /**
@@ -353,11 +370,19 @@ function rankDiscoveredDialCandidateAddress(addr) {
 	const usesWebSocket = normalized.includes('/ws') || normalized.includes('/wss');
 	const usesWebRTC = normalized.includes('/webrtc');
 
-	if (usesRelayCircuit && usesWebSocket && !usesWebRTC) return 0;
-	if (usesRelayCircuit && usesWebSocket && usesWebRTC) return 1;
+	if (usesRelayCircuit && usesWebSocket && usesWebRTC) return 0;
+	if (usesRelayCircuit && usesWebSocket && !usesWebRTC) return 1;
 	if (normalized.includes('/webrtc-direct')) return 2;
 	if (usesWebRTC) return 3;
 	return 10;
+}
+
+/**
+ * @param {any} addr
+ * @returns {boolean}
+ */
+function isWebRTCDialCandidate(addr) {
+	return addr.toString().toLowerCase().includes('/webrtc');
 }
 
 /**

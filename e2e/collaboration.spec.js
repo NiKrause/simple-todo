@@ -39,6 +39,8 @@ test.describe.serial('Todo collaboration', () => {
 		await waitForConnectedPeer(bob, alicePeerId, 'Bob -> Alice');
 		await waitForConnectedPeer(alice, bobPeerId, 'Alice -> Bob');
 		await waitForConnectionCount(bob, 2);
+		await expectRelayAndWebRTCTransportState(alice, bobPeerId, 'Alice UI -> Bob');
+		await expectRelayAndWebRTCTransportState(bob, alicePeerId, 'Bob UI -> Alice');
 
 		for (const todo of aliceTodos) {
 			await addTodo(alice, todo);
@@ -249,6 +251,51 @@ async function waitForConnectedPeer(page, peerId, label) {
 	await waitForP2PState(page, `${label} connection`, (state) =>
 		state.connectedPeerIds.includes(peerId)
 	);
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {string} remoteBrowserPeerId
+ * @param {string} label
+ */
+async function expectRelayAndWebRTCTransportState(page, remoteBrowserPeerId, label) {
+	await waitForP2PState(page, `${label} relay and WebRTC transport state`, (state) => {
+		const relayConnection = state.connections.some(
+			(connection) =>
+				connection.remotePeer !== remoteBrowserPeerId && connection.remoteAddr?.includes('/ws/')
+		);
+		const remoteBrowserRelayConnection = state.connections.some(
+			(connection) =>
+				connection.remotePeer === remoteBrowserPeerId && connection.remoteAddr?.includes('/p2p-circuit')
+		);
+		const remoteBrowserWebRTCConnection = state.connections.some(
+			(connection) =>
+				connection.remotePeer === remoteBrowserPeerId && connection.remoteAddr?.includes('/webrtc')
+		);
+
+		return relayConnection && remoteBrowserRelayConnection && remoteBrowserWebRTCConnection;
+	});
+
+	await expectPeerTransportBadge(page, remoteBrowserPeerId, 'circuit-relay', `${label} Relay badge`);
+	await expectPeerTransportBadge(page, remoteBrowserPeerId, 'webrtc', `${label} WebRTC badge`);
+	await expect(page.getByTestId('transport-badge').filter({ hasText: 'WS' })).toBeVisible({
+		timeout: collaborationTimeout
+	});
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {string} peerId
+ * @param {string} transport
+ * @param {string} label
+ */
+async function expectPeerTransportBadge(page, peerId, transport, label) {
+	await expect(
+		page
+			.getByTestId('transport-badge')
+			.and(page.locator(`[data-peer-id="${peerId}"][data-transport="${transport}"]`)),
+		label
+	).toBeVisible({ timeout: collaborationTimeout });
 }
 
 /**
