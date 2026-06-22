@@ -22,11 +22,10 @@ The `collab01` branch adds an explicit collaboration workflow. Each browser show
 
 - ✅ **No Server Required** - Runs entirely in your browser
 - ✅ **Local Data** - Data is stored in your browser's level storage and replicated via OrbitDB and IPFS
-- ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of signaling nodes)
+- ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of libp2p signaling nodes)
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
 - ✅ **Load Shared Databases** - Open another user's todo database by pasting its OrbitDB address
 - ✅ **Copyable Database Address** - Share the active todo database address directly from the UI
-- ✅ **Dynamic Identity** - Fresh peer ID generated on each load
 
 ## 🎯 How to Test
 
