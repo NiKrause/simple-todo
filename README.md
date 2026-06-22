@@ -20,9 +20,8 @@ The `main` branch is the basic shared-list demo. Every browser opens the same de
 
 - ✅ **No Server Required** - PWA runs in browser, desktop or mobile.
 - ✅ **Local Data** - Data is stored in your browser's level storage and replicated via OrbitDB and IPFS
-- ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of signaling nodes)
+- ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of libp2p signaling nodes)
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
-- ✅ **Dynamic Identity** - Fresh peer ID generated on each load
 
 ## 🎯 How to Test
 
