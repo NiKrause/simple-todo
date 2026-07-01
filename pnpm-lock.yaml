@@ -75,6 +75,9 @@ importers:
       helia:
         specifier: ^5.5.0
         version: 5.5.0(react-native@0.80.2(@babel/core@7.29.7)(react@19.1.1))
+      it-pipe:
+        specifier: ^3.0.1
+        version: 3.0.1
       libp2p:
         specifier: ^2.10.0
         version: 2.10.0

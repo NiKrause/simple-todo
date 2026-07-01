@@ -16,7 +16,7 @@ This is a **browser-only** local-first peer-to-peer todo application that operat
 
 The main/basic demo focuses on one automatic shared todo list: open the same app in two browsers, connect peers, and watch todos replicate.
 
-The `collab01` branch adds an explicit collaboration workflow. Each browser shows its current OrbitDB todo database address, lets you copy it, and lets another browser load that exact database through the **Load Todo DB** card. It also keeps the manual **Connect To Multiaddress** flow, so testers can dial a browser-reachable relay or peer address before opening a collaborator's database. This makes the demo better for validating cross-browser collaboration, relay connectivity, and OrbitDB replication behavior step by step.
+The `collab01` branch adds an explicit collaboration workflow. Each browser profile creates its own OrbitDB identity and default todo database address, shows that address, lets you copy it, and lets another browser load that exact database through the **Load Todo DB** card. It also keeps the manual **Connect To Multiaddress** flow, so testers can dial a browser-reachable relay or peer address before opening a collaborator's database. This makes the demo better for validating cross-browser collaboration, relay connectivity, and OrbitDB replication behavior step by step.
 
 ### Key Features
 
@@ -121,7 +121,7 @@ If you change `.env` while Vite is already running, restart `pnpm dev` so the ne
 ## ⚠️ Important Notes
 
 - This is a **demo application** for educational purposes
-- Data is stored in a **global unencrypted database** visible to all users
+- Opened or shared OrbitDB todo databases are **unencrypted** and visible to connected collaborators
 - **No privacy protection** - all data is publicly visible
 - **Not suitable for production use** without additional security measures
 

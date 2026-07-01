@@ -1,5 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
-import { peerIdStore } from './p2p.js';
+import { pipe } from 'it-pipe';
+import { libp2pStore, peerIdStore } from './p2p.js';
 
 /**
  * @typedef {{
@@ -38,6 +39,7 @@ import { peerIdStore } from './p2p.js';
  *   log?: {
  *     values?: () => Promise<any[]>
  *     heads?: () => Promise<any[]>
+ *     joinEntry?: (entry: any) => Promise<unknown>
  *   }
  *   peers?: Set<string>
  *   sync?: {
@@ -69,6 +71,10 @@ export const todosStore = writable(/** @type {TodoItem[]} */ ([]));
 export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
 
 const observedDatabases = new WeakSet();
+const TODO_ENTRY_EXCHANGE_TOPIC = 'simple-todo.orbitdb-todo-entries';
+const TODO_ENTRY_EXCHANGE_PROTOCOL = '/simple-todo/orbitdb-entries/1.0.0';
+let todoEntryBridgePubsub = /** @type {any} */ (null);
+let todoEntryBridgeLibp2p = /** @type {any} */ (null);
 
 /**
  * @param {TodoDatabase | null | undefined} todoDB
@@ -103,6 +109,7 @@ function setActiveTodoDatabase(todoDB) {
 export async function initializeDatabase(orbitdb, todoDB) {
 	orbitdbStore.set(orbitdb);
 	setActiveTodoDatabase(todoDB);
+	await setupTodoEntryBridge();
 
 	// Load existing todos
 	await loadTodos();
@@ -232,7 +239,221 @@ export async function announceTodoDatabaseEntries(database = get(todoDBStore)) {
 		await database.sync.add(entry);
 	}
 
+	await publishTodoDatabaseEntries(database, entries);
+
 	return entries.length;
+}
+
+async function setupTodoEntryBridge() {
+	const libp2p = get(libp2pStore);
+	const pubsub = libp2p?.services?.pubsub;
+	if (!libp2p || !pubsub || pubsub === todoEntryBridgePubsub) return;
+
+	if (todoEntryBridgePubsub) {
+		todoEntryBridgePubsub.removeEventListener?.('message', handleTodoEntryBridgeMessage);
+		try {
+			await todoEntryBridgePubsub.unsubscribe?.(TODO_ENTRY_EXCHANGE_TOPIC);
+		} catch {
+			// ignore cleanup failures when switching libp2p instances
+		}
+	}
+
+	if (todoEntryBridgeLibp2p) {
+		try {
+			await todoEntryBridgeLibp2p.unhandle?.(TODO_ENTRY_EXCHANGE_PROTOCOL);
+		} catch {
+			// ignore cleanup failures when switching libp2p instances
+		}
+	}
+
+	todoEntryBridgeLibp2p = libp2p;
+	await todoEntryBridgeLibp2p.handle(TODO_ENTRY_EXCHANGE_PROTOCOL, handleTodoEntryBridgeStream);
+
+	todoEntryBridgePubsub = pubsub;
+	todoEntryBridgePubsub.addEventListener('message', handleTodoEntryBridgeMessage);
+	await todoEntryBridgePubsub.subscribe(TODO_ENTRY_EXCHANGE_TOPIC);
+}
+
+/**
+ * @param {TodoDatabase} database
+ * @param {any[]} entries
+ */
+async function publishTodoDatabaseEntries(database, entries) {
+	const libp2p = get(libp2pStore);
+	const pubsub = libp2p?.services?.pubsub;
+	const payload = await exportTodoDatabaseEntries(database, entries);
+
+	if (!libp2p || !pubsub || !payload) {
+		return false;
+	}
+
+	const bytes = new TextEncoder().encode(JSON.stringify(payload));
+
+	await pubsub.publish(TODO_ENTRY_EXCHANGE_TOPIC, bytes);
+	await sendTodoDatabaseEntriesToConnectedPeers(libp2p, bytes);
+	return true;
+}
+
+/**
+ * @param {TodoDatabase | null} [database]
+ * @param {any[] | null} [entries]
+ */
+export async function exportTodoDatabaseEntries(
+	database = get(todoDBStore),
+	entries = /** @type {any[] | null} */ (null)
+) {
+	if (!database) return null;
+
+	const dbAddress = getDatabaseAddress(database);
+	const logEntries =
+		entries ??
+		(await database.log?.values?.().catch(() => null)) ??
+		(await database.log?.heads?.().catch(() => null)) ??
+		[];
+	const records = await database.all().catch(() => []);
+
+	if (!dbAddress || (logEntries.length === 0 && records.length === 0)) {
+		return null;
+	}
+
+	return {
+		dbAddress,
+		entries: logEntries,
+		records: records.map((record) => ({
+			key: record.key,
+			value: record.value
+		}))
+	};
+}
+
+/**
+ * @param {any} libp2p
+ * @param {Uint8Array} bytes
+ */
+async function sendTodoDatabaseEntriesToConnectedPeers(libp2p, bytes) {
+	const remotePeers = new Set(
+		(libp2p.getConnections?.() ?? [])
+			.map((/** @type {any} */ connection) => connection.remotePeer?.toString())
+			.filter(Boolean)
+	);
+
+	await Promise.allSettled(
+		Array.from(remotePeers).map(async (remotePeer) => {
+			const stream = await libp2p.dialProtocol(remotePeer, TODO_ENTRY_EXCHANGE_PROTOCOL, {
+				signal:
+					typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+						? AbortSignal.timeout(10_000)
+						: undefined
+			});
+			await pipe([bytes], stream);
+		})
+	);
+}
+
+/**
+ * @param {CustomEvent<{ topic?: string, data?: Uint8Array }>} event
+ */
+async function handleTodoEntryBridgeMessage(event) {
+	if (event.detail?.topic !== TODO_ENTRY_EXCHANGE_TOPIC || !event.detail.data) return;
+
+	try {
+		const payload = JSON.parse(new TextDecoder().decode(event.detail.data));
+		await importTodoDatabaseEntries(payload);
+	} catch (error) {
+		console.warn(
+			'Failed to import bridged OrbitDB todo entries:',
+			error instanceof Error ? error.message : String(error)
+		);
+	}
+}
+
+/**
+ * @param {{ stream: { source: AsyncIterable<Uint8Array | { subarray: () => Uint8Array }>, sink: (source: AsyncIterable<Uint8Array>) => Promise<void> } }} event
+ */
+async function handleTodoEntryBridgeStream({ stream }) {
+	try {
+		await pipe(stream, async (source) => {
+			const bytes = await readStreamBytes(source);
+			const payload = JSON.parse(new TextDecoder().decode(bytes));
+			await importTodoDatabaseEntries(payload);
+		});
+	} catch (error) {
+		console.warn(
+			'Failed to import streamed OrbitDB todo entries:',
+			error instanceof Error ? error.message : String(error)
+		);
+	}
+}
+
+/**
+ * @param {AsyncIterable<Uint8Array | { subarray: () => Uint8Array }>} source
+ * @returns {Promise<Uint8Array>}
+ */
+async function readStreamBytes(source) {
+	/** @type {Uint8Array[]} */
+	const chunks = [];
+	let length = 0;
+
+	for await (const chunk of source) {
+		const bytes = chunk instanceof Uint8Array ? chunk : chunk.subarray();
+		chunks.push(bytes);
+		length += bytes.length;
+	}
+
+	const result = new Uint8Array(length);
+	let offset = 0;
+	for (const chunk of chunks) {
+		result.set(chunk, offset);
+		offset += chunk.length;
+	}
+
+	return result;
+}
+
+/**
+ * @param {{ dbAddress?: unknown, entries?: unknown, records?: unknown }} payload
+ */
+export async function importTodoDatabaseEntries(payload) {
+	const todoDB = get(todoDBStore);
+	const entries = Array.isArray(payload.entries) ? payload.entries : [];
+	const records = Array.isArray(payload.records) ? payload.records : [];
+
+	if (
+		!todoDB ||
+		typeof payload.dbAddress !== 'string' ||
+		payload.dbAddress !== getDatabaseAddress(todoDB) ||
+		(entries.length === 0 && records.length === 0)
+	) {
+		return false;
+	}
+
+	let updated = false;
+	if (todoDB.log?.joinEntry) {
+		for (const entry of entries) {
+			if (!entry?.hash) continue;
+			try {
+				const result = await todoDB.log.joinEntry(entry);
+				updated = Boolean(result) || updated;
+			} catch {
+				// If another browser's identity block is not fetchable yet, fall back to record import below.
+			}
+		}
+	}
+
+	for (const record of records) {
+		if (!record?.key || !record?.value) continue;
+		const existing = await todoDB.get(record.key);
+		if (existing) continue;
+
+		await todoDB.put(record.key, record.value);
+		updated = true;
+	}
+
+	if (updated || entries.length > 0 || records.length > 0) {
+		await loadTodos();
+	}
+
+	return updated;
 }
 
 // Add a new todo
@@ -476,14 +697,22 @@ if (typeof window !== 'undefined') {
 	const browserWindow = /** @type {Window & typeof globalThis & {
 	 *   deleteCurrentDatabase?: typeof deleteCurrentDatabase,
 	 *   forceReloadTodos?: typeof loadTodos,
+	 *   loadTodoDatabase?: typeof loadTodoDatabase,
 	 *   announceTodoDatabaseEntries?: typeof announceTodoDatabaseEntries,
+	 *   exportTodoDatabaseEntries?: typeof exportTodoDatabaseEntries,
+	 *   importTodoDatabaseEntries?: typeof importTodoDatabaseEntries,
+	 *   getTodoDatabaseAddress?: () => string,
 	 *   getTodoDatabasePeerCount?: () => number,
 	 *   getTodoCount?: () => number
 	 * }} */ (window);
 
 	browserWindow.deleteCurrentDatabase = deleteCurrentDatabase;
 	browserWindow.forceReloadTodos = loadTodos;
+	browserWindow.loadTodoDatabase = loadTodoDatabase;
 	browserWindow.announceTodoDatabaseEntries = announceTodoDatabaseEntries;
+	browserWindow.exportTodoDatabaseEntries = exportTodoDatabaseEntries;
+	browserWindow.importTodoDatabaseEntries = importTodoDatabaseEntries;
+	browserWindow.getTodoDatabaseAddress = () => getDatabaseAddress(get(todoDBStore));
 	browserWindow.getTodoDatabasePeerCount = () => get(todoDBStore)?.peers?.size ?? 0;
 	browserWindow.getTodoCount = () => get(todosCountStore);
 	console.log('🔧 deleteCurrentDatabase function is now available in browser console');

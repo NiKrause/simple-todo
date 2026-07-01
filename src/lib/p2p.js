@@ -3,6 +3,8 @@ import { get, writable } from 'svelte/store';
 import { createLibp2p } from 'libp2p';
 import { createHelia } from 'helia';
 import { createOrbitDB, IPFSAccessController } from '@orbitdb/core';
+import { CID } from 'multiformats/cid';
+import { base58btc } from 'multiformats/bases/base58';
 import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
@@ -30,11 +32,20 @@ let orbitdb = /** @type {any} */ (null);
 let peerId = /** @type {string | null} */ (null);
 let todoDB = /** @type {any} */ (null);
 let defaultTodoDbAddress = '';
+const DEFAULT_TODO_DB_NAME_PREFIX = 'simple-todos';
+const ORBITDB_IDENTITY_STORAGE_KEY = 'simpleTodo.orbitdbIdentityId';
+const ORBITDB_IDENTITY_EXCHANGE_TOPIC = 'simple-todo.orbitdb-identities';
 const MANUAL_CONNECT_STABILIZATION_MS = 3_000;
+const ORBITDB_IDENTITY_REPUBLISH_MS = 5_000;
+const DISCOVERY_DIAL_PERIODIC_RETRY_MS = 2_000;
 const DISCOVERY_DIAL_RETRY_COOLDOWN_MS = 5_000;
 const DISCOVERY_DIAL_TIMEOUT_MS = 10_000;
 /** @type {Map<string, { peer: any, multiaddrs: any[], isDialing: boolean, lastDialAttemptAt: number }>} */
 const discoveredPeers = new Map();
+/** @type {ReturnType<typeof setInterval> | null} */
+let discoveryDialRetryInterval = null;
+/** @type {ReturnType<typeof setInterval> | null} */
+let orbitDBIdentityPublishInterval = null;
 
 /**
  * Initialize the P2P network after user consent
@@ -66,7 +77,8 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 
 		// Create OrbitDB instance
 		console.log('🛬 Creating OrbitDB instance...');
-		orbitdb = await createOrbitDB({ ipfs: helia, id: 'simple-todo-app' });
+		orbitdb = await createOrbitDB({ ipfs: helia, id: getOrCreateOrbitDBIdentityId() });
+		await setupOrbitDBIdentityExchange();
 		todoDB = await openInitialTodoDatabase(options.todoDbAddress);
 
 		console.log('✅ Database opened successfully with OrbitDBAccessController:', {
@@ -111,6 +123,8 @@ async function stopP2P() {
 	libp2pStore.set(null);
 	peerIdStore.set(null);
 	peerId = null;
+	stopDiscoveryDialRetryInterval();
+	await stopOrbitDBIdentityExchange();
 	discoveredPeers.clear();
 
 	const resources = [todoDB, orbitdb, helia, libp2p];
@@ -137,7 +151,7 @@ async function openInitialTodoDatabase(address) {
 		});
 	}
 
-	const defaultTodoDB = await orbitdb.open('simple-todos', {
+	const defaultTodoDB = await orbitdb.open(getDefaultTodoDatabaseName(), {
 		type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
 		create: true, // Allows the database to be created if it doesn't exist
 		sync: true, // Enables automatic synchronization with other peers
@@ -148,6 +162,49 @@ async function openInitialTodoDatabase(address) {
 	return defaultTodoDB;
 }
 
+function getDefaultTodoDatabaseName() {
+	const identityId =
+		typeof orbitdb?.identity?.id === 'string'
+			? orbitdb.identity.id
+			: getOrCreateOrbitDBIdentityId();
+
+	return `${DEFAULT_TODO_DB_NAME_PREFIX}-${sanitizeDatabaseNameSegment(identityId).slice(0, 48)}`;
+}
+
+/**
+ * Keep a browser-profile identity id so each browser gets its own default
+ * OrbitDB address, while reloads and P2P restarts keep using the same one.
+ */
+function getOrCreateOrbitDBIdentityId() {
+	if (typeof localStorage === 'undefined') {
+		return createOrbitDBIdentityId();
+	}
+
+	const existingIdentityId = localStorage.getItem(ORBITDB_IDENTITY_STORAGE_KEY);
+	if (existingIdentityId) {
+		return existingIdentityId;
+	}
+
+	const identityId = createOrbitDBIdentityId();
+	localStorage.setItem(ORBITDB_IDENTITY_STORAGE_KEY, identityId);
+	return identityId;
+}
+
+function createOrbitDBIdentityId() {
+	if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+		return `simple-todo-${crypto.randomUUID()}`;
+	}
+
+	return `simple-todo-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+/**
+ * @param {string} value
+ */
+function sanitizeDatabaseNameSegment(value) {
+	return value.replace(/[^a-zA-Z0-9._-]/g, '-');
+}
+
 function installE2ETestHooks() {
 	if (typeof window === 'undefined' || import.meta.env.VITE_E2E !== 'true') return;
 
@@ -155,8 +212,13 @@ function installE2ETestHooks() {
 		window
 	).__simpleTodoE2E = {
 		getPeerId: () => peerId,
-		getMultiaddrs: () =>
-			libp2p?.getMultiaddrs?.().map((/** @type {any} */ addr) => addr.toString()) ?? [],
+		getMultiaddrs: () => {
+			const ownAddrs = libp2p?.getMultiaddrs?.().map((/** @type {any} */ addr) => addr.toString()) ?? [];
+			const peerStoreAddrs =
+				libp2p?.peerStore?.addressBook?.get?.(libp2p?.peerId)?.multiaddrs
+					?.map((/** @type {any} */ addr) => addr.toString()) ?? [];
+			return Array.from(new Set([...ownAddrs, ...peerStoreAddrs]));
+		},
 		getConnectionCount: () => libp2p?.getConnections?.().length ?? 0,
 		getConnectedPeerIds: () =>
 			libp2p
@@ -169,6 +231,18 @@ function installE2ETestHooks() {
 				peerId,
 				multiaddrs: peer.multiaddrs.map((/** @type {any} */ addr) => addr.toString())
 			})),
+		getOrbitDBIdentity: () =>
+			orbitdb?.identity
+				? {
+						id: orbitdb.identity.id ?? null,
+						publicKey: orbitdb.identity.publicKey ?? null,
+						hash: orbitdb.identity.hash ?? null,
+						type: orbitdb.identity.type ?? null
+					}
+				: null,
+		hasOrbitDBIdentity: async (/** @type {unknown} */ hash) =>
+			typeof hash === 'string' && Boolean(await orbitdb?.identities?.getIdentity?.(hash)),
+		publishOrbitDBIdentity,
 		getConnections: () =>
 			libp2p?.getConnections?.().map((/** @type {any} */ connection) => ({
 				remotePeer: connection.remotePeer?.toString() ?? null,
@@ -178,6 +252,106 @@ function installE2ETestHooks() {
 		setWebRTCEnabled,
 		connectToMultiaddr
 	};
+}
+
+async function setupOrbitDBIdentityExchange() {
+	const pubsub = libp2p?.services?.pubsub;
+	if (!pubsub || !orbitdb?.identity) return;
+
+	await pubsub.subscribe(ORBITDB_IDENTITY_EXCHANGE_TOPIC);
+	pubsub.addEventListener('message', handleOrbitDBIdentityMessage);
+	libp2p.addEventListener('connection:open', handleOrbitDBIdentityConnectionOpen);
+
+	await publishOrbitDBIdentity();
+	stopOrbitDBIdentityPublishInterval();
+	orbitDBIdentityPublishInterval = setInterval(() => {
+		void publishOrbitDBIdentity().catch((error) => {
+			console.warn(
+				'Failed to publish OrbitDB identity:',
+				error instanceof Error ? error.message : String(error)
+			);
+		});
+	}, ORBITDB_IDENTITY_REPUBLISH_MS);
+}
+
+async function stopOrbitDBIdentityExchange() {
+	stopOrbitDBIdentityPublishInterval();
+
+	const pubsub = libp2p?.services?.pubsub;
+	pubsub?.removeEventListener?.('message', handleOrbitDBIdentityMessage);
+	libp2p?.removeEventListener?.('connection:open', handleOrbitDBIdentityConnectionOpen);
+
+	try {
+		await pubsub?.unsubscribe?.(ORBITDB_IDENTITY_EXCHANGE_TOPIC);
+	} catch {
+		// ignore unsubscribe failures during shutdown
+	}
+}
+
+function stopOrbitDBIdentityPublishInterval() {
+	if (!orbitDBIdentityPublishInterval) return;
+
+	clearInterval(orbitDBIdentityPublishInterval);
+	orbitDBIdentityPublishInterval = null;
+}
+
+function handleOrbitDBIdentityConnectionOpen() {
+	void publishOrbitDBIdentity().catch((error) => {
+		console.warn(
+			'Failed to publish OrbitDB identity after connection opened:',
+			error instanceof Error ? error.message : String(error)
+		);
+	});
+}
+
+/**
+ * @param {CustomEvent<{ topic?: string, data?: Uint8Array }>} event
+ */
+async function handleOrbitDBIdentityMessage(event) {
+	if (event.detail?.topic !== ORBITDB_IDENTITY_EXCHANGE_TOPIC || !event.detail.data) return;
+
+	try {
+		const payload = JSON.parse(new TextDecoder().decode(event.detail.data));
+		await importOrbitDBIdentityBlock(payload);
+	} catch (error) {
+		console.warn(
+			'Failed to import OrbitDB identity from pubsub:',
+			error instanceof Error ? error.message : String(error)
+		);
+	}
+}
+
+export async function publishOrbitDBIdentity() {
+	const pubsub = libp2p?.services?.pubsub;
+	const identity = orbitdb?.identity;
+
+	if (!pubsub || !identity?.hash || !identity?.bytes) return false;
+
+	const payload = {
+		peerId,
+		hash: identity.hash,
+		bytes: Array.from(identity.bytes)
+	};
+	const bytes = new TextEncoder().encode(JSON.stringify(payload));
+	await pubsub.publish(ORBITDB_IDENTITY_EXCHANGE_TOPIC, bytes);
+	return true;
+}
+
+/**
+ * @param {{ hash?: unknown, bytes?: unknown }} payload
+ */
+async function importOrbitDBIdentityBlock(payload) {
+	if (!helia?.blockstore || typeof payload?.hash !== 'string' || !Array.isArray(payload.bytes)) {
+		return false;
+	}
+
+	const cid = CID.parse(payload.hash, base58btc);
+	if (await helia.blockstore.has(cid)) {
+		return true;
+	}
+
+	await helia.blockstore.put(cid, Uint8Array.from(payload.bytes));
+	return true;
 }
 
 function setupPubsubDiscoveryAutoDial() {
@@ -208,6 +382,26 @@ function setupPubsubDiscoveryAutoDial() {
 	libp2p.addEventListener('self:peer:update', handleConnectivityChanged);
 	libp2p.addEventListener('peer:update', handleConnectivityChanged);
 	libp2p.addEventListener('connection:close', handleConnectivityChanged);
+	startDiscoveryDialRetryInterval();
+}
+
+function startDiscoveryDialRetryInterval() {
+	stopDiscoveryDialRetryInterval();
+	discoveryDialRetryInterval = setInterval(() => {
+		void retryDiscoveredPeerDials('periodic:discovery-retry').catch((error) => {
+			console.warn(
+				'Failed to retry discovered peer dials:',
+				error instanceof Error ? error.message : String(error)
+			);
+		});
+	}, DISCOVERY_DIAL_PERIODIC_RETRY_MS);
+}
+
+function stopDiscoveryDialRetryInterval() {
+	if (!discoveryDialRetryInterval) return;
+
+	clearInterval(discoveryDialRetryInterval);
+	discoveryDialRetryInterval = null;
 }
 
 /**
@@ -434,13 +628,7 @@ function isBrowserDialableDiscoveredAddress(addr) {
 		normalized.includes('/webrtc') ||
 		normalized.includes('/webrtc-direct');
 
-	return (
-		normalized.includes('/p2p/') &&
-		usesBrowserReachableTransport &&
-		(normalized.includes('/p2p-circuit') ||
-			normalized.includes('/webrtc') ||
-			normalized.includes('/webrtc-direct'))
-	);
+	return normalized.includes('/p2p/') && usesBrowserReachableTransport;
 }
 
 /**
@@ -466,6 +654,7 @@ function rankDiscoveredDialCandidateAddress(addr) {
 	if (usesRelayCircuit && usesWebSocket && !usesWebRTC) return 1;
 	if (normalized.includes('/webrtc-direct')) return 2;
 	if (usesWebRTC) return 3;
+	if (usesWebSocket) return 4;
 	return 10;
 }
 

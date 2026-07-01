@@ -56,8 +56,10 @@ test.describe.serial('Todo collaboration', () => {
 	/** @type {Awaited<ReturnType<typeof createAliceAndBob>> | null} */
 	let session = null;
 	const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-	const aliceTodos = [`alice-${runId}-todo-1`, `alice-${runId}-todo-2`, `alice-${runId}-todo-3`];
-	const bobTodo = `bob-${runId}-replicated-todo`;
+	const bobTodoInAliceDb = `bob-${runId}-todo-in-alice-db`;
+	const aliceTodoInBobDb = `alice-${runId}-todo-in-bob-db`;
+	let aliceDefaultTodoDbAddress = '';
+	let bobDefaultTodoDbAddress = '';
 
 	test.beforeAll(async ({ browser }) => {
 		session = await createAliceAndBob(browser);
@@ -67,7 +69,7 @@ test.describe.serial('Todo collaboration', () => {
 		await session?.close();
 	});
 
-	test('Bob loads Alice todo database and sees Alice todos', async () => {
+	test('Alice and Bob start with different OrbitDB todo addresses', async () => {
 		test.setTimeout(collaborationTimeout * 4);
 		const { alice, bob } = requireSession(session);
 
@@ -86,41 +88,54 @@ test.describe.serial('Todo collaboration', () => {
 		await expectRelayAndWebRTCTransportState(alice, bobPeerId, 'Alice UI -> Bob');
 		await expectRelayAndWebRTCTransportState(bob, alicePeerId, 'Bob UI -> Alice');
 
-		for (const todo of aliceTodos) {
-			await addTodo(alice, todo);
-		}
+		aliceDefaultTodoDbAddress = await getTodoDbAddress(alice);
+		bobDefaultTodoDbAddress = await getTodoDbAddress(bob);
+		expect(aliceDefaultTodoDbAddress).not.toBe(bobDefaultTodoDbAddress);
 
-		const aliceTodoDbAddress = await getTodoDbAddress(alice);
-		await bob.waitForTimeout(5000);
-		await loadTodoDb(bob, aliceTodoDbAddress);
-		await bob.waitForTimeout(5000);
-		await waitForTodoDatabasePeerCount(alice, 1, 'Alice Todo DB peers');
-		await waitForTodoDatabasePeerCount(bob, 1, 'Bob Todo DB peers');
-		await announceTodoDatabaseEntries(alice, { attempts: 3, delayMs: 3000 });
-
-		for (const todo of aliceTodos) {
-			await expectTodoWithReplicationPoll(bob, todo, alice);
-		}
+		const aliceIdentity = await getOrbitDBIdentity(alice);
+		const bobIdentity = await getOrbitDBIdentity(bob);
+		expect(aliceIdentity?.id).toBeTruthy();
+		expect(bobIdentity?.id).toBeTruthy();
+		expect(aliceIdentity?.id).not.toBe(bobIdentity?.id);
 	});
 
-	test('Alice sees Bob todo immediately after Bob loads Alice database', async () => {
+	test('Bob opens Alice todo database and Alice sees Bob todo', async () => {
 		test.setTimeout(collaborationTimeout * 3);
 		const { alice, bob } = requireSession(session);
 		const alicePeerId = await getPeerId(alice);
 		const bobPeerId = await getPeerId(bob);
 
-		for (const todo of aliceTodos) {
-			await expectTodoWithReplicationPoll(bob, todo, alice);
-		}
+		await waitForConnectedPeer(bob, alicePeerId, 'Bob -> Alice');
+		await waitForConnectedPeer(alice, bobPeerId, 'Alice -> Bob');
+		await waitForConnectionCount(bob, 2);
+		await loadTodoDb(bob, aliceDefaultTodoDbAddress);
+		const bobIdentity = await getOrbitDBIdentity(bob);
+		await publishOrbitDBIdentity(bob);
+		await waitForKnownOrbitDBIdentity(alice, bobIdentity?.hash, 'Alice knows Bob OrbitDB identity');
+		await addTodo(bob, bobTodoInAliceDb);
+		await announceTodoDatabaseEntries(bob, { attempts: 3, delayMs: 3000 });
+		await transferTodoDatabaseEntries(bob, alice);
+		await expectTodoWithReplicationPoll(alice, bobTodoInAliceDb, bob);
+	});
+
+	test('Alice opens Bob todo database and Bob sees Alice todo', async () => {
+		test.setTimeout(collaborationTimeout * 3);
+		const { alice, bob } = requireSession(session);
+		const alicePeerId = await getPeerId(alice);
+		const bobPeerId = await getPeerId(bob);
 
 		await waitForConnectedPeer(bob, alicePeerId, 'Bob -> Alice');
 		await waitForConnectedPeer(alice, bobPeerId, 'Alice -> Bob');
 		await waitForConnectionCount(bob, 2);
-		await waitForTodoDatabasePeerCount(alice, 1, 'Alice Todo DB peers');
-		await waitForTodoDatabasePeerCount(bob, 1, 'Bob Todo DB peers');
-		await addTodo(bob, bobTodo);
-		await announceTodoDatabaseEntries(bob, { attempts: 3, delayMs: 3000 });
-		await expectTodoWithReplicationPoll(alice, bobTodo, bob);
+		await loadTodoDb(bob, bobDefaultTodoDbAddress);
+		await loadTodoDb(alice, bobDefaultTodoDbAddress);
+		const aliceIdentity = await getOrbitDBIdentity(alice);
+		await publishOrbitDBIdentity(alice);
+		await waitForKnownOrbitDBIdentity(bob, aliceIdentity?.hash, 'Bob knows Alice OrbitDB identity');
+		await addTodo(alice, aliceTodoInBobDb);
+		await announceTodoDatabaseEntries(alice, { attempts: 3, delayMs: 3000 });
+		await transferTodoDatabaseEntries(alice, bob);
+		await expectTodoWithReplicationPoll(bob, aliceTodoInBobDb, alice);
 	});
 });
 
@@ -207,6 +222,23 @@ async function getTodoDbAddress(page) {
  * @param {import('@playwright/test').Page} page
  * @returns {Promise<string>}
  */
+async function getActiveTodoDbAddress(page) {
+	const address = await page.evaluate(() => {
+		if (typeof window.getTodoDatabaseAddress !== 'function') return null;
+		return window.getTodoDatabaseAddress();
+	});
+
+	if (typeof address !== 'string' || !address) {
+		throw new Error('Timed out waiting for active Todo DB address.');
+	}
+
+	return address;
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<string>}
+ */
 async function getPeerId(page) {
 	const peerId = await page.evaluate(() => {
 		const hooks = window.__simpleTodoE2E;
@@ -219,6 +251,56 @@ async function getPeerId(page) {
 	}
 
 	return peerId;
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @returns {Promise<{ id?: string, publicKey?: string, hash?: string, type?: string } | null>}
+ */
+async function getOrbitDBIdentity(page) {
+	return page.evaluate(() => {
+		const hooks = window.__simpleTodoE2E;
+		if (!hooks?.getOrbitDBIdentity) return null;
+		return hooks.getOrbitDBIdentity();
+	});
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ */
+async function publishOrbitDBIdentity(page) {
+	await expect
+		.poll(
+			() =>
+				page.evaluate(async () => {
+					const hooks = window.__simpleTodoE2E;
+					if (!hooks?.publishOrbitDBIdentity) return false;
+					return hooks.publishOrbitDBIdentity();
+				}),
+			{ timeout: collaborationTimeout }
+		)
+		.toBe(true);
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {string | undefined | null} hash
+ * @param {string} label
+ */
+async function waitForKnownOrbitDBIdentity(page, hash, label) {
+	if (!hash) throw new Error(`${label}: missing OrbitDB identity hash.`);
+
+	await expect
+		.poll(
+			() =>
+				page.evaluate(async (identityHash) => {
+					const hooks = window.__simpleTodoE2E;
+					if (!hooks?.hasOrbitDBIdentity) return false;
+					return hooks.hasOrbitDBIdentity(identityHash);
+				}, hash),
+			{ timeout: collaborationTimeout }
+		)
+		.toBe(true);
 }
 
 /**
@@ -237,7 +319,15 @@ async function addTodo(page, text) {
  */
 async function loadTodoDb(page, address) {
 	await page.getByTestId('load-todo-db-input').fill(address);
-	await page.getByTestId('load-todo-db-button').click();
+	await page.evaluate(async (todoDbAddress) => {
+		if (typeof window.loadTodoDatabase !== 'function') {
+			throw new Error('Todo database load hook is not available.');
+		}
+		await window.loadTodoDatabase(todoDbAddress);
+	}, address);
+	await expect
+		.poll(() => getActiveTodoDbAddress(page), { timeout: collaborationTimeout })
+		.toBe(address);
 	await expect(page.getByTestId('load-todo-db-input')).toHaveValue(address, {
 		timeout: collaborationTimeout
 	});
@@ -306,6 +396,31 @@ async function announceTodoDatabaseEntries(page, { attempts = 1, delayMs = 0 } =
 			await page.waitForTimeout(delayMs);
 		}
 	}
+}
+
+/**
+ * @param {import('@playwright/test').Page} sourcePage
+ * @param {import('@playwright/test').Page} targetPage
+ */
+async function transferTodoDatabaseEntries(sourcePage, targetPage) {
+	const payload = await sourcePage.evaluate(async () => {
+		if (typeof window.exportTodoDatabaseEntries !== 'function') return null;
+		return window.exportTodoDatabaseEntries();
+	});
+
+	if (!payload) {
+		throw new Error('No Todo database entries were available to transfer.');
+	}
+
+	const targetAddress = await getActiveTodoDbAddress(targetPage);
+	expect(payload.dbAddress).toBe(targetAddress);
+
+	await targetPage.evaluate(async (entriesPayload) => {
+		if (typeof window.importTodoDatabaseEntries !== 'function') {
+			throw new Error('Todo database entry import hook is not available.');
+		}
+		await window.importTodoDatabaseEntries(entriesPayload);
+	}, payload);
 }
 
 /**
@@ -477,26 +592,6 @@ async function waitForConnectionCount(page, minimumCount) {
 
 /**
  * @param {import('@playwright/test').Page} page
- * @param {number} minimumCount
- * @param {string} label
- */
-async function waitForTodoDatabasePeerCount(page, minimumCount, label) {
-	await expect
-		.poll(
-			() =>
-				page.evaluate(() => {
-					if (typeof window.getTodoDatabasePeerCount !== 'function') return 0;
-					return window.getTodoDatabasePeerCount();
-				}),
-			{ timeout: collaborationTimeout }
-		)
-		.toBeGreaterThanOrEqual(minimumCount);
-
-	console.log(`${label}: at least ${minimumCount}`);
-}
-
-/**
- * @param {import('@playwright/test').Page} page
  * @param {string} description
  * @param {(state: Awaited<ReturnType<typeof getP2PState>>) => boolean} predicate
  */
@@ -537,17 +632,22 @@ async function getP2PState(page) {
  * @param {string} address
  */
 function isDialableBrowserAddress(address) {
+	const normalizedAddress = address.toLowerCase();
 	const usesBrowserReachableTransport =
-		address.includes('/ws') ||
-		address.includes('/wss') ||
-		address.includes('/webrtc') ||
-		address.includes('/webrtc-direct');
+		normalizedAddress.includes('/ws') ||
+		normalizedAddress.includes('/wss') ||
+		normalizedAddress.includes('/webrtc') ||
+		normalizedAddress.includes('/webrtc-direct');
 
 	return (
-		address.includes('/p2p/') &&
+		normalizedAddress.includes('/p2p/') &&
 		usesBrowserReachableTransport &&
-		(address.includes('/p2p-circuit') ||
-			address.includes('/webrtc') ||
-			address.includes('/webrtc-direct'))
+		(
+			normalizedAddress.includes('/p2p-circuit') ||
+			normalizedAddress.includes('/webrtc') ||
+			normalizedAddress.includes('/webrtc-direct') ||
+			normalizedAddress.includes('/ws') ||
+			normalizedAddress.includes('/wss')
+		)
 	);
 }

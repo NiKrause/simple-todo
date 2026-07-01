@@ -88,6 +88,7 @@
 		"@orbitdb/core": "^3.0.2",
 		"buffer": "^6.0.3",
 		"helia": "^5.5.0",
+		"it-pipe": "^3.0.1",
 		"libp2p": "^2.10.0",
 		"lucide-svelte": "^0.539.0",
 		"multiformats": "^13.4.2",
