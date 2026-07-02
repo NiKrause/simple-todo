@@ -7,14 +7,13 @@ import { circuitRelayTransport } from '@libp2p/circuit-relay-v2';
 import { identify, identifyPush } from '@libp2p/identify';
 import { dcutr } from '@libp2p/dcutr';
 import { autoNAT } from '@libp2p/autonat';
-import { gossipsub } from '@chainsafe/libp2p-gossipsub';
+import { gossipsub } from '@libp2p/gossipsub';
 import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
 import { bootstrap } from '@libp2p/bootstrap';
 import { discoverAlephBootstrapMultiaddrs } from '@le-space/aleph-bootstrap';
 import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
 import { multiaddr } from '@multiformats/multiaddr';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
-import * as filters from '@libp2p/websockets/filters';
 import { getWebRTCEnabled } from './webrtc-settings.js';
 
 // Environment variables
@@ -98,12 +97,23 @@ function selectBrowserBootstrapMultiaddrs(addrs) {
 function selectValidBootstrapPeerMultiaddrs(addrs) {
 	return selectBrowserBootstrapMultiaddrs(addrs).filter((addr) => {
 		try {
-			return multiaddr(addr).getPeerId() != null;
+			multiaddr(addr);
+			return extractPeerIdFromMultiaddr(addr) != null;
 		} catch (error) {
 			console.warn('Ignoring invalid bootstrap multiaddr:', addr, error);
 			return false;
 		}
 	});
+}
+
+/**
+ * @param {string} addr
+ * @returns {string | null}
+ */
+function extractPeerIdFromMultiaddr(addr) {
+	const parts = addr.split('/').filter(Boolean);
+	const peerIndex = parts.findIndex((part) => part === 'p2p' || part === 'ipfs');
+	return peerIndex >= 0 ? parts[peerIndex + 1] || null : null;
 }
 
 /**
@@ -148,9 +158,7 @@ export async function createLibp2pConfig(privateKey = null) {
 			listen: webRTCEnabled ? ['/p2p-circuit', '/webrtc'] : ['/p2p-circuit']
 		},
 		transports: [
-			webSockets({
-				filter: filters.all
-			}),
+			webSockets(),
 			...(webRTCEnabled
 				? [
 						webRTCDirect({

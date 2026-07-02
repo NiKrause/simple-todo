@@ -1,10 +1,18 @@
 import { get, writable } from 'svelte/store';
 
 import { createLibp2p } from 'libp2p';
-import { createHelia } from 'helia';
+import { createHeliaLight } from 'helia';
+import { withBitswap } from '@helia/bitswap';
+import { withHTTP } from '@helia/http';
+import { withLibp2p } from '@helia/libp2p';
 import { createOrbitDB, IPFSAccessController } from '@orbitdb/core';
+import * as Block from 'multiformats/block';
+import * as dagCbor from '@ipld/dag-cbor';
+import * as dagJson from '@ipld/dag-json';
+import * as json from 'multiformats/codecs/json';
 import { CID } from 'multiformats/cid';
 import { base58btc } from 'multiformats/bases/base58';
+import { sha256, sha512 } from 'multiformats/hashes/sha2';
 import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
@@ -48,6 +56,24 @@ let discoveryDialRetryInterval = null;
 let orbitDBIdentityPublishInterval = null;
 
 /**
+ * @param {any} libp2pNode
+ * @returns {any}
+ */
+function createHeliaWithLibp2p(libp2pNode) {
+	return withBitswap(
+		withLibp2p(
+			withHTTP(
+				createHeliaLight({
+					codecs: [dagCbor, dagJson, json],
+					hashers: [sha512]
+				})
+			),
+			libp2pNode
+		)
+	);
+}
+
+/**
  * Initialize the P2P network after user consent
  * This function should be called only after the user has accepted the consent modal
  */
@@ -72,7 +98,7 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 		setupPubsubDiscoveryAutoDial();
 
 		// Create Helia (IPFS) instance
-		helia = await createHelia({ libp2p });
+		helia = await createHeliaWithLibp2p(libp2p).start();
 		console.log(`✅ Helia created`);
 
 		// Create OrbitDB instance
@@ -213,10 +239,12 @@ function installE2ETestHooks() {
 	).__simpleTodoE2E = {
 		getPeerId: () => peerId,
 		getMultiaddrs: () => {
-			const ownAddrs = libp2p?.getMultiaddrs?.().map((/** @type {any} */ addr) => addr.toString()) ?? [];
+			const ownAddrs =
+				libp2p?.getMultiaddrs?.().map((/** @type {any} */ addr) => addr.toString()) ?? [];
 			const peerStoreAddrs =
-				libp2p?.peerStore?.addressBook?.get?.(libp2p?.peerId)?.multiaddrs
-					?.map((/** @type {any} */ addr) => addr.toString()) ?? [];
+				libp2p?.peerStore?.addressBook
+					?.get?.(libp2p?.peerId)
+					?.multiaddrs?.map((/** @type {any} */ addr) => addr.toString()) ?? [];
 			return Array.from(new Set([...ownAddrs, ...peerStoreAddrs]));
 		},
 		getConnectionCount: () => libp2p?.getConnections?.().length ?? 0,
@@ -350,8 +378,153 @@ async function importOrbitDBIdentityBlock(payload) {
 		return true;
 	}
 
-	await helia.blockstore.put(cid, Uint8Array.from(payload.bytes));
+	await helia.blockstore.put(cid, toUint8Array(payload.bytes));
 	return true;
+}
+
+/**
+ * @param {string} dbAddress
+ * @returns {Promise<Array<{ hash: string, bytes: number[] }>>}
+ */
+export async function exportOrbitDBAddressBlocks(dbAddress) {
+	if (!helia?.blockstore || typeof dbAddress !== 'string') return [];
+
+	const blocks = [];
+	const seen = new Set();
+	const dbHash = getOrbitDBAddressHash(dbAddress);
+	const manifestBlock = await exportLocalBlock(dbHash, seen);
+	if (!manifestBlock) return blocks;
+
+	blocks.push(manifestBlock);
+
+	try {
+		const { value } = await Block.decode({
+			bytes: toUint8Array(manifestBlock.bytes),
+			codec: dagCbor,
+			hasher: sha256
+		});
+		const accessControllerHash = getIpfsAddressHash(value?.accessController);
+		const accessControllerBlock = await exportLocalBlock(accessControllerHash, seen);
+		if (accessControllerBlock) {
+			blocks.push(accessControllerBlock);
+		}
+	} catch {
+		// The manifest block itself is still useful even if we cannot inspect it.
+	}
+
+	return blocks;
+}
+
+/**
+ * @param {unknown} blocks
+ * @returns {Promise<number>}
+ */
+export async function importOrbitDBAddressBlocks(blocks) {
+	if (!helia?.blockstore || !Array.isArray(blocks)) return 0;
+
+	let imported = 0;
+	for (const block of blocks) {
+		if (typeof block?.hash !== 'string' || !Array.isArray(block.bytes)) continue;
+
+		const cid = CID.parse(block.hash, base58btc);
+		if (await helia.blockstore.has(cid)) continue;
+
+		await helia.blockstore.put(cid, toUint8Array(block.bytes));
+		imported += 1;
+	}
+
+	return imported;
+}
+
+/**
+ * @param {string | null} hash
+ * @param {Set<string>} seen
+ */
+async function exportLocalBlock(hash, seen) {
+	if (!hash || seen.has(hash)) return null;
+
+	const cid = CID.parse(hash, base58btc);
+	if (!(await helia.blockstore.has(cid))) return null;
+
+	const bytes = await collectUint8Array(await helia.blockstore.get(cid));
+	seen.add(hash);
+	return {
+		hash,
+		bytes: Array.from(bytes)
+	};
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Promise<Uint8Array>}
+ */
+async function collectUint8Array(value) {
+	if (value && typeof value[Symbol.asyncIterator] === 'function') {
+		const chunks = [];
+		for await (const chunk of value) {
+			chunks.push(toUint8Array(chunk));
+		}
+		return concatUint8Arrays(chunks);
+	}
+
+	if (value && typeof value[Symbol.iterator] === 'function' && !(value instanceof Uint8Array)) {
+		const chunks = [];
+		for (const chunk of value) {
+			chunks.push(toUint8Array(chunk));
+		}
+		if (chunks.length > 0 && chunks.every((chunk) => chunk.byteLength > 0)) {
+			return concatUint8Arrays(chunks);
+		}
+	}
+
+	return toUint8Array(value);
+}
+
+/**
+ * @param {Uint8Array[]} chunks
+ */
+function concatUint8Arrays(chunks) {
+	const size = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
+	const output = new Uint8Array(size);
+	let offset = 0;
+	for (const chunk of chunks) {
+		output.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return output;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {Uint8Array}
+ */
+function toUint8Array(value) {
+	if (value instanceof Uint8Array) return value;
+	if (value instanceof ArrayBuffer) return new Uint8Array(value);
+	if (ArrayBuffer.isView(value)) {
+		return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+	}
+	if (Array.isArray(value)) return Uint8Array.from(value);
+	if (typeof value?.subarray === 'function') return toUint8Array(value.subarray());
+	if (typeof value?.slice === 'function') return toUint8Array(value.slice());
+	return new Uint8Array();
+}
+
+/**
+ * @param {string} address
+ */
+function getOrbitDBAddressHash(address) {
+	const parts = address.split('/').filter(Boolean);
+	return parts[0] === 'orbitdb' ? parts[1] || null : null;
+}
+
+/**
+ * @param {unknown} address
+ */
+function getIpfsAddressHash(address) {
+	if (typeof address !== 'string') return null;
+	const parts = address.split('/').filter(Boolean);
+	return parts[0] === 'ipfs' ? parts[1] || null : null;
 }
 
 function setupPubsubDiscoveryAutoDial() {
@@ -716,7 +889,7 @@ export async function connectToMultiaddr(address) {
 		);
 	}
 
-	if (target.getPeerId() == null) {
+	if (extractPeerIdFromMultiaddr(normalizedAddress) == null) {
 		throw new Error(
 			'The multiaddress must include a peer id, for example ending with "/p2p/<peer-id>".'
 		);
@@ -735,6 +908,16 @@ export async function connectToMultiaddr(address) {
 		remotePeer: connection.remotePeer?.toString() ?? null,
 		remoteAddr: connection.remoteAddr?.toString() ?? normalizedAddress
 	};
+}
+
+/**
+ * @param {string} addr
+ * @returns {string | null}
+ */
+function extractPeerIdFromMultiaddr(addr) {
+	const parts = addr.split('/').filter(Boolean);
+	const peerIndex = parts.findIndex((part) => part === 'p2p' || part === 'ipfs');
+	return peerIndex >= 0 ? parts[peerIndex + 1] || null : null;
 }
 
 /**

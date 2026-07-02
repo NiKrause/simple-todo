@@ -5,6 +5,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 const rootDir = process.cwd();
+const relayMode = (process.env.E2E_RELAY_MODE || 'local').trim().toLowerCase();
 const relayPorts = {
 	http: process.env.E2E_RELAY_HTTP_PORT || '49100',
 	tcp: process.env.E2E_RELAY_TCP_PORT || '49101',
@@ -16,7 +17,14 @@ const previewPort = process.env.E2E_PREVIEW_PORT || '4173';
 const relayDatastorePath = path.join(rootDir, 'relay', 'e2e-relay-datastore');
 const relayInfoPath = path.join(rootDir, 'e2e', 'relay-info.json');
 const relayLogPath = path.join(rootDir, 'e2e', 'relay.log');
-const relayCliPath = path.join(rootDir, 'node_modules', 'orbitdb-relay', 'dist', 'cli.js');
+const relayCliPath =
+	process.env.E2E_RELAY_CLI_PATH ||
+	path.join(rootDir, 'node_modules', 'orbitdb-relay', 'dist', 'cli.js');
+const publicRelayBootstrapAddr =
+	process.env.E2E_PUBLIC_RELAY_BOOTSTRAP_ADDR || process.env.VITE_RELAY_BOOTSTRAP_ADDR_PROD || '';
+const publicRelayHttpOrigin =
+	trimTrailingSlash(process.env.E2E_RELAY_HTTP_ORIGIN || '') ||
+	inferHttpOriginFromMultiaddr(publicRelayBootstrapAddr);
 
 /** @type {import('node:child_process').ChildProcessWithoutNullStreams | null} */
 let relayProcess = null;
@@ -34,6 +42,22 @@ process.on('exit', () => {
 await main();
 
 async function main() {
+	if (relayMode !== 'local' && relayMode !== 'public') {
+		throw new Error(`Unsupported E2E_RELAY_MODE "${relayMode}". Use "local" or "public".`);
+	}
+
+	if (relayMode === 'public') {
+		await startPreview({
+			env: createPreviewEnv(),
+			relayInfo: {
+				mode: 'public',
+				multiaddr: publicRelayBootstrapAddr || null,
+				httpOrigin: publicRelayHttpOrigin || null
+			}
+		});
+		return;
+	}
+
 	if (!existsSync(relayCliPath)) {
 		throw new Error('orbitdb-relay is not installed. Run `pnpm install` first.');
 	}
@@ -41,18 +65,29 @@ async function main() {
 	cleanRelayDatastore();
 	relayProcess = startRelay();
 	const relayMultiaddr = await waitForRelayMultiaddr();
-	writeRelayInfo(relayMultiaddr);
-
-	const env = {
-		...process.env,
-		NODE_ENV: 'development',
-		VITE_NODE_ENV: 'development',
-		VITE_E2E: 'true',
-		VITE_RELAY_BOOTSTRAP_ADDR_DEV: relayMultiaddr,
-		VITE_PUBSUB_TOPICS: 'todo._peer-discovery._p2p._pubsub'
-	};
-
 	console.log(`✅ E2E relay ready: ${relayMultiaddr}`);
+	await startPreview({
+		env: createPreviewEnv(relayMultiaddr),
+		relayInfo: {
+			mode: 'local',
+			pid: relayProcess?.pid ?? null,
+			multiaddr: relayMultiaddr,
+			httpOrigin: `http://127.0.0.1:${relayPorts.http}`,
+			httpPort: relayPorts.http,
+			wsPort: relayPorts.ws
+		}
+	});
+}
+
+/**
+ * @param {{ env: NodeJS.ProcessEnv, relayInfo: Record<string, unknown> }} options
+ */
+async function startPreview({ env, relayInfo }) {
+	writeRelayInfo(relayInfo);
+	console.log(
+		`✅ E2E app using ${relayInfo.mode} relay` +
+			(relayInfo.httpOrigin ? ` (${relayInfo.httpOrigin})` : '')
+	);
 	await runCommand('pnpm', ['run', 'build'], { env });
 	previewProcess = spawn(
 		'pnpm',
@@ -70,6 +105,30 @@ async function main() {
 			stop(code ?? 0);
 		}
 	});
+}
+
+/**
+ * @param {string | null} [relayMultiaddr=null]
+ * @returns {NodeJS.ProcessEnv}
+ */
+function createPreviewEnv(relayMultiaddr = null) {
+	const env = {
+		...process.env,
+		NODE_ENV: 'development',
+		VITE_NODE_ENV: relayMode === 'public' ? 'production' : 'development',
+		VITE_E2E: 'true',
+		VITE_PUBSUB_TOPICS: 'todo._peer-discovery._p2p._pubsub'
+	};
+
+	if (relayMode === 'local' && relayMultiaddr) {
+		env.VITE_RELAY_BOOTSTRAP_ADDR_DEV = relayMultiaddr;
+	}
+
+	if (relayMode === 'public' && publicRelayBootstrapAddr) {
+		env.VITE_RELAY_BOOTSTRAP_ADDR_PROD = publicRelayBootstrapAddr;
+	}
+
+	return env;
 }
 
 function cleanRelayDatastore() {
@@ -96,6 +155,9 @@ function startRelay() {
 			RELAY_DISABLE_IPV6: 'true',
 			RELAY_DISABLE_QUIC: 'true',
 			RELAY_DISABLE_WEBRTC: 'true',
+			RELAY_DISABLE_BOOTSTRAP: 'true',
+			RELAY_DISABLE_DHT: 'true',
+			RELAY_DISABLE_AUTONAT: 'true',
 			STRUCTURED_LOGS: 'false',
 			ENABLE_GENERAL_LOGS: process.env.ENABLE_GENERAL_LOGS || 'false',
 			ENABLE_SYNC_LOGS: process.env.ENABLE_SYNC_LOGS || 'true',
@@ -203,22 +265,10 @@ function runCommand(command, args, options) {
 }
 
 /**
- * @param {string} relayMultiaddr
+ * @param {Record<string, unknown>} relayInfo
  */
-function writeRelayInfo(relayMultiaddr) {
-	writeFileSync(
-		relayInfoPath,
-		JSON.stringify(
-			{
-				pid: relayProcess?.pid ?? null,
-				multiaddr: relayMultiaddr,
-				httpPort: relayPorts.http,
-				wsPort: relayPorts.ws
-			},
-			null,
-			2
-		)
-	);
+function writeRelayInfo(relayInfo) {
+	writeFileSync(relayInfoPath, JSON.stringify(relayInfo, null, 2));
 }
 
 /**
@@ -253,6 +303,51 @@ function killChild(child) {
 	} catch {
 		// ignore
 	}
+}
+
+/**
+ * @param {string} value
+ */
+function trimTrailingSlash(value) {
+	return value.trim().replace(/\/+$/, '');
+}
+
+/**
+ * @param {string} multiaddrs
+ */
+function inferHttpOriginFromMultiaddr(multiaddrs) {
+	for (const addr of multiaddrs
+		.split(',')
+		.map((entry) => entry.trim())
+		.filter(Boolean)) {
+		const parts = addr.split('/').filter(Boolean);
+		const host =
+			getMultiaddrValue(parts, 'dns4') ||
+			getMultiaddrValue(parts, 'dns6') ||
+			getMultiaddrValue(parts, 'ip4') ||
+			getMultiaddrValue(parts, 'ip6');
+		const port = getMultiaddrValue(parts, 'tcp');
+
+		if (!host) continue;
+
+		const scheme = parts.includes('tls') || port === '443' ? 'https' : 'http';
+		const formattedHost = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host;
+		const includePort =
+			port && !((scheme === 'https' && port === '443') || (scheme === 'http' && port === '80'));
+
+		return `${scheme}://${formattedHost}${includePort ? `:${port}` : ''}`;
+	}
+
+	return '';
+}
+
+/**
+ * @param {string[]} parts
+ * @param {string} protocol
+ */
+function getMultiaddrValue(parts, protocol) {
+	const index = parts.indexOf(protocol);
+	return index >= 0 ? parts[index + 1] || '' : '';
 }
 
 /**

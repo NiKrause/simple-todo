@@ -7,7 +7,7 @@ This document explains how to run the Playwright tests for the Simple Todo conse
 The test suite includes comprehensive cross-browser testing for the consent screen modal functionality, including:
 
 - Modal display and visibility
-- Checkbox interactions and validation  
+- Checkbox interactions and validation
 - Proceed button state management
 - Consent persistence functionality
 - Feature information display
@@ -25,7 +25,7 @@ The test suite includes comprehensive cross-browser testing for the consent scre
 
 1. **Consent Modal Display** - Verifies the modal appears and contains required elements
 2. **Checkbox Validation** - Tests that all checkboxes must be checked to proceed
-3. **Consent Persistence** - Validates the "Don't show again" functionality  
+3. **Consent Persistence** - Validates the "Don't show again" functionality
 4. **Feature Information** - Ensures all required consent information is displayed
 
 ## Local Testing
@@ -33,6 +33,7 @@ The test suite includes comprehensive cross-browser testing for the consent scre
 ### Prerequisites
 
 1. Install dependencies:
+
    ```bash
    pnpm install
    ```
@@ -45,16 +46,43 @@ The test suite includes comprehensive cross-browser testing for the consent scre
 ### Running Tests
 
 Run all tests locally:
+
 ```bash
 pnpm run test:e2e
 ```
 
 Run only consent screen tests:
+
 ```bash
 pnpm run test:consent
 ```
 
+Run collaboration tests against a public relay/bootstrap setup:
+
+```bash
+E2E_RELAY_HTTP_ORIGIN=https://your-relay.example pnpm run test:e2e:public-relay
+```
+
+Run the relay-pinned proof against the local `orbitdb-relay` checkout:
+
+```bash
+pnpm --dir /Users/nandi/orbitdb-relay run build
+pnpm run test:e2e:local-relay-src
+```
+
+`E2E_RELAY_MODE=public` makes the app use production bootstrap discovery through
+`@le-space/aleph-bootstrap`. Set `E2E_PUBLIC_RELAY_BOOTSTRAP_ADDR` when you want
+to force a specific public relay multiaddr instead of relying on Aleph discovery.
+`E2E_RELAY_HTTP_ORIGIN` is required for the relay pinning proof because the tests
+call `/pinning/sync` and `/pinning/databases`. The relay-pinned proof tests are
+opt-in through `E2E_RELAY_PINNING_PROOF=true`; the public-relay script sets that
+flag automatically.
+
+`E2E_RELAY_CLI_PATH` can point the local e2e server at a relay build outside this
+project; `test:e2e:local-relay-src` uses `/Users/nandi/orbitdb-relay/dist/cli.js`.
+
 Run with UI mode for debugging:
+
 ```bash
 pnpm exec playwright test --ui
 ```
@@ -74,6 +102,7 @@ pnpm exec playwright test --ui
 ### Local BrowserStack Testing
 
 Test on BrowserStack while running the app locally:
+
 ```bash
 pnpm run test:consent:browserstack
 ```
@@ -92,6 +121,7 @@ Add these secrets to your GitHub repository:
 #### Workflow Triggers
 
 The workflow runs on:
+
 - Push to `main` or `develop` branches
 - Pull requests to `main`
 - Manual trigger via GitHub UI
@@ -101,17 +131,17 @@ The workflow runs on:
 ### Desktop Browsers
 
 | Browser | Windows 11 | macOS Monterey | Linux Ubuntu 20.04 |
-|---------|------------|----------------|---------------------|
-| Chrome  | ✅         | ✅             | ✅                  |
-| Firefox | ✅         | ✅             | ❌                  |
-| Edge    | ✅         | ❌             | ❌                  |
-| Safari  | ❌         | ✅             | ❌                  |
-| Opera   | ✅         | ❌             | ❌                  |
+| ------- | ---------- | -------------- | ------------------ |
+| Chrome  | ✅         | ✅             | ✅                 |
+| Firefox | ✅         | ✅             | ❌                 |
+| Edge    | ✅         | ❌             | ❌                 |
+| Safari  | ❌         | ✅             | ❌                 |
+| Opera   | ✅         | ❌             | ❌                 |
 
 ### Mobile Browsers
 
 | Browser | iOS 16 | Android 12 |
-|---------|--------|------------|
+| ------- | ------ | ---------- |
 | Safari  | ✅     | ❌         |
 | Chrome  | ❌     | ✅         |
 
@@ -177,6 +207,7 @@ DEBUG=playwright:* pnpm run test:consent
 For faster iteration during development:
 
 1. Start the dev server:
+
    ```bash
    pnpm run dev
    ```
@@ -190,6 +221,7 @@ For faster iteration during development:
 ### Local Reports
 
 Playwright generates HTML reports after test runs:
+
 ```bash
 pnpm exec playwright show-report
 ```
@@ -197,6 +229,7 @@ pnpm exec playwright show-report
 ### CI Reports
 
 GitHub Actions uploads:
+
 - Test results as artifacts
 - Playwright HTML reports
 - Screenshots and videos on failure
@@ -207,7 +240,7 @@ Reports are available in the Actions tab and retained for 30 days.
 
 1. **Test Isolation**: Each test starts with a clean browser context
 2. **Explicit Waits**: Use Playwright's built-in waiting mechanisms
-3. **Stable Selectors**: Use data-testid attributes when possible  
+3. **Stable Selectors**: Use data-testid attributes when possible
 4. **Error Handling**: Tests handle both success and failure scenarios
 5. **Resource Cleanup**: Tests clean up localStorage and other state
 
@@ -216,7 +249,7 @@ Reports are available in the Actions tab and retained for 30 days.
 When adding new tests:
 
 1. Follow the existing test structure
-2. Add appropriate browser coverage  
+2. Add appropriate browser coverage
 3. Update this documentation
 4. Ensure tests work both locally and on BrowserStack
 

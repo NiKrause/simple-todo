@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://simple-todo.le-space.de' : '/';
 const collaborationTimeout = 90000;
+const relayInfoUrl = new URL('./relay-info.json', import.meta.url);
+const runRelayPinningProof = process.env.E2E_RELAY_PINNING_PROOF === 'true';
 
 test.describe.serial('WebRTC transport toggle', () => {
 	test.skip(
@@ -136,6 +139,41 @@ test.describe.serial('Todo collaboration', () => {
 		await announceTodoDatabaseEntries(alice, { attempts: 3, delayMs: 3000 });
 		await transferTodoDatabaseEntries(alice, bob);
 		await expectTodoWithReplicationPoll(bob, aliceTodoInBobDb, alice);
+	});
+});
+
+test.describe.serial('Relay-pinned todo replication', () => {
+	test.skip(
+		!!process.env.BROWSERSTACK_BUILD_NAME,
+		'Relay pinning tests require the relay-backed Playwright server.'
+	);
+	test.skip(
+		!runRelayPinningProof,
+		'Set E2E_RELAY_PINNING_PROOF=true to run relay-pinned proof tests.'
+	);
+
+	const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+	test('Bob opens Alice database after the relay replicated Alice todo', async ({ browser }) => {
+		test.setTimeout(collaborationTimeout * 4);
+
+		await expectTodoReplicatedFromRelay({
+			browser,
+			sourceName: 'Alice',
+			targetName: 'Bob',
+			todoText: `alice-${runId}-relay-pinned-before-bob-open`
+		});
+	});
+
+	test('Alice opens Bob database after the relay replicated Bob todo', async ({ browser }) => {
+		test.setTimeout(collaborationTimeout * 4);
+
+		await expectTodoReplicatedFromRelay({
+			browser,
+			sourceName: 'Bob',
+			targetName: 'Alice',
+			todoText: `bob-${runId}-relay-pinned-before-alice-open`
+		});
 	});
 });
 
@@ -399,6 +437,34 @@ async function announceTodoDatabaseEntries(page, { attempts = 1, delayMs = 0 } =
 }
 
 /**
+ * @param {import('@playwright/test').Page} page
+ * @param {{ attempts?: number, delayMs?: number }} [options]
+ */
+async function announceTodoDatabaseEntriesToRelay(page, { attempts = 1, delayMs = 0 } = {}) {
+	const relayMultiaddr = getRelayMultiaddr();
+	if (!relayMultiaddr) return;
+
+	for (let attempt = 1; attempt <= attempts; attempt += 1) {
+		await expect
+			.poll(
+				() =>
+					page.evaluate(async (address) => {
+						if (typeof window.announceTodoDatabaseEntriesToMultiaddr !== 'function') {
+							return { sent: false, entryCount: 0 };
+						}
+						return window.announceTodoDatabaseEntriesToMultiaddr(address);
+					}, relayMultiaddr),
+				{ timeout: collaborationTimeout }
+			)
+			.toMatchObject({ sent: true });
+
+		if (attempt < attempts && delayMs > 0) {
+			await page.waitForTimeout(delayMs);
+		}
+	}
+}
+
+/**
  * @param {import('@playwright/test').Page} sourcePage
  * @param {import('@playwright/test').Page} targetPage
  */
@@ -421,6 +487,279 @@ async function transferTodoDatabaseEntries(sourcePage, targetPage) {
 		}
 		await window.importTodoDatabaseEntries(entriesPayload);
 	}, payload);
+}
+
+/**
+ * @param {{
+ *   browser: import('@playwright/test').Browser,
+ *   sourceName: string,
+ *   targetName: string,
+ *   todoText: string
+ * }} options
+ */
+async function expectTodoReplicatedFromRelay({ browser, sourceName, targetName, todoText }) {
+	const sourceContext = await browser.newContext();
+	const targetContext = await browser.newContext();
+	const sourcePage = await sourceContext.newPage();
+	const targetPage = await targetContext.newPage();
+	let sourceClosed = false;
+
+	try {
+		await openReadyApp(sourcePage);
+		await ensureRelayConnection(sourcePage, sourceName);
+
+		const sourceDbAddress = await getTodoDbAddress(sourcePage);
+		await publishOrbitDBIdentity(sourcePage);
+		await addTodo(sourcePage, todoText);
+		await announceTodoDatabaseEntries(sourcePage, { attempts: 3, delayMs: 3000 });
+		await announceTodoDatabaseEntriesToRelay(sourcePage, { attempts: 3, delayMs: 1000 });
+		const relayProof = await assertRelayReplicatedDatabase(
+			sourceDbAddress,
+			`${sourceName} todo database`,
+			todoText,
+			sourcePage
+		);
+		test.info().annotations.push({
+			type: 'relay-pinning-proof',
+			description: JSON.stringify({
+				sourceName,
+				targetName,
+				dbAddress: sourceDbAddress,
+				relayProof
+			})
+		});
+
+		await sourceContext.close();
+		sourceClosed = true;
+
+		await openReadyApp(targetPage);
+		await ensureRelayConnection(targetPage, targetName);
+		await loadTodoDb(targetPage, sourceDbAddress);
+		await expectTodoWithReplicationPoll(targetPage, todoText);
+	} finally {
+		await targetContext.close();
+		if (!sourceClosed) {
+			await sourceContext.close();
+		}
+	}
+}
+
+/**
+ * @param {string} dbAddress
+ * @param {string} label
+ * @param {string} todoText
+ * @param {import('@playwright/test').Page} [sourcePage]
+ */
+async function assertRelayReplicatedDatabase(dbAddress, label, todoText, sourcePage) {
+	const relayHttpOrigin = getRelayHttpOrigin();
+	const deadline = Date.now() + collaborationTimeout;
+	let lastError = '';
+
+	while (Date.now() < deadline) {
+		try {
+			if (sourcePage) {
+				await announceTodoDatabaseEntries(sourcePage);
+				await announceTodoDatabaseEntriesToRelay(sourcePage);
+			}
+
+			let sync = null;
+			let syncError = '';
+
+			try {
+				sync = await syncRelayDatabase(relayHttpOrigin, dbAddress, sourcePage, 2000);
+			} catch (error) {
+				syncError = error instanceof Error ? error.message : String(error);
+			}
+
+			const databases = await relayFetchJson(
+				`${relayHttpOrigin}/pinning/databases?address=${encodeURIComponent(dbAddress)}`
+			);
+			const databaseRecord = Array.isArray(databases?.databases)
+				? databases.databases.find((entry) => entry?.address === dbAddress)
+				: null;
+			const relayEntryCount =
+				typeof sync?.entryCount === 'number'
+					? sync.entryCount
+					: typeof databaseRecord?.entryCount === 'number'
+						? databaseRecord.entryCount
+						: 0;
+
+			if (
+				databaseRecord &&
+				relayEntryCount > 0 &&
+				relayProofContainsTodo({ sync, databaseRecord }, todoText)
+			) {
+				return {
+					sync,
+					syncError,
+					databases
+				};
+			}
+
+			lastError = JSON.stringify({ sync, syncError, databases });
+		} catch (error) {
+			lastError = error instanceof Error ? error.message : String(error);
+		}
+
+		await sleep(2000);
+	}
+
+	throw new Error(`Timed out waiting for relay to replicate ${label}: ${lastError}`);
+}
+
+/**
+ * @param {{ sync: any, databaseRecord: any }} proof
+ * @param {string} todoText
+ */
+function relayProofContainsTodo(proof, todoText) {
+	return JSON.stringify(proof).includes(todoText);
+}
+
+/**
+ * @param {string} relayHttpOrigin
+ * @param {string} dbAddress
+ * @param {import('@playwright/test').Page | undefined} sourcePage
+ * @param {number} [timeoutMs]
+ */
+async function syncRelayDatabase(relayHttpOrigin, dbAddress, sourcePage, timeoutMs = 30000) {
+	let announceInterval = /** @type {ReturnType<typeof setInterval> | null} */ (null);
+
+	if (sourcePage) {
+		announceInterval = setInterval(() => {
+			void announceTodoDatabaseEntries(sourcePage).catch(() => {
+				// The source page may close while a sync attempt is being cleaned up.
+			});
+			void announceTodoDatabaseEntriesToRelay(sourcePage).catch(() => {
+				// The source page may close while a sync attempt is being cleaned up.
+			});
+		}, 1000);
+	}
+
+	try {
+		return await relayFetchJson(
+			`${relayHttpOrigin}/pinning/sync`,
+			{
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ dbAddress })
+			},
+			timeoutMs
+		);
+	} finally {
+		if (announceInterval) {
+			clearInterval(announceInterval);
+		}
+	}
+}
+
+function getRelayHttpOrigin() {
+	const fromEnv = process.env.E2E_RELAY_HTTP_ORIGIN?.trim();
+	if (fromEnv) return fromEnv.replace(/\/+$/, '');
+
+	const relayInfo = getRelayInfo();
+	const fromRelayInfo =
+		typeof relayInfo?.httpOrigin === 'string' ? relayInfo.httpOrigin.trim() : '';
+
+	if (!fromRelayInfo) {
+		throw new Error('Missing relay HTTP origin. Set E2E_RELAY_HTTP_ORIGIN for public relay runs.');
+	}
+
+	return fromRelayInfo.replace(/\/+$/, '');
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ * @param {string} label
+ */
+async function ensureRelayConnection(page, label) {
+	const relayMultiaddr = getRelayMultiaddr();
+	const deadline = Date.now() + collaborationTimeout;
+	let lastDialError = '';
+
+	while (Date.now() < deadline) {
+		const hasConnection = await page.evaluate(
+			() => (window.__simpleTodoE2E?.getConnectionCount?.() ?? 0) >= 1
+		);
+		if (hasConnection) return;
+
+		if (relayMultiaddr) {
+			try {
+				const dialResult = await page.evaluate(async (address) => {
+					const hook = window.__simpleTodoE2E?.connectToMultiaddr;
+					if (typeof hook === 'function') {
+						return await hook(address);
+					}
+					return null;
+				}, relayMultiaddr);
+				if (dialResult?.status === 'stable') return;
+			} catch (error) {
+				lastDialError = error instanceof Error ? error.message : String(error);
+			}
+
+			await page.waitForTimeout(2000);
+		} else {
+			break;
+		}
+	}
+
+	try {
+		await waitForConnectionCount(page, 1);
+	} catch (error) {
+		if (!lastDialError) throw error;
+		throw new Error(
+			`Timed out waiting for ${label} relay connection. Last explicit relay dial error: ${lastDialError}`
+		);
+	}
+}
+
+function getRelayMultiaddr() {
+	const fromEnv =
+		process.env.E2E_PUBLIC_RELAY_BOOTSTRAP_ADDR?.trim() ||
+		process.env.VITE_RELAY_BOOTSTRAP_ADDR_PROD?.trim() ||
+		process.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV?.trim() ||
+		'';
+	if (fromEnv) return fromEnv.split(',')[0].trim();
+
+	const relayInfo = getRelayInfo();
+	const fromRelayInfo = typeof relayInfo?.multiaddr === 'string' ? relayInfo.multiaddr.trim() : '';
+	return fromRelayInfo.split(',')[0].trim();
+}
+
+function getRelayInfo() {
+	return JSON.parse(readFileSync(relayInfoUrl, 'utf8'));
+}
+
+/**
+ * @param {string} url
+ * @param {RequestInit} [options]
+ * @param {number} [timeoutMs]
+ */
+async function relayFetchJson(url, options = {}, timeoutMs = 30000) {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+	try {
+		const response = await fetch(url, {
+			...options,
+			signal: controller.signal
+		});
+		const body = await response.text();
+
+		if (!response.ok) {
+			throw new Error(`${options.method || 'GET'} ${url} returned ${response.status}: ${body}`);
+		}
+
+		return JSON.parse(body);
+	} finally {
+		clearTimeout(timeout);
+	}
+}
+
+/**
+ * @param {number} ms
+ */
+function sleep(ms) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -642,12 +981,10 @@ function isDialableBrowserAddress(address) {
 	return (
 		normalizedAddress.includes('/p2p/') &&
 		usesBrowserReachableTransport &&
-		(
-			normalizedAddress.includes('/p2p-circuit') ||
+		(normalizedAddress.includes('/p2p-circuit') ||
 			normalizedAddress.includes('/webrtc') ||
 			normalizedAddress.includes('/webrtc-direct') ||
 			normalizedAddress.includes('/ws') ||
-			normalizedAddress.includes('/wss')
-		)
+			normalizedAddress.includes('/wss'))
 	);
 }

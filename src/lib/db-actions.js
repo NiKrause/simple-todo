@@ -1,6 +1,12 @@
 import { writable, derived, get } from 'svelte/store';
 import { pipe } from 'it-pipe';
-import { libp2pStore, peerIdStore } from './p2p.js';
+import { multiaddr } from '@multiformats/multiaddr';
+import {
+	exportOrbitDBAddressBlocks,
+	importOrbitDBAddressBlocks,
+	libp2pStore,
+	peerIdStore
+} from './p2p.js';
 
 /**
  * @typedef {{
@@ -73,6 +79,7 @@ export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
 const observedDatabases = new WeakSet();
 const TODO_ENTRY_EXCHANGE_TOPIC = 'simple-todo.orbitdb-todo-entries';
 const TODO_ENTRY_EXCHANGE_PROTOCOL = '/simple-todo/orbitdb-entries/1.0.0';
+const pendingTodoEntryPayloads = new Map();
 let todoEntryBridgePubsub = /** @type {any} */ (null);
 let todoEntryBridgeLibp2p = /** @type {any} */ (null);
 
@@ -141,6 +148,11 @@ export async function loadTodoDatabase(address) {
 	}
 
 	try {
+		const pendingPayload = pendingTodoEntryPayloads.get(normalizedAddress);
+		if (pendingPayload) {
+			await importOrbitDBAddressBlocks(pendingPayload.blocks);
+		}
+
 		const loadedTodoDB = await orbitdb.open(normalizedAddress, {
 			type: 'keyvalue',
 			sync: true
@@ -148,6 +160,9 @@ export async function loadTodoDatabase(address) {
 
 		setActiveTodoDatabase(loadedTodoDB);
 		setupDatabaseListeners(loadedTodoDB);
+		if (pendingPayload) {
+			await importTodoDatabaseEntries(pendingPayload);
+		}
 		await loadTodos();
 
 		return {
@@ -239,9 +254,47 @@ export async function announceTodoDatabaseEntries(database = get(todoDBStore)) {
 		await database.sync.add(entry);
 	}
 
-	await publishTodoDatabaseEntries(database, entries);
+	const published = await publishTodoDatabaseEntries(database, entries);
 
-	return entries.length;
+	return published ? entries.length : 0;
+}
+
+/**
+ * Send the current todo database proof bundle directly to a known relay address.
+ *
+ * @param {string} address
+ * @param {TodoDatabase | null} [database]
+ * @returns {Promise<{ sent: boolean, entryCount: number, dbAddress: string }>}
+ */
+export async function announceTodoDatabaseEntriesToMultiaddr(
+	address,
+	database = get(todoDBStore)
+) {
+	if (!database?.sync?.add) {
+		return { sent: false, entryCount: 0, dbAddress: '' };
+	}
+
+	const entries =
+		(await database.log?.values?.().catch(() => null)) ??
+		(await database.log?.heads?.().catch(() => null)) ??
+		[];
+
+	for (const entry of entries) {
+		await database.sync.add(entry);
+	}
+
+	const payload = await exportTodoDatabaseEntries(database, entries);
+	if (!payload) {
+		return { sent: false, entryCount: entries.length, dbAddress: getDatabaseAddress(database) };
+	}
+
+	await sendTodoDatabaseEntriesToMultiaddr(address, new TextEncoder().encode(JSON.stringify(payload)));
+
+	return {
+		sent: true,
+		entryCount: entries.length,
+		dbAddress: payload.dbAddress
+	};
 }
 
 async function setupTodoEntryBridge() {
@@ -311,6 +364,7 @@ export async function exportTodoDatabaseEntries(
 		(await database.log?.heads?.().catch(() => null)) ??
 		[];
 	const records = await database.all().catch(() => []);
+	const blocks = dbAddress ? await exportOrbitDBAddressBlocks(dbAddress) : [];
 
 	if (!dbAddress || (logEntries.length === 0 && records.length === 0)) {
 		return null;
@@ -319,6 +373,7 @@ export async function exportTodoDatabaseEntries(
 	return {
 		dbAddress,
 		entries: logEntries,
+		blocks,
 		records: records.map((record) => ({
 			key: record.key,
 			value: record.value
@@ -345,9 +400,54 @@ async function sendTodoDatabaseEntriesToConnectedPeers(libp2p, bytes) {
 						? AbortSignal.timeout(10_000)
 						: undefined
 			});
-			await pipe([bytes], stream);
+			await writeTodoEntryBridgeStream(stream, bytes);
 		})
 	);
+}
+
+/**
+ * @param {string} address
+ * @param {Uint8Array} bytes
+ */
+async function sendTodoDatabaseEntriesToMultiaddr(address, bytes) {
+	const libp2p = get(libp2pStore);
+	if (!libp2p) {
+		throw new Error('P2P is not initialized yet.');
+	}
+
+	const normalizedAddress = address.trim();
+	if (!normalizedAddress) {
+		throw new Error('Missing relay multiaddr.');
+	}
+
+	const target = multiaddr(normalizedAddress);
+	const stream = await libp2p.dialProtocol(target, TODO_ENTRY_EXCHANGE_PROTOCOL, {
+		signal:
+			typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+				? AbortSignal.timeout(10_000)
+				: undefined
+	});
+	await writeTodoEntryBridgeStream(stream, bytes);
+}
+
+async function writeTodoEntryBridgeStream(stream, bytes) {
+	const sink = typeof stream === 'function' ? stream : stream.sink;
+	if (typeof sink === 'function') {
+		await pipe([bytes], sink);
+		return;
+	}
+
+	if (typeof stream?.send === 'function') {
+		if (stream.send(bytes) === false && typeof stream.onDrain === 'function') {
+			await stream.onDrain();
+		}
+		if (typeof stream.close === 'function') {
+			await stream.close();
+		}
+		return;
+	}
+
+	throw new Error('Todo entry bridge stream does not expose a writable interface.');
 }
 
 /**
@@ -370,13 +470,12 @@ async function handleTodoEntryBridgeMessage(event) {
 /**
  * @param {{ stream: { source: AsyncIterable<Uint8Array | { subarray: () => Uint8Array }>, sink: (source: AsyncIterable<Uint8Array>) => Promise<void> } }} event
  */
-async function handleTodoEntryBridgeStream({ stream }) {
+async function handleTodoEntryBridgeStream(event) {
 	try {
-		await pipe(stream, async (source) => {
-			const bytes = await readStreamBytes(source);
-			const payload = JSON.parse(new TextDecoder().decode(bytes));
-			await importTodoDatabaseEntries(payload);
-		});
+		const stream = event?.stream ?? event;
+		const bytes = await readStreamBytes(stream.source ?? stream);
+		const payload = JSON.parse(new TextDecoder().decode(bytes));
+		await importTodoDatabaseEntries(payload);
 	} catch (error) {
 		console.warn(
 			'Failed to import streamed OrbitDB todo entries:',
@@ -415,13 +514,23 @@ async function readStreamBytes(source) {
  */
 export async function importTodoDatabaseEntries(payload) {
 	const todoDB = get(todoDBStore);
+	const dbAddress = typeof payload?.dbAddress === 'string' ? payload.dbAddress : '';
 	const entries = Array.isArray(payload.entries) ? payload.entries : [];
 	const records = Array.isArray(payload.records) ? payload.records : [];
 
+	await importOrbitDBAddressBlocks(payload?.blocks);
+
+	if (
+		dbAddress &&
+		(entries.length > 0 || records.length > 0 || Array.isArray(payload?.blocks))
+	) {
+		pendingTodoEntryPayloads.set(dbAddress, payload);
+	}
+
 	if (
 		!todoDB ||
-		typeof payload.dbAddress !== 'string' ||
-		payload.dbAddress !== getDatabaseAddress(todoDB) ||
+		!dbAddress ||
+		dbAddress !== getDatabaseAddress(todoDB) ||
 		(entries.length === 0 && records.length === 0)
 	) {
 		return false;
@@ -453,6 +562,7 @@ export async function importTodoDatabaseEntries(payload) {
 		await loadTodos();
 	}
 
+	pendingTodoEntryPayloads.delete(dbAddress);
 	return updated;
 }
 
@@ -699,6 +809,7 @@ if (typeof window !== 'undefined') {
 	 *   forceReloadTodos?: typeof loadTodos,
 	 *   loadTodoDatabase?: typeof loadTodoDatabase,
 	 *   announceTodoDatabaseEntries?: typeof announceTodoDatabaseEntries,
+	 *   announceTodoDatabaseEntriesToMultiaddr?: typeof announceTodoDatabaseEntriesToMultiaddr,
 	 *   exportTodoDatabaseEntries?: typeof exportTodoDatabaseEntries,
 	 *   importTodoDatabaseEntries?: typeof importTodoDatabaseEntries,
 	 *   getTodoDatabaseAddress?: () => string,
@@ -710,6 +821,7 @@ if (typeof window !== 'undefined') {
 	browserWindow.forceReloadTodos = loadTodos;
 	browserWindow.loadTodoDatabase = loadTodoDatabase;
 	browserWindow.announceTodoDatabaseEntries = announceTodoDatabaseEntries;
+	browserWindow.announceTodoDatabaseEntriesToMultiaddr = announceTodoDatabaseEntriesToMultiaddr;
 	browserWindow.exportTodoDatabaseEntries = exportTodoDatabaseEntries;
 	browserWindow.importTodoDatabaseEntries = importTodoDatabaseEntries;
 	browserWindow.getTodoDatabaseAddress = () => getDatabaseAddress(get(todoDBStore));
