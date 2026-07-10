@@ -16,6 +16,8 @@ This is a **browser-only** local-first peer-to-peer todo application that operat
 
 The `main` branch is the basic shared-list demo. Every browser opens the same default OrbitDB database (`simple-todos`); users only load the app URL, accept consent, and add todos. There is no manual OrbitDB address exchange in this branch. A Playwright E2E test verifies the default flow with Alice and Bob in separate browser contexts: each adds three todos, and both browsers must see all six replicated items.
 
+> **Another tutorial path:** The [`collab01`](https://github.com/NiKrause/simple-todo/tree/collab01) branch demonstrates explicit collaboration: users can create or load a todo database by its OrbitDB address, share it with another peer, and replicate changes through the relay.
+
 ### Key Features
 
 - ✅ **No Server Required** - PWA runs in browser, desktop or mobile.
