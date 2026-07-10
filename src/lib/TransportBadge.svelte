@@ -1,8 +1,6 @@
 <script>
 	/** @type {string} */
 	export let transport = '';
-	/** @type {string} */
-	export let peerId = '';
 
 	$: badgeConfig = getBadgeConfig(transport);
 
@@ -45,12 +43,7 @@
 	}
 </script>
 
-<span
-	class="badge {badgeConfig.classes} rounded-full px-2 py-1 text-xs font-medium"
-	data-testid="transport-badge"
-	data-peer-id={peerId}
-	data-transport={transport}
->
+<span class="badge {badgeConfig.classes} rounded-full px-2 py-1 text-xs font-medium">
 	{badgeConfig.label}
 </span>
 

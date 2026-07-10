@@ -15,7 +15,7 @@
 		'Todos are local-first in your browser session and synchronize through Helia, OrbitDB, and libp2p.',
 		'The browser connects to relay/bootstrap nodes and other peers for discovery, connectivity, and replication.',
 		'Relay or peer nodes may cache, pin, or replicate demo todo data so collaborators can sync.',
-		'Opened or shared OrbitDB todo databases are unencrypted. Do not enter private or sensitive data.',
+		'The demo uses a shared, unencrypted OrbitDB database. Do not enter private or sensitive data.',
 		'The app may be served through IPFS/IPNS or an HTTP gateway, depending on how you open it.'
 	];
 	/** @type {{
@@ -36,7 +36,7 @@
 		},
 		globalDatabase: {
 			label:
-				'I understand opened or shared OrbitDB todo databases are unencrypted and should not contain private data.',
+				'I understand todos are stored in a shared, unencrypted OrbitDB database and should not contain private data.',
 			checked: false
 		},
 		replicationTesting: {

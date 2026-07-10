@@ -172,7 +172,7 @@ test.describe('Consent Screen', () => {
 			'Helia, OrbitDB, and libp2p',
 			'connects to relay/bootstrap nodes and other peers',
 			'cache, pin, or replicate demo todo data',
-			'Opened or shared OrbitDB todo databases are unencrypted',
+			'shared, unencrypted OrbitDB database',
 			'IPFS/IPNS or an HTTP gateway'
 		];
 

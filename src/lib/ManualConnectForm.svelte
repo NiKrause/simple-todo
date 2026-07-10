@@ -1,10 +1,7 @@
 <script>
-	import { onMount } from 'svelte';
 	import { createEventDispatcher } from 'svelte';
 	import ErrorAlert from './ErrorAlert.svelte';
 	import { connectToMultiaddr } from './p2p.js';
-
-	const LAST_CONNECTED_MULTIADDR_KEY = 'simple-todo:last-connected-multiaddr';
 
 	export let disabled = false;
 
@@ -18,14 +15,6 @@
 	const dispatch = createEventDispatcher();
 
 	/** @typedef {{ status: 'stable' | 'dropped', detail: string, remotePeer: string | null, remoteAddr: string }} ManualConnectResult */
-
-	onMount(() => {
-		try {
-			multiaddr = localStorage.getItem(LAST_CONNECTED_MULTIADDR_KEY) || '';
-		} catch {
-			// Ignore browsers or modes where localStorage is unavailable.
-		}
-	});
 
 	async function handleConnect() {
 		const address = multiaddr.trim();
@@ -67,25 +56,13 @@
 						};
 			dispatch('connected', result);
 			if (result.status === 'stable') {
-				saveLastConnectedMultiaddr(address);
-				multiaddr = address;
+				multiaddr = '';
 			}
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : String(error);
 			statusMessage = null;
 		} finally {
 			isConnecting = false;
-		}
-	}
-
-	/**
-	 * @param {string} address
-	 */
-	function saveLastConnectedMultiaddr(address) {
-		try {
-			localStorage.setItem(LAST_CONNECTED_MULTIADDR_KEY, address);
-		} catch {
-			// Ignore browsers or modes where localStorage is unavailable.
 		}
 	}
 

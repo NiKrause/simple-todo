@@ -32,9 +32,7 @@
 	<h2 class="mb-4 text-xl font-semibold">Add New TODO</h2>
 	<div class="space-y-4">
 		<input
-			data-testid="todo-input"
 			type="text"
-			aria-label="New todo text"
 			bind:value={inputText}
 			{placeholder}
 			{disabled}
@@ -43,7 +41,6 @@
 		/>
 		<div class="flex gap-2">
 			<button
-				data-testid="add-todo-button"
 				on:click={handleSubmit}
 				{disabled}
 				class="rounded-md bg-blue-500 px-6 py-2 font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-400"
