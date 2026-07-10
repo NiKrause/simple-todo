@@ -17,6 +17,8 @@ import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
 import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
+import { getDefaultTodoDatabaseName } from './default-todo-database.js';
+import { normalizeDiscoveredMultiaddrs } from './multiaddr-utils.js';
 
 export { setWebRTCEnabled, webrtcEnabledStore };
 
@@ -40,7 +42,6 @@ let orbitdb = /** @type {any} */ (null);
 let peerId = /** @type {string | null} */ (null);
 let todoDB = /** @type {any} */ (null);
 let defaultTodoDbAddress = '';
-const DEFAULT_TODO_DB_NAME_PREFIX = 'simple-todos';
 const ORBITDB_IDENTITY_STORAGE_KEY = 'simpleTodo.orbitdbIdentityId';
 const ORBITDB_IDENTITY_EXCHANGE_TOPIC = 'simple-todo.orbitdb-identities';
 const MANUAL_CONNECT_STABILIZATION_MS = 3_000;
@@ -188,18 +189,9 @@ async function openInitialTodoDatabase(address) {
 	return defaultTodoDB;
 }
 
-function getDefaultTodoDatabaseName() {
-	const identityId =
-		typeof orbitdb?.identity?.id === 'string'
-			? orbitdb.identity.id
-			: getOrCreateOrbitDBIdentityId();
-
-	return `${DEFAULT_TODO_DB_NAME_PREFIX}-${sanitizeDatabaseNameSegment(identityId).slice(0, 48)}`;
-}
-
 /**
- * Keep a browser-profile identity id so each browser gets its own default
- * OrbitDB address, while reloads and P2P restarts keep using the same one.
+ * Keep a browser-profile identity id so entries from separate peers retain
+ * distinct authors, while every peer opens the shared main tutorial database.
  */
 function getOrCreateOrbitDBIdentityId() {
 	if (typeof localStorage === 'undefined') {
@@ -222,13 +214,6 @@ function createOrbitDBIdentityId() {
 	}
 
 	return `simple-todo-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-/**
- * @param {string} value
- */
-function sanitizeDatabaseNameSegment(value) {
-	return value.replace(/[^a-zA-Z0-9._-]/g, '-');
 }
 
 function installE2ETestHooks() {
@@ -610,29 +595,6 @@ function updateDiscoveredPeer(discoveredPeer, multiaddrs) {
  * @param {any[]} multiaddrs
  * @returns {any[]}
  */
-function normalizeDiscoveredMultiaddrs(discoveredPeerId, multiaddrs) {
-	return multiaddrs
-		.map((addr) => {
-			try {
-				const parsed = typeof addr === 'string' ? multiaddr(addr) : addr;
-				const addrString = parsed.toString();
-
-				if (parsed.getPeerId?.() != null) {
-					return parsed;
-				}
-
-				if (!addrString.startsWith('/')) {
-					return null;
-				}
-
-				return multiaddr(`${addrString}/p2p/${discoveredPeerId}`);
-			} catch {
-				return null;
-			}
-		})
-		.filter(Boolean);
-}
-
 /**
  * @param {any[]} multiaddrs
  * @returns {any[]}

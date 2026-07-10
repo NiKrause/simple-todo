@@ -58,15 +58,20 @@ jobs:
           {
             echo '## main end-to-end test'
             echo
-            echo "**Result:** ${E2E_OUTCOME}"
+            if [ "${E2E_OUTCOME}" = 'success' ]; then
+              echo '**Result:** ✅ passed'
+            else
+              echo "**Result:** ❌ ${E2E_OUTCOME}"
+            fi
             echo
             echo 'The Chromium test starts a local OrbitDB relay and two isolated browser peers using the shared default todo database.'
             echo
-            echo '| Coverage | CI behavior |'
+            echo '| Verified behavior | Result |'
             echo '| --- | --- |'
-            echo '| Alice and Bob open the same default OrbitDB todo list | Runs |'
-            echo '| Alice creates three todos and Bob creates three todos | Runs |'
-            echo '| Both browsers must display all six replicated todos | Runs |'
+            echo "| Alice and Bob open the same deterministic \`simple-todos\` database | ${E2E_OUTCOME} |"
+            echo "| Alice creates three todos and Bob creates three todos | ${E2E_OUTCOME} |"
+            echo "| Both browsers display all six replicated todos | ${E2E_OUTCOME} |"
+            echo "| Relay discovery and browser-to-browser OrbitDB synchronization | ${E2E_OUTCOME} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   build-and-deploy:
