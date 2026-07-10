@@ -46,7 +46,29 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Run collaboration E2E
+        id: collaboration-e2e
         run: pnpm exec playwright test e2e/collaboration.spec.js --project=chromium
+
+      - name: Summarize collaboration E2E
+        if: always()
+        env:
+          E2E_OUTCOME: ${{ steps.collaboration-e2e.outcome }}
+        run: |
+          {
+            echo '## collab01 end-to-end tests'
+            echo
+            echo "**Result:** ${E2E_OUTCOME}"
+            echo
+            echo 'The Chromium suite starts a local OrbitDB relay and two isolated browser peers (Alice and Bob).'
+            echo
+            echo '| Coverage | CI behavior |'
+            echo '| --- | --- |'
+            echo '| WebRTC disabled: peers remain connected through circuit relay | Runs |'
+            echo '| Alice and Bob receive distinct OrbitDB addresses and identities | Runs |'
+            echo '| Bob opens Alice’s database and replicates a todo to Alice | Runs |'
+            echo '| Alice opens Bob’s database and replicates a todo to Bob | Runs |'
+            echo '| Late peer reads a todo previously replicated by the relay, in both directions | Opt-in with `E2E_RELAY_PINNING_PROOF=true` |'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   build-and-deploy:
     if: github.ref_name == 'collab01'
