@@ -76,7 +76,12 @@ jobs:
         env:
           VITE_RELAY_BOOTSTRAP_ADDR_PROD: ${{ inputs.relay_bootstrap_addr || secrets.RELAY_BOOTSTRAP_ADDR_PROD || '' }}
           VITE_NODE_ENV: production
+          VITE_APP_BRANCH: collab01
         run: pnpm build
+
+      - name: Install isolated Aleph deploy tooling
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.11
 
       - name: Publish to Aleph IPFS
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -88,7 +93,7 @@ jobs:
           ALEPH_SITE_REF: simple-todo-collab01
           ALEPH_SITE_CHANNEL: ALEPH-CLOUDSOLUTIONS
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
-        run: node --input-type=module -e "import('@le-space/node').then((m) => m.runSiteMode())"
+        run: node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"
 
   link-domain:
     needs: build-and-deploy
@@ -113,6 +118,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Install isolated Aleph deploy tooling
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.11
+
       - name: Link custom domain
         if: inputs.domain != '' || env.ALEPH_COLLAB01_SITE_DOMAIN != ''
         id: domain
@@ -122,4 +130,4 @@ jobs:
           ALEPH_SITE_DOMAIN: ${{ inputs.domain || env.ALEPH_COLLAB01_SITE_DOMAIN }}
           ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
-        run: node --input-type=module -e "import('@le-space/node').then((m) => m.runSiteMode())"
+        run: node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"

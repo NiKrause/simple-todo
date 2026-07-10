@@ -12,6 +12,7 @@ const pkg = JSON.parse(json);
 
 // Create build date
 const buildDate = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString(); // YYYY-MM-DD HH:MM:SS format
+const appBranch = process.env.VITE_APP_BRANCH || process.env.GITHUB_REF_NAME || 'local';
 
 export default defineConfig({
 	test: {
@@ -52,6 +53,7 @@ export default defineConfig({
 		],
 	define: {
 		__APP_VERSION__: JSON.stringify(pkg.version),
-		__BUILD_DATE__: JSON.stringify(buildDate)
+		__BUILD_DATE__: JSON.stringify(buildDate),
+		__APP_BRANCH__: JSON.stringify(appBranch)
 	}
 });
