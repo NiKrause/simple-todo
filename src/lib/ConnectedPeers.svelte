@@ -96,7 +96,8 @@
 		// Handle peer discovery events
 		/** @type {(event: Event) => Promise<void>} */
 		const onPeerDiscovery = async (event) => {
-			const customEvent = /** @type {CustomEvent<{ id?: { toString(): string }, multiaddrs: any[] }>} */ (event);
+			const customEvent =
+				/** @type {CustomEvent<{ id?: { toString(): string }, multiaddrs: any[] }>} */ (event);
 			const { id: peerId, multiaddrs } = customEvent.detail;
 			const peerIdStr = peerId?.toString();
 			if (!peerIdStr) return;
@@ -125,7 +126,11 @@
 			});
 
 			// Auto-connect only for browser-reachable transports, and back off after failures.
-			if (autoConnect && isAutoDialCandidate(detectedTransports) && shouldAttemptPeerDial(peerIdStr)) {
+			if (
+				autoConnect &&
+				isAutoDialCandidate(detectedTransports) &&
+				shouldAttemptPeerDial(peerIdStr)
+			) {
 				try {
 					await libp2p.dial(peerId);
 					failedPeerDialState.delete(peerIdStr);
@@ -148,7 +153,16 @@
 			const existingPeer = currentPeers.find((peer) => peer.peerId === peerIdStr);
 			if (!existingPeer) {
 				const storedPeerInfo = discoveredPeersInfo.get(peerIdStr);
-				const transports = storedPeerInfo?.transports || ['webrtc'];
+				const connections = libp2p.getConnections(peerId) ?? [];
+				const activeTransports = Array.from(
+					new Set(
+						connections.flatMap((/** @type {any} */ connection) =>
+							extractTransportsFromConnection(connection)
+						)
+					)
+				);
+				const transports =
+					activeTransports.length > 0 ? activeTransports : storedPeerInfo?.transports || ['webrtc'];
 
 				peers.update((peers) => [...peers, { peerId: peerIdStr, transports }]);
 				discoveredPeersInfo.delete(peerIdStr);
@@ -257,18 +271,26 @@
 
 		const addrStr = connection.remoteAddr.toString();
 
-		if (addrStr.includes('/webrtc') && !addrStr.includes('/p2p-circuit')) {
-			transports.add('webrtc');
-		} else if (addrStr.includes('/p2p-circuit')) {
+		if (addrStr.includes('/p2p-circuit')) {
 			transports.add('circuit-relay');
-		} else if (addrStr.includes('/webtransport')) {
+		}
+
+		if (addrStr.includes('/webrtc')) {
+			transports.add('webrtc');
+		}
+
+		if (addrStr.includes('/webtransport')) {
 			transports.add('webtransport');
-		} else if (
+		}
+
+		if (
 			(addrStr.includes('/ws') || addrStr.includes('/wss')) &&
 			!addrStr.includes('/p2p-circuit')
 		) {
 			transports.add('websocket');
-		} else if (addrStr.includes('/tcp/')) {
+		}
+
+		if (addrStr.includes('/tcp/') && transports.size === 0) {
 			transports.add('tcp');
 		}
 
@@ -294,8 +316,8 @@
 		peers.update((peers) => {
 			const peerIndex = peers.findIndex((peer) => peer.peerId === peerIdStr);
 			if (peerIndex !== -1) {
-					/** @type {PeerEntry[]} */
-					const updatedPeers = [...peers];
+				/** @type {PeerEntry[]} */
+				const updatedPeers = [...peers];
 				updatedPeers[peerIndex] = {
 					...updatedPeers[peerIndex],
 					transports: Array.from(allTransports)
@@ -399,13 +421,17 @@
 	{#if $peers.length > 0}
 		<div class="space-y-2">
 			{#each $peers as peer (peer.peerId)}
-				<div class="flex items-center space-x-2">
+				<div
+					class="flex items-center space-x-2"
+					data-testid="connected-peer"
+					data-peer-id={peer.peerId}
+				>
 					{#if showOnlineIndicator}
 						<div class="h-2 w-2 rounded-full bg-green-500" title="Online"></div>
 					{/if}
 					<code class="rounded bg-gray-100 px-2 py-1 text-sm">{formatPeerId(peer.peerId)}</code>
 					{#each peer.transports as transport (transport)}
-						<TransportBadge {transport} />
+						<TransportBadge {transport} peerId={peer.peerId} />
 					{/each}
 
 					<!-- Optional: Add action buttons -->

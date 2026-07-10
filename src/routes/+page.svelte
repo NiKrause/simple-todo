@@ -1,7 +1,8 @@
 <script>
 	/* eslint-disable no-undef */
 	import { onMount } from 'svelte';
-	import { peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js';
+	import { peerIdStore, initializeP2P, initializationStore, restartP2P } from '$lib/p2p.js';
+	import { initializeWebRTCSetting } from '$lib/webrtc-settings.js';
 	import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
@@ -9,10 +10,12 @@
 	import LoadingSpinner from '$lib/LoadingSpinner.svelte';
 	import ErrorAlert from '$lib/ErrorAlert.svelte';
 	import AddTodoForm from '$lib/AddTodoForm.svelte';
+	import LoadTodoDbForm from '$lib/LoadTodoDbForm.svelte';
 	import TodoList from '$lib/TodoList.svelte';
 	import ConnectedPeers from '$lib/ConnectedPeers.svelte';
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
 	import ManualConnectForm from '$lib/ManualConnectForm.svelte';
+	import WebRTCToggle from '$lib/WebRTCToggle.svelte';
 	import { libp2pStore } from '$lib/p2p.js';
 	import SponsorRelayFab from '@le-space/ui/svelte';
 
@@ -54,6 +57,8 @@
 
 	onMount(async () => {
 		try {
+			initializeWebRTCSetting();
+
 			if (localStorage.getItem(CONSENT_KEY) === 'true') {
 				showModal = false;
 				await initializeP2P();
@@ -112,6 +117,16 @@
 	};
 
 	/**
+	 * @param {{ detail: { address: string, count: number } }} event
+	 */
+	const handleLoadTodoDb = (event) => {
+		showToast(
+			`Loaded Todo DB with ${event.detail.count} item${event.detail.count === 1 ? '' : 's'}`,
+			'success'
+		);
+	};
+
+	/**
 	 * @param {{ detail: { status: 'stable' | 'dropped', detail: string, remotePeer: string | null, remoteAddr: string } }} event
 	 */
 	const handleManualConnect = (event) => {
@@ -123,6 +138,24 @@
 		}
 
 		showToast(`⚠️ ${peerTarget} closed the connection shortly after connect`, 'warning');
+	};
+
+	/**
+	 * @param {{ detail: { enabled: boolean } }} event
+	 */
+	const handleWebRTCChange = async (event) => {
+		try {
+			await restartP2P();
+			showToast(
+				event.detail.enabled
+					? 'WebRTC enabled. P2P node restarted.'
+					: 'WebRTC disabled. Relay-only P2P node restarted.',
+				'success'
+			);
+		} catch (err) {
+			error = `Failed to restart P2P: ${err instanceof Error ? err.message : String(err)}`;
+			console.error('P2P restart failed:', err);
+		}
 	};
 
 	// Subscribe to the peerIdStore
@@ -188,6 +221,9 @@
 		<!-- Add TODO Form -->
 		<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
 
+		<!-- Load TODO Database -->
+		<LoadTodoDbForm disabled={!$initializationStore.isInitialized} on:loaded={handleLoadTodoDb} />
+
 		<!-- TODO List -->
 		<TodoList
 			todos={$todosStore}
@@ -202,8 +238,13 @@
 				on:connected={handleManualConnect}
 			/>
 
+			<WebRTCToggle
+				disabled={!$initializationStore.isInitialized || $initializationStore.isInitializing}
+				on:change={handleWebRTCChange}
+			/>
+
 			<!-- Connected Peers -->
-			<ConnectedPeers bind:this={connectedPeersRef} libp2p={$libp2pStore} />
+			<ConnectedPeers bind:this={connectedPeersRef} libp2p={$libp2pStore} autoConnect={false} />
 
 			<!-- My Identity -->
 			<PeerIdCard peerId={myPeerId} />

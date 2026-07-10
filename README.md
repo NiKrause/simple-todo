@@ -12,24 +12,29 @@ A basic decentralized, local-first, peer-to-peer todo application built with **l
 
 This is a **browser-only** local-first peer-to-peer todo application that operates without any traditional server infrastructure. It connects directly to other browsers and mobile devices through peer-to-peer connections, creating a truly decentralized experience. So far, a LibP2P signaling node is necessary to connect the peers, and in this version it also stores the todos since this browser version works with MemoryStorage only instead of local IPFSStorage (e.g. LevelBlockstore).
 
-### Main Branch Scope
+### About the `collab01` branch
 
-The `main` branch is the basic shared-list demo. Every browser opens the same default OrbitDB database (`simple-todos`); users only load the app URL, accept consent, and add todos. There is no manual OrbitDB address exchange in this branch. A Playwright E2E test verifies the default flow with Alice and Bob in separate browser contexts: each adds three todos, and both browsers must see all six replicated items.
+The main/basic demo focuses on one automatic shared todo list: open the same app in two browsers, connect peers, and watch todos replicate.
+
+The `collab01` branch adds an explicit collaboration workflow. Each browser profile creates its own OrbitDB identity and default todo database address, shows that address, lets you copy it, and lets another browser load that exact database through the **Load Todo DB** card. It also keeps the manual **Connect To Multiaddress** flow, so testers can dial a browser-reachable relay or peer address before opening a collaborator's database. This makes the demo better for validating cross-browser collaboration, relay connectivity, and OrbitDB replication behavior step by step.
 
 ### Key Features
 
-- ✅ **No Server Required** - PWA runs in browser, desktop or mobile.
+- ✅ **No Server Required** - Runs entirely in your browser
 - ✅ **Local Data** - Data is stored in your browser's level storage and replicated via OrbitDB and IPFS
 - ✅ **Peer-to-Peer Communication** - Browsers connect directly via WebRTC (with help of libp2p signaling nodes)
 - ✅ **Real-time Synchronization** - Changes appear instantly across all peers
+- ✅ **Load Shared Databases** - Open another user's todo database by pasting its OrbitDB address
+- ✅ **Copyable Database Address** - Share the active todo database address directly from the UI
 
 ## 🎯 How to Test
 
 1. **Open Two Browser Windows** - You need at least two browser instances, a mobile device, or ask another distant person to open the app
 2. **Load the Same URL** - All app users should load the same app URL
 3. **Accept Consent** - Check all consent boxes in both browsers
-4. **Wait for Connection** - The app will automatically discover and connect peers
-5. **Add Todos** - Create todos in one browser and watch them appear in the other
+4. **Connect Peers** - Wait for discovery or use **Connect To Multiaddress** with a browser-reachable relay or peer address
+5. **Share the Todo DB** - Copy Alice's OrbitDB address from **Load Todo DB** and load it in Bob's browser
+6. **Add Todos** - Create todos in either browser and watch them replicate to the other
 
 ## 📚 Documentation
 
@@ -54,8 +59,8 @@ The tutorial covers:
 ```bash
 # Clone repository
 git clone https://github.com/NiKrause/simple-todo.git
-# checkout main branch
-git checkout main
+# checkout collaboration branch
+git checkout collab01
 
 # run (like this you don't need to cut and paste anything)
 ./tutorial-01.js
@@ -116,7 +121,7 @@ If you change `.env` while Vite is already running, restart `pnpm dev` so the ne
 ## ⚠️ Important Notes
 
 - This is a **demo application** for educational purposes
-- Data is stored in a **global unencrypted database** visible to all users
+- Opened or shared OrbitDB todo databases are **unencrypted** and visible to connected collaborators
 - **No privacy protection** - all data is publicly visible
 - **Not suitable for production use** without additional security measures
 
