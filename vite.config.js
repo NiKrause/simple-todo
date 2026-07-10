@@ -14,6 +14,15 @@ const pkg = JSON.parse(json);
 const buildDate = new Date().toISOString().split('T')[0] + ' ' + new Date().toLocaleTimeString(); // YYYY-MM-DD HH:MM:SS format
 
 export default defineConfig({
+	test: {
+		include: ['src/**/*.spec.js'],
+		browser: {
+			enabled: true,
+			headless: true,
+			provider: 'playwright',
+			instances: [{ browser: 'chromium' }]
+		}
+	},
 	plugins: [
 		tailwindcss(),
 			sveltekit(),

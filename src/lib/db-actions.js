@@ -430,6 +430,10 @@ async function sendTodoDatabaseEntriesToMultiaddr(address, bytes) {
 	await writeTodoEntryBridgeStream(stream, bytes);
 }
 
+/**
+ * @param {any} stream
+ * @param {Uint8Array} bytes
+ */
 async function writeTodoEntryBridgeStream(stream, bytes) {
 	const sink = typeof stream === 'function' ? stream : stream.sink;
 	if (typeof sink === 'function') {
@@ -510,7 +514,7 @@ async function readStreamBytes(source) {
 }
 
 /**
- * @param {{ dbAddress?: unknown, entries?: unknown, records?: unknown }} payload
+ * @param {{ dbAddress?: unknown, entries?: unknown, records?: unknown, blocks?: unknown }} payload
  */
 export async function importTodoDatabaseEntries(payload) {
 	const todoDB = get(todoDBStore);

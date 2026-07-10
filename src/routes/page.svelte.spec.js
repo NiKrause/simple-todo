@@ -7,7 +7,10 @@ describe('/+page.svelte', () => {
 	it('should render h1', async () => {
 		render(Page);
 
-		const heading = page.getByRole('heading', { level: 1 });
+		const heading = page.getByRole('main').getByRole('heading', {
+			level: 1,
+			name: 'Simple TODO Example'
+		});
 		await expect.element(heading).toBeInTheDocument();
 	});
 });
