@@ -166,7 +166,10 @@
 				• A Basic Local-First Peer-To-Peer PWA with IPFS and OrbitDB v{typeof __APP_VERSION__ !==
 				'undefined'
 					? __APP_VERSION__
-					: '0.0.0'} [{typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]
+					: '0.0.0'} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{typeof __BUILD_DATE__ !==
+				'undefined'
+					? __BUILD_DATE__
+					: 'dev'}]
 			</p>
 		</div>
 		<div class="flex-shrink-0 self-start sm:self-auto">

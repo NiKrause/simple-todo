@@ -76,7 +76,12 @@ jobs:
         env:
           VITE_RELAY_BOOTSTRAP_ADDR_PROD: ${{ inputs.relay_bootstrap_addr || secrets.RELAY_BOOTSTRAP_ADDR_PROD || '' }}
           VITE_NODE_ENV: production
+          VITE_APP_BRANCH: main
         run: pnpm build
+
+      - name: Install isolated Aleph deploy tooling
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.11
 
       - name: Publish to Aleph IPFS
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -88,7 +93,7 @@ jobs:
           ALEPH_SITE_REF: simple-todo
           ALEPH_SITE_CHANNEL: ALEPH-CLOUDSOLUTIONS
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
-        run: node --input-type=module -e "import('@le-space/node').then((m) => m.runSiteMode())"
+        run: node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"
 
   link-domain:
     needs: build-and-deploy
@@ -96,6 +101,8 @@ jobs:
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       needs.build-and-deploy.outputs.item_hash != ''
     runs-on: ubuntu-latest
+    env:
+      ALEPH_MAIN_SITE_DOMAIN: simple-todo.le-space.de
     steps:
       - name: Checkout simple-todo
         uses: actions/checkout@v6
@@ -111,13 +118,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Install isolated Aleph deploy tooling
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.11
+
       - name: Link custom domain
-        if: inputs.domain != '' || env.ALEPH_SITE_DOMAIN != ''
+        if: inputs.domain != '' || env.ALEPH_MAIN_SITE_DOMAIN != ''
         id: domain
         env:
           ALEPH_VM_MODE: site-domain-link
           ALEPH_SITE_ITEM_HASH: ${{ needs.build-and-deploy.outputs.item_hash }}
-          ALEPH_SITE_DOMAIN: ${{ inputs.domain || secrets.ALEPH_SITE_DOMAIN }}
+          ALEPH_SITE_DOMAIN: ${{ inputs.domain || env.ALEPH_MAIN_SITE_DOMAIN }}
           ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
-        run: node --input-type=module -e "import('@le-space/node').then((m) => m.runSiteMode())"
+        run: node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"
