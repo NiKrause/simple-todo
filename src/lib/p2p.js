@@ -17,6 +17,7 @@ import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
 import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
+import { normalizeDiscoveredMultiaddrs } from './multiaddr-utils.js';
 
 export { setWebRTCEnabled, webrtcEnabledStore };
 
@@ -603,34 +604,6 @@ function updateDiscoveredPeer(discoveredPeer, multiaddrs) {
 
 	discoveredPeers.set(discoveredPeerId, peerInfo);
 	return peerInfo;
-}
-
-/**
- * @param {string} discoveredPeerId
- * @param {any[]} multiaddrs
- * @returns {any[]}
- */
-function normalizeDiscoveredMultiaddrs(discoveredPeerId, multiaddrs) {
-	return multiaddrs
-		.map((addr) => {
-			try {
-				const parsed = typeof addr === 'string' ? multiaddr(addr) : addr;
-				const addrString = parsed.toString();
-
-				if (parsed.getPeerId?.() != null) {
-					return parsed;
-				}
-
-				if (!addrString.startsWith('/')) {
-					return null;
-				}
-
-				return multiaddr(`${addrString}/p2p/${discoveredPeerId}`);
-			} catch {
-				return null;
-			}
-		})
-		.filter(Boolean);
 }
 
 /**
