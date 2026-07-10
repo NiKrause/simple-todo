@@ -389,6 +389,7 @@ async function importOrbitDBIdentityBlock(payload) {
 export async function exportOrbitDBAddressBlocks(dbAddress) {
 	if (!helia?.blockstore || typeof dbAddress !== 'string') return [];
 
+	/** @type {Array<{ hash: string, bytes: number[] }>} */
 	const blocks = [];
 	const seen = new Set();
 	const dbHash = getOrbitDBAddressHash(dbAddress);
@@ -403,7 +404,8 @@ export async function exportOrbitDBAddressBlocks(dbAddress) {
 			codec: dagCbor,
 			hasher: sha256
 		});
-		const accessControllerHash = getIpfsAddressHash(value?.accessController);
+		const manifest = /** @type {{ accessController?: unknown }} */ (value);
+		const accessControllerHash = getIpfsAddressHash(manifest?.accessController);
 		const accessControllerBlock = await exportLocalBlock(accessControllerHash, seen);
 		if (accessControllerBlock) {
 			blocks.push(accessControllerBlock);
@@ -459,17 +461,18 @@ async function exportLocalBlock(hash, seen) {
  * @returns {Promise<Uint8Array>}
  */
 async function collectUint8Array(value) {
-	if (value && typeof value[Symbol.asyncIterator] === 'function') {
+	const iterable = /** @type {any} */ (value);
+	if (iterable && typeof iterable[Symbol.asyncIterator] === 'function') {
 		const chunks = [];
-		for await (const chunk of value) {
+		for await (const chunk of iterable) {
 			chunks.push(toUint8Array(chunk));
 		}
 		return concatUint8Arrays(chunks);
 	}
 
-	if (value && typeof value[Symbol.iterator] === 'function' && !(value instanceof Uint8Array)) {
+	if (iterable && typeof iterable[Symbol.iterator] === 'function' && !(value instanceof Uint8Array)) {
 		const chunks = [];
-		for (const chunk of value) {
+		for (const chunk of iterable) {
 			chunks.push(toUint8Array(chunk));
 		}
 		if (chunks.length > 0 && chunks.every((chunk) => chunk.byteLength > 0)) {
@@ -505,8 +508,9 @@ function toUint8Array(value) {
 		return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
 	}
 	if (Array.isArray(value)) return Uint8Array.from(value);
-	if (typeof value?.subarray === 'function') return toUint8Array(value.subarray());
-	if (typeof value?.slice === 'function') return toUint8Array(value.slice());
+	const bytesLike = /** @type {any} */ (value);
+	if (typeof bytesLike?.subarray === 'function') return toUint8Array(bytesLike.subarray());
+	if (typeof bytesLike?.slice === 'function') return toUint8Array(bytesLike.slice());
 	return new Uint8Array();
 }
 
