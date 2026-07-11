@@ -7,11 +7,39 @@ function hasPublicRelayConnection(diagnostics) {
 	);
 }
 
-function selectBrowserDialAddress(diagnostics) {
-	return diagnostics.multiaddrs.find((address) => {
-		const normalized = address.toLowerCase();
-		return normalized.includes('/p2p-circuit/') && normalized.includes('/webrtc/');
-	});
+function findWebRTCPeerConnection(diagnostics, expectedPeerId) {
+	return diagnostics.connections.find(
+		({ remotePeer, remoteAddr }) =>
+			remotePeer === expectedPeerId && remoteAddr?.toLowerCase().includes('/webrtc')
+	);
+}
+
+async function waitForWebRTCPeerConnection(agentA, agentB, peerIdA, peerIdB, timeoutMs = 120_000) {
+	const deadline = Date.now() + timeoutMs;
+
+	while (Date.now() < deadline) {
+		const [diagnosticsA, diagnosticsB] = await Promise.all([
+			agentA.diagnostics(),
+			agentB.diagnostics()
+		]);
+		const observedByA = findWebRTCPeerConnection(diagnosticsA, peerIdB);
+		const observedByB = findWebRTCPeerConnection(diagnosticsB, peerIdA);
+
+		if (observedByA || observedByB) {
+			return {
+				observedBy: observedByA ? 'agent-a' : 'agent-b',
+				connection: observedByA ?? observedByB,
+				diagnosticsA,
+				diagnosticsB
+			};
+		}
+
+		await new Promise((resolve) => setTimeout(resolve, 1_000));
+	}
+
+	throw new Error(
+		`Timed out waiting for a direct WebRTC connection between ${peerIdA} and ${peerIdB}.`
+	);
 }
 
 export async function runCollab01RemoteScenario({
@@ -79,12 +107,19 @@ export async function runCollab01RemoteScenario({
 			agentB.waitForOrbitDBIdentity(identityA?.hash)
 		]);
 
-		const agentADialAddress = selectBrowserDialAddress(result.agents.a);
-		if (!agentADialAddress) {
-			throw new Error('Agent A did not advertise a browser-dialable relay/WebRTC address.');
-		}
-		result.directConnection = await agentB.connectToPeer(agentADialAddress, result.agents.a.peerId);
-		result.agents.b = await agentB.diagnostics();
+		const webRTCObservation = await waitForWebRTCPeerConnection(
+			agentA,
+			agentB,
+			result.agents.a.peerId,
+			result.agents.b.peerId
+		);
+		result.directConnection = {
+			transport: 'webrtc',
+			observedBy: webRTCObservation.observedBy,
+			...webRTCObservation.connection
+		};
+		result.agents.a = webRTCObservation.diagnosticsA;
+		result.agents.b = webRTCObservation.diagnosticsB;
 
 		const bToAStarted = Date.now();
 		await agentB.createTodo(todoFromB);
