@@ -233,6 +233,8 @@ function getReadOnlyDiagnostics() {
 			typeof window !== 'undefined' && typeof window.getTodoDatabasePeerIds === 'function'
 				? window.getTodoDatabasePeerIds()
 				: Array.from(todoDB?.peers ?? []),
+		getPubsubTopics: () => libp2p?.services?.pubsub?.getTopics?.() ?? [],
+		getProtocols: () => libp2p?.getProtocols?.() ?? [],
 		getMultiaddrs: () => {
 			const ownAddrs =
 				libp2p?.getMultiaddrs?.().map((/** @type {any} */ addr) => addr.toString()) ?? [];

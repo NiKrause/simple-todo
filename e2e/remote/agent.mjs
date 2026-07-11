@@ -44,6 +44,8 @@ export class TodoBrowserAgent {
 				multiaddrs: diagnostics?.getMultiaddrs?.() ?? [],
 				connections: diagnostics?.getConnections?.() ?? [],
 				databasePeers: diagnostics?.getDatabasePeers?.() ?? [],
+				pubsubTopics: diagnostics?.getPubsubTopics?.() ?? [],
+				protocols: diagnostics?.getProtocols?.() ?? [],
 				appStamp: document.querySelector('header p')?.textContent?.trim() ?? null,
 				userAgent: navigator.userAgent
 			};
@@ -87,12 +89,34 @@ export class TodoBrowserAgent {
 		await expect(input).toHaveValue(address, { timeout: this.timeout });
 	}
 
-	async waitForDatabasePeer(peerId) {
+	async reloadAndEnsureDatabase(address) {
+		await this.page.reload({ waitUntil: 'domcontentloaded', timeout: this.timeout });
+		await expect(this.todoInput()).toBeEnabled({ timeout: this.timeout });
+		await this.page.waitForFunction(
+			() => typeof window.__simpleTodoDiagnostics?.getPeerId?.() === 'string',
+			undefined,
+			{ timeout: this.timeout }
+		);
+
+		const input = this.page.getByTestId('load-todo-db-input');
+		const addressAfterReload = await input.inputValue();
+		if (addressAfterReload !== address) {
+			await this.openDatabase(address);
+		}
+
+		return {
+			addressAfterReload,
+			reopenedDatabase: addressAfterReload !== address,
+			diagnostics: await this.diagnostics()
+		};
+	}
+
+	async waitForDatabasePeer(peerId, timeout = this.timeout) {
 		await this.page.waitForFunction(
 			(expectedPeerId) =>
 				(window.__simpleTodoDiagnostics?.getDatabasePeers?.() ?? []).includes(expectedPeerId),
 			peerId,
-			{ timeout: this.timeout, polling: 1_000 }
+			{ timeout, polling: 1_000 }
 		);
 		return this.diagnostics();
 	}
