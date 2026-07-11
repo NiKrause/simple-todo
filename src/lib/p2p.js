@@ -119,6 +119,7 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 
 		// Mark initialization as complete
 		initializationStore.set({ isInitializing: false, isInitialized: true, error: null });
+		installPublicDiagnostics();
 		installE2ETestHooks();
 		console.log('🎉 P2P initialization completed successfully!');
 	} catch (error) {
@@ -232,13 +233,10 @@ function sanitizeDatabaseNameSegment(value) {
 	return value.replace(/[^a-zA-Z0-9._-]/g, '-');
 }
 
-function installE2ETestHooks() {
-	if (typeof window === 'undefined' || import.meta.env.VITE_E2E !== 'true') return;
-
-	/** @type {Window & typeof globalThis & { __simpleTodoE2E?: Record<string, unknown> }} */ (
-		window
-	).__simpleTodoE2E = {
+function getReadOnlyDiagnostics() {
+	return {
 		getPeerId: () => peerId,
+		getDatabaseAddress: () => get(todoDBAddressStore),
 		getMultiaddrs: () => {
 			const ownAddrs =
 				libp2p?.getMultiaddrs?.().map((/** @type {any} */ addr) => addr.toString()) ?? [];
@@ -248,6 +246,41 @@ function installE2ETestHooks() {
 					?.multiaddrs?.map((/** @type {any} */ addr) => addr.toString()) ?? [];
 			return Array.from(new Set([...ownAddrs, ...peerStoreAddrs]));
 		},
+		getConnections: () =>
+			libp2p?.getConnections?.().map((/** @type {any} */ connection) => ({
+				remotePeer: connection.remotePeer?.toString() ?? null,
+				remoteAddr: connection.remoteAddr?.toString() ?? null
+			})) ?? [],
+		getOrbitDBIdentity: () =>
+			orbitdb?.identity
+				? {
+						id: orbitdb.identity.id ?? null,
+						hash: orbitdb.identity.hash ?? null
+					}
+				: null,
+		hasOrbitDBIdentity: async (/** @type {unknown} */ hash) =>
+			typeof hash === 'string' && Boolean(await orbitdb?.identities?.getIdentity?.(hash)),
+		publishOrbitDBIdentity
+	};
+}
+
+function installPublicDiagnostics() {
+	if (typeof window === 'undefined') return;
+
+	/** @type {Window & typeof globalThis & { __simpleTodoDiagnostics?: Record<string, unknown> }} */ (
+		window
+	).__simpleTodoDiagnostics = Object.freeze(getReadOnlyDiagnostics());
+}
+
+function installE2ETestHooks() {
+	if (typeof window === 'undefined' || import.meta.env.VITE_E2E !== 'true') return;
+
+	const diagnostics = getReadOnlyDiagnostics();
+
+	/** @type {Window & typeof globalThis & { __simpleTodoE2E?: Record<string, unknown> }} */ (
+		window
+	).__simpleTodoE2E = {
+		...diagnostics,
 		getConnectionCount: () => libp2p?.getConnections?.().length ?? 0,
 		getConnectedPeerIds: () =>
 			libp2p
@@ -272,11 +305,6 @@ function installE2ETestHooks() {
 		hasOrbitDBIdentity: async (/** @type {unknown} */ hash) =>
 			typeof hash === 'string' && Boolean(await orbitdb?.identities?.getIdentity?.(hash)),
 		publishOrbitDBIdentity,
-		getConnections: () =>
-			libp2p?.getConnections?.().map((/** @type {any} */ connection) => ({
-				remotePeer: connection.remotePeer?.toString() ?? null,
-				remoteAddr: connection.remoteAddr?.toString() ?? null
-			})) ?? [],
 		getWebRTCEnabled,
 		setWebRTCEnabled,
 		connectToMultiaddr
@@ -471,7 +499,11 @@ async function collectUint8Array(value) {
 		return concatUint8Arrays(chunks);
 	}
 
-	if (iterable && typeof iterable[Symbol.iterator] === 'function' && !(value instanceof Uint8Array)) {
+	if (
+		iterable &&
+		typeof iterable[Symbol.iterator] === 'function' &&
+		!(value instanceof Uint8Array)
+	) {
 		const chunks = [];
 		for (const chunk of iterable) {
 			chunks.push(toUint8Array(chunk));

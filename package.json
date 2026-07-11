@@ -18,6 +18,7 @@
 		"test:unit": "vitest --run",
 		"test": "pnpm run test:unit && pnpm run test:e2e",
 		"test:e2e": "playwright test",
+		"test:e2e:remote:collab01": "node e2e/remote/run-collab01.mjs",
 		"test:e2e:local-relay-src": "E2E_RELAY_CLI_PATH=/Users/nandi/orbitdb-relay/dist/cli.js E2E_RELAY_PINNING_PROOF=true playwright test e2e/collaboration.spec.js --project=chromium -g \"Relay-pinned\"",
 		"test:e2e:public-relay": "E2E_RELAY_MODE=public E2E_RELAY_PINNING_PROOF=true playwright test e2e/collaboration.spec.js --project=chromium",
 		"test:consent": "playwright test e2e/consent-screen.spec.js"

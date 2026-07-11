@@ -1,0 +1,153 @@
+import { expect } from '@playwright/test';
+
+const DEFAULT_TIMEOUT = 120_000;
+
+export class TodoBrowserAgent {
+	constructor(name, browser, appUrl, timeout = DEFAULT_TIMEOUT) {
+		this.name = name;
+		this.browser = browser;
+		this.appUrl = appUrl;
+		this.timeout = timeout;
+		this.context = null;
+		this.page = null;
+	}
+
+	async open() {
+		this.context = await this.browser.newContext();
+		this.page = await this.context.newPage();
+		await this.page.goto(this.appUrl, { waitUntil: 'domcontentloaded', timeout: this.timeout });
+
+		const modal = this.page.locator('div.fixed.inset-0.z-50');
+		await modal.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+		if (await modal.isVisible()) {
+			for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
+				await checkbox.check();
+			}
+			await this.page.getByRole('button', { name: 'Proceed to Test the App' }).click();
+		}
+
+		await expect(this.todoInput()).toBeEnabled({ timeout: this.timeout });
+		await this.page.waitForFunction(
+			() => typeof window.__simpleTodoDiagnostics?.getPeerId?.() === 'string',
+			undefined,
+			{ timeout: this.timeout }
+		);
+	}
+
+	async diagnostics() {
+		const diagnostics = await this.page.evaluate(() => {
+			const diagnostics = window.__simpleTodoDiagnostics;
+			return {
+				peerId: diagnostics?.getPeerId?.() ?? null,
+				databaseAddress:
+					window.getTodoDatabaseAddress?.() ?? diagnostics?.getDatabaseAddress?.() ?? null,
+				multiaddrs: diagnostics?.getMultiaddrs?.() ?? [],
+				connections: diagnostics?.getConnections?.() ?? [],
+				appStamp: document.querySelector('header p')?.textContent?.trim() ?? null,
+				userAgent: navigator.userAgent
+			};
+		});
+		const visibleDatabaseAddress = await this.page
+			.getByTestId('load-todo-db-input')
+			.inputValue()
+			.catch(() => '');
+		return {
+			...diagnostics,
+			databaseAddress: visibleDatabaseAddress || diagnostics.databaseAddress
+		};
+	}
+
+	async waitForPublicRelayConnection() {
+		await this.page.waitForFunction(
+			() =>
+				(window.__simpleTodoDiagnostics?.getConnections?.() ?? []).some(({ remoteAddr }) =>
+					/\/dns4\/|\/dns6\/|\/ip4\/(?!127\.)|\/ip6\//.test(remoteAddr ?? '')
+				),
+			undefined,
+			{ timeout: this.timeout, polling: 1_000 }
+		);
+
+		return this.diagnostics();
+	}
+
+	async createTodo(text) {
+		await this.todoInput().fill(text);
+		await this.page.getByRole('button', { name: 'Add TODO' }).click();
+		await this.waitForTodo(text);
+	}
+
+	async openDatabase(address) {
+		const input = this.page.getByTestId('load-todo-db-input');
+		await input.fill(address);
+		await this.page.getByTestId('load-todo-db-button').click();
+		await expect(this.page.getByText('Todo DB loaded', { exact: true })).toBeVisible({
+			timeout: this.timeout
+		});
+		await expect(input).toHaveValue(address, { timeout: this.timeout });
+	}
+
+	async announceDatabaseEntries() {
+		await this.page.evaluate(async () => {
+			if (typeof window.announceTodoDatabaseEntries !== 'function') {
+				throw new Error('Todo database entry announcement hook is unavailable.');
+			}
+			await window.announceTodoDatabaseEntries({ attempts: 3, delayMs: 3_000 });
+		});
+	}
+
+	async publishOrbitDBIdentity() {
+		await this.page.evaluate(async () => {
+			const publishIdentity = window.__simpleTodoDiagnostics?.publishOrbitDBIdentity;
+			if (typeof publishIdentity !== 'function') {
+				throw new Error('OrbitDB identity publication hook is unavailable.');
+			}
+			await publishIdentity();
+		});
+	}
+
+	async getOrbitDBIdentity() {
+		return this.page.evaluate(
+			() => window.__simpleTodoDiagnostics?.getOrbitDBIdentity?.() ?? null
+		);
+	}
+
+	async waitForOrbitDBIdentity(hash) {
+		await this.page.waitForFunction(
+			async (identityHash) =>
+				Boolean(await window.__simpleTodoDiagnostics?.hasOrbitDBIdentity?.(identityHash)),
+			hash,
+			{ timeout: this.timeout, polling: 1_000 }
+		);
+	}
+
+	async waitForTodo(text) {
+		await expect(this.page.getByText(text, { exact: true })).toBeVisible({ timeout: this.timeout });
+	}
+
+	async screenshot(path) {
+		await this.page?.screenshot({ path, fullPage: true });
+	}
+
+	async setTestingBotStatus(passed, reason) {
+		if (!this.page) return;
+		const command = JSON.stringify({
+			action: 'setSessionStatus',
+			arguments: { passed, reason }
+		});
+		await this.page.evaluate(() => {}, `testingbot_executor: ${command}`);
+	}
+
+	async getTestingBotSessionDetails() {
+		if (!this.page) return null;
+		const command = JSON.stringify({ action: 'getSessionDetails' });
+		return this.page.evaluate(() => {}, `testingbot_executor: ${command}`);
+	}
+
+	todoInput() {
+		return this.page.getByPlaceholder('What needs to be done?');
+	}
+
+	async close() {
+		await this.context?.close();
+	}
+}
