@@ -25,6 +25,12 @@ export async function runMainRemoteScenario({
 
 	try {
 		await Promise.all([agentA.open(), agentB.open()]);
+		if (process.env.REQUIRE_PUBLIC_RELAY === 'true') {
+			await Promise.all([
+				agentA.waitForPublicRelayConnection(),
+				agentB.waitForPublicRelayConnection()
+			]);
+		}
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
 
@@ -61,6 +67,12 @@ export async function runMainRemoteScenario({
 		}
 		return result;
 	} catch (error) {
+		const [diagnosticsA, diagnosticsB] = await Promise.allSettled([
+			agentA.diagnostics(),
+			agentB.diagnostics()
+		]);
+		if (diagnosticsA.status === 'fulfilled') result.agents.a = diagnosticsA.value;
+		if (diagnosticsB.status === 'fulfilled') result.agents.b = diagnosticsB.value;
 		result.error = error instanceof Error ? error.message : String(error);
 		if (remoteProvider === 'testingbot') {
 			await agentB.setTestingBotStatus(false, result.error).catch(() => {});

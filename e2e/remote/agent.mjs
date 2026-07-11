@@ -48,6 +48,19 @@ export class TodoBrowserAgent {
 		});
 	}
 
+	async waitForPublicRelayConnection() {
+		await this.page.waitForFunction(
+			() =>
+				(window.__simpleTodoDiagnostics?.getConnections?.() ?? []).some(({ remoteAddr }) =>
+					/\/dns4\/|\/dns6\/|\/ip4\/(?!127\.)|\/ip6\//.test(remoteAddr ?? '')
+				),
+			undefined,
+			{ timeout: this.timeout, polling: 1_000 }
+		);
+
+		return this.diagnostics();
+	}
+
 	async createTodo(text) {
 		await this.todoInput().fill(text);
 		await this.page.getByRole('button', { name: 'Add TODO' }).click();
