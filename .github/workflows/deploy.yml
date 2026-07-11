@@ -81,6 +81,8 @@ jobs:
       ipfs_cid_v0: ${{ steps.publish.outputs.ipfs_cid_v0 }}
       ipfs_cid_v1: ${{ steps.publish.outputs.ipfs_cid_v1 }}
       item_hash: ${{ steps.publish.outputs.item_hash }}
+      store_status: ${{ steps.publish.outputs.store_status }}
+      store_processed: ${{ steps.publish.outputs.store_processed }}
       url: ${{ steps.publish.outputs.url }}
     steps:
       - name: Checkout simple-todo
@@ -106,7 +108,7 @@ jobs:
 
       - name: Install isolated Aleph deploy tooling
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.11
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.19
 
       - name: Publish to Aleph IPFS
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -124,7 +126,8 @@ jobs:
     needs: build-and-deploy
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      needs.build-and-deploy.outputs.item_hash != ''
+      needs.build-and-deploy.outputs.item_hash != '' &&
+      needs.build-and-deploy.outputs.store_processed == 'true'
     runs-on: ubuntu-latest
     env:
       ALEPH_MAIN_SITE_DOMAIN: simple-todo.le-space.de
@@ -144,7 +147,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Install isolated Aleph deploy tooling
-        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.11
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.19
 
       - name: Link custom domain
         if: inputs.domain != '' || env.ALEPH_MAIN_SITE_DOMAIN != ''
