@@ -117,8 +117,10 @@ jobs:
           ALEPH_SITE_PIN: 'true'
           ALEPH_SITE_NAME: simple-todo-collab01
           ALEPH_SITE_CHANNEL: ALEPH-CLOUDSOLUTIONS
+          ALEPH_SITE_PUBLISH_ATTEMPTS: '3'
+          ALEPH_SITE_PUBLISH_RETRY_DELAY_MS: '15000'
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
-        run: node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"
+        run: node scripts/run-aleph-site-publish-with-retry.mjs
 
   link-domain:
     needs: build-and-deploy
