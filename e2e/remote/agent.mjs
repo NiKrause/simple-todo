@@ -97,29 +97,6 @@ export class TodoBrowserAgent {
 		return this.diagnostics();
 	}
 
-	async publishOrbitDBIdentity() {
-		await this.page.evaluate(async () => {
-			const publishIdentity = window.__simpleTodoDiagnostics?.publishOrbitDBIdentity;
-			if (typeof publishIdentity !== 'function') {
-				throw new Error('OrbitDB identity publication hook is unavailable.');
-			}
-			await publishIdentity();
-		});
-	}
-
-	async getOrbitDBIdentity() {
-		return this.page.evaluate(() => window.__simpleTodoDiagnostics?.getOrbitDBIdentity?.() ?? null);
-	}
-
-	async waitForOrbitDBIdentity(hash) {
-		await this.page.waitForFunction(
-			async (identityHash) =>
-				Boolean(await window.__simpleTodoDiagnostics?.hasOrbitDBIdentity?.(identityHash)),
-			hash,
-			{ timeout: this.timeout, polling: 1_000 }
-		);
-	}
-
 	async waitForTodo(text) {
 		await expect(this.page.getByText(text, { exact: true })).toBeVisible({ timeout: this.timeout });
 	}

@@ -6,13 +6,10 @@ import { withBitswap } from '@helia/bitswap';
 import { withHTTP } from '@helia/http';
 import { withLibp2p } from '@helia/libp2p';
 import { createOrbitDB, IPFSAccessController } from '@orbitdb/core';
-import * as Block from 'multiformats/block';
 import * as dagCbor from '@ipld/dag-cbor';
 import * as dagJson from '@ipld/dag-json';
 import * as json from 'multiformats/codecs/json';
-import { CID } from 'multiformats/cid';
-import { base58btc } from 'multiformats/bases/base58';
-import { sha256, sha512 } from 'multiformats/hashes/sha2';
+import { sha512 } from 'multiformats/hashes/sha2';
 import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
@@ -43,9 +40,7 @@ let todoDB = /** @type {any} */ (null);
 let defaultTodoDbAddress = '';
 const DEFAULT_TODO_DB_NAME_PREFIX = 'simple-todos';
 const ORBITDB_IDENTITY_STORAGE_KEY = 'simpleTodo.orbitdbIdentityId';
-const ORBITDB_IDENTITY_EXCHANGE_TOPIC = 'simple-todo.orbitdb-identities';
 const MANUAL_CONNECT_STABILIZATION_MS = 3_000;
-const ORBITDB_IDENTITY_REPUBLISH_MS = 5_000;
 const DISCOVERY_DIAL_PERIODIC_RETRY_MS = 2_000;
 const DISCOVERY_DIAL_RETRY_COOLDOWN_MS = 5_000;
 const DISCOVERY_DIAL_TIMEOUT_MS = 10_000;
@@ -54,7 +49,6 @@ const discoveredPeers = new Map();
 /** @type {ReturnType<typeof setInterval> | null} */
 let discoveryDialRetryInterval = null;
 /** @type {ReturnType<typeof setInterval> | null} */
-let orbitDBIdentityPublishInterval = null;
 
 /**
  * @param {any} libp2pNode
@@ -105,7 +99,6 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 		// Create OrbitDB instance
 		console.log('🛬 Creating OrbitDB instance...');
 		orbitdb = await createOrbitDB({ ipfs: helia, id: getOrCreateOrbitDBIdentityId() });
-		await setupOrbitDBIdentityExchange();
 		todoDB = await openInitialTodoDatabase(options.todoDbAddress);
 
 		console.log('✅ Database opened successfully with OrbitDBAccessController:', {
@@ -152,7 +145,6 @@ async function stopP2P() {
 	peerIdStore.set(null);
 	peerId = null;
 	stopDiscoveryDialRetryInterval();
-	await stopOrbitDBIdentityExchange();
 	discoveredPeers.clear();
 
 	const resources = [todoDB, orbitdb, helia, libp2p];
@@ -265,10 +257,7 @@ function getReadOnlyDiagnostics() {
 						id: orbitdb.identity.id ?? null,
 						hash: orbitdb.identity.hash ?? null
 					}
-				: null,
-		hasOrbitDBIdentity: async (/** @type {unknown} */ hash) =>
-			typeof hash === 'string' && Boolean(await orbitdb?.identities?.getIdentity?.(hash)),
-		publishOrbitDBIdentity
+				: null
 	};
 }
 
@@ -310,266 +299,10 @@ function installE2ETestHooks() {
 						type: orbitdb.identity.type ?? null
 					}
 				: null,
-		hasOrbitDBIdentity: async (/** @type {unknown} */ hash) =>
-			typeof hash === 'string' && Boolean(await orbitdb?.identities?.getIdentity?.(hash)),
-		publishOrbitDBIdentity,
 		getWebRTCEnabled,
 		setWebRTCEnabled,
 		connectToMultiaddr
 	};
-}
-
-async function setupOrbitDBIdentityExchange() {
-	const pubsub = libp2p?.services?.pubsub;
-	if (!pubsub || !orbitdb?.identity) return;
-
-	await pubsub.subscribe(ORBITDB_IDENTITY_EXCHANGE_TOPIC);
-	pubsub.addEventListener('message', handleOrbitDBIdentityMessage);
-	libp2p.addEventListener('connection:open', handleOrbitDBIdentityConnectionOpen);
-
-	await publishOrbitDBIdentity();
-	stopOrbitDBIdentityPublishInterval();
-	orbitDBIdentityPublishInterval = setInterval(() => {
-		void publishOrbitDBIdentity().catch((error) => {
-			console.warn(
-				'Failed to publish OrbitDB identity:',
-				error instanceof Error ? error.message : String(error)
-			);
-		});
-	}, ORBITDB_IDENTITY_REPUBLISH_MS);
-}
-
-async function stopOrbitDBIdentityExchange() {
-	stopOrbitDBIdentityPublishInterval();
-
-	const pubsub = libp2p?.services?.pubsub;
-	pubsub?.removeEventListener?.('message', handleOrbitDBIdentityMessage);
-	libp2p?.removeEventListener?.('connection:open', handleOrbitDBIdentityConnectionOpen);
-
-	try {
-		await pubsub?.unsubscribe?.(ORBITDB_IDENTITY_EXCHANGE_TOPIC);
-	} catch {
-		// ignore unsubscribe failures during shutdown
-	}
-}
-
-function stopOrbitDBIdentityPublishInterval() {
-	if (!orbitDBIdentityPublishInterval) return;
-
-	clearInterval(orbitDBIdentityPublishInterval);
-	orbitDBIdentityPublishInterval = null;
-}
-
-function handleOrbitDBIdentityConnectionOpen() {
-	void publishOrbitDBIdentity().catch((error) => {
-		console.warn(
-			'Failed to publish OrbitDB identity after connection opened:',
-			error instanceof Error ? error.message : String(error)
-		);
-	});
-}
-
-/**
- * @param {CustomEvent<{ topic?: string, data?: Uint8Array }>} event
- */
-async function handleOrbitDBIdentityMessage(event) {
-	if (event.detail?.topic !== ORBITDB_IDENTITY_EXCHANGE_TOPIC || !event.detail.data) return;
-
-	try {
-		const payload = JSON.parse(new TextDecoder().decode(event.detail.data));
-		await importOrbitDBIdentityBlock(payload);
-	} catch (error) {
-		console.warn(
-			'Failed to import OrbitDB identity from pubsub:',
-			error instanceof Error ? error.message : String(error)
-		);
-	}
-}
-
-export async function publishOrbitDBIdentity() {
-	const pubsub = libp2p?.services?.pubsub;
-	const identity = orbitdb?.identity;
-
-	if (!pubsub || !identity?.hash || !identity?.bytes) return false;
-
-	const payload = {
-		peerId,
-		hash: identity.hash,
-		bytes: Array.from(identity.bytes)
-	};
-	const bytes = new TextEncoder().encode(JSON.stringify(payload));
-	await pubsub.publish(ORBITDB_IDENTITY_EXCHANGE_TOPIC, bytes);
-	return true;
-}
-
-/**
- * @param {{ hash?: unknown, bytes?: unknown }} payload
- */
-async function importOrbitDBIdentityBlock(payload) {
-	if (!helia?.blockstore || typeof payload?.hash !== 'string' || !Array.isArray(payload.bytes)) {
-		return false;
-	}
-
-	const cid = CID.parse(payload.hash, base58btc);
-	if (await helia.blockstore.has(cid)) {
-		return true;
-	}
-
-	await helia.blockstore.put(cid, toUint8Array(payload.bytes));
-	return true;
-}
-
-/**
- * @param {string} dbAddress
- * @returns {Promise<Array<{ hash: string, bytes: number[] }>>}
- */
-export async function exportOrbitDBAddressBlocks(dbAddress) {
-	if (!helia?.blockstore || typeof dbAddress !== 'string') return [];
-
-	/** @type {Array<{ hash: string, bytes: number[] }>} */
-	const blocks = [];
-	const seen = new Set();
-	const dbHash = getOrbitDBAddressHash(dbAddress);
-	const manifestBlock = await exportLocalBlock(dbHash, seen);
-	if (!manifestBlock) return blocks;
-
-	blocks.push(manifestBlock);
-
-	try {
-		const { value } = await Block.decode({
-			bytes: toUint8Array(manifestBlock.bytes),
-			codec: dagCbor,
-			hasher: sha256
-		});
-		const manifest = /** @type {{ accessController?: unknown }} */ (value);
-		const accessControllerHash = getIpfsAddressHash(manifest?.accessController);
-		const accessControllerBlock = await exportLocalBlock(accessControllerHash, seen);
-		if (accessControllerBlock) {
-			blocks.push(accessControllerBlock);
-		}
-	} catch {
-		// The manifest block itself is still useful even if we cannot inspect it.
-	}
-
-	return blocks;
-}
-
-/**
- * @param {unknown} blocks
- * @returns {Promise<number>}
- */
-export async function importOrbitDBAddressBlocks(blocks) {
-	if (!helia?.blockstore || !Array.isArray(blocks)) return 0;
-
-	let imported = 0;
-	for (const block of blocks) {
-		if (typeof block?.hash !== 'string' || !Array.isArray(block.bytes)) continue;
-
-		const cid = CID.parse(block.hash, base58btc);
-		if (await helia.blockstore.has(cid)) continue;
-
-		await helia.blockstore.put(cid, toUint8Array(block.bytes));
-		imported += 1;
-	}
-
-	return imported;
-}
-
-/**
- * @param {string | null} hash
- * @param {Set<string>} seen
- */
-async function exportLocalBlock(hash, seen) {
-	if (!hash || seen.has(hash)) return null;
-
-	const cid = CID.parse(hash, base58btc);
-	if (!(await helia.blockstore.has(cid))) return null;
-
-	const bytes = await collectUint8Array(await helia.blockstore.get(cid));
-	seen.add(hash);
-	return {
-		hash,
-		bytes: Array.from(bytes)
-	};
-}
-
-/**
- * @param {unknown} value
- * @returns {Promise<Uint8Array>}
- */
-async function collectUint8Array(value) {
-	const iterable = /** @type {any} */ (value);
-	if (iterable && typeof iterable[Symbol.asyncIterator] === 'function') {
-		const chunks = [];
-		for await (const chunk of iterable) {
-			chunks.push(toUint8Array(chunk));
-		}
-		return concatUint8Arrays(chunks);
-	}
-
-	if (
-		iterable &&
-		typeof iterable[Symbol.iterator] === 'function' &&
-		!(value instanceof Uint8Array)
-	) {
-		const chunks = [];
-		for (const chunk of iterable) {
-			chunks.push(toUint8Array(chunk));
-		}
-		if (chunks.length > 0 && chunks.every((chunk) => chunk.byteLength > 0)) {
-			return concatUint8Arrays(chunks);
-		}
-	}
-
-	return toUint8Array(value);
-}
-
-/**
- * @param {Uint8Array[]} chunks
- */
-function concatUint8Arrays(chunks) {
-	const size = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
-	const output = new Uint8Array(size);
-	let offset = 0;
-	for (const chunk of chunks) {
-		output.set(chunk, offset);
-		offset += chunk.byteLength;
-	}
-	return output;
-}
-
-/**
- * @param {unknown} value
- * @returns {Uint8Array}
- */
-function toUint8Array(value) {
-	if (value instanceof Uint8Array) return value;
-	if (value instanceof ArrayBuffer) return new Uint8Array(value);
-	if (ArrayBuffer.isView(value)) {
-		return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
-	}
-	if (Array.isArray(value)) return Uint8Array.from(value);
-	const bytesLike = /** @type {any} */ (value);
-	if (typeof bytesLike?.subarray === 'function') return toUint8Array(bytesLike.subarray());
-	if (typeof bytesLike?.slice === 'function') return toUint8Array(bytesLike.slice());
-	return new Uint8Array();
-}
-
-/**
- * @param {string} address
- */
-function getOrbitDBAddressHash(address) {
-	const parts = address.split('/').filter(Boolean);
-	return parts[0] === 'orbitdb' ? parts[1] || null : null;
-}
-
-/**
- * @param {unknown} address
- */
-function getIpfsAddressHash(address) {
-	if (typeof address !== 'string') return null;
-	const parts = address.split('/').filter(Boolean);
-	return parts[0] === 'ipfs' ? parts[1] || null : null;
 }
 
 function setupPubsubDiscoveryAutoDial() {
