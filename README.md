@@ -4,9 +4,12 @@ A basic decentralized, local-first, peer-to-peer todo application built with **l
 
 ## 🚀 Live Demo
 
-- **HTTP**: https://simple-todo.le-space.de
-- **IPFS (dweb.link)**: https://dweb.link/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
-- **IPFS (le-space)**: https://ipfs.le-space.de/ipns/k51qzi5uqu5dg7m2i3qftmdjl4t8jh74xzyz1ovsrkgdcdyn1ftaum3laom7qs
+- **Current deployment**: https://simple-todo.le-space.de
+- **IPFS snapshot (Aleph gateway)**: https://ipfs.aleph.im/ipfs/bafybeigo5dip5jl5q6tzyp7xqtnzml25lbbw4y34kvkukgsa7au6qie37y/
+- **IPFS snapshot (dweb.link)**: https://dweb.link/ipfs/bafybeigo5dip5jl5q6tzyp7xqtnzml25lbbw4y34kvkukgsa7au6qie37y/
+
+The custom-domain link tracks the current deployment. The immutable CID links above are a snapshot
+of the deployment published on July 11, 2026.
 
 ## 🎯 What is this?
 
