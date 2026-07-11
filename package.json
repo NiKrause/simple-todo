@@ -20,12 +20,13 @@
 		"test:e2e": "playwright test",
 		"test:e2e:local-relay-src": "E2E_RELAY_CLI_PATH=/Users/nandi/orbitdb-relay/dist/cli.js E2E_RELAY_PINNING_PROOF=true playwright test e2e/collaboration.spec.js --project=chromium -g \"Relay-pinned\"",
 		"test:e2e:public-relay": "E2E_RELAY_MODE=public E2E_RELAY_PINNING_PROOF=true playwright test e2e/collaboration.spec.js --project=chromium",
+		"test:e2e:remote:main": "node e2e/remote/run-main.mjs",
 		"test:consent": "playwright test e2e/consent-screen.spec.js"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",
 		"@eslint/js": "^9.18.0",
-		"@playwright/test": "^1.54.2",
+		"@playwright/test": "^1.61.1",
 		"@sveltejs/adapter-static": "^3.0.8",
 		"@sveltejs/kit": "^2.22.0",
 		"@sveltejs/vite-plugin-svelte": "^6.0.0",
@@ -40,7 +41,7 @@
 		"globals": "^16.0.0",
 		"node-fetch": "^3.3.2",
 		"orbitdb-relay": "^0.9.3",
-		"playwright": "^1.54.2",
+		"playwright": "^1.61.1",
 		"prettier": "^3.4.2",
 		"prettier-plugin-svelte": "^3.3.3",
 		"prettier-plugin-tailwindcss": "^0.6.11",

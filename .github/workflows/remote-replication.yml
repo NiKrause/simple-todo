@@ -1,0 +1,59 @@
+name: Remote browser replication
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_url:
+        description: Public main deployment URL
+        required: true
+        default: https://simple-todo.le-space.de
+      provider:
+        description: Second browser provider
+        required: true
+        type: choice
+        options:
+          - testingbot
+          - local
+        default: testingbot
+
+permissions:
+  contents: read
+
+jobs:
+  main-remote-replication:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REMOTE_APP_URL: ${{ inputs.app_url }}
+      REMOTE_PROVIDER: ${{ inputs.provider }}
+      REQUIRE_PUBLIC_RELAY: 'true'
+      TESTINGBOT_KEY: ${{ secrets.TESTINGBOT_KEY }}
+      TESTINGBOT_SECRET: ${{ secrets.TESTINGBOT_SECRET }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install local Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run cross-network main replication
+        run: pnpm run test:e2e:remote:main
+
+      - name: Upload remote replication evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: remote-main-replication-${{ github.run_id }}
+          path: test-results/remote-main
+          if-no-files-found: warn
+          retention-days: 14
