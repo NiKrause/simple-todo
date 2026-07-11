@@ -65,9 +65,9 @@ jobs:
             echo '| --- | --- |'
             echo '| WebRTC disabled: peers remain connected through circuit relay | Runs |'
             echo '| Alice and Bob receive distinct OrbitDB addresses and identities | Runs |'
-            echo '| Bob opens Alice’s database and replicates a todo to Alice | Runs |'
-            echo '| Alice opens Bob’s database and replicates a todo to Bob | Runs |'
-            echo '| Late peer reads a todo previously replicated by the relay, in both directions | Opt-in with `E2E_RELAY_PINNING_PROOF=true` |'
+            echo '| Bob opens Alice’s database; both wait for the native OrbitDB peer join; Bob’s todo replicates to Alice | Runs |'
+            echo '| Both open Bob’s database; both wait for the native OrbitDB peer join; Alice’s todo replicates to Bob | Runs |'
+            echo '| Custom entry bridge, coordinator entry transfer, or snapshot fallback | Not used |'
           } >> "$GITHUB_STEP_SUMMARY"
 
   build-and-deploy:
