@@ -84,6 +84,12 @@ export class TodoBrowserAgent {
 		await this.page.evaluate(() => {}, `testingbot_executor: ${command}`);
 	}
 
+	async getTestingBotSessionDetails() {
+		if (!this.page) return null;
+		const command = JSON.stringify({ action: 'getSessionDetails' });
+		return this.page.evaluate(() => {}, `testingbot_executor: ${command}`);
+	}
+
 	todoInput() {
 		return this.page.getByPlaceholder('What needs to be done?');
 	}

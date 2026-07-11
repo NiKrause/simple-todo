@@ -1,4 +1,5 @@
 import { writeFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { createLocalBrowser, createTestingBotBrowser } from './providers.mjs';
 import { runMainRemoteScenario } from './main-scenario.mjs';
 
@@ -28,6 +29,22 @@ try {
 		outputDir,
 		remoteProvider: provider
 	});
+	const githubRunUrl = process.env.GITHUB_RUN_ID
+		? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+		: null;
+	const githubArtifactsUrl = githubRunUrl ? `${githubRunUrl}#artifacts` : null;
+	const testingBotSessionId = result.evidence.testingBot?.sessionId ?? null;
+	const testingBotShareUrl =
+		testingBotSessionId && process.env.TESTINGBOT_KEY && process.env.TESTINGBOT_SECRET
+			? `https://testingbot.com/tests/${testingBotSessionId}?auth=${createHash('md5')
+					.update(
+						`${process.env.TESTINGBOT_KEY}:${process.env.TESTINGBOT_SECRET}:${testingBotSessionId}`
+					)
+					.digest('hex')}`
+			: null;
+	result.evidence.githubRunUrl = githubRunUrl;
+	result.evidence.githubArtifactsUrl = githubArtifactsUrl;
+	result.evidence.testingBotShareUrl = testingBotShareUrl;
 	console.log(JSON.stringify(result, null, 2));
 	if (process.env.GITHUB_STEP_SUMMARY) {
 		await writeFile(
@@ -39,7 +56,13 @@ try {
 				`| Peer ID | \`${result.agents.a.peerId}\` | \`${result.agents.b.peerId}\` |\n` +
 				`| OrbitDB address | \`${result.agents.a.databaseAddress}\` | \`${result.agents.b.databaseAddress}\` |\n` +
 				`| A → B replication | ${result.replication.aToBMs} ms | observed |\n` +
-				`| B → A replication | observed | ${result.replication.bToAMs} ms |\n`,
+				`| B → A replication | observed | ${result.replication.bToAMs} ms |\n\n` +
+				`### Evidence\n\n` +
+				(githubRunUrl ? `- [GitHub workflow run](${githubRunUrl})\n` : '') +
+				(githubArtifactsUrl
+					? `- [Success screenshots and result JSON](${githubArtifactsUrl})\n`
+					: '') +
+				(testingBotShareUrl ? `- [TestingBot session and video](${testingBotShareUrl})\n` : ''),
 			{ flag: 'a' }
 		);
 	}
