@@ -34,6 +34,7 @@ import { peerIdStore } from './p2p.js';
  *   get: (key: string) => Promise<TodoRecord | TodoValue | null | undefined>
  *   put: (key: string, value: TodoValue) => Promise<unknown>
  *   del: (key: string) => Promise<unknown>
+ *   close?: () => Promise<unknown>
  *   drop: () => Promise<unknown>
  *   log?: {
  *     values?: () => Promise<any[]>
@@ -43,6 +44,7 @@ import { peerIdStore } from './p2p.js';
  *   peers?: Set<string>
  *   sync?: {
  *     add?: (entry: any) => Promise<unknown>
+ *     start?: () => Promise<unknown>
  *   }
  *   events: {
  *     on: (event: string, handler: (...args: any[]) => void | Promise<void>) => void
@@ -120,6 +122,7 @@ export async function initializeDatabase(orbitdb, todoDB) {
  */
 export async function loadTodoDatabase(address) {
 	const orbitdb = get(orbitdbStore);
+	const previousTodoDB = get(todoDBStore);
 	const normalizedAddress = address.trim();
 
 	if (!orbitdb) {
@@ -140,9 +143,17 @@ export async function loadTodoDatabase(address) {
 			sync: true
 		});
 
+		// OrbitDB returns cached database instances when an address was opened before.
+		// Starting sync explicitly is idempotent and guarantees that a reopened database
+		// subscribes to its own topic and registers its heads protocol.
+		await loadedTodoDB.sync?.start?.();
 		setActiveTodoDatabase(loadedTodoDB);
 		setupDatabaseListeners(loadedTodoDB);
 		await loadTodos();
+
+		if (previousTodoDB && previousTodoDB !== loadedTodoDB) {
+			await previousTodoDB.close?.();
+		}
 
 		return {
 			address: getDatabaseAddress(loadedTodoDB) || normalizedAddress,

@@ -14,6 +14,13 @@ function findWebRTCPeerConnection(diagnostics, expectedPeerId) {
 	);
 }
 
+function hasActiveOrbitDBSync(diagnostics, databaseAddress) {
+	return (
+		diagnostics.pubsubTopics.includes(databaseAddress) &&
+		diagnostics.protocols.includes(`/orbitdb/heads/orbitdb/${databaseAddress.slice('/orbitdb/'.length)}`)
+	);
+}
+
 async function waitForWebRTCPeerConnection(agentA, agentB, peerIdA, peerIdB, timeoutMs = 120_000) {
 	const deadline = Date.now() + timeoutMs;
 
@@ -150,6 +157,12 @@ export async function runCollab01RemoteScenario({
 			agentA: result.agents.a,
 			agentB: result.agents.b
 		};
+		if (!hasActiveOrbitDBSync(result.agents.a, result.agents.a.databaseAddress)) {
+			throw new Error("Agent A's active OrbitDB topic or heads protocol does not match its database.");
+		}
+		if (!hasActiveOrbitDBSync(result.agents.b, result.agents.a.databaseAddress)) {
+			throw new Error("Agent B's active OrbitDB topic or heads protocol does not match Agent A's database.");
+		}
 
 		const bToAStarted = Date.now();
 		await agentB.createTodo(todoFromB);
