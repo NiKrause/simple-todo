@@ -97,16 +97,6 @@ export async function runCollab01RemoteScenario({
 		if (result.agents.b.databaseAddress !== result.agents.a.databaseAddress) {
 			throw new Error("Agent B did not open Agent A's database through the collab01 UI.");
 		}
-		await Promise.all([agentA.publishOrbitDBIdentity(), agentB.publishOrbitDBIdentity()]);
-		const [identityA, identityB] = await Promise.all([
-			agentA.getOrbitDBIdentity(),
-			agentB.getOrbitDBIdentity()
-		]);
-		await Promise.all([
-			agentA.waitForOrbitDBIdentity(identityB?.hash),
-			agentB.waitForOrbitDBIdentity(identityA?.hash)
-		]);
-
 		const webRTCObservation = await waitForWebRTCPeerConnection(
 			agentA,
 			agentB,

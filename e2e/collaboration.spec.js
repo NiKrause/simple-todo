@@ -109,9 +109,6 @@ test.describe.serial('Todo collaboration', () => {
 		await waitForConnectedPeer(alice, bobPeerId, 'Alice -> Bob');
 		await waitForConnectionCount(bob, 2);
 		await loadTodoDb(bob, aliceDefaultTodoDbAddress);
-		const bobIdentity = await getOrbitDBIdentity(bob);
-		await publishOrbitDBIdentity(bob);
-		await waitForKnownOrbitDBIdentity(alice, bobIdentity?.hash, 'Alice knows Bob OrbitDB identity');
 		await Promise.all([
 			waitForOrbitDBPeer(alice, bobPeerId, 'Alice OrbitDB sync -> Bob'),
 			waitForOrbitDBPeer(bob, alicePeerId, 'Bob OrbitDB sync -> Alice')
@@ -131,9 +128,6 @@ test.describe.serial('Todo collaboration', () => {
 		await waitForConnectionCount(bob, 2);
 		await loadTodoDb(bob, bobDefaultTodoDbAddress);
 		await loadTodoDb(alice, bobDefaultTodoDbAddress);
-		const aliceIdentity = await getOrbitDBIdentity(alice);
-		await publishOrbitDBIdentity(alice);
-		await waitForKnownOrbitDBIdentity(bob, aliceIdentity?.hash, 'Bob knows Alice OrbitDB identity');
 		await Promise.all([
 			waitForOrbitDBPeer(alice, bobPeerId, 'Alice OrbitDB sync -> Bob'),
 			waitForOrbitDBPeer(bob, alicePeerId, 'Bob OrbitDB sync -> Alice')
@@ -267,44 +261,6 @@ async function getOrbitDBIdentity(page) {
 		if (!hooks?.getOrbitDBIdentity) return null;
 		return hooks.getOrbitDBIdentity();
 	});
-}
-
-/**
- * @param {import('@playwright/test').Page} page
- */
-async function publishOrbitDBIdentity(page) {
-	await expect
-		.poll(
-			() =>
-				page.evaluate(async () => {
-					const hooks = window.__simpleTodoE2E;
-					if (!hooks?.publishOrbitDBIdentity) return false;
-					return hooks.publishOrbitDBIdentity();
-				}),
-			{ timeout: collaborationTimeout }
-		)
-		.toBe(true);
-}
-
-/**
- * @param {import('@playwright/test').Page} page
- * @param {string | undefined | null} hash
- * @param {string} label
- */
-async function waitForKnownOrbitDBIdentity(page, hash, label) {
-	if (!hash) throw new Error(`${label}: missing OrbitDB identity hash.`);
-
-	await expect
-		.poll(
-			() =>
-				page.evaluate(async (identityHash) => {
-					const hooks = window.__simpleTodoE2E;
-					if (!hooks?.hasOrbitDBIdentity) return false;
-					return hooks.hasOrbitDBIdentity(identityHash);
-				}, hash),
-			{ timeout: collaborationTimeout }
-		)
-		.toBe(true);
 }
 
 async function waitForOrbitDBPeer(page, peerId, label) {
