@@ -43,6 +43,7 @@ export class TodoBrowserAgent {
 					window.getTodoDatabaseAddress?.() ?? diagnostics?.getDatabaseAddress?.() ?? null,
 				multiaddrs: diagnostics?.getMultiaddrs?.() ?? [],
 				connections: diagnostics?.getConnections?.() ?? [],
+				databasePeers: diagnostics?.getDatabasePeers?.() ?? [],
 				appStamp: document.querySelector('header p')?.textContent?.trim() ?? null,
 				userAgent: navigator.userAgent
 			};
@@ -86,13 +87,14 @@ export class TodoBrowserAgent {
 		await expect(input).toHaveValue(address, { timeout: this.timeout });
 	}
 
-	async announceDatabaseEntries() {
-		await this.page.evaluate(async () => {
-			if (typeof window.announceTodoDatabaseEntries !== 'function') {
-				throw new Error('Todo database entry announcement hook is unavailable.');
-			}
-			await window.announceTodoDatabaseEntries({ attempts: 3, delayMs: 3_000 });
-		});
+	async waitForDatabasePeer(peerId) {
+		await this.page.waitForFunction(
+			(expectedPeerId) =>
+				(window.__simpleTodoDiagnostics?.getDatabasePeers?.() ?? []).includes(expectedPeerId),
+			peerId,
+			{ timeout: this.timeout, polling: 1_000 }
+		);
+		return this.diagnostics();
 	}
 
 	async publishOrbitDBIdentity() {

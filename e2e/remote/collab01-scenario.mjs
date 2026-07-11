@@ -120,16 +120,22 @@ export async function runCollab01RemoteScenario({
 		};
 		result.agents.a = webRTCObservation.diagnosticsA;
 		result.agents.b = webRTCObservation.diagnosticsB;
+		[result.agents.a, result.agents.b] = await Promise.all([
+			agentA.waitForDatabasePeer(result.agents.b.peerId),
+			agentB.waitForDatabasePeer(result.agents.a.peerId)
+		]);
+		result.orbitdbSync = {
+			agentARecognizedAgentB: result.agents.a.databasePeers.includes(result.agents.b.peerId),
+			agentBRecognizedAgentA: result.agents.b.databasePeers.includes(result.agents.a.peerId)
+		};
 
 		const bToAStarted = Date.now();
 		await agentB.createTodo(todoFromB);
-		await agentB.announceDatabaseEntries();
 		await agentA.waitForTodo(todoFromB);
 		result.replication.bToAMs = Date.now() - bToAStarted;
 
 		const aToBStarted = Date.now();
 		await agentA.createTodo(todoFromA);
-		await agentA.announceDatabaseEntries();
 		await agentB.waitForTodo(todoFromA);
 		result.replication.aToBMs = Date.now() - aToBStarted;
 		result.passed = true;

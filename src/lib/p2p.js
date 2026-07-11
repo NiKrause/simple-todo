@@ -237,6 +237,10 @@ function getReadOnlyDiagnostics() {
 	return {
 		getPeerId: () => peerId,
 		getDatabaseAddress: () => get(todoDBAddressStore),
+		getDatabasePeers: () =>
+			typeof window !== 'undefined' && typeof window.getTodoDatabasePeerIds === 'function'
+				? window.getTodoDatabasePeerIds()
+				: Array.from(todoDB?.peers ?? []),
 		getMultiaddrs: () => {
 			const ownAddrs =
 				libp2p?.getMultiaddrs?.().map((/** @type {any} */ addr) => addr.toString()) ?? [];
@@ -248,8 +252,12 @@ function getReadOnlyDiagnostics() {
 		},
 		getConnections: () =>
 			libp2p?.getConnections?.().map((/** @type {any} */ connection) => ({
+				id: connection.id ?? null,
 				remotePeer: connection.remotePeer?.toString() ?? null,
-				remoteAddr: connection.remoteAddr?.toString() ?? null
+				remoteAddr: connection.remoteAddr?.toString() ?? null,
+				direct: connection.direct ?? null,
+				direction: connection.direction ?? null,
+				limited: connection.limits != null
 			})) ?? [],
 		getOrbitDBIdentity: () =>
 			orbitdb?.identity
