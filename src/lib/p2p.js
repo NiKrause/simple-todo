@@ -260,7 +260,8 @@ function getReadOnlyDiagnostics() {
 				: null,
 		hasOrbitDBIdentity: async (/** @type {unknown} */ hash) =>
 			typeof hash === 'string' && Boolean(await orbitdb?.identities?.getIdentity?.(hash)),
-		publishOrbitDBIdentity
+		publishOrbitDBIdentity,
+		connectToMultiaddr
 	};
 }
 

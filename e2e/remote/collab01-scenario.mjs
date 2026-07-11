@@ -7,6 +7,13 @@ function hasPublicRelayConnection(diagnostics) {
 	);
 }
 
+function selectBrowserDialAddress(diagnostics) {
+	return diagnostics.multiaddrs.find((address) => {
+		const normalized = address.toLowerCase();
+		return normalized.includes('/p2p-circuit/') && normalized.includes('/webrtc/');
+	});
+}
+
 export async function runCollab01RemoteScenario({
 	browserA,
 	browserB,
@@ -71,6 +78,13 @@ export async function runCollab01RemoteScenario({
 			agentA.waitForOrbitDBIdentity(identityB?.hash),
 			agentB.waitForOrbitDBIdentity(identityA?.hash)
 		]);
+
+		const agentADialAddress = selectBrowserDialAddress(result.agents.a);
+		if (!agentADialAddress) {
+			throw new Error('Agent A did not advertise a browser-dialable relay/WebRTC address.');
+		}
+		result.directConnection = await agentB.connectToPeer(agentADialAddress, result.agents.a.peerId);
+		result.agents.b = await agentB.diagnostics();
 
 		const bToAStarted = Date.now();
 		await agentB.createTodo(todoFromB);

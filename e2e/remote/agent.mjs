@@ -70,6 +70,30 @@ export class TodoBrowserAgent {
 		return this.diagnostics();
 	}
 
+	async connectToPeer(address, peerId) {
+		const outcome = await this.page.evaluate(async (remoteAddress) => {
+			const connect = window.__simpleTodoDiagnostics?.connectToMultiaddr;
+			if (typeof connect !== 'function') {
+				throw new Error('Public libp2p connection hook is unavailable.');
+			}
+			return connect(remoteAddress);
+		}, address);
+
+		if (outcome?.status !== 'stable') {
+			throw new Error(`Direct browser connection did not remain stable: ${outcome?.detail}`);
+		}
+
+		await this.page.waitForFunction(
+			(remotePeer) =>
+				(window.__simpleTodoDiagnostics?.getConnections?.() ?? []).some(
+					(connection) => connection.remotePeer === remotePeer
+				),
+			peerId,
+			{ timeout: this.timeout, polling: 1_000 }
+		);
+		return outcome;
+	}
+
 	async createTodo(text) {
 		await this.todoInput().fill(text);
 		await this.page.getByRole('button', { name: 'Add TODO' }).click();
@@ -106,9 +130,7 @@ export class TodoBrowserAgent {
 	}
 
 	async getOrbitDBIdentity() {
-		return this.page.evaluate(
-			() => window.__simpleTodoDiagnostics?.getOrbitDBIdentity?.() ?? null
-		);
+		return this.page.evaluate(() => window.__simpleTodoDiagnostics?.getOrbitDBIdentity?.() ?? null);
 	}
 
 	async waitForOrbitDBIdentity(hash) {
