@@ -108,7 +108,7 @@ jobs:
 
       - name: Install isolated Aleph deploy tooling
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.19
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.20
 
       - name: Publish to Aleph IPFS
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -147,7 +147,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Install isolated Aleph deploy tooling
-        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.19
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.20
 
       - name: Link custom domain
         if: inputs.domain != '' || env.ALEPH_MAIN_SITE_DOMAIN != ''
@@ -155,6 +155,7 @@ jobs:
         env:
           ALEPH_VM_MODE: site-domain-link
           ALEPH_SITE_ITEM_HASH: ${{ needs.build-and-deploy.outputs.item_hash }}
+          ALEPH_SITE_IPFS_CID_V0: ${{ needs.build-and-deploy.outputs.ipfs_cid_v0 }}
           ALEPH_SITE_DOMAIN: ${{ inputs.domain || env.ALEPH_MAIN_SITE_DOMAIN }}
           ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
