@@ -19,7 +19,7 @@ export async function runMainRemoteScenario({
 	const todoFromB = `remote-${runId}-from-b`;
 	const agentA = new TodoBrowserAgent('github-local', browserA, appUrl);
 	const agentB = new TodoBrowserAgent('testingbot-remote', browserB, appUrl);
-	const result = { runId, appUrl, agents: {}, replication: {}, passed: false };
+	const result = { runId, appUrl, agents: {}, replication: {}, evidence: {}, passed: false };
 
 	await mkdir(outputDir, { recursive: true });
 
@@ -64,7 +64,13 @@ export async function runMainRemoteScenario({
 		result.passed = true;
 		if (remoteProvider === 'testingbot') {
 			await agentB.setTestingBotStatus(true, 'Bidirectional OrbitDB replication passed.');
+			result.evidence.testingBot = await agentB.getTestingBotSessionDetails();
 		}
+		await Promise.all([
+			agentA.screenshot(`${outputDir}/agent-a-success.png`),
+			agentB.screenshot(`${outputDir}/agent-b-success.png`)
+		]);
+		result.evidence.screenshots = ['agent-a-success.png', 'agent-b-success.png'];
 		return result;
 	} catch (error) {
 		const [diagnosticsA, diagnosticsB] = await Promise.allSettled([
