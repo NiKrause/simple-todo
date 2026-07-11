@@ -12,7 +12,13 @@ import * as json from 'multiformats/codecs/json';
 import { sha512 } from 'multiformats/hashes/sha2';
 import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2pConfig } from './libp2p-config.js';
-import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
+import {
+	initializeDatabase,
+	setActiveTodoDatabaseOpener,
+	todoDBAddressStore,
+	todoDBStore,
+	todosStore
+} from './db-actions.js';
 import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
 import { normalizeDiscoveredMultiaddrs } from './multiaddr-utils.js';
 
@@ -99,6 +105,7 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 		// Create OrbitDB instance
 		console.log('🛬 Creating OrbitDB instance...');
 		orbitdb = await createOrbitDB({ ipfs: helia, id: getOrCreateOrbitDBIdentityId() });
+		setActiveTodoDatabaseOpener(openActiveTodoDatabase);
 		todoDB = await openInitialTodoDatabase(options.todoDbAddress);
 
 		console.log('✅ Database opened successfully with OrbitDBAccessController:', {
@@ -144,6 +151,7 @@ async function stopP2P() {
 	libp2pStore.set(null);
 	peerIdStore.set(null);
 	peerId = null;
+	setActiveTodoDatabaseOpener(null);
 	stopDiscoveryDialRetryInterval();
 	discoveredPeers.clear();
 
@@ -156,6 +164,25 @@ async function stopP2P() {
 	await Promise.allSettled(resources.map((resource) => resource?.stop?.() ?? resource?.close?.()));
 
 	todosStore.set([]);
+}
+
+/**
+ * Open a database through the P2P lifecycle so its active instance cannot
+ * diverge from the database exposed through the application stores.
+ *
+ * @param {string} address
+ */
+async function openActiveTodoDatabase(address) {
+	if (!orbitdb) {
+		throw new Error('OrbitDB is not initialized yet.');
+	}
+
+	const loadedTodoDB = await orbitdb.open(address, {
+		type: 'keyvalue',
+		sync: true
+	});
+	todoDB = loadedTodoDB;
+	return loadedTodoDB;
 }
 
 /**
@@ -229,10 +256,7 @@ function getReadOnlyDiagnostics() {
 	return {
 		getPeerId: () => peerId,
 		getDatabaseAddress: () => get(todoDBAddressStore),
-		getDatabasePeers: () =>
-			typeof window !== 'undefined' && typeof window.getTodoDatabasePeerIds === 'function'
-				? window.getTodoDatabasePeerIds()
-				: Array.from(todoDB?.peers ?? []),
+		getDatabasePeers: () => Array.from(get(todoDBStore)?.peers ?? []),
 		getPubsubTopics: () => libp2p?.services?.pubsub?.getTopics?.() ?? [],
 		getProtocols: () => libp2p?.getProtocols?.() ?? [],
 		getMultiaddrs: () => {
