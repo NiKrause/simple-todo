@@ -28,7 +28,7 @@ jobs:
       REMOTE_PROVIDER: ${{ inputs.provider }}
       REQUIRE_PUBLIC_RELAY: 'true'
       REMOTE_RELAY_PEER_ID: 16Uiu2HAmLVRzWHngBH5DPNadsZcL1NK8nyee5oMQSU6Jw5y1WJ4n
-      REMOTE_RELAY_API_ORIGIN: https://response-blind-shift-collect.2n6.me
+      REMOTE_RELAY_API_ORIGIN: https://position-scale-suggest-estate.2n6.me
       TESTINGBOT_KEY: ${{ secrets.TESTINGBOT_KEY }}
       TESTINGBOT_SECRET: ${{ secrets.TESTINGBOT_SECRET }}
     steps:
