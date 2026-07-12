@@ -54,10 +54,7 @@ export class TodoBrowserAgent {
 			.getByTestId('load-todo-db-input')
 			.inputValue()
 			.catch(() => '');
-		return {
-			...diagnostics,
-			databaseAddress: visibleDatabaseAddress || diagnostics.databaseAddress
-		};
+		return { ...diagnostics, visibleDatabaseAddress };
 	}
 
 	async waitForPublicRelayConnection() {
@@ -87,6 +84,26 @@ export class TodoBrowserAgent {
 			timeout: this.timeout
 		});
 		await expect(input).toHaveValue(address, { timeout: this.timeout });
+		await this.waitForActiveDatabase(address);
+	}
+
+	async waitForActiveDatabase(address) {
+		await this.page.waitForFunction(
+			(expectedAddress) => {
+				const diagnostics = window.__simpleTodoDiagnostics;
+				const activeAddress =
+					window.getTodoDatabaseAddress?.() ?? diagnostics?.getDatabaseAddress?.() ?? null;
+				const hash = expectedAddress.slice('/orbitdb/'.length);
+				return (
+					activeAddress === expectedAddress &&
+					(diagnostics?.getPubsubTopics?.() ?? []).includes(expectedAddress) &&
+					(diagnostics?.getProtocols?.() ?? []).includes(`/orbitdb/heads/orbitdb/${hash}`)
+				);
+			},
+			address,
+			{ timeout: this.timeout, polling: 1_000 }
+		);
+		return this.diagnostics();
 	}
 
 	async reloadAndEnsureDatabase(address) {
@@ -103,6 +120,7 @@ export class TodoBrowserAgent {
 		if (addressAfterReload !== address) {
 			await this.openDatabase(address);
 		}
+		await this.waitForActiveDatabase(address);
 
 		return {
 			addressAfterReload,
