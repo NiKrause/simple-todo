@@ -21,6 +21,7 @@ import {
 } from './db-actions.js';
 import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
 import { normalizeDiscoveredMultiaddrs } from './multiaddr-utils.js';
+import { getStoredActiveTodoDatabaseAddress } from './active-todo-database.js';
 
 export { setWebRTCEnabled, webrtcEnabledStore };
 
@@ -106,7 +107,9 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 		console.log('🛬 Creating OrbitDB instance...');
 		orbitdb = await createOrbitDB({ ipfs: helia, id: getOrCreateOrbitDBIdentityId() });
 		setActiveTodoDatabaseOpener(openActiveTodoDatabase);
-		todoDB = await openInitialTodoDatabase(options.todoDbAddress);
+		todoDB = await openInitialTodoDatabase(
+			options.todoDbAddress ?? getStoredActiveTodoDatabaseAddress()
+		);
 
 		console.log('✅ Database opened successfully with OrbitDBAccessController:', {
 			address: todoDB.address,

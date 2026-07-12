@@ -109,8 +109,17 @@ test.describe.serial('Todo collaboration', () => {
 		await waitForConnectedPeer(alice, bobPeerId, 'Alice -> Bob');
 		await waitForConnectionCount(bob, 2);
 		await loadTodoDb(bob, aliceDefaultTodoDbAddress);
+		await bob.reload();
+		await expect(bob.getByTestId('todo-input')).toBeEnabled({ timeout: collaborationTimeout });
+		await expect
+			.poll(() => getPeerId(bob), { timeout: collaborationTimeout })
+			.not.toBe('');
+		await loadTodoDb(bob, aliceDefaultTodoDbAddress);
+		const reloadedBobPeerId = await getPeerId(bob);
+		await waitForConnectedPeer(alice, reloadedBobPeerId, 'Alice -> reloaded Bob');
+		await waitForConnectedPeer(bob, alicePeerId, 'Reloaded Bob -> Alice');
 		await Promise.all([
-			waitForOrbitDBPeer(alice, bobPeerId, 'Alice OrbitDB sync -> Bob'),
+			waitForOrbitDBPeer(alice, reloadedBobPeerId, 'Alice OrbitDB sync -> reloaded Bob'),
 			waitForOrbitDBPeer(bob, alicePeerId, 'Bob OrbitDB sync -> Alice')
 		]);
 		await addTodo(bob, bobTodoInAliceDb);
@@ -302,6 +311,22 @@ async function loadTodoDb(page, address) {
 	await expect
 		.poll(() => getActiveTodoDbAddress(page), { timeout: collaborationTimeout })
 		.toBe(address);
+	await expect
+		.poll(
+			() =>
+				page.evaluate(
+					(expectedAddress) => {
+						const diagnostics = window.__simpleTodoDiagnostics;
+						const headsProtocol = `/orbitdb/heads/orbitdb/${expectedAddress.slice('/orbitdb/'.length)}`;
+						return (
+							diagnostics?.getPubsubTopics?.().includes(expectedAddress) &&
+							diagnostics?.getProtocols?.().includes(headsProtocol)
+						);
+					},
+					address
+				)
+		)
+		.toBe(true);
 	await expect(page.getByTestId('load-todo-db-input')).toHaveValue(address, {
 		timeout: collaborationTimeout
 	});

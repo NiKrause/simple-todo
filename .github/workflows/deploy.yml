@@ -161,3 +161,21 @@ jobs:
           ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
         run: node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"
+
+  start-remote-replication:
+    needs: link-domain
+    if: ${{ success() }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Start remote replication after domain link
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh workflow run remote-replication.yml
+          --repo "${{ github.repository }}"
+          --ref collab01
+          -f app_url=https://collab01.le-space.de
+          -f provider=testingbot
