@@ -170,22 +170,33 @@ async function stopP2P() {
 }
 
 /**
- * Open a database through the P2P lifecycle so its active instance cannot
- * diverge from the database exposed through the application stores.
+ * Replace OrbitDB when selecting another address. A fresh OrbitDB instance
+ * avoids retaining cached databases and sync handlers from the previous
+ * address while keeping the same Helia/libp2p node and browser identity.
  *
  * @param {string} address
  */
 async function openActiveTodoDatabase(address) {
-	if (!orbitdb) {
+	if (!orbitdb || !helia) {
 		throw new Error('OrbitDB is not initialized yet.');
 	}
 
-	const loadedTodoDB = await orbitdb.open(address, {
+	const previousOrbitDB = orbitdb;
+	orbitdb = null;
+	todoDB = null;
+	await previousOrbitDB.stop();
+
+	const nextOrbitDB = await createOrbitDB({
+		ipfs: helia,
+		id: getOrCreateOrbitDBIdentityId()
+	});
+	const loadedTodoDB = await nextOrbitDB.open(address, {
 		type: 'keyvalue',
 		sync: true
 	});
+	orbitdb = nextOrbitDB;
 	todoDB = loadedTodoDB;
-	return loadedTodoDB;
+	return { orbitdb: nextOrbitDB, todoDB: loadedTodoDB };
 }
 
 /**

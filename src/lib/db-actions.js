@@ -73,14 +73,14 @@ export const todosStore = writable(/** @type {TodoItem[]} */ ([]));
 export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
 
 const observedDatabases = new WeakSet();
-/** @type {((address: string) => Promise<TodoDatabase>) | null} */
+/** @type {((address: string) => Promise<{ orbitdb: any, todoDB: TodoDatabase }>) | null} */
 let openActiveTodoDatabase = null;
 
 /**
  * Register the database opener owned by the P2P lifecycle. This keeps the
  * module-level active database and the UI stores on the same OrbitDB instance.
  *
- * @param {((address: string) => Promise<TodoDatabase>) | null} opener
+ * @param {((address: string) => Promise<{ orbitdb: any, todoDB: TodoDatabase }>) | null} opener
  */
 export function setActiveTodoDatabaseOpener(opener) {
 	openActiveTodoDatabase = opener;
@@ -151,12 +151,17 @@ export async function loadTodoDatabase(address) {
 	}
 
 	try {
-		const loadedTodoDB = openActiveTodoDatabase
-			? await openActiveTodoDatabase(normalizedAddress)
-			: await orbitdb.open(normalizedAddress, {
+		let loadedTodoDB;
+		if (openActiveTodoDatabase) {
+			const activeDatabase = await openActiveTodoDatabase(normalizedAddress);
+			orbitdbStore.set(activeDatabase.orbitdb);
+			loadedTodoDB = activeDatabase.todoDB;
+		} else {
+			loadedTodoDB = await orbitdb.open(normalizedAddress, {
 					type: 'keyvalue',
 					sync: true
 				});
+		}
 
 		// OrbitDB returns cached database instances when an address was opened before.
 		// Starting sync explicitly is idempotent and guarantees that a reopened database
@@ -167,7 +172,7 @@ export async function loadTodoDatabase(address) {
 		await loadTodos();
 		storeActiveTodoDatabaseAddress(getDatabaseAddress(loadedTodoDB) || normalizedAddress);
 
-		if (previousTodoDB && previousTodoDB !== loadedTodoDB) {
+		if (!openActiveTodoDatabase && previousTodoDB && previousTodoDB !== loadedTodoDB) {
 			await previousTodoDB.close?.();
 		}
 
