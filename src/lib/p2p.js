@@ -29,6 +29,23 @@ export { setWebRTCEnabled, webrtcEnabledStore };
 export const libp2pStore = writable(/** @type {any} */ (null));
 export const peerIdStore = writable(/** @type {string | null} */ (null));
 
+/** @type {{
+ * status: 'idle' | 'opening' | 'ready' | 'failed',
+ * targetAddress: string | null,
+ * openedAddress: string | null,
+ * startedAt: string | null,
+ * completedAt: string | null,
+ * error: string | null
+ * }} */
+let activeDatabaseTransition = {
+	status: 'idle',
+	targetAddress: null,
+	openedAddress: null,
+	startedAt: null,
+	completedAt: null,
+	error: null
+};
+
 // Add initialization state store
 export const initializationStore = writable(
 	/** @type {{ isInitializing: boolean, isInitialized: boolean, error: string | null }} */ ({
@@ -181,12 +198,68 @@ async function openActiveTodoDatabase(address) {
 		throw new Error('OrbitDB is not initialized yet.');
 	}
 
-	const loadedTodoDB = await orbitdb.open(address, {
-		type: 'keyvalue',
-		sync: true
-	});
-	todoDB = loadedTodoDB;
-	return { orbitdb, todoDB: loadedTodoDB };
+	activeDatabaseTransition = {
+		status: 'opening',
+		targetAddress: address,
+		openedAddress: null,
+		startedAt: new Date().toISOString(),
+		completedAt: null,
+		error: null
+	};
+
+	try {
+		const loadedTodoDB = await orbitdb.open(address, {
+			type: 'keyvalue',
+			sync: true
+		});
+		const openedAddress = loadedTodoDB.address?.toString?.() ?? String(loadedTodoDB.address ?? '');
+		if (openedAddress !== address) {
+			throw new Error(`OrbitDB opened ${openedAddress || '<empty>'} instead of ${address}.`);
+		}
+
+		await loadedTodoDB.sync?.start?.();
+		await waitForOrbitDBSyncRegistration(address);
+
+		todoDB = loadedTodoDB;
+		activeDatabaseTransition = {
+			...activeDatabaseTransition,
+			status: 'ready',
+			openedAddress,
+			completedAt: new Date().toISOString()
+		};
+		return { orbitdb, todoDB: loadedTodoDB };
+	} catch (error) {
+		activeDatabaseTransition = {
+			...activeDatabaseTransition,
+			status: 'failed',
+			completedAt: new Date().toISOString(),
+			error: error instanceof Error ? error.message : String(error)
+		};
+		throw error;
+	}
+}
+
+/**
+ * @param {string} address
+ * @param {number} [timeoutMs]
+ */
+async function waitForOrbitDBSyncRegistration(address, timeoutMs = 120_000) {
+	const headsProtocol = `/orbitdb/heads/orbitdb/${address.slice('/orbitdb/'.length)}`;
+	const deadline = Date.now() + timeoutMs;
+
+	while (Date.now() < deadline) {
+		const hasTopic = libp2p?.services?.pubsub?.getTopics?.().includes(address) ?? false;
+		const hasHeadsProtocol = libp2p?.getProtocols?.().includes(headsProtocol) ?? false;
+		if (hasTopic && hasHeadsProtocol) return;
+		await new Promise((resolve) => setTimeout(resolve, 250));
+	}
+
+	const topics = libp2p?.services?.pubsub?.getTopics?.() ?? [];
+	const protocols = libp2p?.getProtocols?.() ?? [];
+	throw new Error(
+		`OrbitDB sync registration timed out for ${address} ` +
+		`(topic=${topics.includes(address)}, headsProtocol=${protocols.includes(headsProtocol)}).`
+	);
 }
 
 /**
@@ -260,6 +333,7 @@ function getReadOnlyDiagnostics() {
 	return {
 		getPeerId: () => peerId,
 		getDatabaseAddress: () => get(todoDBAddressStore),
+		getDatabaseTransition: () => ({ ...activeDatabaseTransition }),
 		getDatabasePeers: () => Array.from(get(todoDBStore)?.peers ?? []),
 		getPubsubTopics: () => libp2p?.services?.pubsub?.getTopics?.() ?? [],
 		getProtocols: () => libp2p?.getProtocols?.() ?? [],

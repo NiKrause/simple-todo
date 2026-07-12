@@ -46,6 +46,7 @@ export class TodoBrowserAgent {
 				databasePeers: diagnostics?.getDatabasePeers?.() ?? [],
 				pubsubTopics: diagnostics?.getPubsubTopics?.() ?? [],
 				protocols: diagnostics?.getProtocols?.() ?? [],
+				databaseTransition: diagnostics?.getDatabaseTransition?.() ?? null,
 				appStamp: document.querySelector('header p')?.textContent?.trim() ?? null,
 				userAgent: navigator.userAgent
 			};
@@ -80,6 +81,23 @@ export class TodoBrowserAgent {
 		const input = this.page.getByTestId('load-todo-db-input');
 		await input.fill(address);
 		await this.page.getByTestId('load-todo-db-button').click();
+		await this.page.waitForFunction(
+			(expectedAddress) => {
+				const transition = window.__simpleTodoDiagnostics?.getDatabaseTransition?.();
+				return (
+					transition?.targetAddress === expectedAddress &&
+					(transition.status === 'ready' || transition.status === 'failed')
+				);
+			},
+			address,
+			{ timeout: this.timeout, polling: 250 }
+		);
+		const transition = await this.page.evaluate(() =>
+			window.__simpleTodoDiagnostics?.getDatabaseTransition?.()
+		);
+		if (transition?.status === 'failed') {
+			throw new Error(`Remote OrbitDB load failed: ${transition.error ?? 'unknown error'}`);
+		}
 		await expect(this.page.getByText('Todo DB loaded', { exact: true })).toBeVisible({
 			timeout: this.timeout
 		});
