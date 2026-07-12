@@ -18,6 +18,8 @@ The main/basic demo focuses on one automatic shared todo list: open the same app
 
 The `collab01` branch adds an explicit collaboration workflow. Each browser profile creates its own OrbitDB identity and default todo database address, shows that address, lets you copy it, and lets another browser load that exact database through the **Load Todo DB** card. It also keeps the manual **Connect To Multiaddress** flow, so testers can dial a browser-reachable relay or peer address before opening a collaborator's database. This makes the demo better for validating cross-browser collaboration, relay connectivity, and OrbitDB replication behavior step by step.
 
+The current cross-network milestone uses a GitHub-hosted browser, a TestingBot browser, and `orbitdb-relay@0.9.7`. It proves address exchange and bidirectional replication **with explicit relay recovery**; passive Bob-to-relay convergence remains tracked work. See [Cross-network OrbitDB replication milestone](./docs/REMOTE_REPLICATION_MILESTONE.md) for the exact evidence and limitations.
+
 ### Key Features
 
 - ✅ **No Server Required** - Runs entirely in your browser
@@ -41,6 +43,8 @@ The `collab01` branch adds an explicit collaboration workflow. Each browser prof
 For comprehensive guides on how this app works, implementation details, and reusable components:
 
 **[📖 Tutorial](./docs/TUTORIAL.md)**
+
+**[🧪 Cross-network replication milestone](./docs/REMOTE_REPLICATION_MILESTONE.md)**
 
 The tutorial covers:
 

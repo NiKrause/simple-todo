@@ -81,6 +81,33 @@ flag automatically.
 `E2E_RELAY_CLI_PATH` can point the local e2e server at a relay build outside this
 project; `test:e2e:local-relay-src` uses `/Users/nandi/orbitdb-relay/dist/cli.js`.
 
+## Cross-network TestingBot replication
+
+The `collab01` remote workflow controls two browsers in one GitHub job:
+
+- Agent A runs in local Chromium on the GitHub-hosted runner.
+- Agent B runs in TestingBot Chrome on a separate provider network.
+- Both load the deployed `https://collab01.le-space.de` PWA.
+- The coordinator exchanges control state only. OrbitDB/libp2p carries application data.
+
+The deployment workflow triggers the remote workflow only after publication and custom-domain linking succeed. It can also be started manually:
+
+```bash
+gh workflow run remote-replication.yml \
+  --repo NiKrause/simple-todo \
+  --ref collab01 \
+  -f app_url=https://collab01.le-space.de \
+  -f provider=testingbot
+```
+
+Required repository secrets:
+
+- `TESTINGBOT_KEY`
+- `TESTINGBOT_SECRET`
+- `RELAY_BOOTSTRAP_ADDR_PROD`
+
+The summary distinguishes passive replication from a pass that required explicit relay recovery. A recovery pass is valuable store-and-forward evidence, but must not be described as fully passive convergence. See [the milestone report](./REMOTE_REPLICATION_MILESTONE.md) for a successful run, screenshots, video, exact record proof, and remaining work.
+
 Run with UI mode for debugging:
 
 ```bash

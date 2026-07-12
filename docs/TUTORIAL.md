@@ -71,10 +71,20 @@ To test this application, you need to:
 ### Data Flow Architecture
 
 ```mermaid
-Browser A ←→ Relay Node ←→ Browser B
-    ↓           ↓           ↓
-  OrbitDB ←→ IPFS ←→ OrbitDB
+sequenceDiagram
+    participant A as Browser A
+    participant R as Public libp2p + OrbitDB relay
+    participant B as Browser B
+
+    A->>R: Connect through secure WebSocket
+    B->>R: Connect through secure WebSocket
+    A<<-->>B: Upgrade to direct WebRTC when possible
+    A->>R: Native OrbitDB heads and blocks
+    R-->>B: OrbitDB store-and-forward replication
+    B-->>A: Native OrbitDB live replication
 ```
+
+The application does not define a separate todo-entry or identity transport protocol. Todos, identities, heads, and blocks are handled by OrbitDB, Helia/IPFS, and libp2p. The relay may retain an internal peer hint for a database topic and reconnect that peer during an explicit recovery sync, but the data still travels through OrbitDB's native heads and block exchange.
 
 ### Core Process Flow
 
