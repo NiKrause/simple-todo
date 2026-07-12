@@ -1,5 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { setDefaultResultOrder } from 'node:dns';
+import http from 'node:http';
+import https from 'node:https';
 import { TodoBrowserAgent } from './agent.mjs';
 
 setDefaultResultOrder('ipv4first');
@@ -33,35 +35,79 @@ function findWebRTCPeerConnection(diagnostics, expectedPeerId) {
 function hasActiveOrbitDBSync(diagnostics, databaseAddress) {
 	return (
 		diagnostics.pubsubTopics.includes(databaseAddress) &&
-		diagnostics.protocols.includes(`/orbitdb/heads/orbitdb/${databaseAddress.slice('/orbitdb/'.length)}`)
+		diagnostics.protocols.includes(
+			`/orbitdb/heads/orbitdb/${databaseAddress.slice('/orbitdb/'.length)}`
+		)
 	);
 }
 
 function relayApiCandidates(diagnostics) {
 	const candidates = new Map();
+	const requiredPeerId = process.env.REMOTE_RELAY_PEER_ID?.trim();
+	const configuredOrigin = process.env.REMOTE_RELAY_API_ORIGIN?.trim();
+	if (
+		requiredPeerId &&
+		configuredOrigin &&
+		diagnostics.connections.some(({ remotePeer }) => remotePeer === requiredPeerId)
+	) {
+		candidates.set(`${requiredPeerId}:${configuredOrigin}`, {
+			peerId: requiredPeerId,
+			origin: configuredOrigin.replace(/\/$/, ''),
+			multiaddr: 'configured relay API for connected peer'
+		});
+	}
 	for (const { remotePeer, remoteAddr } of diagnostics.connections) {
-		const match = remoteAddr?.match(/\/dns[46]\/([^/]+)\/tcp\/(\d+)\/(?:tls\/)?(?:ws|wss)(?:\/|$)/i);
+		const match = remoteAddr?.match(
+			/\/dns[46]\/([^/]+)\/tcp\/(\d+)\/(?:tls\/)?(?:ws|wss)(?:\/|$)/i
+		);
 		if (!match || !remotePeer) continue;
 		const [, host, port] = match;
 		const origin = `https://${host}${port === '443' ? '' : `:${port}`}`;
-		candidates.set(`${remotePeer}:${origin}`, { peerId: remotePeer, origin, multiaddr: remoteAddr });
+		candidates.set(`${remotePeer}:${origin}`, {
+			peerId: remotePeer,
+			origin,
+			multiaddr: remoteAddr
+		});
 	}
 	return [...candidates.values()];
 }
 
 async function fetchJson(url, options = {}) {
-	const response = await fetch(url, {
-		...options,
-		signal: options.signal ?? AbortSignal.timeout(150_000)
+	const target = new URL(url);
+	const transport = target.protocol === 'https:' ? https : http;
+	const signal = options.signal ?? AbortSignal.timeout(150_000);
+	const { status, text } = await new Promise((resolve, reject) => {
+		const request = transport.request(
+			target,
+			{
+				method: options.method ?? 'GET',
+				headers: { Connection: 'close', ...(options.headers ?? {}) },
+				family: 4,
+				agent: false,
+				signal
+			},
+			(response) => {
+				const chunks = [];
+				response.on('data', (chunk) => chunks.push(chunk));
+				response.on('end', () =>
+					resolve({
+						status: response.statusCode ?? 0,
+						text: Buffer.concat(chunks).toString('utf8')
+					})
+				);
+			}
+		);
+		request.on('error', reject);
+		if (options.body) request.write(options.body);
+		request.end();
 	});
-	const text = await response.text();
 	let body = null;
 	try {
 		body = JSON.parse(text);
 	} catch {
 		body = { raw: text };
 	}
-	return { ok: response.ok, status: response.status, body };
+	return { ok: status >= 200 && status < 300, status, body };
 }
 
 function recordContainsTodo(record, expectedTodo) {
@@ -107,7 +153,8 @@ async function syncDatabaseThroughRelay(diagnostics, databaseAddress, expectedTo
 			const databaseFound = databases.body?.databases?.some(
 				(database) =>
 					database.address === databaseAddress &&
-					(Number(database.entryCount ?? 0) >= 1 || recordContainsTodo(database.lastRecord, expectedTodo))
+					(Number(database.entryCount ?? 0) >= 1 ||
+						recordContainsTodo(database.lastRecord, expectedTodo))
 			);
 			if (!databases.ok || !databaseFound) {
 				attempts.push({ ...candidate, health, sync, databases });
@@ -123,9 +170,12 @@ async function syncDatabaseThroughRelay(diagnostics, databaseAddress, expectedTo
 		}
 	}
 
-	throw Object.assign(new Error('No connected public relay synchronized Alice\'s OrbitDB database.'), {
-		relaySyncAttempts: attempts
-	});
+	throw Object.assign(
+		new Error("No connected public relay synchronized Alice's OrbitDB database."),
+		{
+			relaySyncAttempts: attempts
+		}
+	);
 }
 
 async function waitForWebRTCPeerConnection(agentA, agentB, peerIdA, peerIdB, timeoutMs = 120_000) {
@@ -179,6 +229,13 @@ export async function runCollab01RemoteScenario({
 			await Promise.all([
 				agentA.waitForPublicRelayConnection(),
 				agentB.waitForPublicRelayConnection()
+			]);
+		}
+		const requiredRelayPeerId = process.env.REMOTE_RELAY_PEER_ID?.trim();
+		if (requiredRelayPeerId) {
+			await Promise.all([
+				agentA.waitForRelayPeerConnection(requiredRelayPeerId),
+				agentB.waitForRelayPeerConnection(requiredRelayPeerId)
 			]);
 		}
 		result.agents.a = await agentA.diagnostics();
@@ -261,10 +318,14 @@ export async function runCollab01RemoteScenario({
 			agentB: result.agents.b
 		};
 		if (!hasActiveOrbitDBSync(result.agents.a, result.agents.a.databaseAddress)) {
-			throw new Error("Agent A's active OrbitDB topic or heads protocol does not match its database.");
+			throw new Error(
+				"Agent A's active OrbitDB topic or heads protocol does not match its database."
+			);
 		}
 		if (!hasActiveOrbitDBSync(result.agents.b, result.agents.a.databaseAddress)) {
-			throw new Error("Agent B's active OrbitDB topic or heads protocol does not match Agent A's database.");
+			throw new Error(
+				"Agent B's active OrbitDB topic or heads protocol does not match Agent A's database."
+			);
 		}
 
 		const bToAStarted = Date.now();

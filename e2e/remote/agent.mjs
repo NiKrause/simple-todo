@@ -71,6 +71,18 @@ export class TodoBrowserAgent {
 		return this.diagnostics();
 	}
 
+	async waitForRelayPeerConnection(peerId) {
+		await this.page.waitForFunction(
+			(expectedPeerId) =>
+				(window.__simpleTodoDiagnostics?.getConnections?.() ?? []).some(
+					({ remotePeer }) => remotePeer === expectedPeerId
+				),
+			peerId,
+			{ timeout: this.timeout, polling: 1_000 }
+		);
+		return this.diagnostics();
+	}
+
 	async createTodo(text) {
 		await this.todoInput().fill(text);
 		await this.page.getByRole('button', { name: 'Add TODO' }).click();
