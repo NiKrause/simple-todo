@@ -1,5 +1,21 @@
 import { mkdir, writeFile } from 'node:fs/promises';
+import { setDefaultResultOrder } from 'node:dns';
 import { TodoBrowserAgent } from './agent.mjs';
+
+setDefaultResultOrder('ipv4first');
+
+function serializeError(error) {
+	if (!error || typeof error !== 'object') return { message: String(error) };
+	return {
+		name: error.name ?? null,
+		message: error.message ?? String(error),
+		code: error.code ?? null,
+		syscall: error.syscall ?? null,
+		address: error.address ?? null,
+		port: error.port ?? null,
+		cause: error.cause ? serializeError(error.cause) : null
+	};
+}
 
 function hasPublicRelayConnection(diagnostics) {
 	return diagnostics.connections.some(({ remoteAddr }) =>
@@ -86,7 +102,7 @@ async function syncDatabaseThroughRelay(diagnostics, databaseAddress) {
 		} catch (error) {
 			attempts.push({
 				...candidate,
-				error: error instanceof Error ? error.message : String(error)
+				error: serializeError(error)
 			});
 		}
 	}
