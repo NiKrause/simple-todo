@@ -1,5 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import { peerIdStore } from './p2p.js';
+import { storeActiveTodoDatabaseAddress } from './active-todo-database.js';
 
 /**
  * @typedef {{
@@ -164,6 +165,7 @@ export async function loadTodoDatabase(address) {
 		setActiveTodoDatabase(loadedTodoDB);
 		setupDatabaseListeners(loadedTodoDB);
 		await loadTodos();
+		storeActiveTodoDatabaseAddress(getDatabaseAddress(loadedTodoDB) || normalizedAddress);
 
 		if (previousTodoDB && previousTodoDB !== loadedTodoDB) {
 			await previousTodoDB.close?.();
