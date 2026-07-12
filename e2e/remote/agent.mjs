@@ -80,6 +80,14 @@ export class TodoBrowserAgent {
 	async openDatabase(address) {
 		const input = this.page.getByTestId('load-todo-db-input');
 		await input.fill(address);
+		// TestingBot's remote `fill` can update the DOM property without making the
+		// Svelte binding observe the final value. Dispatch the browser event that
+		// the component uses for bind:value before clicking the load button.
+		await input.evaluate((element, value) => {
+			element.value = value;
+			element.dispatchEvent(new Event('input', { bubbles: true }));
+		}, address);
+		await expect(input).toHaveValue(address, { timeout: this.timeout });
 		await this.page.getByTestId('load-todo-db-button').click();
 		await this.page.waitForFunction(
 			(expectedAddress) => {
