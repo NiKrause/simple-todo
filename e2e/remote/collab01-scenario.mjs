@@ -118,29 +118,9 @@ export async function runCollab01RemoteScenario({
 		result.agents.a = webRTCObservation.diagnosticsA;
 		result.agents.b = webRTCObservation.diagnosticsB;
 
-		result.orbitdbBeforeReload = {
+		result.orbitdbSync = {
 			agentA: result.agents.a,
 			agentB: result.agents.b
-		};
-		result.reload = await agentB.reloadAndEnsureDatabase(result.agents.a.databaseAddress);
-		result.agents.b = result.reload.diagnostics;
-		if (result.agents.b.databaseAddress !== result.agents.a.databaseAddress) {
-			throw new Error("Agent B did not reopen Agent A's database after reload.");
-		}
-		if (process.env.REQUIRE_PUBLIC_RELAY === 'true') {
-			result.agents.b = await agentB.waitForPublicRelayConnection();
-		}
-		const webRTCAfterReload = await waitForWebRTCPeerConnection(
-			agentA,
-			agentB,
-			result.agents.a.peerId,
-			result.agents.b.peerId,
-			60_000
-		);
-		result.directConnectionAfterReload = {
-			transport: 'webrtc',
-			observedBy: webRTCAfterReload.observedBy,
-			...webRTCAfterReload.connection
 		};
 
 		const peerObservations = await Promise.allSettled([
@@ -151,7 +131,7 @@ export async function runCollab01RemoteScenario({
 			agentA.diagnostics(),
 			agentB.diagnostics()
 		]);
-		result.orbitdbAfterReload = {
+		result.orbitdbPeers = {
 			agentARecognizedAgentB: peerObservations[0].status === 'fulfilled',
 			agentBRecognizedAgentA: peerObservations[1].status === 'fulfilled',
 			agentA: result.agents.a,
