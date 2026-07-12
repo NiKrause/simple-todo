@@ -64,7 +64,21 @@ async function fetchJson(url, options = {}) {
 	return { ok: response.ok, status: response.status, body };
 }
 
-async function syncDatabaseThroughRelay(diagnostics, databaseAddress) {
+function recordContainsTodo(record, expectedTodo) {
+	return (
+		typeof record?.payloadPreview === 'string' &&
+		record.payloadPreview.includes(`text: '${expectedTodo}'`)
+	);
+}
+
+function confirmsExpectedTodo(snapshot, expectedTodo) {
+	return (
+		Number(snapshot?.entryCount ?? 0) >= 1 ||
+		(snapshot?.receivedUpdate === true && recordContainsTodo(snapshot.lastRecord, expectedTodo))
+	);
+}
+
+async function syncDatabaseThroughRelay(diagnostics, databaseAddress, expectedTodo) {
 	const attempts = [];
 	for (const candidate of relayApiCandidates(diagnostics)) {
 		try {
@@ -81,7 +95,7 @@ async function syncDatabaseThroughRelay(diagnostics, databaseAddress) {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ dbAddress: databaseAddress })
 			});
-			if (!sync.ok || sync.body?.ok !== true || Number(sync.body?.entryCount ?? 0) < 1) {
+			if (!sync.ok || sync.body?.ok !== true || !confirmsExpectedTodo(sync.body, expectedTodo)) {
 				attempts.push({ ...candidate, health, sync });
 				continue;
 			}
@@ -91,7 +105,9 @@ async function syncDatabaseThroughRelay(diagnostics, databaseAddress) {
 				{ signal: AbortSignal.timeout(20_000) }
 			);
 			const databaseFound = databases.body?.databases?.some(
-				(database) => database.address === databaseAddress && Number(database.entryCount ?? 0) >= 1
+				(database) =>
+					database.address === databaseAddress &&
+					(Number(database.entryCount ?? 0) >= 1 || recordContainsTodo(database.lastRecord, expectedTodo))
 			);
 			if (!databases.ok || !databaseFound) {
 				attempts.push({ ...candidate, health, sync, databases });
@@ -194,7 +210,8 @@ export async function runCollab01RemoteScenario({
 		};
 		result.relaySync = await syncDatabaseThroughRelay(
 			result.agents.a,
-			result.agents.a.databaseAddress
+			result.agents.a.databaseAddress,
+			existingTodoFromA
 		);
 
 		const webRTCObservation = await waitForWebRTCPeerConnection(
