@@ -57,7 +57,8 @@ export async function runCollab01RemoteScenario({
 	remoteProvider = 'local'
 }) {
 	const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-	const todoFromA = `remote-${runId}-from-a`;
+	const existingTodoFromA = `remote-${runId}-existing-from-a`;
+	const liveTodoFromA = `remote-${runId}-live-from-a`;
 	const todoFromB = `remote-${runId}-from-b`;
 	const agentA = new TodoBrowserAgent('github-local', browserA, appUrl);
 	const agentB = new TodoBrowserAgent('testingbot-remote', browserB, appUrl);
@@ -94,16 +95,13 @@ export async function runCollab01RemoteScenario({
 			}
 		}
 
-		result.databaseExchange = {
-			source: 'agent-a',
-			address: result.agents.a.databaseAddress,
-			target: 'agent-b'
+		await agentA.createTodo(existingTodoFromA);
+		result.preexistingEntry = {
+			createdBy: 'agent-a',
+			text: existingTodoFromA,
+			databaseAddress: result.agents.a.databaseAddress
 		};
-		await agentB.openDatabase(result.agents.a.databaseAddress);
-		result.agents.b = await agentB.diagnostics();
-		if (result.agents.b.databaseAddress !== result.agents.a.databaseAddress) {
-			throw new Error("Agent B did not open Agent A's database through the collab01 UI.");
-		}
+
 		const webRTCObservation = await waitForWebRTCPeerConnection(
 			agentA,
 			agentB,
@@ -117,6 +115,19 @@ export async function runCollab01RemoteScenario({
 		};
 		result.agents.a = webRTCObservation.diagnosticsA;
 		result.agents.b = webRTCObservation.diagnosticsB;
+
+		result.databaseExchange = {
+			source: 'agent-a',
+			address: result.agents.a.databaseAddress,
+			target: 'agent-b'
+		};
+		await agentB.openDatabase(result.agents.a.databaseAddress);
+		result.agents.b = await agentB.diagnostics();
+		if (result.agents.b.databaseAddress !== result.agents.a.databaseAddress) {
+			throw new Error("Agent B did not open Agent A's database through the collab01 UI.");
+		}
+		await agentB.waitForTodo(existingTodoFromA);
+		result.replication.preexistingAToB = true;
 
 		result.orbitdbSync = {
 			agentA: result.agents.a,
@@ -150,8 +161,8 @@ export async function runCollab01RemoteScenario({
 		result.replication.bToAMs = Date.now() - bToAStarted;
 
 		const aToBStarted = Date.now();
-		await agentA.createTodo(todoFromA);
-		await agentB.waitForTodo(todoFromA);
+		await agentA.createTodo(liveTodoFromA);
+		await agentB.waitForTodo(liveTodoFromA);
 		result.replication.aToBMs = Date.now() - aToBStarted;
 		result.passed = true;
 		if (remoteProvider === 'testingbot') {
