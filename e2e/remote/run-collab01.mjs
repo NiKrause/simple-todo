@@ -47,10 +47,11 @@ try {
 	result.evidence.testingBotShareUrl = testingBotShareUrl;
 	console.log(JSON.stringify(result, null, 2));
 	if (process.env.GITHUB_STEP_SUMMARY) {
+		const usedRelayRecovery = result.replication.mode === 'relay-recovery';
 		await writeFile(
 			process.env.GITHUB_STEP_SUMMARY,
 			`## Remote OrbitDB replication — collab01\n\n` +
-				`**Result:** ✅ passed\n\n` +
+				`**Result:** ${usedRelayRecovery ? '⚠️ passed with explicit relay recovery' : '✅ passed with passive replication'}\n\n` +
 				`| Evidence | Agent A | Agent B |\n| --- | --- | --- |\n` +
 				`| Provider | GitHub/local Playwright | ${provider} |\n` +
 				`| Peer ID | \`${result.agents.a.peerId}\` | \`${result.agents.b.peerId}\` |\n` +
@@ -58,7 +59,10 @@ try {
 				`| Address exchange | exposed through coordinator control state | opened Agent A database through collab01 UI |\n` +
 				`| Shared OrbitDB address | \`${result.agents.a.databaseAddress}\` | \`${result.agents.b.databaseAddress}\` |\n` +
 				`| A → B replication | ${result.replication.aToBMs} ms | observed |\n` +
-				`| B → A replication | observed | ${result.replication.bToAMs} ms |\n\n` +
+				`| B → A replication | observed | ${result.replication.bToAMs} ms |\n` +
+				`| Bob local write | confirmed | ${result.replication.bLocalWrite ? 'confirmed' : 'missing'} |\n` +
+				`| Bob → relay (passive) | ${result.replication.bToRelayPassive?.observedPassively ? 'observed' : 'not observed'} | exact lastRecord |\n` +
+				`| Bob → relay recovery sync | ${result.replication.bToRelayRecovery ? 'required and successful' : 'not required'} | exact lastRecord |\n\n` +
 				`### Evidence\n\n` +
 				(githubRunUrl ? `- [GitHub workflow run](${githubRunUrl})\n` : '') +
 				(githubArtifactsUrl
@@ -70,12 +74,18 @@ try {
 	}
 } catch (error) {
 	const result = error?.result;
+	const replication = result?.replication ?? {};
 	if (process.env.GITHUB_STEP_SUMMARY) {
 		await writeFile(
 			process.env.GITHUB_STEP_SUMMARY,
 			`## Remote OrbitDB replication — collab01\n\n` +
 				`**Result:** ❌ failed\n\n` +
 				`**Reason:** ${result?.error ?? error?.message ?? String(error)}\n\n` +
+				`| Diagnostic boundary | Result |\n| --- | --- |\n` +
+				`| Bob local write | ${replication.bLocalWrite ? 'confirmed' : 'not confirmed'} |\n` +
+				`| Bob → relay (passive) | ${replication.bToRelayPassive?.observedPassively ? 'observed' : 'not observed'} |\n` +
+				`| Bob → relay recovery sync | ${replication.bToRelayRecovery ? 'successful' : 'not completed'} |\n` +
+				`| Bob → Alice | ${replication.bToAMs != null ? `observed after ${replication.bToAMs} ms` : 'not observed'} |\n\n` +
 				`Detailed diagnostics and screenshots are available in the workflow artifact.\n`,
 			{ flag: 'a' }
 		);

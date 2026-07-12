@@ -111,17 +111,41 @@ async function fetchJson(url, options = {}) {
 }
 
 function recordContainsTodo(record, expectedTodo) {
-	return (
-		typeof record?.payloadPreview === 'string' &&
-		record.payloadPreview.includes(`text: '${expectedTodo}'`)
-	);
+	const representations = [record?.payloadPreview, record?.value];
+	return representations.some((value) => {
+		if (typeof value === 'string') return value.includes(`text: '${expectedTodo}'`);
+		return value?.text === expectedTodo;
+	});
 }
 
 function confirmsExpectedTodo(snapshot, expectedTodo) {
-	return (
-		Number(snapshot?.entryCount ?? 0) >= 1 ||
-		(snapshot?.receivedUpdate === true && recordContainsTodo(snapshot.lastRecord, expectedTodo))
-	);
+	return recordContainsTodo(snapshot?.lastRecord, expectedTodo);
+}
+
+async function waitForTodoOnRelay(diagnostics, databaseAddress, expectedTodo, timeoutMs = 20_000) {
+	const deadline = Date.now() + timeoutMs;
+	const attempts = [];
+	while (Date.now() < deadline) {
+		for (const candidate of relayApiCandidates(diagnostics)) {
+			try {
+				const databases = await fetchJson(
+					`${candidate.origin}/pinning/databases?address=${encodeURIComponent(databaseAddress)}`,
+					{ signal: AbortSignal.timeout(10_000) }
+				);
+				const database = databases.body?.databases?.find(
+					(entry) => entry.address === databaseAddress
+				);
+				attempts.push({ ...candidate, databases: databases.body });
+				if (databases.ok && recordContainsTodo(database?.lastRecord, expectedTodo)) {
+					return { ...candidate, databases: databases.body, observedPassively: true };
+				}
+			} catch (error) {
+				attempts.push({ ...candidate, error: serializeError(error) });
+			}
+		}
+		await new Promise((resolve) => setTimeout(resolve, 1_000));
+	}
+	return { observedPassively: false, attempts };
 }
 
 async function syncDatabaseThroughRelay(diagnostics, databaseAddress, expectedTodo) {
@@ -153,8 +177,7 @@ async function syncDatabaseThroughRelay(diagnostics, databaseAddress, expectedTo
 			const databaseFound = databases.body?.databases?.some(
 				(database) =>
 					database.address === databaseAddress &&
-					(Number(database.entryCount ?? 0) >= 1 ||
-						recordContainsTodo(database.lastRecord, expectedTodo))
+					recordContainsTodo(database.lastRecord, expectedTodo)
 			);
 			if (!databases.ok || !databaseFound) {
 				attempts.push({ ...candidate, health, sync, databases });
@@ -171,7 +194,7 @@ async function syncDatabaseThroughRelay(diagnostics, databaseAddress, expectedTo
 	}
 
 	throw Object.assign(
-		new Error("No connected public relay synchronized Alice's OrbitDB database."),
+		new Error(`No connected public relay synchronized expected todo ${expectedTodo}.`),
 		{
 			relaySyncAttempts: attempts
 		}
@@ -330,8 +353,23 @@ export async function runCollab01RemoteScenario({
 
 		const bToAStarted = Date.now();
 		await agentB.createTodo(todoFromB);
+		await agentB.waitForTodo(todoFromB);
+		result.replication.bLocalWrite = true;
+		result.replication.bToRelayPassive = await waitForTodoOnRelay(
+			result.agents.b,
+			result.agents.a.databaseAddress,
+			todoFromB
+		);
+		if (!result.replication.bToRelayPassive.observedPassively) {
+			result.replication.bToRelayRecovery = await syncDatabaseThroughRelay(
+				await agentB.diagnostics(),
+				result.agents.a.databaseAddress,
+				todoFromB
+			);
+		}
 		await agentA.waitForTodo(todoFromB);
 		result.replication.bToAMs = Date.now() - bToAStarted;
+		result.replication.mode = result.replication.bToRelayRecovery ? 'relay-recovery' : 'passive';
 
 		const aToBStarted = Date.now();
 		await agentA.createTodo(liveTodoFromA);
@@ -341,7 +379,9 @@ export async function runCollab01RemoteScenario({
 		if (remoteProvider === 'testingbot') {
 			await agentB.setTestingBotStatus(
 				true,
-				'collab01 address exchange and bidirectional OrbitDB replication passed.'
+				result.replication.mode === 'passive'
+					? 'collab01 address exchange and passive bidirectional OrbitDB replication passed.'
+					: 'collab01 address exchange and bidirectional OrbitDB replication passed with explicit relay recovery.'
 			);
 			result.evidence.testingBot = await agentB.getTestingBotSessionDetails();
 		}
