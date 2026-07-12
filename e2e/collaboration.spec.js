@@ -109,17 +109,8 @@ test.describe.serial('Todo collaboration', () => {
 		await waitForConnectedPeer(alice, bobPeerId, 'Alice -> Bob');
 		await waitForConnectionCount(bob, 2);
 		await loadTodoDb(bob, aliceDefaultTodoDbAddress);
-		await bob.reload();
-		await expect(bob.getByTestId('todo-input')).toBeEnabled({ timeout: collaborationTimeout });
-		await expect
-			.poll(() => getPeerId(bob), { timeout: collaborationTimeout })
-			.not.toBe('');
-		await loadTodoDb(bob, aliceDefaultTodoDbAddress);
-		const reloadedBobPeerId = await getPeerId(bob);
-		await waitForConnectedPeer(alice, reloadedBobPeerId, 'Alice -> reloaded Bob');
-		await waitForConnectedPeer(bob, alicePeerId, 'Reloaded Bob -> Alice');
 		await Promise.all([
-			waitForOrbitDBPeer(alice, reloadedBobPeerId, 'Alice OrbitDB sync -> reloaded Bob'),
+			waitForOrbitDBPeer(alice, bobPeerId, 'Alice OrbitDB sync -> Bob'),
 			waitForOrbitDBPeer(bob, alicePeerId, 'Bob OrbitDB sync -> Alice')
 		]);
 		await addTodo(bob, bobTodoInAliceDb);

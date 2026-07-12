@@ -172,7 +172,7 @@ export async function loadTodoDatabase(address) {
 		await loadTodos();
 		storeActiveTodoDatabaseAddress(getDatabaseAddress(loadedTodoDB) || normalizedAddress);
 
-		if (!openActiveTodoDatabase && previousTodoDB && previousTodoDB !== loadedTodoDB) {
+		if (previousTodoDB && previousTodoDB !== loadedTodoDB) {
 			await previousTodoDB.close?.();
 		}
 
