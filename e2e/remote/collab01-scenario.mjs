@@ -21,6 +21,81 @@ function hasActiveOrbitDBSync(diagnostics, databaseAddress) {
 	);
 }
 
+function relayApiCandidates(diagnostics) {
+	const candidates = new Map();
+	for (const { remotePeer, remoteAddr } of diagnostics.connections) {
+		const match = remoteAddr?.match(/\/dns[46]\/([^/]+)\/tcp\/(\d+)\/(?:tls\/)?(?:ws|wss)(?:\/|$)/i);
+		if (!match || !remotePeer) continue;
+		const [, host, port] = match;
+		const origin = `https://${host}${port === '443' ? '' : `:${port}`}`;
+		candidates.set(`${remotePeer}:${origin}`, { peerId: remotePeer, origin, multiaddr: remoteAddr });
+	}
+	return [...candidates.values()];
+}
+
+async function fetchJson(url, options = {}) {
+	const response = await fetch(url, {
+		...options,
+		signal: options.signal ?? AbortSignal.timeout(150_000)
+	});
+	const text = await response.text();
+	let body = null;
+	try {
+		body = JSON.parse(text);
+	} catch {
+		body = { raw: text };
+	}
+	return { ok: response.ok, status: response.status, body };
+}
+
+async function syncDatabaseThroughRelay(diagnostics, databaseAddress) {
+	const attempts = [];
+	for (const candidate of relayApiCandidates(diagnostics)) {
+		try {
+			const health = await fetchJson(`${candidate.origin}/health`, {
+				signal: AbortSignal.timeout(20_000)
+			});
+			if (!health.ok || health.body?.peerId !== candidate.peerId) {
+				attempts.push({ ...candidate, health });
+				continue;
+			}
+
+			const sync = await fetchJson(`${candidate.origin}/pinning/sync`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ dbAddress: databaseAddress })
+			});
+			if (!sync.ok || sync.body?.ok !== true || Number(sync.body?.entryCount ?? 0) < 1) {
+				attempts.push({ ...candidate, health, sync });
+				continue;
+			}
+
+			const databases = await fetchJson(
+				`${candidate.origin}/pinning/databases?address=${encodeURIComponent(databaseAddress)}`,
+				{ signal: AbortSignal.timeout(20_000) }
+			);
+			const databaseFound = databases.body?.databases?.some(
+				(database) => database.address === databaseAddress && Number(database.entryCount ?? 0) >= 1
+			);
+			if (!databases.ok || !databaseFound) {
+				attempts.push({ ...candidate, health, sync, databases });
+				continue;
+			}
+
+			return { ...candidate, health: health.body, sync: sync.body, databases: databases.body };
+		} catch (error) {
+			attempts.push({
+				...candidate,
+				error: error instanceof Error ? error.message : String(error)
+			});
+		}
+	}
+
+	throw Object.assign(new Error('No connected public relay synchronized Alice\'s OrbitDB database.'), {
+		relaySyncAttempts: attempts
+	});
+}
+
 async function waitForWebRTCPeerConnection(agentA, agentB, peerIdA, peerIdB, timeoutMs = 120_000) {
 	const deadline = Date.now() + timeoutMs;
 
@@ -101,6 +176,10 @@ export async function runCollab01RemoteScenario({
 			text: existingTodoFromA,
 			databaseAddress: result.agents.a.databaseAddress
 		};
+		result.relaySync = await syncDatabaseThroughRelay(
+			result.agents.a,
+			result.agents.a.databaseAddress
+		);
 
 		const webRTCObservation = await waitForWebRTCPeerConnection(
 			agentA,
@@ -179,6 +258,9 @@ export async function runCollab01RemoteScenario({
 		result.evidence.screenshots = ['agent-a-success.png', 'agent-b-success.png'];
 		return result;
 	} catch (error) {
+		if (error && typeof error === 'object' && 'relaySyncAttempts' in error) {
+			result.relaySyncAttempts = error.relaySyncAttempts;
+		}
 		const [diagnosticsA, diagnosticsB] = await Promise.allSettled([
 			agentA.diagnostics(),
 			agentB.diagnostics()
