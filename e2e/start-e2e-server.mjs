@@ -61,6 +61,7 @@ async function main() {
 	if (!existsSync(relayCliPath)) {
 		throw new Error('orbitdb-relay is not installed. Run `pnpm install` first.');
 	}
+	console.log(`✅ E2E relay CLI: ${relayCliPath}`);
 
 	cleanRelayDatastore();
 	relayProcess = startRelay();
@@ -70,6 +71,7 @@ async function main() {
 		env: createPreviewEnv(relayMultiaddr),
 		relayInfo: {
 			mode: 'local',
+			cliPath: relayCliPath,
 			pid: relayProcess?.pid ?? null,
 			multiaddr: relayMultiaddr,
 			httpOrigin: `http://127.0.0.1:${relayPorts.http}`,

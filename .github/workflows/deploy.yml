@@ -49,15 +49,21 @@ jobs:
         id: collaboration-e2e
         run: pnpm exec playwright test e2e/collaboration.spec.js --project=chromium
 
+      - name: Run relay store-and-forward E2E
+        id: relay-store-forward-e2e
+        run: pnpm run test:e2e:relay-store-forward
+
       - name: Summarize collaboration E2E
         if: always()
         env:
           E2E_OUTCOME: ${{ steps.collaboration-e2e.outcome }}
+          STORE_FORWARD_OUTCOME: ${{ steps.relay-store-forward-e2e.outcome }}
         run: |
           {
             echo '## collab01 end-to-end tests'
             echo
             echo "**Result:** ${E2E_OUTCOME}"
+            echo "**Relay store-and-forward:** ${STORE_FORWARD_OUTCOME}"
             echo
             echo 'The Chromium suite starts a local OrbitDB relay and two isolated browser peers (Alice and Bob).'
             echo
@@ -67,6 +73,7 @@ jobs:
             echo '| Alice and Bob receive distinct OrbitDB addresses and identities | Runs |'
             echo '| Bob opens Alice’s database; both wait for the native OrbitDB peer join; Bob’s todo replicates to Alice | Runs |'
             echo '| Both open Bob’s database; both wait for the native OrbitDB peer join; Alice’s todo replicates to Bob | Runs |'
+            echo '| Alice writes; relay proves the exact persisted entry; Alice disconnects; a fresh Bob restores it from the relay | Runs |'
             echo '| Custom entry bridge, coordinator entry transfer, or snapshot fallback | Not used |'
           } >> "$GITHUB_STEP_SUMMARY"
 
