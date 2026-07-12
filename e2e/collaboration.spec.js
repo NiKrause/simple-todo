@@ -56,6 +56,7 @@ test.describe.serial('Todo collaboration', () => {
 	/** @type {Awaited<ReturnType<typeof createAliceAndBob>> | null} */
 	let session = null;
 	const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+	const existingAliceTodo = `alice-${runId}-existing-before-address-exchange`;
 	const bobTodoInAliceDb = `bob-${runId}-todo-in-alice-db`;
 	const aliceTodoInBobDb = `alice-${runId}-todo-in-bob-db`;
 	let aliceDefaultTodoDbAddress = '';
@@ -108,11 +109,13 @@ test.describe.serial('Todo collaboration', () => {
 		await waitForConnectedPeer(bob, alicePeerId, 'Bob -> Alice');
 		await waitForConnectedPeer(alice, bobPeerId, 'Alice -> Bob');
 		await waitForConnectionCount(bob, 2);
+		await addTodo(alice, existingAliceTodo);
 		await loadTodoDb(bob, aliceDefaultTodoDbAddress);
 		await Promise.all([
 			waitForOrbitDBPeer(alice, bobPeerId, 'Alice OrbitDB sync -> Bob'),
 			waitForOrbitDBPeer(bob, alicePeerId, 'Bob OrbitDB sync -> Alice')
 		]);
+		await expectTodoWithReplicationPoll(bob, existingAliceTodo);
 		await addTodo(bob, bobTodoInAliceDb);
 		await expectTodoWithReplicationPoll(alice, bobTodoInAliceDb);
 	});
