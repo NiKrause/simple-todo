@@ -131,6 +131,11 @@ async function expectWebRTCConnection(page, remotePeerId) {
 		)
 		.toBe(true);
 
+	const networkDetails = page.getByTestId('network-details');
+	if ((await networkDetails.getAttribute('open')) === null) {
+		await networkDetails.getByText('Network details', { exact: true }).click();
+	}
+
 	await expect(
 		page.locator(
 			`[data-testid="transport-badge"][data-peer-id="${remotePeerId}"][data-transport="webrtc"]`
