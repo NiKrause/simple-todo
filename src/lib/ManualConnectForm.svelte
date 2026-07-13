@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import ErrorAlert from './ErrorAlert.svelte';
 	import { connectToMultiaddr } from './p2p.js';
+	import { refreshTodoDatabaseSync } from './db-actions.js';
 	import {
 		describeBootstrapMultiaddr,
 		selectValidBrowserBootstrapMultiaddrs
@@ -94,6 +95,7 @@
 						};
 			dispatch('connected', result);
 			if (result.status === 'stable') {
+				await refreshTodoDatabaseSync();
 				customMultiaddr = '';
 			}
 		} catch (error) {

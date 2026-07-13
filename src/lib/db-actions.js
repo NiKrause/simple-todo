@@ -45,6 +45,8 @@ import { relayHttpStatusStore } from './relay-status.js';
  *   peers?: Set<string>
  *   sync?: {
  *     add?: (entry: any) => Promise<unknown>
+ *     start?: () => Promise<unknown>
+ *     stop?: () => Promise<unknown>
  *   }
  *   events: {
  *     on: (event: string, handler: (...args: any[]) => void | Promise<void>) => void
@@ -182,6 +184,18 @@ export async function loadTodos() {
 	});
 
 	return pendingTodosLoad;
+}
+
+/**
+ * Re-announce the active OrbitDB topic after a browser establishes a peer
+ * connection later than the initial database subscription.
+ */
+export async function refreshTodoDatabaseSync() {
+	const todoDB = get(todoDBStore);
+	if (!todoDB?.sync?.stop || !todoDB.sync.start) return;
+
+	await todoDB.sync.stop();
+	await todoDB.sync.start();
 }
 
 async function loadTodosSnapshot() {
