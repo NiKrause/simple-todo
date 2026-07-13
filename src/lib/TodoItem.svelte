@@ -1,3 +1,16 @@
+<script context="module">
+	/** @param {'unknown' | 'pending' | 'pinned' | 'unavailable'} status */
+	export function getReplicationDescription(status) {
+		if (status === 'pending')
+			return 'Waiting for this OrbitDB entry to be replicated by the relay.';
+		if (status === 'pinned')
+			return 'The relay confirmed that this exact OrbitDB entry was replicated and stored locally.';
+		if (status === 'unavailable')
+			return 'No exact relay replication proof is currently available for this entry.';
+		return 'Relay replication status was not observed for this existing entry.';
+	}
+</script>
+
 <script>
 	import { createEventDispatcher } from 'svelte';
 	import { formatPeerId } from './utils.js';
@@ -9,6 +22,8 @@
 	export let assignee = null;
 	export let createdBy = '';
 	export let todoKey = '';
+	/** @type {'unknown' | 'pending' | 'pinned' | 'unavailable'} */
+	export let replicationStatus = 'unknown';
 
 	const dispatch = createEventDispatcher();
 
@@ -25,6 +40,19 @@
 	class="flex items-center justify-between rounded-md border border-gray-200 p-3 hover:bg-gray-50"
 >
 	<div class="flex flex-1 items-center space-x-3">
+		<span
+			class:animate-pulse={replicationStatus === 'pending'}
+			class:bg-blue-500={replicationStatus === 'pending'}
+			class:bg-green-500={replicationStatus === 'pinned'}
+			class:bg-amber-400={replicationStatus === 'unavailable'}
+			class:bg-gray-300={replicationStatus === 'unknown'}
+			class="h-2 w-2 shrink-0 cursor-help rounded-full shadow-sm"
+			role="img"
+			aria-label={getReplicationDescription(replicationStatus)}
+			title={getReplicationDescription(replicationStatus)}
+			data-testid="todo-relay-status"
+			data-status={replicationStatus}
+		></span>
 		<input
 			type="checkbox"
 			checked={completed}

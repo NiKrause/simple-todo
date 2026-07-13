@@ -7,6 +7,7 @@
 	export let description = 'Share this ID with others to assign TODOs to you.';
 	export let loadingMessage = 'Loading...';
 	export let copyable = true;
+	export let compact = false;
 
 	let copied = false;
 
@@ -53,11 +54,11 @@
 	}
 </script>
 
-<div class="rounded-lg bg-white p-6 shadow-md">
-	<h2 class="mb-4 text-xl font-semibold">{title}</h2>
+<div class:rounded-lg={!compact} class:bg-white={!compact} class:p-6={!compact} class:shadow-md={!compact}>
+	<h2 class:mb-4={!compact} class:mb-2={compact} class:text-xl={!compact} class:text-sm={compact} class="font-semibold">{title}</h2>
 	{#if peerId}
-		<div class="relative rounded-md bg-blue-50 p-3">
-			<code class="font-mono text-sm break-all select-all">{formatPeerId(peerId)}</code>
+		<div class="relative rounded-md bg-blue-50" class:p-3={!compact} class:p-2={compact}>
+			<code class="block truncate pr-7 font-mono text-xs select-all" title={peerId}>{formatPeerId(peerId)}</code>
 			{#if copyable}
 				<button
 					on:click={copyToClipboard}
@@ -96,7 +97,7 @@
 				</button>
 			{/if}
 		</div>
-		{#if description}
+		{#if description && !compact}
 			<p class="mt-2 text-sm text-gray-600">{description}</p>
 		{/if}
 		{#if copied}

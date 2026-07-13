@@ -9,6 +9,7 @@
 	} from './bootstrap-multiaddrs.js';
 
 	export let disabled = false;
+	export let compact = false;
 
 	let selectedMultiaddr = '';
 	let customMultiaddr = '';
@@ -113,22 +114,22 @@
 	}
 </script>
 
-<div class="rounded-lg bg-white p-6 shadow-md">
-	<div class="mb-4 flex items-start justify-between gap-4">
+<div class:rounded-lg={!compact} class:bg-white={!compact} class:p-6={!compact} class:shadow-md={!compact}>
+	<div class:mb-4={!compact} class:mb-2={compact} class="flex items-start justify-between gap-4">
 		<div>
-			<h2 class="text-xl font-semibold">Connect To Relay</h2>
-			<p class="mt-1 text-sm text-gray-500">
+			<h2 class:text-xl={!compact} class:text-sm={compact} class="font-semibold">Connect to relay</h2>
+			<p class="mt-1 text-xs text-gray-500">
 				Choose a current browser-reachable relay discovered through Aleph.
 			</p>
 		</div>
 	</div>
 
-	<div class="space-y-4">
+	<div class:space-y-4={!compact} class:space-y-2={compact}>
 		<div class="flex gap-2">
 			<select
 				bind:value={selectedMultiaddr}
 				disabled={disabled || isConnecting || isDiscovering || discoveredMultiaddrs.length === 0}
-				class="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+				class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
 			>
 				{#if isDiscovering}
 					<option value="">Discovering Aleph relays…</option>
@@ -144,13 +145,13 @@
 				type="button"
 				on:click={refreshBootstrapMultiaddrs}
 				disabled={disabled || isConnecting || isDiscovering}
-				class="rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100"
+				class="rounded-md border border-gray-300 px-2 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100"
 			>
 				{isDiscovering ? 'Loading…' : 'Refresh'}
 			</button>
 		</div>
 
-		<label class="flex items-center gap-2 text-sm text-gray-600">
+		<label class="flex items-center gap-2 text-xs text-gray-600">
 			<input
 				type="checkbox"
 				bind:checked={useCustomMultiaddr}
@@ -165,7 +166,7 @@
 				bind:value={customMultiaddr}
 				placeholder="/dns4/example.com/tcp/443/wss/p2p/12D3KooW..."
 				disabled={disabled || isConnecting}
-				class="w-full rounded-md border border-gray-300 px-4 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+				class="w-full rounded-md border border-gray-300 px-2 py-1.5 font-mono text-xs focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
 				on:keydown={handleKeydown}
 			/>
 		{/if}
@@ -204,7 +205,7 @@
 				disabled={disabled ||
 					isConnecting ||
 					!(useCustomMultiaddr ? customMultiaddr.trim() : selectedMultiaddr)}
-				class="rounded-md bg-slate-800 px-6 py-2 font-medium text-white transition-colors hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-gray-400"
+				class="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-gray-400"
 			>
 				{isConnecting ? 'Connecting...' : 'Connect'}
 			</button>

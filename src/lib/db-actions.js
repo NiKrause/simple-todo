@@ -1,5 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import { peerIdStore } from './p2p.js';
+import { relayHttpStatusStore } from './relay-status.js';
 
 /**
  * @typedef {{
@@ -65,11 +66,20 @@ export const todoDBAddressStore = writable('');
 
 // Store for todos
 export const todosStore = writable(/** @type {TodoItem[]} */ ([]));
+/** @typedef {'unknown' | 'pending' | 'pinned' | 'unavailable'} TodoReplicationStatus */
+export const todoReplicationStatusStore = writable(
+	/** @type {Record<string, TodoReplicationStatus>} */ ({})
+);
 
 // Derived store that updates when todos change
 export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
 
 const observedDatabases = new WeakSet();
+/** @type {Promise<void> | null} */
+let pendingTodosLoad = null;
+let todosReloadRequested = false;
+/** @type {any[]} */
+let todoEntriesReceivedDuringLoad = [];
 /**
  * @param {TodoDatabase | null | undefined} todoDB
  * @returns {string}
@@ -104,11 +114,10 @@ export async function initializeDatabase(orbitdb, todoDB) {
 	orbitdbStore.set(orbitdb);
 	setActiveTodoDatabase(todoDB);
 
-	// Load existing todos
-	await loadTodos();
-
-	// Set up event listeners for database changes
+	// OrbitDB's non-indexed keyvalue.all() traverses the complete append-only
+	// history. Hydrate the UI in the background instead of blocking app startup.
 	setupDatabaseListeners(todoDB);
+	void loadTodos();
 }
 
 /**
@@ -156,37 +165,73 @@ export async function loadTodoDatabase(address) {
 
 // Load all todos from the database
 export async function loadTodos() {
+	todosReloadRequested = true;
+	if (pendingTodosLoad) return pendingTodosLoad;
+
+	pendingTodosLoad = (async () => {
+		do {
+			todosReloadRequested = false;
+			await loadTodosSnapshot();
+		} while (todosReloadRequested);
+	})().finally(() => {
+		pendingTodosLoad = null;
+	});
+
+	return pendingTodosLoad;
+}
+
+async function loadTodosSnapshot() {
 	const todoDB = get(todoDBStore);
 	if (!todoDB) return;
 
 	try {
+		const startedAt = performance.now();
 		const allTodos = await todoDB.all();
-		console.log('🔍 Raw database entries:', allTodos); // Add this debug log
+		if (get(todoDBStore) !== todoDB) return;
 
-		// Handle both array and object structures
-		/** @type {TodoItem[]} */
-		let todosArray;
-		todosArray = allTodos.map((/** @type {TodoRecord} */ todo) => {
-			return {
-				id: todo.hash,
-				key: todo.key,
-				...todo.value // Access the nested value property
-			};
-		});
+		const todosArray = allTodos.map((/** @type {TodoRecord} */ todo) => ({
+			id: todo.hash,
+			key: todo.key,
+			...todo.value
+		}));
 
-		// Sort by createdAt descending (newest first)
-		const sortedTodos = todosArray.sort((/** @type {TodoItem} */ a, /** @type {TodoItem} */ b) => {
-			const dateA = new Date(a.createdAt || 0).getTime();
-			const dateB = new Date(b.createdAt || 0).getTime();
-			return dateB - dateA;
-		});
-
-		todosStore.set(sortedTodos);
-		console.log('todos', sortedTodos);
-		console.log('📋 Loaded todos:', sortedTodos.length);
+		todosStore.set(sortTodos(todosArray));
+		const pendingEntries = todoEntriesReceivedDuringLoad;
+		todoEntriesReceivedDuringLoad = [];
+		for (const entry of pendingEntries) applyTodoEntry(entry, false);
+		console.log(
+			`📋 Loaded ${todosArray.length} todos from the OrbitDB history in ${Math.round(performance.now() - startedAt)}ms`
+		);
 	} catch (error) {
 		console.error('❌ Error loading todos:', error);
 	}
+}
+
+/** @param {TodoItem[]} todos */
+function sortTodos(todos) {
+	return todos.sort((a, b) => {
+		const dateA = new Date(a.createdAt || 0).getTime();
+		const dateB = new Date(b.createdAt || 0).getTime();
+		return dateB - dateA;
+	});
+}
+
+/**
+ * @param {any} entry
+ * @param {boolean} [trackDuringLoad=true]
+ */
+function applyTodoEntry(entry, trackDuringLoad = true) {
+	const { op, key, value } = entry?.payload ?? {};
+	if (!key || (op !== 'PUT' && op !== 'DEL')) return false;
+	if (trackDuringLoad && pendingTodosLoad) todoEntriesReceivedDuringLoad.push(entry);
+
+	todosStore.update((todos) => {
+		const withoutPreviousValue = todos.filter((todo) => todo.key !== key);
+		if (op === 'DEL') return withoutPreviousValue;
+
+		return sortTodos([...withoutPreviousValue, { id: entry.hash, key, ...value }]);
+	});
+	return true;
 }
 
 // Set up database event listeners
@@ -199,15 +244,16 @@ function setupDatabaseListeners(todoDB) {
 	observedDatabases.add(todoDB);
 
 	// Listen for new entries being added
-	todoDB.events.on('join', async (_peerId, heads) => {
+	todoDB.events.on('join', (_peerId, heads) => {
 		console.log('📝 Database peer joined:', heads);
-		await loadTodos();
+		void loadTodos();
 	});
 
 	// Listen for entries being updated
-	todoDB.events.on('update', async (_address, entry) => {
+	todoDB.events.on('update', (...args) => {
+		const entry = args.find((value) => value?.payload);
 		console.log('🔄 Entry updated:', entry);
-		await loadTodos();
+		if (!applyTodoEntry(entry)) void loadTodos();
 	});
 }
 
@@ -242,12 +288,58 @@ export async function addTodo(text, assignee = null) {
 			updatedAt: new Date().toISOString()
 		};
 
-		await todoDB.put(todoId, todo);
+		const entryHash = String(await todoDB.put(todoId, todo));
+		todoReplicationStatusStore.update((statuses) => ({ ...statuses, [todoId]: 'pending' }));
+		void verifyRelayReplication(todoId, entryHash, getDatabaseAddress(todoDB));
 		console.log('✅ Todo added:', todoId);
 		return true;
 	} catch (error) {
 		console.error('❌ Error adding todo:', error);
 		return false;
+	}
+}
+
+/**
+ * Ask the connected relay to perform a fresh database sync. A green state is only
+ * assigned when the relay reports this exact OrbitDB entry as its last local record.
+ * @param {string} todoKey
+ * @param {string} entryHash
+ * @param {string} dbAddress
+ */
+async function verifyRelayReplication(todoKey, entryHash, dbAddress) {
+	const { origin } = get(relayHttpStatusStore);
+	if (!origin || !entryHash || !dbAddress) {
+		todoReplicationStatusStore.update((statuses) => ({
+			...statuses,
+			[todoKey]: 'unavailable'
+		}));
+		return;
+	}
+
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 30_000);
+	try {
+		const response = await fetch(`${origin}/pinning/sync`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ dbAddress }),
+			signal: controller.signal
+		});
+		if (!response.ok) throw new Error(`HTTP ${response.status}`);
+		const proof = await response.json();
+		const replicated = proof?.ok === true && proof?.lastRecord?.hash === entryHash;
+		todoReplicationStatusStore.update((statuses) => ({
+			...statuses,
+			[todoKey]: replicated ? 'pinned' : 'unavailable'
+		}));
+	} catch (error) {
+		console.warn('Relay pinning proof unavailable for todo:', todoKey, error);
+		todoReplicationStatusStore.update((statuses) => ({
+			...statuses,
+			[todoKey]: 'unavailable'
+		}));
+	} finally {
+		clearTimeout(timeout);
 	}
 }
 
@@ -266,24 +358,21 @@ export async function deleteTodo(todoId) {
 	try {
 		// If todoId is numeric (array index), we need to find the correct database key
 		let actualTodoId = todoId;
-		if (typeof todoId === 'number' || !isNaN(parseInt(todoId))) {
-			// Get all todos to find the correct database key
-			const allTodos = await todoDB.all();
-			if (Array.isArray(allTodos)) {
-				const todo = allTodos[parseInt(String(todoId), 10)];
-				if (todo && todo.key) {
-					actualTodoId = todo.key; // Use the key, not the hash
-					console.log('🔍 Converted array index', todoId, 'to key:', actualTodoId);
-				}
+		if (typeof todoId === 'number' || !isNaN(parseInt(String(todoId), 10))) {
+			const todo = get(todosStore)[parseInt(String(todoId), 10)];
+			if (todo?.key) {
+				actualTodoId = todo.key;
 			}
 		}
 
 		// Delete the todo using the correct key
 		await todoDB.del(String(actualTodoId));
+		todoReplicationStatusStore.update((statuses) => {
+			const next = { ...statuses };
+			delete next[String(actualTodoId)];
+			return next;
+		});
 		console.log('🗑️ Todo deleted:', todoId, 'actual key:', actualTodoId);
-
-		// Force a reload to ensure the UI is updated
-		await loadTodos();
 
 		return true;
 	} catch (error) {
@@ -309,26 +398,17 @@ export async function toggleTodoComplete(todoId) {
 
 		// If todoId is numeric (array index), we need to find the actual database key
 		let actualTodoId = todoId;
-		if (typeof todoId === 'number' || !isNaN(parseInt(todoId))) {
-			// Get all todos to find the correct database key
-			const allTodos = await todoDB.all();
-			if (Array.isArray(allTodos)) {
-				const todo = allTodos[parseInt(String(todoId), 10)];
-				if (todo && todo.key) {
-					actualTodoId = todo.key;
-					console.log('🔍 Converted array index', todoId, 'to key:', actualTodoId);
-				}
+		if (typeof todoId === 'number' || !isNaN(parseInt(String(todoId), 10))) {
+			const todo = get(todosStore)[parseInt(String(todoId), 10)];
+			if (todo?.key) {
+				actualTodoId = todo.key;
 			}
 		}
 
 		const existingTodo = await todoDB.get(String(actualTodoId));
-		console.log('🔍 Retrieved todo from database:', existingTodo); // Add this debug log
 
 		if (!existingTodo) {
 			console.error('❌ Todo not found:', todoId, 'actual ID:', actualTodoId);
-			// Let's also log all available todos to see what's in the database
-			const allTodos = await todoDB.all();
-			console.log('🔍 All available todos in database:', allTodos);
 			return false;
 		}
 
@@ -342,7 +422,12 @@ export async function toggleTodoComplete(todoId) {
 			updatedAt: new Date().toISOString()
 		};
 
-		await todoDB.put(String(actualTodoId), updatedTodo);
+		const entryHash = String(await todoDB.put(String(actualTodoId), updatedTodo));
+		todoReplicationStatusStore.update((statuses) => ({
+			...statuses,
+			[String(actualTodoId)]: 'pending'
+		}));
+		void verifyRelayReplication(String(actualTodoId), entryHash, getDatabaseAddress(todoDB));
 		console.log('✅ Todo toggled:', todoId, updatedTodo.completed);
 		return true;
 	} catch (error) {
@@ -380,7 +465,9 @@ export async function updateTodoAssignee(todoId, assignee) {
 			updatedAt: new Date().toISOString()
 		};
 
-		await todoDB.put(todoId, updatedTodo);
+		const entryHash = String(await todoDB.put(todoId, updatedTodo));
+		todoReplicationStatusStore.update((statuses) => ({ ...statuses, [todoId]: 'pending' }));
+		void verifyRelayReplication(todoId, entryHash, getDatabaseAddress(todoDB));
 		console.log('✅ Todo assignee updated:', todoId, assignee);
 		return true;
 	} catch (error) {

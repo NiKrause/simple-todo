@@ -52,7 +52,7 @@ const INITIALIZATION_STEP_DEFINITIONS = [
 	{
 		label: 'Local todos',
 		description:
-			'Reads the available todo records from the local OrbitDB state, sorts them and updates the application.'
+			'Connects the local todo store and starts hydrating it from OrbitDB in the background without blocking the application.'
 	}
 ];
 

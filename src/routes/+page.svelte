@@ -177,7 +177,15 @@
 		</div>
 	</header>
 
-	<P2PStatusNav initialization={$initializationStore} libp2p={$libp2pStore} />
+	<P2PStatusNav initialization={$initializationStore} libp2p={$libp2pStore} peerId={myPeerId}>
+		<ManualConnectForm
+			compact
+			disabled={!$initializationStore.isInitialized}
+			on:connected={handleManualConnect}
+		/>
+		<ConnectedPeers compact bind:this={connectedPeersRef} libp2p={$libp2pStore} />
+		<PeerIdCard compact peerId={myPeerId} />
+	</P2PStatusNav>
 
 	{#if error || $initializationStore.error}
 		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
@@ -189,19 +197,6 @@
 	<!-- TODO List -->
 	<TodoList todos={$todosStore} on:delete={handleDelete} on:toggleComplete={handleToggleComplete} />
 
-	<!-- P2P Status -->
-	<div class="grid gap-6 md:grid-cols-2">
-		<ManualConnectForm
-			disabled={!$initializationStore.isInitialized}
-			on:connected={handleManualConnect}
-		/>
-
-		<!-- Connected Peers -->
-		<ConnectedPeers bind:this={connectedPeersRef} libp2p={$libp2pStore} />
-
-		<!-- My Identity -->
-		<PeerIdCard peerId={myPeerId} />
-	</div>
 </main>
 
 <!-- Floating Sponsor Relay FAB -->

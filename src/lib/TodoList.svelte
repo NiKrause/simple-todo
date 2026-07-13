@@ -1,6 +1,7 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
 	import TodoItem from './TodoItem.svelte';
+	import { todoReplicationStatusStore } from './db-actions.js';
 
 	/** @typedef {{ id: string, text: string, completed: boolean, assignee: string | null, createdBy: string, key: string }} TodoItemData */
 
@@ -37,6 +38,7 @@
 					{completed}
 					{assignee}
 					{createdBy}
+					replicationStatus={$todoReplicationStatusStore[key] ?? 'unknown'}
 					todoKey={key}
 					on:delete={handleDelete}
 					on:toggleComplete={handleToggleComplete}
