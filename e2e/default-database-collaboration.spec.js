@@ -1,14 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://simple-todo.le-space.de' : '/';
+const testUrl = '/';
 const collaborationTimeout = 90000;
 
 test.describe('Default todo database collaboration', () => {
-	test.skip(
-		!!process.env.BROWSERSTACK_BUILD_NAME,
-		'Default database collaboration requires the local relay-backed Playwright server.'
-	);
-
 	test('Alice and Bob share the default OrbitDB todo list', async ({ browser }) => {
 		test.setTimeout(collaborationTimeout * 3);
 

@@ -10,19 +10,19 @@ import { autoNAT } from '@libp2p/autonat';
 import { gossipsub } from '@libp2p/gossipsub';
 import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
 import { bootstrap } from '@libp2p/bootstrap';
-import { discoverAlephBootstrapMultiaddrs } from '@le-space/aleph-bootstrap';
 import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
-import { multiaddr } from '@multiformats/multiaddr';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
 import { getWebRTCEnabled } from './webrtc-settings.js';
+import {
+	parseBootstrapMultiaddrs,
+	selectValidBrowserBootstrapMultiaddrs
+} from './bootstrap-multiaddrs.js';
 
 // Environment variables
 const RELAY_BOOTSTRAP_ADDR_DEV =
 	import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV ||
 	'/ip4/127.0.0.1/tcp/4001/ws/p2p/12D3KooWAJjbRkp8FPF5MKgMU53aUTxWkqvDrs4zc1VMbwRwfsbE';
-const RELAY_BOOTSTRAP_ADDR_PROD =
-	import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_PROD ||
-	'/dns4/pill-execute-neither-suspect.2n6.me/tcp/443/tls/ws/p2p/12D3KooWSc3Sqr3Q7RGJAFBz5i7WTTC5kzunnm2tvXVcSwTEtUTP';
+const RELAY_BOOTSTRAP_ADDR_PROD = import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_PROD || '';
 const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discovery._p2p._pubsub')
 	.split(',')
 	.map((/** @type {string} */ t) => t.trim());
@@ -45,78 +45,6 @@ const RELAY_BOOTSTRAP_ADDR = (isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_B
 console.log('RELAY_BOOTSTRAP_ADDR', RELAY_BOOTSTRAP_ADDR);
 
 /**
- * Prefer browser-safe transports that match the transports this app actually enables.
- *
- * @param {string} addr
- * @returns {boolean}
- */
-function isSupportedBrowserBootstrapMultiaddr(addr) {
-	const normalized = addr.toLowerCase();
-
-	return (
-		normalized.includes('/tls/ws') ||
-		normalized.includes('/ws') ||
-		normalized.includes('/wss') ||
-		normalized.includes('/webrtc-direct')
-	);
-}
-
-/**
- * @param {string} addr
- * @returns {number}
- */
-function rankBrowserBootstrapMultiaddr(addr) {
-	const normalized = addr.toLowerCase();
-
-	if (normalized.includes('/tcp/443/') && normalized.includes('/tls/ws')) return 0;
-	if (normalized.includes('/tls/ws')) return 1;
-	if (normalized.includes('/wss')) return 2;
-	if (normalized.includes('/ip4/127.0.0.1/') && normalized.includes('/ws')) return 3;
-	if (normalized.includes('/ws')) return 4;
-	if (normalized.includes('/webrtc-direct')) return 5;
-	return 10;
-}
-
-/**
- * @param {string[]} addrs
- * @returns {string[]}
- */
-function selectBrowserBootstrapMultiaddrs(addrs) {
-	return [...new Set(addrs)]
-		.filter(isSupportedBrowserBootstrapMultiaddr)
-		.sort((a, b) => rankBrowserBootstrapMultiaddr(a) - rankBrowserBootstrapMultiaddr(b));
-}
-
-/**
- * Ensure bootstrap candidates are parseable multiaddrs and include a peer id,
- * which @libp2p/bootstrap requires up front.
- *
- * @param {string[]} addrs
- * @returns {string[]}
- */
-function selectValidBootstrapPeerMultiaddrs(addrs) {
-	return selectBrowserBootstrapMultiaddrs(addrs).filter((addr) => {
-		try {
-			multiaddr(addr);
-			return extractPeerIdFromMultiaddr(addr) != null;
-		} catch (error) {
-			console.warn('Ignoring invalid bootstrap multiaddr:', addr, error);
-			return false;
-		}
-	});
-}
-
-/**
- * @param {string} addr
- * @returns {string | null}
- */
-function extractPeerIdFromMultiaddr(addr) {
-	const parts = addr.split('/').filter(Boolean);
-	const peerIndex = parts.findIndex((part) => part === 'p2p' || part === 'ipfs');
-	return peerIndex >= 0 ? parts[peerIndex + 1] || null : null;
-}
-
-/**
  * @param {unknown | null} [privateKey=null]
  * @returns {Promise<any>}
  */
@@ -132,23 +60,12 @@ export async function createLibp2pConfig(privateKey = null) {
 		}
 	}
 
-	const discoveredBootstrapMultiaddrs = isDevelopment
-		? []
-		: await discoverAlephBootstrapMultiaddrs({ browserDialableOnly: true }).catch((error) => {
-				console.warn('Failed to discover Aleph bootstrap multiaddrs:', error);
-				return [];
-			});
-	const preferredDiscoveredBootstrapMultiaddrs = selectValidBootstrapPeerMultiaddrs(
-		discoveredBootstrapMultiaddrs
+	const relayBootstrapAddrs = selectValidBrowserBootstrapMultiaddrs(
+		parseBootstrapMultiaddrs(RELAY_BOOTSTRAP_ADDR.join(','))
 	);
-	const preferredFallbackBootstrapMultiaddrs =
-		selectValidBootstrapPeerMultiaddrs(RELAY_BOOTSTRAP_ADDR);
-	const relayBootstrapAddrs =
-		preferredDiscoveredBootstrapMultiaddrs.length > 0
-			? preferredDiscoveredBootstrapMultiaddrs
-			: preferredFallbackBootstrapMultiaddrs.length > 0
-				? preferredFallbackBootstrapMultiaddrs
-				: RELAY_BOOTSTRAP_ADDR;
+	if (relayBootstrapAddrs.length === 0) {
+		throw new Error('No valid browser-dialable relay bootstrap multiaddresses are configured.');
+	}
 	const alephBootstrap = bootstrap({ list: relayBootstrapAddrs });
 	const webRTCEnabled = getWebRTCEnabled();
 

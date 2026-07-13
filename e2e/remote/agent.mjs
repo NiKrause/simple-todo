@@ -1,5 +1,3 @@
-import { expect } from '@playwright/test';
-
 const DEFAULT_TIMEOUT = 120_000;
 
 export class TodoBrowserAgent {
@@ -26,7 +24,15 @@ export class TodoBrowserAgent {
 			await this.page.getByRole('button', { name: 'Proceed to Test the App' }).click();
 		}
 
-		await expect(this.todoInput()).toBeEnabled({ timeout: this.timeout });
+		await this.todoInput().waitFor({ state: 'visible', timeout: this.timeout });
+		await this.page.waitForFunction(
+			() => {
+				const input = document.querySelector('input[placeholder="What needs to be done?"]');
+				return input instanceof HTMLInputElement && !input.disabled;
+			},
+			undefined,
+			{ timeout: this.timeout }
+		);
 		await this.page.waitForFunction(
 			() => typeof window.__simpleTodoDiagnostics?.getPeerId?.() === 'string',
 			undefined,
@@ -68,7 +74,9 @@ export class TodoBrowserAgent {
 	}
 
 	async waitForTodo(text) {
-		await expect(this.page.getByText(text, { exact: true })).toBeVisible({ timeout: this.timeout });
+		await this.page
+			.getByText(text, { exact: true })
+			.waitFor({ state: 'visible', timeout: this.timeout });
 	}
 
 	async screenshot(path) {
@@ -91,7 +99,7 @@ export class TodoBrowserAgent {
 	}
 
 	todoInput() {
-		return this.page.getByPlaceholder('What needs to be done?');
+		return this.page.getByRole('textbox', { name: 'What needs to be done?' });
 	}
 
 	async close() {

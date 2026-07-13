@@ -4,15 +4,7 @@ test.describe('Consent Screen', () => {
 	test('should display consent modal and allow proceeding after checking all boxes', async ({
 		page
 	}) => {
-		// Navigate to the app - use deployed URL for BrowserStack, baseURL for local
-		const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://simple-todo.le-space.de' : '/';
-		await page.goto(testUrl);
-
-		// Clear localStorage for BrowserStack tests to ensure modal appears
-		if (process.env.BROWSERSTACK_BUILD_NAME) {
-			await page.evaluate(() => localStorage.clear());
-			await page.reload();
-		}
+		await page.goto('/');
 
 		// Check that the consent modal is visible
 		const modal = page.locator('div.fixed.inset-0.z-50');
@@ -82,24 +74,14 @@ test.describe('Consent Screen', () => {
 
 		// Check for the loading spinner or main app content
 		const loadingSpinner = page.locator('text=Initializing P2P connection');
-		const addTodoForm = page.locator(
-			'input[placeholder*="todo"], input[placeholder*="Todo"], input[placeholder*="task"]'
-		);
+		const addTodoForm = page.getByRole('textbox', { name: 'What needs to be done?' });
 
 		// Either loading spinner should be visible, or the todo form should be visible
 		await expect(loadingSpinner.or(addTodoForm)).toBeVisible();
 	});
 
 	test('should remember consent decision when checkbox is checked', async ({ page }) => {
-		// Navigate to the app - use deployed URL for BrowserStack, baseURL for local
-		const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://simple-todo.le-space.de' : '/';
-		await page.goto(testUrl);
-
-		// Clear localStorage for BrowserStack tests to ensure modal appears
-		if (process.env.BROWSERSTACK_BUILD_NAME) {
-			await page.evaluate(() => localStorage.clear());
-			await page.reload();
-		}
+		await page.goto('/');
 
 		// Check the "Don't show this again" checkbox
 		const rememberCheckbox = page
@@ -154,15 +136,7 @@ test.describe('Consent Screen', () => {
 	});
 
 	test('should display all required consent information', async ({ page }) => {
-		// Navigate to the app - use deployed URL for BrowserStack, baseURL for local
-		const testUrl = process.env.BROWSERSTACK_BUILD_NAME ? 'https://simple-todo.le-space.de' : '/';
-		await page.goto(testUrl);
-
-		// Clear localStorage for BrowserStack tests to ensure modal appears
-		if (process.env.BROWSERSTACK_BUILD_NAME) {
-			await page.evaluate(() => localStorage.clear());
-			await page.reload();
-		}
+		await page.goto('/');
 
 		// Check that all expected features are listed
 		const expectedFeatures = [

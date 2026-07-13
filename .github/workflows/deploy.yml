@@ -100,9 +100,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Resolve production bootstrap snapshot
+        env:
+          RELAY_BOOTSTRAP_OVERRIDE: ${{ inputs.relay_bootstrap_addr || secrets.RELAY_BOOTSTRAP_ADDR_PROD || '' }}
+        run: node scripts/resolve-aleph-bootstrap.mjs
+
       - name: Build
         env:
-          VITE_RELAY_BOOTSTRAP_ADDR_PROD: ${{ inputs.relay_bootstrap_addr || secrets.RELAY_BOOTSTRAP_ADDR_PROD || '' }}
           VITE_NODE_ENV: production
           VITE_APP_BRANCH: main
         run: pnpm build

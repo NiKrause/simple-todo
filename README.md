@@ -62,8 +62,9 @@ git clone https://github.com/NiKrause/simple-todo.git
 # checkout main branch
 git checkout main
 
-# run (like this you don't need to cut and paste anything)
-./tutorial-01.js
+# install dependencies and start the development server
+pnpm install
+pnpm dev
 ```
 
 ## 🛰️ Local Relay
