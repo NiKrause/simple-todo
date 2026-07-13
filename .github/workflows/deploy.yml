@@ -102,7 +102,9 @@ jobs:
 
       - name: Resolve production bootstrap snapshot
         env:
-          RELAY_BOOTSTRAP_OVERRIDE: ${{ inputs.relay_bootstrap_addr || secrets.RELAY_BOOTSTRAP_ADDR_PROD || '' }}
+          # Normal deployments discover the current Aleph relays. Only an explicit
+          # workflow-dispatch input may override that snapshot.
+          RELAY_BOOTSTRAP_OVERRIDE: ${{ inputs.relay_bootstrap_addr || '' }}
         run: node scripts/resolve-aleph-bootstrap.mjs
 
       - name: Build
