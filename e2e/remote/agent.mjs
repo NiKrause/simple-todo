@@ -77,6 +77,26 @@ export class TodoBrowserAgent {
 		return this.diagnostics();
 	}
 
+	async waitForPublicDialAddress() {
+		await this.page.waitForFunction(
+			() => {
+				const peerId = window.__simpleTodoDiagnostics?.getPeerId?.();
+				return (window.__simpleTodoDiagnostics?.getMultiaddrs?.() ?? []).some(
+					(address) =>
+						address.endsWith(`/p2p/${peerId}`) &&
+						address.includes('/p2p-circuit/') &&
+						(/\/dns[46]\//.test(address) ||
+							/\/ip4\/(?!127\.)/.test(address) ||
+							/\/ip6\//.test(address))
+				);
+			},
+			undefined,
+			{ timeout: this.timeout, polling: 1_000 }
+		);
+
+		return this.diagnostics();
+	}
+
 	async connectToMultiaddr(address) {
 		const networkDetails = this.page.getByTestId('network-details');
 		if ((await networkDetails.getAttribute('open')) === null) {

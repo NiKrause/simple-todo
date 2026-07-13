@@ -46,6 +46,7 @@ export async function runMainRemoteScenario({
 				agentA.waitForPublicRelayConnection(),
 				agentB.waitForPublicRelayConnection()
 			]);
+			await Promise.all([agentA.waitForPublicDialAddress(), agentB.waitForPublicDialAddress()]);
 		}
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
