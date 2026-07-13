@@ -128,7 +128,11 @@ export async function createLibp2pConfig(privateKey = null) {
 			...(webRTCEnabled ? { dcutr: dcutr() } : {}),
 			pubsub: gossipsub({
 				emitSelf: false,
-				allowPublishToZeroTopicPeers: true
+				allowPublishToZeroTopicPeers: true,
+				// Browser peers commonly meet over circuit-relay connections, which
+				// libp2p marks as limited. OrbitDB sync depends on gossipsub running
+				// on those connections so it can exchange topic subscriptions/heads.
+				runOnLimitedConnection: true
 			})
 		}
 	};
