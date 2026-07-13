@@ -3,6 +3,7 @@
 
 	export let mnemonic = '';
 	export let databaseAddress = '';
+	export let embedded = false;
 
 	let copied = false;
 	const dispatch = createEventDispatcher();
@@ -16,10 +17,42 @@
 </script>
 
 <details
-	class="mb-6 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm"
+	class="group"
+	class:mb-6={!embedded}
+	class:rounded-lg={!embedded}
+	class:border={!embedded}
+	class:border-gray-200={!embedded}
+	class:bg-white={!embedded}
+	class:px-4={!embedded}
+	class:py-3={!embedded}
+	class:shadow-sm={!embedded}
+	class:border-t={embedded}
+	class:border-gray-100={embedded}
+	class:pt-2={embedded}
 	data-testid="shared-list-details"
 >
-	<summary class="cursor-pointer text-sm font-semibold text-gray-700">Shared list</summary>
+	<summary
+		class="flex cursor-pointer list-none items-center gap-2 rounded px-1 py-1 text-xs font-medium text-gray-600 outline-none hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-blue-500 [&::-webkit-details-marker]:hidden"
+	>
+		<svg
+			class="h-3.5 w-3.5 transition-transform group-open:rotate-90"
+			viewBox="0 0 20 20"
+			fill="currentColor"
+			aria-hidden="true"
+		>
+			<path
+				fill-rule="evenodd"
+				d="M7.2 4.7a1 1 0 011.4 0l4.6 4.6a1 1 0 010 1.4l-4.6 4.6a1 1 0 11-1.4-1.4l3.9-3.9-3.9-3.9a1 1 0 010-1.4z"
+				clip-rule="evenodd"
+			/>
+		</svg>
+		<span>Shared list</span>
+		{#if mnemonic}
+			<code class="hidden min-w-0 truncate font-mono font-normal text-gray-400 sm:inline"
+				>· {mnemonic}</code
+			>
+		{/if}
+	</summary>
 	<div class="mt-3 border-t border-gray-100 pt-3">
 		<p class="text-xs text-gray-500">Public mnemonic / OrbitDB database name</p>
 		<div class="mt-1 flex items-center gap-2 rounded-md bg-blue-50 p-2">
@@ -42,7 +75,11 @@
 			>
 		{/if}
 		<p class="mt-2 text-xs text-amber-700">
-			Anyone who knows this share code can discover and edit this public list.
+			Anyone who knows this share code can open the same public database and edit it once connected.
+		</p>
+		<p class="mt-1 text-xs text-gray-500">
+			The mnemonic selects the same database. Live replication also requires a connection to
+			another browser peer.
 		</p>
 		<button
 			type="button"

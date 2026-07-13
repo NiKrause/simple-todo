@@ -50,7 +50,12 @@ test.describe('Spanish mnemonic shared todo lists', () => {
 			);
 			for (const details of [aliceDetails, bobDetails, isolatedDetails]) {
 				await expect(details).not.toHaveAttribute('open', '');
+				await expect(details).toBeVisible();
+				await expect(details.locator('xpath=ancestor::nav[@data-testid="p2p-status-nav"]')).toHaveCount(
+					1
+				);
 			}
+			await expect(alice.getByTestId('network-details')).not.toHaveAttribute('open', '');
 			await aliceDetails.getByText('Shared list', { exact: true }).click();
 			await bobDetails.getByText('Shared list', { exact: true }).focus();
 			await bob.keyboard.press('Enter');

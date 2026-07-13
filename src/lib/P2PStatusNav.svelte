@@ -330,4 +330,6 @@
 			</div>
 		</details>
 	{/if}
+
+	<slot name="shared-list" />
 </nav>

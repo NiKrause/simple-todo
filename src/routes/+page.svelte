@@ -237,18 +237,20 @@
 			<PeerIdCard compact peerId={myPeerId} />
 			<OwnMultiaddrs libp2p={$libp2pStore} />
 		</div>
+		<svelte:fragment slot="shared-list">
+			{#if $initializationStore.isInitialized && activeMnemonic}
+				<SharedListDetails
+					embedded
+					mnemonic={activeMnemonic}
+					databaseAddress={$todoDBAddressStore}
+					on:change={() => {
+						selectedMnemonic = activeMnemonic;
+						showModal = true;
+					}}
+				/>
+			{/if}
+		</svelte:fragment>
 	</P2PStatusNav>
-
-	{#if $initializationStore.isInitialized && activeMnemonic}
-		<SharedListDetails
-			mnemonic={activeMnemonic}
-			databaseAddress={$todoDBAddressStore}
-			on:change={() => {
-				selectedMnemonic = activeMnemonic;
-				showModal = true;
-			}}
-		/>
-	{/if}
 
 	{#if error || $initializationStore.error}
 		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
