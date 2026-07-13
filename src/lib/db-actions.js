@@ -45,6 +45,8 @@ import { relayHttpStatusStore } from './relay-status.js';
  *   peers?: Set<string>
  *   sync?: {
  *     add?: (entry: any) => Promise<unknown>
+ *     start?: () => Promise<unknown>
+ *     stop?: () => Promise<unknown>
  *   }
  *   events: {
  *     on: (event: string, handler: (...args: any[]) => void | Promise<void>) => void
@@ -76,6 +78,7 @@ export const todoReplicationStatusStore = writable(
 export const todosCountStore = derived(todosStore, ($todos) => $todos.length);
 
 const observedDatabases = new WeakSet();
+const relayProofsInFlight = new Set();
 /** @type {Promise<void> | null} */
 let pendingTodosLoad = null;
 let todosReloadRequested = false;
@@ -84,6 +87,7 @@ let todoEntriesReceivedDuringLoad = [];
 // This is a collaborative demo database with an append-only history. Reading an
 // unlimited history can monopolize IndexedDB/IPFS long enough to delay live sync.
 const INITIAL_TODO_LIMIT = 250;
+const RELAY_PROOF_ATTEMPTS = 3;
 /**
  * @param {TodoDatabase | null | undefined} todoDB
  * @returns {string}
@@ -275,7 +279,15 @@ function setupDatabaseListeners(todoDB) {
 	todoDB.events.on('update', (...args) => {
 		const entry = args.find((value) => value?.payload);
 		console.log('🔄 Entry updated:', entry);
-		if (!applyTodoEntry(entry)) void loadTodos();
+		if (!applyTodoEntry(entry)) {
+			void loadTodos();
+			return;
+		}
+
+		const { op, key } = entry?.payload ?? {};
+		if (op === 'PUT' && key && entry?.hash) {
+			scheduleRelayReplicationProof(key, String(entry.hash), getDatabaseAddress(todoDB));
+		}
 	});
 }
 
@@ -311,14 +323,25 @@ export async function addTodo(text, assignee = null) {
 		};
 
 		const entryHash = String(await todoDB.put(todoId, todo));
-		todoReplicationStatusStore.update((statuses) => ({ ...statuses, [todoId]: 'pending' }));
-		void verifyRelayReplication(todoId, entryHash, getDatabaseAddress(todoDB));
+		scheduleRelayReplicationProof(todoId, entryHash, getDatabaseAddress(todoDB));
 		console.log('✅ Todo added:', todoId);
 		return true;
 	} catch (error) {
 		console.error('❌ Error adding todo:', error);
 		return false;
 	}
+}
+
+/** @param {string} todoKey @param {string} entryHash @param {string} dbAddress */
+function scheduleRelayReplicationProof(todoKey, entryHash, dbAddress) {
+	if (relayProofsInFlight.has(todoKey)) return;
+	if (get(todoReplicationStatusStore)[todoKey] === 'pinned') return;
+
+	relayProofsInFlight.add(todoKey);
+	todoReplicationStatusStore.update((statuses) => ({ ...statuses, [todoKey]: 'pending' }));
+	void verifyRelayReplication(todoKey, entryHash, dbAddress).finally(() => {
+		relayProofsInFlight.delete(todoKey);
+	});
 }
 
 /**
@@ -346,50 +369,32 @@ async function verifyRelayReplication(todoKey, entryHash, dbAddress) {
 		return;
 	}
 
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), 30_000);
 	try {
-		console.info('Requesting relay replication proof:', {
-			todoKey,
-			entryHash,
-			dbAddress,
-			endpoint: `${origin}/pinning/sync`
-		});
-		const response = await fetch(`${origin}/pinning/sync`, {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ dbAddress }),
-			signal: controller.signal
-		});
-		const responseText = await response.text();
-		if (!response.ok) {
-			throw new Error(
-				`HTTP ${response.status}${responseText ? `: ${responseText.slice(0, 500)}` : ''}`
-			);
-		}
-		let proof;
-		try {
-			proof = JSON.parse(responseText);
-		} catch {
-			throw new Error(`Relay returned invalid JSON: ${responseText.slice(0, 500)}`);
-		}
-		const replicated = proof?.ok === true && proof?.lastRecord?.hash === entryHash;
-		if (replicated) {
-			console.info('Relay replication proof verified:', { todoKey, entryHash });
-		} else {
+		for (let attempt = 1; attempt <= RELAY_PROOF_ATTEMPTS; attempt++) {
+			const proof = await requestRelayReplicationProof(origin, dbAddress, todoKey, attempt);
+			const replicated = proof?.ok === true && proof?.lastRecord?.hash === entryHash;
+			if (replicated) {
+				console.info('Relay replication proof verified:', { todoKey, entryHash, attempt });
+				todoReplicationStatusStore.update((statuses) => ({
+					...statuses,
+					[todoKey]: 'pinned'
+				}));
+				return;
+			}
+
 			console.warn('Relay replication proof did not include the expected entry:', {
 				todoKey,
+				attempt,
 				expectedEntryHash: entryHash,
 				reportedEntryHash: proof?.lastRecord?.hash ?? null,
 				relayOk: proof?.ok ?? null,
 				entryCount: proof?.entryCount ?? null,
-				snapshotSource: proof?.snapshotSource ?? null,
-				proof
+				snapshotSource: proof?.snapshotSource ?? null
 			});
 		}
 		todoReplicationStatusStore.update((statuses) => ({
 			...statuses,
-			[todoKey]: replicated ? 'pinned' : 'unavailable'
+			[todoKey]: 'unavailable'
 		}));
 	} catch (error) {
 		console.warn('Relay pinning proof unavailable for todo:', todoKey, error);
@@ -397,6 +402,49 @@ async function verifyRelayReplication(todoKey, entryHash, dbAddress) {
 			...statuses,
 			[todoKey]: 'unavailable'
 		}));
+	}
+}
+
+/** @param {string} origin @param {string} dbAddress @param {string} todoKey @param {number} attempt */
+async function requestRelayReplicationProof(origin, dbAddress, todoKey, attempt) {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 30_000);
+	try {
+		console.info('Requesting relay replication proof:', {
+			todoKey,
+			attempt,
+			dbAddress,
+			endpoint: `${origin}/pinning/sync`
+		});
+		const responsePromise = fetch(`${origin}/pinning/sync`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ dbAddress }),
+			signal: controller.signal
+		});
+
+		// The relay may already be subscribed for discovery before OrbitDB installs
+		// its heads handler. Re-subscribing here makes OrbitDB perform its native
+		// heads exchange while the relay database is open.
+		await new Promise((resolve) => setTimeout(resolve, 250));
+		const todoDB = get(todoDBStore);
+		if (getDatabaseAddress(todoDB) === dbAddress && todoDB?.sync?.stop && todoDB.sync.start) {
+			await todoDB.sync.stop();
+			await todoDB.sync.start();
+		}
+
+		const response = await responsePromise;
+		const responseText = await response.text();
+		if (!response.ok) {
+			throw new Error(
+				`HTTP ${response.status}${responseText ? `: ${responseText.slice(0, 500)}` : ''}`
+			);
+		}
+		try {
+			return JSON.parse(responseText);
+		} catch {
+			throw new Error(`Relay returned invalid JSON: ${responseText.slice(0, 500)}`);
+		}
 	} finally {
 		clearTimeout(timeout);
 	}

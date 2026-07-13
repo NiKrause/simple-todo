@@ -39,6 +39,7 @@
 
 <div
 	class="flex items-center justify-between rounded-md border border-gray-200 p-3 hover:bg-gray-50"
+	data-testid="todo-item"
 >
 	<div class="flex flex-1 items-center space-x-3">
 		<button

@@ -34,6 +34,10 @@
 	let tooltipStep = null;
 	/** @type {Array<{ event: string, handler: () => void }>} */
 	let connectionListeners = [];
+	const configuredRelayHttpOrigin = String(import.meta.env.VITE_RELAY_HTTP_ORIGIN || '').replace(
+		/\/$/,
+		''
+	);
 
 	$: initializationComplete = initialization?.isInitialized === true;
 	$: connectivitySteps = [
@@ -91,7 +95,9 @@
 			.map((/** @type {any} */ connection) => connection.remoteAddr?.toString().toLowerCase())
 			.filter(Boolean);
 		connectedPeerCount = new Set(
-			connections.map((/** @type {any} */ connection) => connection.remotePeer?.toString()).filter(Boolean)
+			connections
+				.map((/** @type {any} */ connection) => connection.remotePeer?.toString())
+				.filter(Boolean)
 		).size;
 
 		const relayConnection = connections.find((/** @type {any} */ connection) => {
@@ -115,6 +121,10 @@
 		}
 
 		const address = connection.remoteAddr?.toString() ?? '';
+		if (configuredRelayHttpOrigin) {
+			startRelayHealthCheck(configuredRelayHttpOrigin, connection, address);
+			return;
+		}
 		const match = address.match(/\/dns[46]\/([^/]+)\/tcp\/(\d+)\/(?:tls\/)?(?:ws|wss)(?:\/|$)/i);
 		if (!match) {
 			if (relayHealthKey !== address) {
@@ -125,6 +135,11 @@
 		}
 
 		const origin = `https://${match[1]}${match[2] === '443' ? '' : `:${match[2]}`}`;
+		startRelayHealthCheck(origin, connection, address);
+	}
+
+	/** @param {string} origin @param {any} connection @param {string} address */
+	function startRelayHealthCheck(origin, connection, address) {
 		const peerId = connection.remotePeer?.toString() ?? '';
 		const key = `${origin}|${peerId}`;
 		if (key === relayHealthKey) return;
@@ -292,12 +307,20 @@
 					fill="currentColor"
 					aria-hidden="true"
 				>
-					<path fill-rule="evenodd" d="M7.2 4.7a1 1 0 011.4 0l4.6 4.6a1 1 0 010 1.4l-4.6 4.6a1 1 0 11-1.4-1.4l3.9-3.9-3.9-3.9a1 1 0 010-1.4z" clip-rule="evenodd" />
+					<path
+						fill-rule="evenodd"
+						d="M7.2 4.7a1 1 0 011.4 0l4.6 4.6a1 1 0 010 1.4l-4.6 4.6a1 1 0 11-1.4-1.4l3.9-3.9-3.9-3.9a1 1 0 010-1.4z"
+						clip-rule="evenodd"
+					/>
 				</svg>
 				<span>Network details</span>
-				<span class="font-normal text-gray-400">· {connectedPeerCount} {connectedPeerCount === 1 ? 'peer' : 'peers'}</span>
+				<span class="font-normal text-gray-400"
+					>· {connectedPeerCount} {connectedPeerCount === 1 ? 'peer' : 'peers'}</span
+				>
 				{#if peerId}
-					<code class="hidden font-mono font-normal text-gray-400 sm:inline">· {peerId.slice(0, 8)}…{peerId.slice(-6)}</code>
+					<code class="hidden font-mono font-normal text-gray-400 sm:inline"
+						>· {peerId.slice(0, 8)}…{peerId.slice(-6)}</code
+					>
 				{/if}
 			</summary>
 			<div class="mt-3 grid gap-3 border-t border-gray-100 pt-3 lg:grid-cols-3">

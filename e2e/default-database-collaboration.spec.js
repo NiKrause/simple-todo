@@ -29,15 +29,21 @@ test.describe('Default todo database collaboration', () => {
 
 			for (const todo of aliceTodos) {
 				await addTodo(alice, todo);
+				await expectTodo(bob, todo);
+				await Promise.all([expectTodoRelayPinned(alice, todo), expectTodoRelayPinned(bob, todo)]);
 			}
 
 			for (const todo of bobTodos) {
 				await addTodo(bob, todo);
+				await expectTodo(alice, todo);
+				await Promise.all([expectTodoRelayPinned(alice, todo), expectTodoRelayPinned(bob, todo)]);
 			}
 
 			for (const todo of allTodos) {
 				await expectTodo(alice, todo);
 				await expectTodo(bob, todo);
+				await expectTodoRelayPinned(alice, todo);
+				await expectTodoRelayPinned(bob, todo);
 			}
 
 			await Promise.all([expectTodoRelayTooltip(alice), expectTodoRelayTooltip(bob)]);
@@ -92,6 +98,21 @@ async function expectTodoRelayTooltip(page) {
 	await page.getByTestId('todo-relay-status').first().hover();
 	await expect(page.getByTestId('todo-relay-tooltip')).toBeVisible();
 	await expect(page.getByTestId('todo-relay-tooltip')).toContainText('Relay replication:');
+}
+
+/**
+ * Require an exact relay-side OrbitDB replication proof for the newly created entry.
+ * An amber `unavailable` LED or a blue `pending` LED must fail this test.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} text
+ */
+async function expectTodoRelayPinned(page, text) {
+	const todoItem = page.getByTestId('todo-item').filter({
+		has: page.getByText(text, { exact: true })
+	});
+	await expect(todoItem.getByTestId('todo-relay-status')).toHaveAttribute('data-status', 'pinned', {
+		timeout: collaborationTimeout
+	});
 }
 
 /**
