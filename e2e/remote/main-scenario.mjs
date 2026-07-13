@@ -7,6 +7,22 @@ function hasPublicRelayConnection(diagnostics) {
 	);
 }
 
+function selectPublicPeerDialAddress(diagnostics, expectedPeerId) {
+	const candidates = diagnostics.multiaddrs.filter(
+		(address) =>
+			address.endsWith(`/p2p/${expectedPeerId}`) &&
+			(/\/dns[46]\//.test(address) || /\/ip4\/(?!127\.)/.test(address) || /\/ip6\//.test(address))
+	);
+
+	return (
+		candidates.find((address) => address.includes('/p2p-circuit/webrtc/')) ??
+		candidates.find((address) => address.includes('/p2p-circuit/')) ??
+		candidates.find((address) => address.includes('/webrtc-direct/')) ??
+		candidates[0] ??
+		null
+	);
+}
+
 export async function runMainRemoteScenario({
 	browserA,
 	browserB,
@@ -51,6 +67,20 @@ export async function runMainRemoteScenario({
 				throw new Error('At least one browser has no observable public relay connection.');
 			}
 		}
+
+		const addressForB = selectPublicPeerDialAddress(result.agents.b, result.agents.b.peerId);
+		if (!addressForB) {
+			throw new Error(
+				`Agent B did not advertise a public dial address for ${result.agents.b.peerId}.`
+			);
+		}
+		await agentA.connectToMultiaddr(addressForB);
+		await Promise.all([
+			agentA.waitForPeerConnection(result.agents.b.peerId),
+			agentB.waitForPeerConnection(result.agents.a.peerId)
+		]);
+		result.agents.a = await agentA.diagnostics();
+		result.agents.b = await agentB.diagnostics();
 
 		const aToBStarted = Date.now();
 		await agentA.createTodo(todoFromA);

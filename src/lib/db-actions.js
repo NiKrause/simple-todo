@@ -32,6 +32,7 @@ import { relayHttpStatusStore } from './relay-status.js';
  * @typedef {{
  *   address: unknown
  *   all: () => Promise<TodoRecord[]>
+ *   iterator?: (options?: { amount?: number }) => AsyncIterable<TodoRecord>
  *   get: (key: string) => Promise<TodoRecord | TodoValue | null | undefined>
  *   put: (key: string, value: TodoValue) => Promise<unknown>
  *   del: (key: string) => Promise<unknown>
@@ -80,6 +81,9 @@ let pendingTodosLoad = null;
 let todosReloadRequested = false;
 /** @type {any[]} */
 let todoEntriesReceivedDuringLoad = [];
+// This is a collaborative demo database with an append-only history. Reading an
+// unlimited history can monopolize IndexedDB/IPFS long enough to delay live sync.
+const INITIAL_TODO_LIMIT = 250;
 /**
  * @param {TodoDatabase | null | undefined} todoDB
  * @returns {string}
@@ -186,7 +190,7 @@ async function loadTodosSnapshot() {
 
 	try {
 		const startedAt = performance.now();
-		const allTodos = await todoDB.all();
+		const allTodos = await readRecentTodos(todoDB);
 		if (get(todoDBStore) !== todoDB) return;
 
 		const todosArray = allTodos.map((/** @type {TodoRecord} */ todo) => ({
@@ -205,6 +209,24 @@ async function loadTodosSnapshot() {
 	} catch (error) {
 		console.error('❌ Error loading todos:', error);
 	}
+}
+
+/**
+ * Read a bounded current view when OrbitDB exposes its iterator. This keeps
+ * startup and live replication responsive even after years of shared history.
+ * Test doubles and older compatible stores can still fall back to `all()`.
+ *
+ * @param {TodoDatabase} todoDB
+ * @returns {Promise<TodoRecord[]>}
+ */
+async function readRecentTodos(todoDB) {
+	if (!todoDB.iterator) return todoDB.all();
+
+	const todos = [];
+	for await (const todo of todoDB.iterator({ amount: INITIAL_TODO_LIMIT })) {
+		todos.push(todo);
+	}
+	return todos;
 }
 
 /** @param {TodoItem[]} todos */

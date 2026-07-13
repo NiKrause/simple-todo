@@ -8,11 +8,20 @@ export class TodoBrowserAgent {
 		this.timeout = timeout;
 		this.context = null;
 		this.page = null;
+		this.log = [];
 	}
 
 	async open() {
 		this.context = await this.browser.newContext();
 		this.page = await this.context.newPage();
+		this.page.on('console', (message) => {
+			const text = message.text();
+			if (!/(todo|orbitdb|database peer|entry updated|connection stable|pinning)/i.test(text)) {
+				return;
+			}
+			this.log.push(`[${message.type()}] ${text}`);
+			if (this.log.length > 200) this.log.shift();
+		});
 		await this.page.goto(this.appUrl, { waitUntil: 'domcontentloaded', timeout: this.timeout });
 
 		const modal = this.page.locator('div.fixed.inset-0.z-50');
@@ -41,7 +50,7 @@ export class TodoBrowserAgent {
 	}
 
 	async diagnostics() {
-		return this.page.evaluate(() => {
+		const diagnostics = await this.page.evaluate(() => {
 			const diagnostics = window.__simpleTodoDiagnostics;
 			return {
 				peerId: diagnostics?.getPeerId?.() ?? null,
@@ -52,6 +61,7 @@ export class TodoBrowserAgent {
 				userAgent: navigator.userAgent
 			};
 		});
+		return { ...diagnostics, log: this.log.slice(-100) };
 	}
 
 	async waitForPublicRelayConnection() {
@@ -61,6 +71,32 @@ export class TodoBrowserAgent {
 					/\/dns4\/|\/dns6\/|\/ip4\/(?!127\.)|\/ip6\//.test(remoteAddr ?? '')
 				),
 			undefined,
+			{ timeout: this.timeout, polling: 1_000 }
+		);
+
+		return this.diagnostics();
+	}
+
+	async connectToMultiaddr(address) {
+		const networkDetails = this.page.getByTestId('network-details');
+		if ((await networkDetails.getAttribute('open')) === null) {
+			await networkDetails.getByText('Network details', { exact: true }).click();
+		}
+
+		await networkDetails.getByLabel('Use a custom multiaddress').check();
+		await networkDetails
+			.getByPlaceholder('/dns4/example.com/tcp/443/wss/p2p/12D3KooW...')
+			.fill(address);
+		await networkDetails.getByRole('button', { name: 'Connect', exact: true }).click();
+	}
+
+	async waitForPeerConnection(peerId) {
+		await this.page.waitForFunction(
+			(expectedPeerId) =>
+				(window.__simpleTodoDiagnostics?.getConnections?.() ?? []).some(
+					({ remotePeer }) => remotePeer === expectedPeerId
+				),
+			peerId,
 			{ timeout: this.timeout, polling: 1_000 }
 		);
 
