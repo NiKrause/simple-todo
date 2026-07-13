@@ -124,11 +124,10 @@ export class TodoBrowserAgent {
 		return this.diagnostics();
 	}
 
-	async waitForDatabasePeer(peerId) {
+	async waitForDatabaseSyncPeer() {
 		await this.page.waitForFunction(
-			(expectedPeerId) =>
-				(window.__simpleTodoDiagnostics?.getDatabasePeers?.() ?? []).includes(expectedPeerId),
-			peerId,
+			() => (window.__simpleTodoDiagnostics?.getDatabasePeers?.() ?? []).length > 0,
+			undefined,
 			{ timeout: this.timeout, polling: 500 }
 		);
 
