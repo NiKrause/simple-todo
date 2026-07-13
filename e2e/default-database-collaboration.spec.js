@@ -39,6 +39,8 @@ test.describe('Default todo database collaboration', () => {
 				await expectTodo(alice, todo);
 				await expectTodo(bob, todo);
 			}
+
+			await Promise.all([expectTodoRelayTooltip(alice), expectTodoRelayTooltip(bob)]);
 		} finally {
 			await bobContext.close();
 			await aliceContext.close();
@@ -83,6 +85,13 @@ async function expectTodo(page, text) {
 	await expect(page.getByText(text, { exact: true })).toBeVisible({
 		timeout: collaborationTimeout
 	});
+}
+
+/** @param {import('@playwright/test').Page} page */
+async function expectTodoRelayTooltip(page) {
+	await page.getByTestId('todo-relay-status').first().hover();
+	await expect(page.getByTestId('todo-relay-tooltip')).toBeVisible();
+	await expect(page.getByTestId('todo-relay-tooltip')).toContainText('Relay replication:');
 }
 
 /**

@@ -24,6 +24,7 @@
 	export let todoKey = '';
 	/** @type {'unknown' | 'pending' | 'pinned' | 'unavailable'} */
 	export let replicationStatus = 'unknown';
+	let showReplicationTooltip = false;
 
 	const dispatch = createEventDispatcher();
 
@@ -40,19 +41,33 @@
 	class="flex items-center justify-between rounded-md border border-gray-200 p-3 hover:bg-gray-50"
 >
 	<div class="flex flex-1 items-center space-x-3">
-		<span
+		<button
+			type="button"
 			class:animate-pulse={replicationStatus === 'pending'}
 			class:bg-blue-500={replicationStatus === 'pending'}
 			class:bg-green-500={replicationStatus === 'pinned'}
 			class:bg-amber-400={replicationStatus === 'unavailable'}
 			class:bg-gray-300={replicationStatus === 'unknown'}
-			class="h-2 w-2 shrink-0 cursor-help rounded-full shadow-sm"
-			role="img"
+			class="relative inline-flex h-2 w-2 shrink-0 cursor-help rounded-full p-0 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
 			aria-label={getReplicationDescription(replicationStatus)}
-			title={getReplicationDescription(replicationStatus)}
 			data-testid="todo-relay-status"
 			data-status={replicationStatus}
-		></span>
+			on:mouseenter={() => (showReplicationTooltip = true)}
+			on:mouseleave={() => (showReplicationTooltip = false)}
+			on:focus={() => (showReplicationTooltip = true)}
+			on:blur={() => (showReplicationTooltip = false)}
+		>
+			{#if showReplicationTooltip}
+				<span
+					class="pointer-events-none absolute bottom-full left-0 z-30 mb-2 w-max max-w-72 rounded-md bg-slate-800 px-3 py-2 text-xs leading-relaxed text-white shadow-lg"
+					role="tooltip"
+					data-testid="todo-relay-tooltip"
+				>
+					<span class="font-semibold">Relay replication:</span>
+					{getReplicationDescription(replicationStatus)}
+				</span>
+			{/if}
+		</button>
 		<input
 			type="checkbox"
 			checked={completed}

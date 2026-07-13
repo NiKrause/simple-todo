@@ -331,6 +331,14 @@ export async function addTodo(text, assignee = null) {
 async function verifyRelayReplication(todoKey, entryHash, dbAddress) {
 	const { origin } = get(relayHttpStatusStore);
 	if (!origin || !entryHash || !dbAddress) {
+		console.warn('Relay replication proof skipped:', {
+			todoKey,
+			reason: !origin
+				? 'no connected relay HTTP origin'
+				: !entryHash
+					? 'missing OrbitDB entry hash'
+					: 'missing OrbitDB database address'
+		});
 		todoReplicationStatusStore.update((statuses) => ({
 			...statuses,
 			[todoKey]: 'unavailable'
@@ -341,15 +349,44 @@ async function verifyRelayReplication(todoKey, entryHash, dbAddress) {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), 30_000);
 	try {
+		console.info('Requesting relay replication proof:', {
+			todoKey,
+			entryHash,
+			dbAddress,
+			endpoint: `${origin}/pinning/sync`
+		});
 		const response = await fetch(`${origin}/pinning/sync`, {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ dbAddress }),
 			signal: controller.signal
 		});
-		if (!response.ok) throw new Error(`HTTP ${response.status}`);
-		const proof = await response.json();
+		const responseText = await response.text();
+		if (!response.ok) {
+			throw new Error(
+				`HTTP ${response.status}${responseText ? `: ${responseText.slice(0, 500)}` : ''}`
+			);
+		}
+		let proof;
+		try {
+			proof = JSON.parse(responseText);
+		} catch {
+			throw new Error(`Relay returned invalid JSON: ${responseText.slice(0, 500)}`);
+		}
 		const replicated = proof?.ok === true && proof?.lastRecord?.hash === entryHash;
+		if (replicated) {
+			console.info('Relay replication proof verified:', { todoKey, entryHash });
+		} else {
+			console.warn('Relay replication proof did not include the expected entry:', {
+				todoKey,
+				expectedEntryHash: entryHash,
+				reportedEntryHash: proof?.lastRecord?.hash ?? null,
+				relayOk: proof?.ok ?? null,
+				entryCount: proof?.entryCount ?? null,
+				snapshotSource: proof?.snapshotSource ?? null,
+				proof
+			});
+		}
 		todoReplicationStatusStore.update((statuses) => ({
 			...statuses,
 			[todoKey]: replicated ? 'pinned' : 'unavailable'
