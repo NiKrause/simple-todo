@@ -48,7 +48,11 @@ jobs:
 
       - name: Run default database collaboration E2E
         id: default-database-e2e
-        run: pnpm exec playwright test e2e/default-database-collaboration.spec.js --project=chromium
+        run: >-
+          pnpm exec playwright test
+          e2e/default-database-collaboration.spec.js
+          e2e/manual-multiaddr-connection.spec.js
+          --project=chromium
 
       - name: Summarize main E2E
         if: always()
@@ -72,6 +76,7 @@ jobs:
             echo "| Alice creates three todos and Bob creates three todos | ${E2E_OUTCOME} |"
             echo "| Both browsers display all six replicated todos | ${E2E_OUTCOME} |"
             echo "| Relay discovery and browser-to-browser OrbitDB synchronization | ${E2E_OUTCOME} |"
+            echo "| Copy a browser-dialable own multiaddress and connect a second browser with it | ${E2E_OUTCOME} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   build-and-deploy:

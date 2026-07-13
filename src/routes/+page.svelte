@@ -12,6 +12,7 @@
 	import TodoList from '$lib/TodoList.svelte';
 	import ConnectedPeers from '$lib/ConnectedPeers.svelte';
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
+	import OwnMultiaddrs from '$lib/OwnMultiaddrs.svelte';
 	import ManualConnectForm from '$lib/ManualConnectForm.svelte';
 	import { libp2pStore } from '$lib/p2p.js';
 	import SponsorRelayFab from '@le-space/ui/svelte';
@@ -184,7 +185,10 @@
 			on:connected={handleManualConnect}
 		/>
 		<ConnectedPeers compact bind:this={connectedPeersRef} libp2p={$libp2pStore} />
-		<PeerIdCard compact peerId={myPeerId} />
+		<div class="space-y-3">
+			<PeerIdCard compact peerId={myPeerId} />
+			<OwnMultiaddrs libp2p={$libp2pStore} />
+		</div>
 	</P2PStatusNav>
 
 	{#if error || $initializationStore.error}
@@ -196,7 +200,6 @@
 
 	<!-- TODO List -->
 	<TodoList todos={$todosStore} on:delete={handleDelete} on:toggleComplete={handleToggleComplete} />
-
 </main>
 
 <!-- Floating Sponsor Relay FAB -->
