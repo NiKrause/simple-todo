@@ -55,6 +55,7 @@ export class TodoBrowserAgent {
 			return {
 				peerId: diagnostics?.getPeerId?.() ?? null,
 				databaseAddress: diagnostics?.getDatabaseAddress?.() ?? null,
+				databasePeers: diagnostics?.getDatabasePeers?.() ?? [],
 				multiaddrs: diagnostics?.getMultiaddrs?.() ?? [],
 				connections: diagnostics?.getConnections?.() ?? [],
 				appStamp: document.querySelector('header p')?.textContent?.trim() ?? null,
@@ -118,6 +119,17 @@ export class TodoBrowserAgent {
 				),
 			peerId,
 			{ timeout: this.timeout, polling: 1_000 }
+		);
+
+		return this.diagnostics();
+	}
+
+	async waitForDatabasePeer(peerId) {
+		await this.page.waitForFunction(
+			(expectedPeerId) =>
+				(window.__simpleTodoDiagnostics?.getDatabasePeers?.() ?? []).includes(expectedPeerId),
+			peerId,
+			{ timeout: this.timeout, polling: 500 }
 		);
 
 		return this.diagnostics();

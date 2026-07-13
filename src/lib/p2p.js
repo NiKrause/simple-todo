@@ -284,6 +284,7 @@ function getReadOnlyDiagnostics() {
 	return {
 		getPeerId: () => peerId,
 		getDatabaseAddress: () => get(todoDBAddressStore),
+		getDatabasePeers: () => Array.from(todoDB?.peers ?? [], String),
 		getMultiaddrs: () => {
 			const ownAddrs =
 				libp2p?.getMultiaddrs?.().map((/** @type {any} */ addr) => addr.toString()) ?? [];

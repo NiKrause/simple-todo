@@ -80,6 +80,10 @@ export async function runMainRemoteScenario({
 			agentA.waitForPeerConnection(result.agents.b.peerId),
 			agentB.waitForPeerConnection(result.agents.a.peerId)
 		]);
+		await Promise.all([
+			agentA.waitForDatabasePeer(result.agents.b.peerId),
+			agentB.waitForDatabasePeer(result.agents.a.peerId)
+		]);
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
 
