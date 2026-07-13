@@ -101,6 +101,7 @@ let todoDB = /** @type {any} */ (null);
 let defaultTodoDbAddress = '';
 const ORBITDB_IDENTITY_STORAGE_KEY = 'simpleTodo.orbitdbIdentityId';
 const MANUAL_CONNECT_STABILIZATION_MS = 3_000;
+const RELAY_PING_TIMEOUT_MS = 10_000;
 const DISCOVERY_DIAL_PERIODIC_RETRY_MS = 2_000;
 const DISCOVERY_DIAL_RETRY_COOLDOWN_MS = 5_000;
 const DISCOVERY_DIAL_TIMEOUT_MS = 10_000;
@@ -706,6 +707,26 @@ export async function connectToMultiaddr(address) {
 		remotePeer: connection.remotePeer?.toString() ?? null,
 		remoteAddr: connection.remoteAddr?.toString() ?? normalizedAddress
 	};
+}
+
+/**
+ * Verify that a specific relay multiaddress accepts the libp2p ping protocol.
+ * `force` is important here: without it libp2p may reuse another open connection
+ * to the same peer and incorrectly mark this particular address as reachable.
+ *
+ * @param {string} address
+ * @returns {Promise<number>} round-trip time in milliseconds
+ */
+export async function pingMultiaddr(address) {
+	if (!libp2p?.services?.ping) {
+		throw new Error('P2P ping service is not initialized yet.');
+	}
+
+	const target = multiaddr(address.trim());
+	return libp2p.services.ping.ping(target, {
+		force: true,
+		signal: AbortSignal.timeout(RELAY_PING_TIMEOUT_MS)
+	});
 }
 
 /**

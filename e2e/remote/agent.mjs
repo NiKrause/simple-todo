@@ -65,6 +65,26 @@ export class TodoBrowserAgent {
 		return { ...diagnostics, log: this.log.slice(-100) };
 	}
 
+	async waitForReachableRelayOptions() {
+		const select = this.page.getByTestId('reachable-relay-select');
+		await select.waitFor({ state: 'attached', timeout: this.timeout });
+		await this.page.waitForFunction(
+			() =>
+				document.querySelectorAll(
+					'[data-testid="reachable-relay-select"] option[data-ping-verified="true"]'
+				).length > 0,
+			undefined,
+			{ timeout: this.timeout, polling: 500 }
+		);
+
+		return select.locator('option[data-ping-verified="true"]').evaluateAll((options) =>
+			options.map((option) => ({
+				address: option.value,
+				label: option.textContent?.trim() ?? ''
+			}))
+		);
+	}
+
 	async waitForPublicRelayConnection() {
 		await this.page.waitForFunction(
 			() =>

@@ -10,6 +10,7 @@ import { autoNAT } from '@libp2p/autonat';
 import { gossipsub } from '@libp2p/gossipsub';
 import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
 import { bootstrap } from '@libp2p/bootstrap';
+import { ping } from '@libp2p/ping';
 import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
 import { getWebRTCEnabled } from './webrtc-settings.js';
@@ -122,9 +123,9 @@ export async function createLibp2pConfig(privateKey = null) {
 		services: {
 			identify: identify(),
 			identifyPush: identifyPush(),
+			ping: ping({ timeout: 10_000 }),
 			bootstrap: alephBootstrap,
 			autonat: autoNAT(),
-			//   ping: ping(),
 			...(webRTCEnabled ? { dcutr: dcutr() } : {}),
 			pubsub: gossipsub({
 				emitSelf: false,

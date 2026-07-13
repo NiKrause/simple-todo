@@ -41,6 +41,14 @@ export async function runMainRemoteScenario({
 
 	try {
 		await Promise.all([agentA.open(), agentB.open()]);
+		const [relayOptionsA, relayOptionsB] = await Promise.all([
+			agentA.waitForReachableRelayOptions(),
+			agentB.waitForReachableRelayOptions()
+		]);
+		result.evidence.pingVerifiedRelayOptions = {
+			agentA: relayOptionsA,
+			agentB: relayOptionsB
+		};
 		if (process.env.REQUIRE_PUBLIC_RELAY === 'true') {
 			await Promise.all([
 				agentA.waitForPublicRelayConnection(),

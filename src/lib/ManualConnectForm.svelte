@@ -1,8 +1,7 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
-	import { onMount } from 'svelte';
 	import ErrorAlert from './ErrorAlert.svelte';
-	import { connectToMultiaddr } from './p2p.js';
+	import { connectToMultiaddr, pingMultiaddr } from './p2p.js';
 	import {
 		describeBootstrapMultiaddr,
 		selectValidBrowserBootstrapMultiaddrs
@@ -17,6 +16,7 @@
 	/** @type {string[]} */
 	let discoveredMultiaddrs = [];
 	let isDiscovering = true;
+	let discoveredAddressCount = 0;
 	/** @type {string | null} */
 	let discoveryError = null;
 	let isConnecting = false;
@@ -24,14 +24,16 @@
 	let errorMessage = null;
 	/** @type {{ tone: 'success' | 'warning' | 'info', title: string, detail: string } | null} */
 	let statusMessage = null;
+	let hasStartedInitialDiscovery = false;
 
 	const dispatch = createEventDispatcher();
 
 	/** @typedef {{ status: 'stable' | 'dropped', detail: string, remotePeer: string | null, remoteAddr: string }} ManualConnectResult */
 
-	onMount(() => {
+	$: if (!disabled && !hasStartedInitialDiscovery) {
+		hasStartedInitialDiscovery = true;
 		void refreshBootstrapMultiaddrs();
-	});
+	}
 
 	async function refreshBootstrapMultiaddrs() {
 		isDiscovering = true;
@@ -39,7 +41,20 @@
 		try {
 			const { discoverAlephBootstrapMultiaddrs } = await import('@le-space/aleph-bootstrap');
 			const discovered = await discoverAlephBootstrapMultiaddrs({ browserDialableOnly: true });
-			discoveredMultiaddrs = selectValidBrowserBootstrapMultiaddrs(discovered);
+			const candidates = selectValidBrowserBootstrapMultiaddrs(discovered);
+			discoveredAddressCount = candidates.length;
+			const probeResults = await Promise.all(
+				candidates.map(async (address) => {
+					try {
+						await pingMultiaddr(address);
+						return address;
+					} catch (error) {
+						console.warn(`Ignoring unreachable Aleph relay address ${address}:`, error);
+						return null;
+					}
+				})
+			);
+			discoveredMultiaddrs = probeResults.filter((address) => address != null);
 			if (
 				discoveredMultiaddrs.length > 0 &&
 				(!selectedMultiaddr || !discoveredMultiaddrs.includes(selectedMultiaddr))
@@ -48,6 +63,7 @@
 			}
 		} catch (error) {
 			discoveredMultiaddrs = [];
+			discoveredAddressCount = 0;
 			discoveryError = error instanceof Error ? error.message : String(error);
 		} finally {
 			isDiscovering = false;
@@ -134,17 +150,20 @@
 	<div class:space-y-4={!compact} class:space-y-2={compact}>
 		<div class="flex gap-2">
 			<select
+				data-testid="reachable-relay-select"
 				bind:value={selectedMultiaddr}
 				disabled={disabled || isConnecting || isDiscovering || discoveredMultiaddrs.length === 0}
 				class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
 			>
 				{#if isDiscovering}
-					<option value="">Discovering Aleph relays…</option>
+					<option value="">Discovering and pinging Aleph relays…</option>
 				{:else if discoveredMultiaddrs.length === 0}
 					<option value="">No relay addresses discovered</option>
 				{:else}
 					{#each discoveredMultiaddrs as address}
-						<option value={address}>{describeBootstrapMultiaddr(address)}</option>
+						<option value={address} data-ping-verified="true"
+							>{describeBootstrapMultiaddr(address)}</option
+						>
 					{/each}
 				{/if}
 			</select>
@@ -187,7 +206,10 @@
 			/>
 		{:else if !isDiscovering && discoveredMultiaddrs.length === 0}
 			<p class="text-sm text-amber-700">
-				No current browser-dialable relays were found. Refresh or enter a custom multiaddress.
+				{discoveredAddressCount > 0
+					? `None of the ${discoveredAddressCount} discovered relay addresses answered a libp2p ping.`
+					: 'No current browser-dialable relays were found.'}
+				Refresh or enter a custom multiaddress.
 			</p>
 		{/if}
 
