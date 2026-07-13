@@ -19,6 +19,13 @@ test.describe('Default todo database collaboration', () => {
 
 		try {
 			await Promise.all([openReadyApp(alice), openReadyApp(bob)]);
+			const [alicePeerId, bobPeerId] = await Promise.all([getPeerId(alice), getPeerId(bob)]);
+
+			await Promise.all([
+				expectWebRTCConnection(alice, bobPeerId),
+				expectWebRTCConnection(bob, alicePeerId)
+			]);
+			await Promise.all([expectNetworkReady(alice), expectNetworkReady(bob)]);
 
 			for (const todo of aliceTodos) {
 				await addTodo(alice, todo);
@@ -54,6 +61,7 @@ async function openReadyApp(page) {
 
 	await page.getByRole('button', { name: 'Proceed to Test the App' }).click();
 	await expect(modal).not.toBeVisible();
+	await expect(getTodoInput(page)).toBeVisible();
 	await expect(getTodoInput(page)).toBeEnabled({ timeout: collaborationTimeout });
 }
 
@@ -82,4 +90,64 @@ async function expectTodo(page, text) {
  */
 function getTodoInput(page) {
 	return page.getByPlaceholder('What needs to be done?');
+}
+
+/**
+ * @param {import('@playwright/test').Page} page
+ */
+async function getPeerId(page) {
+	await expect
+		.poll(() => page.evaluate(() => window.__simpleTodoE2E?.getPeerId?.() ?? null), {
+			timeout: collaborationTimeout
+		})
+		.toBeTruthy();
+
+	return page.evaluate(() => window.__simpleTodoE2E.getPeerId());
+}
+
+/**
+ * Verify the relay-assisted browser-to-browser WebRTC connection created after
+ * pubsub discovery. The address may still contain /p2p-circuit because the
+ * relay provides signaling; /webrtc identifies the upgraded transport.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string} remotePeerId
+ */
+async function expectWebRTCConnection(page, remotePeerId) {
+	await expect
+		.poll(
+			() =>
+				page.evaluate(
+					(peerId) =>
+						window.__simpleTodoE2E
+							?.getConnections?.()
+							.some(
+								(connection) =>
+									connection.remotePeer === peerId && connection.remoteAddr?.includes('/webrtc')
+							) ?? false,
+					remotePeerId
+				),
+			{ timeout: collaborationTimeout }
+		)
+		.toBe(true);
+
+	await expect(
+		page.locator(
+			`[data-testid="transport-badge"][data-peer-id="${remotePeerId}"][data-transport="webrtc"]`
+		)
+	).toBeVisible({ timeout: collaborationTimeout });
+}
+
+/** @param {import('@playwright/test').Page} page */
+async function expectNetworkReady(page) {
+	const steps = page.getByTestId('p2p-status-step');
+	await expect(steps).toHaveCount(8);
+	await expect(page.locator('[data-testid="p2p-status-step"][data-status="complete"]')).toHaveCount(
+		8,
+		{ timeout: collaborationTimeout }
+	);
+	await expect(page.getByTestId('p2p-status-spinner')).toHaveCount(0);
+
+	await steps.first().hover();
+	await expect(page.getByTestId('p2p-status-tooltip')).toContainText('Network config:');
 }

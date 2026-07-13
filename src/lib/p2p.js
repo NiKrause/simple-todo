@@ -23,14 +23,74 @@ export { setWebRTCEnabled, webrtcEnabledStore };
 export const libp2pStore = writable(/** @type {any} */ (null));
 export const peerIdStore = writable(/** @type {string | null} */ (null));
 
+const INITIALIZATION_STEP_DEFINITIONS = [
+	{
+		label: 'Network config',
+		description:
+			'Validates the configured browser-reachable relay addresses and prepares the libp2p transports and services.'
+	},
+	{
+		label: 'libp2p',
+		description:
+			'Creates and starts the libp2p node, including its peer identity, discovery, relay, WebSocket and WebRTC support.'
+	},
+	{
+		label: 'Helia',
+		description:
+			'Starts the Helia IPFS node on top of libp2p and enables block exchange and HTTP retrieval.'
+	},
+	{
+		label: 'OrbitDB',
+		description:
+			'Loads or creates the persistent OrbitDB identity and initializes OrbitDB using the Helia node.'
+	},
+	{
+		label: 'Database + sync',
+		description:
+			'Opens the shared todo database, loads its local operation log and starts OrbitDB pubsub synchronization.'
+	},
+	{
+		label: 'Local todos',
+		description:
+			'Reads the available todo records from the local OrbitDB state, sorts them and updates the application.'
+	}
+];
+
+/**
+ * @typedef {'pending' | 'active' | 'complete' | 'error'} InitializationStepStatus
+ * @typedef {{ label: string, description: string, status: InitializationStepStatus }} InitializationStep
+ */
+
+/** @param {number} [activeIndex=-1] */
+function createInitializationSteps(activeIndex = -1) {
+	return INITIALIZATION_STEP_DEFINITIONS.map(({ label, description }, index) => ({
+		label,
+		description,
+		status: /** @type {InitializationStepStatus} */ (
+			index < activeIndex ? 'complete' : index === activeIndex ? 'active' : 'pending'
+		)
+	}));
+}
+
 // Add initialization state store
 export const initializationStore = writable(
-	/** @type {{ isInitializing: boolean, isInitialized: boolean, error: string | null }} */ ({
+	/** @type {{ isInitializing: boolean, isInitialized: boolean, error: string | null, steps: InitializationStep[] }} */ ({
 		isInitializing: false,
 		isInitialized: false,
-		error: null
+		error: null,
+		steps: createInitializationSteps()
 	})
 );
+
+/** @param {number} activeIndex */
+function setInitializationProgress(activeIndex) {
+	initializationStore.set({
+		isInitializing: true,
+		isInitialized: false,
+		error: null,
+		steps: createInitializationSteps(activeIndex)
+	});
+}
 
 let libp2p = /** @type {any} */ (null);
 let helia = /** @type {any} */ (null);
@@ -77,10 +137,11 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 
 	try {
 		// Set initialization state
-		initializationStore.set({ isInitializing: true, isInitialized: false, error: null });
+		setInitializationProgress(0);
 
 		// Create libp2p configuration and node
 		const config = await createLibp2pConfig();
+		setInitializationProgress(1);
 		libp2p = await createLibp2p(config);
 		libp2pStore.set(libp2p); // Make available to plugins
 		console.log(`✅ libp2p node created`);
@@ -93,12 +154,15 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 		setupPubsubDiscoveryAutoDial();
 
 		// Create Helia (IPFS) instance
+		setInitializationProgress(2);
 		helia = await createHeliaWithLibp2p(libp2p).start();
 		console.log(`✅ Helia created`);
 
 		// Create OrbitDB instance
+		setInitializationProgress(3);
 		console.log('🛬 Creating OrbitDB instance...');
 		orbitdb = await createOrbitDB({ ipfs: helia, id: getOrCreateOrbitDBIdentityId() });
+		setInitializationProgress(4);
 		todoDB = await openInitialTodoDatabase(options.todoDbAddress);
 
 		console.log('✅ Database opened successfully with OrbitDBAccessController:', {
@@ -108,10 +172,16 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 		});
 
 		// Initialize database stores and actions
+		setInitializationProgress(5);
 		await initializeDatabase(orbitdb, todoDB);
 
 		// Mark initialization as complete
-		initializationStore.set({ isInitializing: false, isInitialized: true, error: null });
+		initializationStore.set({
+			isInitializing: false,
+			isInitialized: true,
+			error: null,
+			steps: createInitializationSteps(INITIALIZATION_STEP_DEFINITIONS.length)
+		});
 		installPublicDiagnostics();
 		installE2ETestHooks();
 		console.log('🎉 P2P initialization completed successfully!');
@@ -120,7 +190,8 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 		initializationStore.set({
 			isInitializing: false,
 			isInitialized: false,
-			error: error instanceof Error ? error.message : String(error)
+			error: error instanceof Error ? error.message : String(error),
+			steps: []
 		});
 		throw error;
 	}
@@ -140,7 +211,7 @@ export async function restartP2P() {
 }
 
 async function stopP2P() {
-	initializationStore.set({ isInitializing: true, isInitialized: false, error: null });
+	setInitializationProgress(0);
 	libp2pStore.set(null);
 	peerIdStore.set(null);
 	peerId = null;

@@ -6,7 +6,7 @@
 	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
 	import ToastNotification from '$lib/ToastNotification.svelte';
-	import LoadingSpinner from '$lib/LoadingSpinner.svelte';
+	import P2PStatusNav from '$lib/P2PStatusNav.svelte';
 	import ErrorAlert from '$lib/ErrorAlert.svelte';
 	import AddTodoForm from '$lib/AddTodoForm.svelte';
 	import TodoList from '$lib/TodoList.svelte';
@@ -177,41 +177,31 @@
 		</div>
 	</header>
 
-	{#if $initializationStore.isInitializing}
-		<LoadingSpinner
-			message="Initializing P2P connection..."
-			submessage="Please wait while we set up the network..."
-			version="{typeof __APP_VERSION__ !== 'undefined'
-				? __APP_VERSION__
-				: '0.0.0'} [{typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]"
-		/>
-	{:else if error || $initializationStore.error}
+	<P2PStatusNav initialization={$initializationStore} libp2p={$libp2pStore} />
+
+	{#if error || $initializationStore.error}
 		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
-	{:else}
-		<!-- Add TODO Form -->
-		<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
+	{/if}
 
-		<!-- TODO List -->
-		<TodoList
-			todos={$todosStore}
-			on:delete={handleDelete}
-			on:toggleComplete={handleToggleComplete}
+	<!-- Add TODO Form -->
+	<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
+
+	<!-- TODO List -->
+	<TodoList todos={$todosStore} on:delete={handleDelete} on:toggleComplete={handleToggleComplete} />
+
+	<!-- P2P Status -->
+	<div class="grid gap-6 md:grid-cols-2">
+		<ManualConnectForm
+			disabled={!$initializationStore.isInitialized}
+			on:connected={handleManualConnect}
 		/>
 
-		<!-- P2P Status -->
-		<div class="grid gap-6 md:grid-cols-2">
-			<ManualConnectForm
-				disabled={!$initializationStore.isInitialized}
-				on:connected={handleManualConnect}
-			/>
+		<!-- Connected Peers -->
+		<ConnectedPeers bind:this={connectedPeersRef} libp2p={$libp2pStore} />
 
-			<!-- Connected Peers -->
-			<ConnectedPeers bind:this={connectedPeersRef} libp2p={$libp2pStore} />
-
-			<!-- My Identity -->
-			<PeerIdCard peerId={myPeerId} />
-		</div>
-	{/if}
+		<!-- My Identity -->
+		<PeerIdCard peerId={myPeerId} />
+	</div>
 </main>
 
 <!-- Floating Sponsor Relay FAB -->
