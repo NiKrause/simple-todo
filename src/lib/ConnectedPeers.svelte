@@ -408,10 +408,29 @@
 	onDestroy(cleanup);
 </script>
 
-<div class:rounded-lg={!compact} class:bg-white={!compact} class:p-6={!compact} class:shadow-md={!compact}>
-	<h2 class:mb-4={!compact} class:mb-2={compact} class:text-xl={!compact} class:text-sm={compact} class="font-semibold">{title} ({$peers.length})</h2>
+<div
+	class:rounded-lg={!compact}
+	class:bg-white={!compact}
+	class:p-6={!compact}
+	class:shadow-md={!compact}
+>
+	<h2
+		class:mb-4={!compact}
+		class:mb-2={compact}
+		class:text-xl={!compact}
+		class:text-sm={compact}
+		class="font-semibold"
+	>
+		{title} ({$peers.length})
+	</h2>
 	{#if $peers.length > 0}
-		<div class="space-y-1.5">
+		<div
+			class:h-28={compact}
+			class:overflow-y-auto={compact}
+			class:pr-1={compact}
+			class="space-y-1.5"
+			data-testid="connected-peers-list"
+		>
 			{#each $peers as peer (peer.peerId)}
 				<div
 					class="flex items-center space-x-2"
@@ -421,7 +440,9 @@
 					{#if showOnlineIndicator}
 						<div class="h-2 w-2 rounded-full bg-green-500" title="Online"></div>
 					{/if}
-					<code class="min-w-0 truncate rounded bg-gray-100 px-2 py-1 text-xs" title={peer.peerId}>{formatPeerId(peer.peerId)}</code>
+					<code class="min-w-0 truncate rounded bg-gray-100 px-2 py-1 text-xs" title={peer.peerId}
+						>{formatPeerId(peer.peerId)}</code
+					>
 					{#each peer.transports as transport (transport)}
 						<TransportBadge {transport} peerId={peer.peerId} />
 					{/each}
@@ -438,6 +459,6 @@
 			{/each}
 		</div>
 	{:else}
-		<p class="text-xs text-gray-500">{emptyMessage}</p>
+		<p class:h-28={compact} class="text-xs text-gray-500">{emptyMessage}</p>
 	{/if}
 </div>

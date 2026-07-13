@@ -114,10 +114,17 @@
 	}
 </script>
 
-<div class:rounded-lg={!compact} class:bg-white={!compact} class:p-6={!compact} class:shadow-md={!compact}>
+<div
+	class:rounded-lg={!compact}
+	class:bg-white={!compact}
+	class:p-6={!compact}
+	class:shadow-md={!compact}
+>
 	<div class:mb-4={!compact} class:mb-2={compact} class="flex items-start justify-between gap-4">
 		<div>
-			<h2 class:text-xl={!compact} class:text-sm={compact} class="font-semibold">Connect to relay</h2>
+			<h2 class:text-xl={!compact} class:text-sm={compact} class="font-semibold">
+				Connect to relay
+			</h2>
 			<p class="mt-1 text-xs text-gray-500">
 				Choose a current browser-reachable relay discovered through Aleph.
 			</p>
@@ -176,6 +183,7 @@
 				error={`Aleph relay discovery failed: ${discoveryError}`}
 				type="warning"
 				title="Relay discovery unavailable"
+				{compact}
 			/>
 		{:else if !isDiscovering && discoveredMultiaddrs.length === 0}
 			<p class="text-sm text-amber-700">
@@ -184,7 +192,7 @@
 		{/if}
 
 		{#if errorMessage}
-			<ErrorAlert error={errorMessage} />
+			<ErrorAlert error={errorMessage} {compact} />
 		{/if}
 
 		{#if statusMessage}
@@ -196,6 +204,7 @@
 						? 'warning'
 						: 'info'}
 				title={statusMessage.title}
+				{compact}
 			/>
 		{/if}
 

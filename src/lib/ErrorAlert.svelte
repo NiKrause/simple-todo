@@ -5,17 +5,21 @@
 	export let type = 'error'; // 'error', 'warning', 'info'
 	export let dismissible = false;
 	export let title = '';
+	export let compact = false;
 
 	let visible = true;
 
-	$: alertClasses = getAlertClasses(type);
+	$: alertClasses = getAlertClasses(type, compact);
 	$: if (error) visible = true;
 
 	/**
 	 * @param {'error' | 'warning' | 'info'} type
+	 * @param {boolean} compact
 	 */
-	function getAlertClasses(type) {
-		const baseClasses = 'px-4 py-3 rounded mb-4 border';
+	function getAlertClasses(type, compact) {
+		const baseClasses = compact
+			? 'break-words px-2 py-2 rounded mb-2 border text-xs leading-4'
+			: 'break-words px-4 py-3 rounded mb-4 border';
 
 		switch (type) {
 			case 'warning':
