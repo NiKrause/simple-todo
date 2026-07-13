@@ -1,9 +1,10 @@
-export const DEFAULT_TODO_DATABASE_NAME = 'simple-todos';
+import { normalizeSpanishMnemonic } from './spanish-mnemonic.js';
 
 /**
- * The main app intentionally gives every browser identity access to the
- * same default database. Identity-specific databases belong to collab01.
+ * The canonical human-readable mnemonic is the OrbitDB database name.
+ * Browser identity remains independent from the shared list selection.
+ * @param {string} mnemonic
  */
-export function getDefaultTodoDatabaseName() {
-	return DEFAULT_TODO_DATABASE_NAME;
+export function getTodoDatabaseName(mnemonic) {
+	return normalizeSpanishMnemonic(mnemonic);
 }

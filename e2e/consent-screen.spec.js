@@ -58,9 +58,7 @@ test.describe('Consent Screen', () => {
 		await expect(replicationTestingCheckbox).toBeChecked();
 
 		// Check that the proceed button is now enabled and text changed
-		const enabledProceedButton = page
-			.locator('button')
-			.filter({ hasText: /Proceed to Test the App/ });
+		const enabledProceedButton = page.locator('button').filter({ hasText: /Open shared list/ });
 		await expect(enabledProceedButton).toBeEnabled();
 
 		// Click the proceed button
@@ -116,8 +114,12 @@ test.describe('Consent Screen', () => {
 		await replicationTestingCheckbox.check();
 
 		// Click proceed
-		const proceedButton = page.locator('button').filter({ hasText: /Proceed to Test the App/ });
+		const proceedButton = page.locator('button').filter({ hasText: /Open shared list/ });
 		await proceedButton.click();
+		const savedMnemonic = await page.evaluate(() =>
+			localStorage.getItem('simpleTodo.sharedListMnemonic.v1')
+		);
+		expect(savedMnemonic).toMatch(/^.+-.+-.+$/);
 
 		// Wait for the app to load
 		await page.waitForTimeout(2000);
@@ -128,6 +130,12 @@ test.describe('Consent Screen', () => {
 		// The consent modal should not appear again
 		const modal = page.locator('div.fixed.inset-0.z-50');
 		await expect(modal).not.toBeVisible({ timeout: 5000 });
+		const sharedListDetails = page.getByTestId('shared-list-details');
+		await expect(sharedListDetails).toBeVisible({ timeout: 30000 });
+		await sharedListDetails.getByText('Shared list', { exact: true }).click();
+		await expect(sharedListDetails.getByTestId('active-shared-list-name')).toHaveText(
+			savedMnemonic ?? ''
+		);
 
 		// Clean up localStorage for next test
 		await page.evaluate(() => {

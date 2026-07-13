@@ -1,0 +1,125 @@
+name: Issue 33 Mnemonic Preview
+
+permissions:
+  contents: read
+  actions: write
+
+on:
+  push:
+    branches: [feat/issue33-spanish-mnemonic]
+  workflow_dispatch:
+    inputs:
+      relay_bootstrap_addr:
+        description: Optional comma-separated production relay multiaddresses
+        required: false
+        default: ''
+      domain:
+        description: Preview custom domain
+        required: false
+        default: collab01.le-space.de
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Test mnemonic isolation and two-browser replication
+        run: pnpm exec playwright test e2e/shared-list-mnemonic.spec.js --project=chromium
+
+  build-and-deploy:
+    needs: e2e
+    runs-on: ubuntu-latest
+    outputs:
+      ipfs_cid: ${{ steps.publish.outputs.ipfs_cid }}
+      ipfs_cid_v0: ${{ steps.publish.outputs.ipfs_cid_v0 }}
+      item_hash: ${{ steps.publish.outputs.item_hash }}
+      store_processed: ${{ steps.publish.outputs.store_processed }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Resolve production bootstrap snapshot
+        env:
+          RELAY_BOOTSTRAP_OVERRIDE: ${{ inputs.relay_bootstrap_addr || '' }}
+        run: node scripts/resolve-aleph-bootstrap.mjs
+      - name: Build mnemonic preview
+        env:
+          VITE_NODE_ENV: production
+          VITE_APP_BRANCH: issue33-mnemonic-preview
+        run: pnpm build
+      - name: Install isolated Aleph deploy tooling
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.22
+      - name: Publish preview to Aleph IPFS
+        id: publish
+        env:
+          ALEPH_VM_MODE: site-publish
+          ALEPH_SITE_DIRECTORY: ${{ github.workspace }}/build
+          ALEPH_SITE_PIN: 'true'
+          ALEPH_SITE_NAME: simple-todo-issue33-mnemonic
+          ALEPH_SITE_CHANNEL: ALEPH-CLOUDSOLUTIONS
+          ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
+        run: |
+          for attempt in 1 2 3; do
+            if node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep $((attempt * 15))
+          done
+
+  link-domain:
+    needs: build-and-deploy
+    if: needs.build-and-deploy.outputs.item_hash != '' && needs.build-and-deploy.outputs.store_processed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.22
+      - name: Link collab01 preview domain
+        env:
+          ALEPH_VM_MODE: site-domain-link
+          ALEPH_SITE_ITEM_HASH: ${{ needs.build-and-deploy.outputs.item_hash }}
+          ALEPH_SITE_IPFS_CID: ${{ needs.build-and-deploy.outputs.ipfs_cid }}
+          ALEPH_SITE_IPFS_CID_V0: ${{ needs.build-and-deploy.outputs.ipfs_cid_v0 }}
+          ALEPH_SITE_DOMAIN: ${{ inputs.domain || 'collab01.le-space.de' }}
+          ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
+          ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
+        run: node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"
+
+  start-remote-replication:
+    needs: link-domain
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start TestingBot replication against the preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh workflow run remote-replication.yml
+          --repo "${{ github.repository }}"
+          --ref feat/issue33-spanish-mnemonic
+          -f app_url=https://collab01.le-space.de
+          -f provider=testingbot

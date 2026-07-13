@@ -323,7 +323,9 @@
 					>
 				{/if}
 			</summary>
-			<div class="mt-3 grid gap-3 border-t border-gray-100 pt-3 lg:grid-cols-3">
+			<div
+				class="mt-3 grid min-w-0 gap-3 border-t border-gray-100 pt-3 lg:grid-cols-3 [&>*]:min-w-0"
+			>
 				<slot />
 			</div>
 		</details>

@@ -11,7 +11,7 @@ export class TodoBrowserAgent {
 		this.log = [];
 	}
 
-	async open() {
+	async open(mnemonic) {
 		this.context = await this.browser.newContext();
 		this.page = await this.context.newPage();
 		this.page.on('console', (message) => {
@@ -30,7 +30,8 @@ export class TodoBrowserAgent {
 			for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
 				await checkbox.check();
 			}
-			await this.page.getByRole('button', { name: 'Proceed to Test the App' }).click();
+			await modal.getByTestId('shared-list-mnemonic-input').fill(mnemonic);
+			await this.page.getByRole('button', { name: 'Open shared list' }).click();
 		}
 
 		await this.todoInput().waitFor({ state: 'visible', timeout: this.timeout });
@@ -54,6 +55,7 @@ export class TodoBrowserAgent {
 			const diagnostics = window.__simpleTodoDiagnostics;
 			return {
 				peerId: diagnostics?.getPeerId?.() ?? null,
+				databaseName: diagnostics?.getDatabaseName?.() ?? null,
 				databaseAddress: diagnostics?.getDatabaseAddress?.() ?? null,
 				databasePeers: diagnostics?.getDatabasePeers?.() ?? [],
 				multiaddrs: diagnostics?.getMultiaddrs?.() ?? [],
@@ -65,24 +67,26 @@ export class TodoBrowserAgent {
 		return { ...diagnostics, log: this.log.slice(-100) };
 	}
 
-	async waitForReachableRelayOptions() {
+	async waitForReachableRelayOptions({ requirePingVerified = true } = {}) {
 		const select = this.page.getByTestId('reachable-relay-select');
 		await select.waitFor({ state: 'attached', timeout: this.timeout });
+		const optionSelector = requirePingVerified
+			? '[data-testid="reachable-relay-select"] option[data-ping-verified="true"]'
+			: '[data-testid="reachable-relay-select"] option[value^="/"]';
 		await this.page.waitForFunction(
-			() =>
-				document.querySelectorAll(
-					'[data-testid="reachable-relay-select"] option[data-ping-verified="true"]'
-				).length > 0,
-			undefined,
+			(selector) => document.querySelectorAll(selector).length > 0,
+			optionSelector,
 			{ timeout: this.timeout, polling: 500 }
 		);
 
-		return select.locator('option[data-ping-verified="true"]').evaluateAll((options) =>
-			options.map((option) => ({
-				address: option.value,
-				label: option.textContent?.trim() ?? ''
-			}))
-		);
+		return select
+			.locator(optionSelector.replace('[data-testid="reachable-relay-select"] ', ''))
+			.evaluateAll((options) =>
+				options.map((option) => ({
+					address: option.value,
+					label: option.textContent?.trim() ?? ''
+				}))
+			);
 	}
 
 	async waitForPublicRelayConnection() {
@@ -99,19 +103,24 @@ export class TodoBrowserAgent {
 	}
 
 	async waitForPublicDialAddress() {
+		return this.waitForDialAddress({ requirePublic: true });
+	}
+
+	async waitForDialAddress({ requirePublic = false } = {}) {
 		await this.page.waitForFunction(
-			() => {
+			(publicOnly) => {
 				const peerId = window.__simpleTodoDiagnostics?.getPeerId?.();
 				return (window.__simpleTodoDiagnostics?.getMultiaddrs?.() ?? []).some(
 					(address) =>
 						address.endsWith(`/p2p/${peerId}`) &&
 						address.includes('/p2p-circuit/') &&
-						(/\/dns[46]\//.test(address) ||
+						(!publicOnly ||
+							/\/dns[46]\//.test(address) ||
 							/\/ip4\/(?!127\.)/.test(address) ||
-							/\/ip6\//.test(address))
+							/\/ip6\/(?!::1\/)/.test(address))
 				);
 			},
-			undefined,
+			requirePublic,
 			{ timeout: this.timeout, polling: 1_000 }
 		);
 

@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { TodoBrowserAgent } from './agent.mjs';
+import { generateSpanishMnemonic } from '../../src/lib/spanish-mnemonic.js';
 
 function hasPublicRelayConnection(diagnostics) {
 	return diagnostics.connections.some(({ remoteAddr }) =>
@@ -7,11 +8,14 @@ function hasPublicRelayConnection(diagnostics) {
 	);
 }
 
-function selectPublicPeerDialAddress(diagnostics, expectedPeerId) {
+function selectPeerDialAddress(diagnostics, expectedPeerId, { requirePublic = false } = {}) {
 	const candidates = diagnostics.multiaddrs.filter(
 		(address) =>
 			address.endsWith(`/p2p/${expectedPeerId}`) &&
-			(/\/dns[46]\//.test(address) || /\/ip4\/(?!127\.)/.test(address) || /\/ip6\//.test(address))
+			(!requirePublic ||
+				/\/dns[46]\//.test(address) ||
+				/\/ip4\/(?!127\.)/.test(address) ||
+				/\/ip6\/(?!::1\/)/.test(address))
 	);
 
 	return (
@@ -33,17 +37,27 @@ export async function runMainRemoteScenario({
 	const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 	const todoFromA = `remote-${runId}-from-a`;
 	const todoFromB = `remote-${runId}-from-b`;
+	const sharedMnemonic = generateSpanishMnemonic();
 	const agentA = new TodoBrowserAgent('github-local', browserA, appUrl);
 	const agentB = new TodoBrowserAgent('testingbot-remote', browserB, appUrl);
-	const result = { runId, appUrl, agents: {}, replication: {}, evidence: {}, passed: false };
+	const result = {
+		runId,
+		appUrl,
+		sharedMnemonic,
+		agents: {},
+		replication: {},
+		evidence: {},
+		passed: false
+	};
 
 	await mkdir(outputDir, { recursive: true });
 
 	try {
-		await Promise.all([agentA.open(), agentB.open()]);
+		await Promise.all([agentA.open(sharedMnemonic), agentB.open(sharedMnemonic)]);
+		const requirePingVerified = process.env.REQUIRE_PUBLIC_RELAY === 'true';
 		const [relayOptionsA, relayOptionsB] = await Promise.all([
-			agentA.waitForReachableRelayOptions(),
-			agentB.waitForReachableRelayOptions()
+			agentA.waitForReachableRelayOptions({ requirePingVerified }),
+			agentB.waitForReachableRelayOptions({ requirePingVerified })
 		]);
 		result.evidence.pingVerifiedRelayOptions = {
 			agentA: relayOptionsA,
@@ -55,11 +69,15 @@ export async function runMainRemoteScenario({
 				agentB.waitForPublicRelayConnection()
 			]);
 			await Promise.all([agentA.waitForPublicDialAddress(), agentB.waitForPublicDialAddress()]);
+		} else {
+			await Promise.all([agentA.waitForDialAddress(), agentB.waitForDialAddress()]);
 		}
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
 
 		if (
+			result.agents.a.databaseName !== sharedMnemonic ||
+			result.agents.b.databaseName !== sharedMnemonic ||
 			!result.agents.a.databaseAddress ||
 			result.agents.a.databaseAddress !== result.agents.b.databaseAddress
 		) {
@@ -77,10 +95,12 @@ export async function runMainRemoteScenario({
 			}
 		}
 
-		const addressForB = selectPublicPeerDialAddress(result.agents.b, result.agents.b.peerId);
+		const addressForB = selectPeerDialAddress(result.agents.b, result.agents.b.peerId, {
+			requirePublic: process.env.REQUIRE_PUBLIC_RELAY === 'true'
+		});
 		if (!addressForB) {
 			throw new Error(
-				`Agent B did not advertise a public dial address for ${result.agents.b.peerId}.`
+				`Agent B did not advertise a usable dial address for ${result.agents.b.peerId}.`
 			);
 		}
 		await agentA.connectToMultiaddr(addressForB);

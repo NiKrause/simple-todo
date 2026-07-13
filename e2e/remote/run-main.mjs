@@ -53,6 +53,7 @@ try {
 				`**Result:** ✅ passed\n\n` +
 				`| Evidence | Agent A | Agent B |\n| --- | --- | --- |\n` +
 				`| Provider | GitHub/local Playwright | ${provider} |\n` +
+				`| Shared mnemonic | \`${result.sharedMnemonic}\` | \`${result.sharedMnemonic}\` |\n` +
 				`| Peer ID | \`${result.agents.a.peerId}\` | \`${result.agents.b.peerId}\` |\n` +
 				`| OrbitDB address | \`${result.agents.a.databaseAddress}\` | \`${result.agents.b.databaseAddress}\` |\n` +
 				`| A → B replication | ${result.replication.aToBMs} ms | observed |\n` +

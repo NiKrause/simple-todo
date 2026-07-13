@@ -124,7 +124,7 @@
 	});
 </script>
 
-<section data-testid="own-multiaddrs">
+<section class="max-w-full min-w-0 overflow-hidden" data-testid="own-multiaddrs">
 	<div class="mb-2 flex items-baseline justify-between gap-2">
 		<h2 class="text-sm font-semibold">My Multiaddresses</h2>
 		<span class="text-xs text-gray-400">{addresses.length}</span>
@@ -132,10 +132,15 @@
 	<p class="mb-2 text-xs text-gray-500">Copy an address to connect another browser directly.</p>
 
 	{#if addresses.length > 0}
-		<ul class="max-h-28 space-y-1 overflow-y-auto pr-1" data-testid="own-multiaddr-list">
+		<ul
+			class="max-h-28 max-w-full min-w-0 space-y-1 overflow-x-hidden overflow-y-auto pr-1"
+			data-testid="own-multiaddr-list"
+		>
 			{#each addresses as address, index}
-				<li class="flex items-center gap-1 rounded-md bg-blue-50 p-1.5">
-					<code class="min-w-0 flex-1 truncate font-mono text-[11px]" title={address}
+				<li
+					class="flex max-w-full min-w-0 items-center gap-1 overflow-hidden rounded-md bg-blue-50 p-1.5"
+				>
+					<code class="w-0 min-w-0 flex-1 truncate font-mono text-[11px]" title={address}
 						>{address}</code
 					>
 					<button

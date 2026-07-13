@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const testUrl = '/';
 const collaborationTimeout = 90000;
+const sharedMnemonic = 'luna-camino-verde';
 
 test.describe('Default todo database collaboration', () => {
 	test('Alice and Bob share the default OrbitDB todo list', async ({ browser }) => {
@@ -66,8 +67,9 @@ async function openReadyApp(page) {
 	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
 		await checkbox.check();
 	}
+	await modal.getByTestId('shared-list-mnemonic-input').fill(sharedMnemonic);
 
-	await page.getByRole('button', { name: 'Proceed to Test the App' }).click();
+	await page.getByRole('button', { name: 'Open shared list' }).click();
 	await expect(modal).not.toBeVisible();
 	await expect(getTodoInput(page)).toBeVisible();
 	await expect(getTodoInput(page)).toBeEnabled({ timeout: collaborationTimeout });

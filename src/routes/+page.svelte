@@ -1,8 +1,14 @@
 <script>
 	/* eslint-disable no-undef */
 	import { onMount } from 'svelte';
-	import { peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js';
-	import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
+	import { peerIdStore, initializeP2P, initializationStore, restartP2P } from '$lib/p2p.js';
+	import {
+		todosStore,
+		todoDBAddressStore,
+		addTodo,
+		deleteTodo,
+		toggleTodoComplete
+	} from '$lib/db-actions.js';
 	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
 	import ToastNotification from '$lib/ToastNotification.svelte';
@@ -13,6 +19,14 @@
 	import ConnectedPeers from '$lib/ConnectedPeers.svelte';
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
 	import OwnMultiaddrs from '$lib/OwnMultiaddrs.svelte';
+	import SharedListSelector from '$lib/SharedListSelector.svelte';
+	import SharedListDetails from '$lib/SharedListDetails.svelte';
+	import {
+		SPANISH_MNEMONIC_STORAGE_KEY,
+		generateSpanishMnemonic,
+		isValidSpanishMnemonic,
+		normalizeSpanishMnemonic
+	} from '$lib/spanish-mnemonic.js';
 	import ManualConnectForm from '$lib/ManualConnectForm.svelte';
 	import { libp2pStore } from '$lib/p2p.js';
 	import SponsorRelayFab from '@le-space/ui/svelte';
@@ -31,14 +45,19 @@
 	let error = null;
 	/** @type {string | null} */
 	let myPeerId = null;
+	let selectedMnemonic = '';
+	let activeMnemonic = '';
+	$: mnemonicValid = isValidSpanishMnemonic(selectedMnemonic);
 
 	// Modal state
 	let showModal = true;
 	let rememberDecision = false;
 
 	const handleModalClose = async () => {
-		showModal = false;
+		const canonicalMnemonic = normalizeSpanishMnemonic(selectedMnemonic);
+		selectedMnemonic = canonicalMnemonic;
 		try {
+			localStorage.setItem(SPANISH_MNEMONIC_STORAGE_KEY, canonicalMnemonic);
 			if (rememberDecision) {
 				localStorage.setItem(CONSENT_KEY, 'true');
 			}
@@ -46,8 +65,14 @@
 			// ignore storage errors
 		}
 		try {
-			await initializeP2P();
+			if ($initializationStore.isInitialized) {
+				await restartP2P({ todoDbName: canonicalMnemonic });
+			} else {
+				await initializeP2P({ todoDbName: canonicalMnemonic });
+			}
+			activeMnemonic = canonicalMnemonic;
 		} catch (err) {
+			showModal = true;
 			error = `Failed to initialize P2P: ${err instanceof Error ? err.message : String(err)}`;
 			console.error('P2P initialization failed:', err);
 		}
@@ -55,14 +80,32 @@
 
 	onMount(async () => {
 		try {
+			selectedMnemonic = loadOrGenerateMnemonic();
 			if (localStorage.getItem(CONSENT_KEY) === 'true') {
 				showModal = false;
-				await initializeP2P();
+				activeMnemonic = normalizeSpanishMnemonic(selectedMnemonic);
+				await initializeP2P({ todoDbName: activeMnemonic });
 			}
 		} catch {
 			// ignore storage errors
 		}
 	});
+
+	function loadOrGenerateMnemonic() {
+		try {
+			const saved = localStorage.getItem(SPANISH_MNEMONIC_STORAGE_KEY);
+			if (saved && isValidSpanishMnemonic(saved)) return normalizeSpanishMnemonic(saved);
+		} catch {
+			// Continue with an in-memory mnemonic when browser storage is unavailable.
+		}
+		const generated = generateSpanishMnemonic();
+		try {
+			localStorage.setItem(SPANISH_MNEMONIC_STORAGE_KEY, generated);
+		} catch {
+			// The generated value remains usable for this session.
+		}
+		return generated;
+	}
 
 	/**
 	 * @param {string} message
@@ -152,10 +195,15 @@
 		title="Simple TODO Example"
 		bind:rememberDecision
 		rememberLabel="Don't show this again on this device"
-		proceedButtonText="Proceed to Test the App"
+		proceedButtonText="Open shared list"
 		disabledButtonText="Please check all boxes to continue"
+		canProceed={mnemonicValid}
 		on:proceed={handleModalClose}
-	/>
+	>
+		<svelte:fragment slot="before-confirmation">
+			<SharedListSelector bind:value={selectedMnemonic} />
+		</svelte:fragment>
+	</ConsentModal>
 {/if}
 
 <main class="container mx-auto max-w-4xl p-6">
@@ -185,11 +233,22 @@
 			on:connected={handleManualConnect}
 		/>
 		<ConnectedPeers compact bind:this={connectedPeersRef} libp2p={$libp2pStore} />
-		<div class="space-y-3">
+		<div class="max-w-full min-w-0 space-y-3 overflow-hidden">
 			<PeerIdCard compact peerId={myPeerId} />
 			<OwnMultiaddrs libp2p={$libp2pStore} />
 		</div>
 	</P2PStatusNav>
+
+	{#if $initializationStore.isInitialized && activeMnemonic}
+		<SharedListDetails
+			mnemonic={activeMnemonic}
+			databaseAddress={$todoDBAddressStore}
+			on:change={() => {
+				selectedMnemonic = activeMnemonic;
+				showModal = true;
+			}}
+		/>
+	{/if}
 
 	{#if error || $initializationStore.error}
 		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />

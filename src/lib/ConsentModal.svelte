@@ -48,14 +48,16 @@
 	export let confirmationLabel = 'Please confirm:';
 	export let proceedButtonText = 'Start P2P Demo';
 	export let disabledButtonText = 'Please check all boxes to continue';
+	export let canProceed = true;
 
 	export let rememberDecision = false;
 	export let rememberLabel = "Don't show this again on this device";
 
 	$: allCheckboxesChecked = Object.values(checkboxes).every((item) => item.checked);
+	$: readyToProceed = allCheckboxesChecked && canProceed;
 
 	const handleProceed = () => {
-		if (allCheckboxesChecked) {
+		if (readyToProceed) {
 			show = false;
 			dispatch('proceed');
 		}
@@ -90,6 +92,8 @@
 						{/each}
 					</ul>
 				</div>
+
+				<slot name="before-confirmation" />
 
 				<div class="mb-6 space-y-4">
 					<p class="font-medium text-gray-700">{confirmationLabel}</p>
@@ -131,10 +135,10 @@
 				<div class="mt-6 flex justify-center">
 					<button
 						on:click={handleProceed}
-						disabled={!allCheckboxesChecked}
+						disabled={!readyToProceed}
 						class="rounded-md bg-blue-500 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:hover:bg-gray-300"
 					>
-						{allCheckboxesChecked ? proceedButtonText : disabledButtonText}
+						{readyToProceed ? proceedButtonText : disabledButtonText}
 					</button>
 				</div>
 			</div>

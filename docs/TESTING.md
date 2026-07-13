@@ -26,6 +26,14 @@ Run all end-to-end tests:
 pnpm run test:e2e
 ```
 
+Run the mnemonic-specific isolation and two-browser replication scenario:
+
+```bash
+pnpm exec playwright test e2e/shared-list-mnemonic.spec.js --project=chromium
+```
+
+This test copies Alice's visible three-word Spanish share code into Bob's startup form, proves both derive the same OrbitDB address, verifies bidirectional replication, and confirms a third browser using another mnemonic remains isolated.
+
 Run only consent-screen tests:
 
 ```bash

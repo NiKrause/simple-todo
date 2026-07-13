@@ -14,7 +14,7 @@ import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
 import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
-import { getDefaultTodoDatabaseName } from './default-todo-database.js';
+import { getTodoDatabaseName } from './default-todo-database.js';
 import { normalizeDiscoveredMultiaddrs } from './multiaddr-utils.js';
 
 export { setWebRTCEnabled, webrtcEnabledStore };
@@ -99,6 +99,7 @@ let orbitdb = /** @type {any} */ (null);
 let peerId = /** @type {string | null} */ (null);
 let todoDB = /** @type {any} */ (null);
 let defaultTodoDbAddress = '';
+let activeTodoDatabaseName = '';
 const ORBITDB_IDENTITY_STORAGE_KEY = 'simpleTodo.orbitdbIdentityId';
 const MANUAL_CONNECT_STABILIZATION_MS = 3_000;
 const RELAY_PING_TIMEOUT_MS = 10_000;
@@ -133,7 +134,9 @@ function createHeliaWithLibp2p(libp2pNode) {
  * Initialize the P2P network after user consent
  * This function should be called only after the user has accepted the consent modal
  */
-export async function initializeP2P(options = /** @type {{ todoDbAddress?: string }} */ ({})) {
+export async function initializeP2P(
+	options = /** @type {{ todoDbAddress?: string, todoDbName?: string }} */ ({})
+) {
 	console.log('🚀 Starting P2P initialization after user consent...');
 
 	try {
@@ -164,7 +167,7 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 		console.log('🛬 Creating OrbitDB instance...');
 		orbitdb = await createOrbitDB({ ipfs: helia, id: getOrCreateOrbitDBIdentityId() });
 		setInitializationProgress(4);
-		todoDB = await openInitialTodoDatabase(options.todoDbAddress);
+		todoDB = await openInitialTodoDatabase(options.todoDbAddress, options.todoDbName);
 
 		console.log('✅ Database opened successfully with OrbitDBAccessController:', {
 			address: todoDB.address,
@@ -202,13 +205,19 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
  * Restart libp2p, Helia and OrbitDB with the current transport settings.
  * The active Todo DB address is preserved when one is available.
  */
-export async function restartP2P() {
+export async function restartP2P(options = /** @type {{ todoDbName?: string }} */ ({})) {
 	const activeTodoDbAddress = get(todoDBAddressStore);
+	const currentDatabaseName = activeTodoDatabaseName;
 	const shouldPreserveActiveTodoDb =
-		Boolean(activeTodoDbAddress) && activeTodoDbAddress !== defaultTodoDbAddress;
+		!options.todoDbName &&
+		Boolean(activeTodoDbAddress) &&
+		activeTodoDbAddress !== defaultTodoDbAddress;
 
 	await stopP2P();
-	await initializeP2P({ todoDbAddress: shouldPreserveActiveTodoDb ? activeTodoDbAddress : '' });
+	await initializeP2P({
+		todoDbAddress: shouldPreserveActiveTodoDb ? activeTodoDbAddress : '',
+		todoDbName: options.todoDbName || currentDatabaseName
+	});
 }
 
 async function stopP2P() {
@@ -216,6 +225,7 @@ async function stopP2P() {
 	libp2pStore.set(null);
 	peerIdStore.set(null);
 	peerId = null;
+	activeTodoDatabaseName = '';
 	stopDiscoveryDialRetryInterval();
 	discoveredPeers.clear();
 
@@ -232,18 +242,22 @@ async function stopP2P() {
 
 /**
  * @param {string | undefined} address
+ * @param {string | undefined} databaseName
  */
-async function openInitialTodoDatabase(address) {
+async function openInitialTodoDatabase(address, databaseName) {
 	const normalizedAddress = address?.trim() ?? '';
 
 	if (normalizedAddress.startsWith('/orbitdb/')) {
+		activeTodoDatabaseName = '';
 		return orbitdb.open(normalizedAddress, {
 			type: 'keyvalue',
 			sync: true
 		});
 	}
 
-	const defaultTodoDB = await orbitdb.open(getDefaultTodoDatabaseName(), {
+	const canonicalDatabaseName = getTodoDatabaseName(databaseName || '');
+	activeTodoDatabaseName = canonicalDatabaseName;
+	const defaultTodoDB = await orbitdb.open(canonicalDatabaseName, {
 		type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
 		create: true, // Allows the database to be created if it doesn't exist
 		sync: true, // Enables automatic synchronization with other peers
@@ -284,6 +298,7 @@ function createOrbitDBIdentityId() {
 function getReadOnlyDiagnostics() {
 	return {
 		getPeerId: () => peerId,
+		getDatabaseName: () => activeTodoDatabaseName,
 		getDatabaseAddress: () => get(todoDBAddressStore),
 		getDatabasePeers: () => Array.from(todoDB?.peers ?? [], String),
 		getMultiaddrs: () => {

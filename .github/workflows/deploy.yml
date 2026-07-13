@@ -52,6 +52,7 @@ jobs:
           pnpm exec playwright test
           e2e/default-database-collaboration.spec.js
           e2e/manual-multiaddr-connection.spec.js
+          e2e/shared-list-mnemonic.spec.js
           --project=chromium
 
       - name: Summarize main E2E
@@ -72,11 +73,12 @@ jobs:
             echo
             echo '| Verified behavior | Result |'
             echo '| --- | --- |'
-            echo "| Alice and Bob open the same deterministic \`simple-todos\` database | ${E2E_OUTCOME} |"
+            echo "| Alice and Bob open the same three-word mnemonic database | ${E2E_OUTCOME} |"
             echo "| Alice creates three todos and Bob creates three todos | ${E2E_OUTCOME} |"
             echo "| Both browsers display all six replicated todos | ${E2E_OUTCOME} |"
             echo "| Relay discovery and browser-to-browser OrbitDB synchronization | ${E2E_OUTCOME} |"
             echo "| Copy a browser-dialable own multiaddress and connect a second browser with it | ${E2E_OUTCOME} |"
+            echo "| A copied mnemonic joins the same list while another mnemonic remains isolated | ${E2E_OUTCOME} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   build-and-deploy:

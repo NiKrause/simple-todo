@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const testUrl = '/';
 const connectionTimeout = 90000;
+const sharedMnemonic = 'sol-camino-verde';
 
 test.describe('Manual browser connection using a copied own multiaddress', () => {
 	test('Browser B connects with a multiaddress copied from Browser A', async ({ browser }) => {
@@ -15,12 +16,19 @@ test.describe('Manual browser connection using a copied own multiaddress', () =>
 		const bob = await bobContext.newPage();
 
 		try {
+			await alice.setViewportSize({ width: 390, height: 844 });
 			await openReadyApp(alice);
 			const alicePeerId = await getPeerId(alice);
 			await openNetworkDetails(alice);
 
 			const addressList = alice.getByTestId('own-multiaddr-list');
 			await expect(addressList).toBeVisible({ timeout: connectionTimeout });
+			await expect
+				.poll(() => alice.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+				.toBe(true);
+			const listBounds = await addressList.boundingBox();
+			expect(listBounds?.x ?? 0).toBeGreaterThanOrEqual(0);
+			expect((listBounds?.x ?? 0) + (listBounds?.width ?? 0)).toBeLessThanOrEqual(390);
 			await expect
 				.poll(() => addressList.evaluate((element) => getComputedStyle(element).overflowY))
 				.toBe('auto');
@@ -86,7 +94,8 @@ async function openReadyApp(page) {
 	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
 		await checkbox.check();
 	}
-	await page.getByRole('button', { name: 'Proceed to Test the App' }).click();
+	await modal.getByTestId('shared-list-mnemonic-input').fill(sharedMnemonic);
+	await page.getByRole('button', { name: 'Open shared list' }).click();
 	await expect(modal).not.toBeVisible();
 	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({
 		timeout: connectionTimeout

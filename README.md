@@ -20,7 +20,7 @@ This is a **browser-only** local-first peer-to-peer todo application that operat
 
 ### Main Branch Scope
 
-The `main` branch is the basic shared-list demo. Every browser opens the same default OrbitDB database (`simple-todos`); users only load the app URL, accept consent, and add todos. There is no manual OrbitDB address exchange in this branch. A Playwright E2E test verifies the default flow with Alice and Bob in separate browser contexts: each adds three todos, and both browsers must see all six replicated items.
+This branch extends the basic `main` tutorial with a three-word Spanish shared-list mnemonic, for example `luna-camino-verde`. The normalized mnemonic is the OrbitDB database name: two browsers enter the same words to open and replicate the same list without exchanging a full OrbitDB address. The mnemonic is only a convenient public share code—not a password, recovery phrase, encryption key, or access-control mechanism. Anyone who knows or guesses it can discover and edit the public writable list.
 
 > **Another tutorial path:** The [`collab01`](https://github.com/NiKrause/simple-todo/tree/collab01) branch demonstrates explicit collaboration: users can create or load a todo database by its OrbitDB address, share it with another peer, and replicate changes through the relay.
 
@@ -35,9 +35,10 @@ The `main` branch is the basic shared-list demo. Every browser opens the same de
 
 1. **Open Two Browser Windows** - You need at least two browser instances, a mobile device, or ask another distant person to open the app
 2. **Load the Same URL** - All app users should load the same app URL
-3. **Accept Consent** - Check all consent boxes in both browsers
-4. **Wait for Connection** - The app will automatically discover and connect peers
-5. **Add Todos** - Create todos in one browser and watch them appear in the other
+3. **Choose the Shared List** - Copy the three-word mnemonic from the first browser and paste it into the second
+4. **Accept Consent and Open** - Check all consent boxes and select **Open shared list**
+5. **Wait for Connection** - The app will automatically discover and connect peers
+6. **Add Todos** - Create todos in one browser and watch them appear in the other
 
 ## 📚 Documentation
 
