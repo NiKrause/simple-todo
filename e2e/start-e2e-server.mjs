@@ -117,6 +117,7 @@ function createPreviewEnv(relayMultiaddr = null) {
 		NODE_ENV: 'development',
 		VITE_NODE_ENV: relayMode === 'public' ? 'production' : 'development',
 		VITE_E2E: 'true',
+		VITE_ALEPH_BOOTSTRAP_DISCOVERY: relayMode === 'local' ? 'false' : 'true',
 		VITE_PUBSUB_TOPICS: 'todo._peer-discovery._p2p._pubsub'
 	};
 

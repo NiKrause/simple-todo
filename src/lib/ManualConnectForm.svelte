@@ -4,6 +4,7 @@
 	import { connectToMultiaddr, pingMultiaddr } from './p2p.js';
 	import {
 		describeBootstrapMultiaddr,
+		parseBootstrapMultiaddrs,
 		selectValidBrowserBootstrapMultiaddrs
 	} from './bootstrap-multiaddrs.js';
 
@@ -17,6 +18,7 @@
 	let discoveredMultiaddrs = [];
 	let isDiscovering = true;
 	let discoveredAddressCount = 0;
+	let addressesPingVerified = false;
 	/** @type {string | null} */
 	let discoveryError = null;
 	let isConnecting = false;
@@ -39,6 +41,20 @@
 		isDiscovering = true;
 		discoveryError = null;
 		try {
+			if (import.meta.env.VITE_ALEPH_BOOTSTRAP_DISCOVERY === 'false') {
+				const configured =
+					import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV ||
+					import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_PROD ||
+					'';
+				discoveredMultiaddrs = selectValidBrowserBootstrapMultiaddrs(
+					parseBootstrapMultiaddrs(configured)
+				);
+				discoveredAddressCount = discoveredMultiaddrs.length;
+				addressesPingVerified = false;
+				selectedMultiaddr = discoveredMultiaddrs[0] ?? '';
+				return;
+			}
+
 			const { discoverAlephBootstrapMultiaddrs } = await import('@le-space/aleph-bootstrap');
 			const discovered = await discoverAlephBootstrapMultiaddrs({ browserDialableOnly: true });
 			const candidates = selectValidBrowserBootstrapMultiaddrs(discovered);
@@ -55,6 +71,7 @@
 				})
 			);
 			discoveredMultiaddrs = probeResults.filter((address) => address != null);
+			addressesPingVerified = true;
 			if (
 				discoveredMultiaddrs.length > 0 &&
 				(!selectedMultiaddr || !discoveredMultiaddrs.includes(selectedMultiaddr))
@@ -64,6 +81,7 @@
 		} catch (error) {
 			discoveredMultiaddrs = [];
 			discoveredAddressCount = 0;
+			addressesPingVerified = false;
 			discoveryError = error instanceof Error ? error.message : String(error);
 		} finally {
 			isDiscovering = false;
@@ -161,7 +179,7 @@
 					<option value="">No relay addresses discovered</option>
 				{:else}
 					{#each discoveredMultiaddrs as address}
-						<option value={address} data-ping-verified="true"
+						<option value={address} data-ping-verified={addressesPingVerified ? 'true' : undefined}
 							>{describeBootstrapMultiaddr(address)}</option
 						>
 					{/each}
