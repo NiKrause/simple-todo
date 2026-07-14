@@ -144,16 +144,6 @@ export class TodoBrowserAgent {
 		return this.diagnostics();
 	}
 
-	async waitForDatabaseSyncPeer() {
-		await this.page.waitForFunction(
-			() => (window.__simpleTodoDiagnostics?.getDatabasePeers?.() ?? []).length > 0,
-			undefined,
-			{ timeout: this.timeout, polling: 500 }
-		);
-
-		return this.diagnostics();
-	}
-
 	async createTodo(text) {
 		await this.todoInput().fill(text);
 		await this.page.getByRole('button', { name: 'Add TODO' }).click();

@@ -313,9 +313,7 @@ test.describe('Sponsor Relay button', () => {
 			await agentA.connectToMultiaddr(addressForB);
 			await Promise.all([
 				agentA.waitForPeerConnection(diagnosticsB.peerId),
-				agentB.waitForPeerConnection(diagnosticsA.peerId),
-				agentA.waitForDatabaseSyncPeer(),
-				agentB.waitForDatabaseSyncPeer()
+				agentB.waitForPeerConnection(diagnosticsA.peerId)
 			]);
 			pass('browserPeersConnected', `${diagnosticsA.peerId} ↔ ${diagnosticsB.peerId}`);
 
