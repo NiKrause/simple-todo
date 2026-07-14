@@ -86,8 +86,26 @@ async function waitForBootstrapRegistration({ ownerAddress, instanceHash, starte
 }
 
 async function waitForDeploymentInstance(page, instanceName) {
+	const outcome = await page.waitForFunction(
+		(expectedName) => {
+			const instance = [...document.querySelectorAll('details')].find((element) =>
+				element.textContent?.includes(expectedName)
+			);
+			if (instance) return { status: 'instance' };
+			const error = document.querySelector('aside.panel .alert.error');
+			if (error?.textContent?.trim()) return { status: 'error', message: error.textContent.trim() };
+			const status = document.querySelector('aside.panel .status-text')?.textContent?.trim();
+			if (status === 'Deployment failed') return { status: 'error', message: status };
+			return null;
+		},
+		instanceName,
+		{ timeout: PROVISION_TIMEOUT, polling: 500 }
+	);
+	const result = await outcome.jsonValue();
+	if (result?.status === 'error') {
+		throw new Error(`Sponsor Relay deployment failed: ${result.message}`);
+	}
 	const instance = page.locator('details').filter({ hasText: instanceName }).first();
-	await instance.waitFor({ state: 'visible', timeout: PROVISION_TIMEOUT });
 	const apiHref = await instance
 		.getByRole('link', { name: 'API', exact: true })
 		.getAttribute('href');
@@ -215,8 +233,8 @@ test.describe('Sponsor Relay button', () => {
 			await expect(deployButton).toBeEnabled({ timeout: 120_000 });
 			pass('walletAndManifest');
 			await deployButton.click();
-			deployed = true;
 			const { instanceHash } = await waitForDeploymentInstance(deploymentPage, instanceName);
+			deployed = true;
 			evidence.instanceHash = instanceHash;
 			pass('instanceProvisioned', instanceHash);
 
