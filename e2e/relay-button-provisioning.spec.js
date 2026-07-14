@@ -15,7 +15,8 @@ const OUTPUT_DIR = 'test-results/relay-button';
 const PROVISION_TIMEOUT = 20 * 60_000;
 const RELAY_HEALTH_TIMEOUT = 60_000;
 const REPLICATION_TIMEOUT = 3 * 60_000;
-const RELAY_DIAL_ATTEMPT_TIMEOUT = 45_000;
+const RELAY_DIAL_ATTEMPT_TIMEOUT = 20_000;
+const RELAY_READINESS_TIMEOUT = 8 * 60_000;
 const TEST_SSH_PUBLIC_KEY = process.env.RELAY_BUTTON_E2E_SSH_PUBLIC_KEY?.trim();
 
 function installWalletProvider(context, account) {
@@ -155,13 +156,25 @@ function selectBrowserRelayAddresses(content) {
 
 async function connectBrowsersToRelay(agents, addresses, relayPeerId) {
 	const attempts = [];
-	for (const address of addresses) {
-		await Promise.all(agents.map((agent) => agent.connectToMultiaddr(address)));
-		const results = await Promise.allSettled(
-			agents.map((agent) => agent.waitForPeerConnection(relayPeerId, RELAY_DIAL_ATTEMPT_TIMEOUT))
-		);
-		attempts.push({ address, connected: results.map(({ status }) => status === 'fulfilled') });
-		if (results.every(({ status }) => status === 'fulfilled')) return { address, attempts };
+	const deadline = Date.now() + RELAY_READINESS_TIMEOUT;
+	while (Date.now() < deadline) {
+		for (const address of addresses) {
+			const dialResults = await Promise.allSettled(
+				agents.map((agent) => agent.connectToMultiaddr(address))
+			);
+			const results = await Promise.allSettled(
+				agents.map((agent) => agent.waitForPeerConnection(relayPeerId, RELAY_DIAL_ATTEMPT_TIMEOUT))
+			);
+			attempts.push({
+				at: new Date().toISOString(),
+				address,
+				dialSubmitted: dialResults.map(({ status }) => status === 'fulfilled'),
+				connected: results.map(({ status }) => status === 'fulfilled')
+			});
+			if (results.every(({ status }) => status === 'fulfilled')) return { address, attempts };
+			if (Date.now() >= deadline) break;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 5_000));
 	}
 
 	throw new Error(

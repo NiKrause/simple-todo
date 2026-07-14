@@ -16,7 +16,11 @@ export class TodoBrowserAgent {
 		this.page = await this.context.newPage();
 		this.page.on('console', (message) => {
 			const text = message.text();
-			if (!/(todo|orbitdb|database peer|entry updated|connection stable|pinning)/i.test(text)) {
+			if (
+				!/(todo|orbitdb|database peer|entry updated|connect|dial|relay|tls|websocket|pinning)/i.test(
+					text
+				)
+			) {
 				return;
 			}
 			this.log.push(`[${message.type()}] ${text}`);
