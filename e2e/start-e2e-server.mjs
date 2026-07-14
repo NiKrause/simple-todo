@@ -42,15 +42,17 @@ process.on('exit', () => {
 await main();
 
 async function main() {
-	if (relayMode !== 'local' && relayMode !== 'public') {
-		throw new Error(`Unsupported E2E_RELAY_MODE "${relayMode}". Use "local" or "public".`);
+	if (!['local', 'public', 'isolated'].includes(relayMode)) {
+		throw new Error(
+			`Unsupported E2E_RELAY_MODE "${relayMode}". Use "local", "public" or "isolated".`
+		);
 	}
 
-	if (relayMode === 'public') {
+	if (relayMode === 'public' || relayMode === 'isolated') {
 		await startPreview({
 			env: createPreviewEnv(),
 			relayInfo: {
-				mode: 'public',
+				mode: relayMode,
 				multiaddr: publicRelayBootstrapAddr || null,
 				httpOrigin: publicRelayHttpOrigin || null
 			}
@@ -117,7 +119,7 @@ function createPreviewEnv(relayMultiaddr = null) {
 		NODE_ENV: 'development',
 		VITE_NODE_ENV: relayMode === 'public' ? 'production' : 'development',
 		VITE_E2E: 'true',
-		VITE_ALEPH_BOOTSTRAP_DISCOVERY: relayMode === 'local' ? 'false' : 'true',
+		VITE_ALEPH_BOOTSTRAP_DISCOVERY: relayMode === 'public' ? 'true' : 'false',
 		VITE_RELAY_HTTP_ORIGIN:
 			relayMode === 'local' ? `http://127.0.0.1:${relayPorts.http}` : publicRelayHttpOrigin,
 		VITE_PUBSUB_TOPICS: 'todo._peer-discovery._p2p._pubsub'
