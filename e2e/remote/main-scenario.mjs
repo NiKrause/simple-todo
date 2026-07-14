@@ -7,11 +7,19 @@ function hasPublicRelayConnection(diagnostics) {
 	);
 }
 
-function selectPublicPeerDialAddress(diagnostics, expectedPeerId) {
+export function selectPeerDialAddress(
+	diagnostics,
+	expectedPeerId,
+	{ requirePublic = false, relayPeerId = null } = {}
+) {
 	const candidates = diagnostics.multiaddrs.filter(
 		(address) =>
 			address.endsWith(`/p2p/${expectedPeerId}`) &&
-			(/\/dns[46]\//.test(address) || /\/ip4\/(?!127\.)/.test(address) || /\/ip6\//.test(address))
+			(!relayPeerId || address.includes(`/p2p/${relayPeerId}/p2p-circuit/`)) &&
+			(!requirePublic ||
+				/\/dns[46]\//.test(address) ||
+				/\/ip4\/(?!127\.)/.test(address) ||
+				/\/ip6\/(?!::1\/)/.test(address))
 	);
 
 	return (
@@ -77,7 +85,9 @@ export async function runMainRemoteScenario({
 			}
 		}
 
-		const addressForB = selectPublicPeerDialAddress(result.agents.b, result.agents.b.peerId);
+		const addressForB = selectPeerDialAddress(result.agents.b, result.agents.b.peerId, {
+			requirePublic: true
+		});
 		if (!addressForB) {
 			throw new Error(
 				`Agent B did not advertise a public dial address for ${result.agents.b.peerId}.`

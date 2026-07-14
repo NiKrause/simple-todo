@@ -1,0 +1,44 @@
+name: Relay button E2E
+
+on:
+  push:
+    branches: [feat/relay-button-e2e]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: relay-button-e2e
+  cancel-in-progress: false
+
+jobs:
+  provision-and-replicate:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
+    timeout-minutes: 35
+    env:
+      RELAY_BUTTON_E2E_PRIVATE_KEY: ${{ secrets.RELAY_BUTTON_E2E_PRIVATE_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Require the funded Aleph test wallet
+        run: test -n "$RELAY_BUTTON_E2E_PRIVATE_KEY"
+      - name: Provision relay and verify two-browser replication
+        run: pnpm exec playwright test e2e/relay-button-provisioning.spec.js --project=chromium --workers=1
+      - name: Upload relay E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: relay-button-e2e-${{ github.run_id }}
+          path: test-results/relay-button
+          if-no-files-found: warn
+          retention-days: 14

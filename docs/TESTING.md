@@ -38,6 +38,20 @@ Run against a public relay/bootstrap setup:
 pnpm run test:e2e:public-relay
 ```
 
+Run the complete Sponsor Relay button scenario with a dedicated Aleph test wallet:
+
+```bash
+RELAY_BUTTON_E2E_PRIVATE_KEY=0x... pnpm exec playwright test e2e/relay-button-provisioning.spec.js --project=chromium --workers=1
+```
+
+The wallet must have enough Aleph credits to create a temporary VM. The test
+signs the Sponsor Relay requests through an injected EIP-1193 provider, waits
+for the relay health endpoint and browser multiaddresses, connects two browsers
+through the custom-multiaddress UI, and verifies bidirectional replication with
+the same mnemonic. It deletes the temporary relay during cleanup. CI reads the
+key from the dedicated `RELAY_BUTTON_E2E_PRIVATE_KEY` repository secret; never
+store the key in a tracked `.env` file.
+
 Run the relay-pinning proof against a local `orbitdb-relay` checkout:
 
 ```bash
