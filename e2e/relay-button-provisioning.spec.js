@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { fetchAlephBootstrapPosts } from '@le-space/aleph-bootstrap';
+import {
+	DEFAULT_ALEPH_BOOTSTRAP_COMPACT_POST_TYPE,
+	DEFAULT_ALEPH_BOOTSTRAP_POST_TYPE,
+	fetchAlephBootstrapPosts
+} from '@le-space/aleph-bootstrap';
 import { privateKeyToAccount } from 'viem/accounts';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { TodoBrowserAgent } from './remote/agent.mjs';
@@ -75,17 +79,26 @@ async function waitForBootstrapRegistration({ page, ownerAddress, instanceHash, 
 		if (deploymentFailure) {
 			throw new Error(`Sponsor Relay deployment failed: ${deploymentFailure}`);
 		}
-		const posts = await fetchAlephBootstrapPosts({ pagination: 200 }).catch((error) => {
-			lastSummary = error instanceof Error ? error.message : String(error);
-			return [];
-		});
-		const registration = posts.find(({ content }) => {
-			const owner = content?.ownerAddress?.toLowerCase();
+		const posts = (
+			await Promise.all(
+				[DEFAULT_ALEPH_BOOTSTRAP_COMPACT_POST_TYPE, DEFAULT_ALEPH_BOOTSTRAP_POST_TYPE].map(
+					(postType) => fetchAlephBootstrapPosts({ pagination: 200, postType })
+				)
+			).catch((error) => {
+				lastSummary = error instanceof Error ? error.message : String(error);
+				return [];
+			})
+		).flat();
+		const registration = posts.find(({ address, content }) => {
+			const owner = (content?.ownerAddress ?? content?.publisherAddress ?? address)?.toLowerCase();
+			const addresses = content?.browserMultiaddrs?.length
+				? content.browserMultiaddrs
+				: content?.multiaddrs;
 			return (
 				owner === ownerAddress.toLowerCase() &&
 				content?.registrationId?.includes(instanceHash) &&
 				Number(content?.updatedAt ?? 0) >= startedAt - 60_000 &&
-				(content?.browserMultiaddrs?.length ?? 0) > 0
+				(addresses?.length ?? 0) > 0
 			);
 		});
 		if (registration) return registration;
@@ -126,7 +139,9 @@ async function waitForDeploymentInstance(page, instanceName) {
 }
 
 function selectBrowserRelayAddress(content) {
-	const addresses = content.browserMultiaddrs ?? [];
+	const addresses = content.browserMultiaddrs?.length
+		? content.browserMultiaddrs
+		: (content.multiaddrs ?? []);
 	return (
 		addresses.find((address) => /\/dns4\/.*\/tcp\/443\/(tls\/ws|wss)\/p2p\//.test(address)) ??
 		addresses.find((address) => address.includes('/tls/ws/')) ??
