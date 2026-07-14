@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 35
     env:
       RELAY_BUTTON_E2E_PRIVATE_KEY: ${{ secrets.RELAY_BUTTON_E2E_PRIVATE_KEY }}
+      RELAY_BUTTON_E2E_SSH_PUBLIC_KEY: ${{ vars.RELAY_BUTTON_E2E_SSH_PUBLIC_KEY }}
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6
@@ -30,8 +31,8 @@ jobs:
           node-version: '24.x'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Require the funded Aleph test wallet
-        run: test -n "$RELAY_BUTTON_E2E_PRIVATE_KEY"
+      - name: Require relay deployment credentials
+        run: test -n "$RELAY_BUTTON_E2E_PRIVATE_KEY" && test -n "$RELAY_BUTTON_E2E_SSH_PUBLIC_KEY"
       - name: Provision relay and verify two-browser replication
         run: pnpm exec playwright test e2e/relay-button-provisioning.spec.js --project=chromium --workers=1
       - name: Write relay E2E job summary

@@ -10,8 +10,7 @@ const APP_URL = process.env.RELAY_BUTTON_E2E_APP_URL ?? 'http://localhost:4173';
 const OUTPUT_DIR = 'test-results/relay-button';
 const PROVISION_TIMEOUT = 20 * 60_000;
 const REPLICATION_TIMEOUT = 3 * 60_000;
-const TEST_SSH_PUBLIC_KEY =
-	'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA/c8LHhXbdZMdwxmkHcpzQFg1P8qOwIRa51BiC7GgpA simple-todo-relay-e2e';
+const TEST_SSH_PUBLIC_KEY = process.env.RELAY_BUTTON_E2E_SSH_PUBLIC_KEY?.trim();
 
 function installWalletProvider(context, account) {
 	return context.exposeBinding(
@@ -163,6 +162,10 @@ async function deleteProvisionedRelay(page, instanceName) {
 
 test.describe('Sponsor Relay button', () => {
 	test.skip(!PRIVATE_KEY, 'RELAY_BUTTON_E2E_PRIVATE_KEY is required to provision an Aleph relay.');
+	test.skip(
+		!TEST_SSH_PUBLIC_KEY,
+		'RELAY_BUTTON_E2E_SSH_PUBLIC_KEY is required to provision an Aleph relay.'
+	);
 	test.setTimeout(30 * 60_000);
 
 	test('provisions a relay and replicates a shared list between two browsers', async ({
