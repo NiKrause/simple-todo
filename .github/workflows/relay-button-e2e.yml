@@ -2,7 +2,7 @@ name: Relay button E2E
 
 on:
   push:
-    branches: [feat/relay-button-e2e]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
