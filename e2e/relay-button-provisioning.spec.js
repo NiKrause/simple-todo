@@ -60,11 +60,21 @@ async function injectWallet(context) {
 	});
 }
 
-async function waitForBootstrapRegistration({ ownerAddress, instanceHash, startedAt }) {
+async function waitForBootstrapRegistration({ page, ownerAddress, instanceHash, startedAt }) {
 	const deadline = Date.now() + PROVISION_TIMEOUT;
 	let lastSummary = 'No bootstrap posts returned.';
 
 	while (Date.now() < deadline) {
+		const deploymentFailure = await page.evaluate(() => {
+			const error = document.querySelector('aside.panel .alert.error')?.textContent?.trim();
+			const status = document.querySelector('aside.panel .status-text')?.textContent?.trim();
+			if (error) return error;
+			if (status === 'Deployment failed') return status;
+			return null;
+		});
+		if (deploymentFailure) {
+			throw new Error(`Sponsor Relay deployment failed: ${deploymentFailure}`);
+		}
 		const posts = await fetchAlephBootstrapPosts({ pagination: 200 }).catch((error) => {
 			lastSummary = error instanceof Error ? error.message : String(error);
 			return [];
@@ -168,7 +178,7 @@ test.describe('Sponsor Relay button', () => {
 	);
 	test.setTimeout(30 * 60_000);
 
-	test('provisions a relay and replicates a shared list between two browsers', async ({
+	test('provisions a relay and replicates the main database between two browsers', async ({
 		browser
 	}) => {
 		await mkdir(OUTPUT_DIR, { recursive: true });
@@ -246,6 +256,7 @@ test.describe('Sponsor Relay button', () => {
 			pass('instanceProvisioned', instanceHash);
 
 			const registration = await waitForBootstrapRegistration({
+				page: deploymentPage,
 				ownerAddress: account.address,
 				instanceHash,
 				startedAt
@@ -310,6 +321,9 @@ test.describe('Sponsor Relay button', () => {
 		} catch (error) {
 			testError = error instanceof Error ? error : new Error(String(error));
 			evidence.error = testError.message;
+			await deploymentPage
+				.screenshot({ path: `${OUTPUT_DIR}/relay-panel-error.png`, fullPage: true })
+				.catch(() => {});
 		}
 
 		await Promise.allSettled([agentA.close(), agentB.close()]);
