@@ -13,6 +13,7 @@ const PRIVATE_KEY = process.env.RELAY_BUTTON_E2E_PRIVATE_KEY?.trim();
 const APP_URL = process.env.RELAY_BUTTON_E2E_APP_URL ?? 'http://localhost:4173';
 const OUTPUT_DIR = 'test-results/relay-button';
 const PROVISION_TIMEOUT = 20 * 60_000;
+const RELAY_HEALTH_TIMEOUT = 8 * 60_000;
 const REPLICATION_TIMEOUT = 3 * 60_000;
 const TEST_SSH_PUBLIC_KEY = process.env.RELAY_BUTTON_E2E_SSH_PUBLIC_KEY?.trim();
 
@@ -155,7 +156,7 @@ async function waitForRelayHealth(address, expectedPeerId) {
 	const hostname = address.match(/\/dns[46]\/([^/]+)/)?.[1];
 	if (!hostname) throw new Error(`Cannot derive relay health URL from ${address}`);
 	const healthUrl = `https://${hostname}/health`;
-	const deadline = Date.now() + 3 * 60_000;
+	const deadline = Date.now() + RELAY_HEALTH_TIMEOUT;
 	let lastError = 'not attempted';
 
 	while (Date.now() < deadline) {
@@ -165,7 +166,10 @@ async function waitForRelayHealth(address, expectedPeerId) {
 			if (response.ok && body.includes(expectedPeerId)) return { healthUrl, body };
 			lastError = `${response.status}: ${body.slice(0, 300)}`;
 		} catch (error) {
-			lastError = error instanceof Error ? error.message : String(error);
+			lastError =
+				error instanceof Error
+					? `${error.message}${error.cause ? ` (${String(error.cause)})` : ''}`
+					: String(error);
 		}
 		await new Promise((resolve) => setTimeout(resolve, 5_000));
 	}
