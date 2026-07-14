@@ -21,6 +21,8 @@ jobs:
     env:
       RELAY_BUTTON_E2E_PRIVATE_KEY: ${{ secrets.RELAY_BUTTON_E2E_PRIVATE_KEY }}
       RELAY_BUTTON_E2E_SSH_PUBLIC_KEY: ${{ vars.RELAY_BUTTON_E2E_SSH_PUBLIC_KEY }}
+      E2E_RELAY_MODE: isolated
+      E2E_PUBLIC_RELAY_BOOTSTRAP_ADDR: /ip4/127.0.0.1/tcp/9/ws/p2p/12D3KooWN7RWonSmxzptUSFZ4DfXEBcLvVoAQpW8Wr3BhshcQPG6
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v6

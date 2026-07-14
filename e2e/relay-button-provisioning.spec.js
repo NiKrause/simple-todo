@@ -15,6 +15,7 @@ const OUTPUT_DIR = 'test-results/relay-button';
 const PROVISION_TIMEOUT = 20 * 60_000;
 const RELAY_HEALTH_TIMEOUT = 60_000;
 const REPLICATION_TIMEOUT = 3 * 60_000;
+const RELAY_DIAL_ATTEMPT_TIMEOUT = 45_000;
 const TEST_SSH_PUBLIC_KEY = process.env.RELAY_BUTTON_E2E_SSH_PUBLIC_KEY?.trim();
 
 function installWalletProvider(context, account) {
@@ -139,19 +140,32 @@ async function waitForDeploymentInstance(page, instanceName) {
 	return { instance, instanceHash };
 }
 
-function selectBrowserRelayAddress(content) {
+function selectBrowserRelayAddresses(content) {
 	const addresses = content.browserMultiaddrs?.length
 		? content.browserMultiaddrs
 		: (content.multiaddrs ?? []);
-	return (
-		addresses.find(
-			(address) => address.includes('.libp2p.direct/') && /\/tcp\/\d+\/tls\/ws\/p2p\//.test(address)
-		) ??
-		addresses.find((address) => /\/dns4\/.*\/tcp\/443\/(tls\/ws|wss)\/p2p\//.test(address)) ??
-		addresses.find((address) => address.includes('/tls/ws/')) ??
-		addresses.find((address) => address.includes('/wss/')) ??
-		addresses[0] ??
-		null
+	return addresses
+		.filter((address) => /\/(tls\/ws|wss)\/p2p\//.test(address))
+		.sort((left, right) => {
+			const rank = (address) =>
+				address.includes('.libp2p.direct/') ? 0 : address.includes('/dns4/') ? 1 : 2;
+			return rank(left) - rank(right);
+		});
+}
+
+async function connectBrowsersToRelay(agents, addresses, relayPeerId) {
+	const attempts = [];
+	for (const address of addresses) {
+		await Promise.all(agents.map((agent) => agent.connectToMultiaddr(address)));
+		const results = await Promise.allSettled(
+			agents.map((agent) => agent.waitForPeerConnection(relayPeerId, RELAY_DIAL_ATTEMPT_TIMEOUT))
+		);
+		attempts.push({ address, connected: results.map(({ status }) => status === 'fulfilled') });
+		if (results.every(({ status }) => status === 'fulfilled')) return { address, attempts };
+	}
+
+	throw new Error(
+		`Browsers did not connect to relay ${relayPeerId}. Attempts: ${JSON.stringify(attempts)}`
 	);
 }
 
@@ -290,11 +304,14 @@ test.describe('Sponsor Relay button', () => {
 				startedAt
 			});
 			const relayPeerId = registration.content.peerId;
-			const relayAddress = selectBrowserRelayAddress(registration.content);
-			expect(relayAddress, 'new relay must advertise a browser-reachable address').toBeTruthy();
+			const relayAddresses = selectBrowserRelayAddresses(registration.content);
+			expect(
+				relayAddresses,
+				'new relay must advertise a browser-reachable address'
+			).not.toHaveLength(0);
 			evidence.registration = registration;
-			evidence.relayAddress = relayAddress;
-			pass('bootstrapPublished', relayAddress);
+			evidence.relayAddresses = relayAddresses;
+			pass('bootstrapPublished', relayAddresses.join(', '));
 			const healthAddress = (registration.content.multiaddrs ?? []).find((address) =>
 				/\/dns[46]\/.*\.2n6\.me\/tcp\/443\/(tls\/ws|wss)\/p2p\//.test(address)
 			);
@@ -305,13 +322,14 @@ test.describe('Sponsor Relay button', () => {
 				: Promise.resolve({ error: new Error('No 2n6 health address was published.') });
 
 			await Promise.all([agentA.open(), agentB.open()]);
-			await Promise.all([
-				agentA.connectToMultiaddr(relayAddress),
-				agentB.connectToMultiaddr(relayAddress)
-			]);
-			await agentA.waitForPeerConnection(relayPeerId);
+			const relayConnection = await connectBrowsersToRelay(
+				[agentA, agentB],
+				relayAddresses,
+				relayPeerId
+			);
+			evidence.relayAddress = relayConnection.address;
+			evidence.relayDialAttempts = relayConnection.attempts;
 			pass('browserAConnected', relayPeerId);
-			await agentB.waitForPeerConnection(relayPeerId);
 			pass('browserBConnected', relayPeerId);
 			const healthResult = await healthPromise;
 			if ('health' in healthResult) {
