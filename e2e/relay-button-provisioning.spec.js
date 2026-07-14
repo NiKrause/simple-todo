@@ -207,7 +207,7 @@ test.describe('Sponsor Relay button', () => {
 					status: 'pending'
 				},
 				sharedDatabase: {
-					label: 'Both browsers opened the same mnemonic and OrbitDB address',
+					label: 'Both browsers opened the same default OrbitDB address',
 					status: 'pending'
 				},
 				browserPeersConnected: {
@@ -269,7 +269,7 @@ test.describe('Sponsor Relay button', () => {
 			await agentB.waitForPeerConnection(relayPeerId);
 			pass('browserBConnected', relayPeerId);
 
-			await Promise.all([agentA.waitForDialAddress(), agentB.waitForDialAddress()]);
+			await Promise.all([agentA.waitForPublicDialAddress(), agentB.waitForPublicDialAddress()]);
 			const [diagnosticsA, diagnosticsB] = await Promise.all([
 				agentA.diagnostics(),
 				agentB.diagnostics()

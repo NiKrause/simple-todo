@@ -47,11 +47,12 @@ RELAY_BUTTON_E2E_PRIVATE_KEY=0x... RELAY_BUTTON_E2E_SSH_PUBLIC_KEY="ssh-ed25519 
 The wallet must have enough Aleph credits to create a temporary VM. The test
 signs the Sponsor Relay requests through an injected EIP-1193 provider, waits
 for the relay health endpoint and browser multiaddresses, connects two browsers
-through the custom-multiaddress UI, and verifies bidirectional replication with
-the same mnemonic. It deletes the temporary relay during cleanup. CI reads the
-private key from the dedicated `RELAY_BUTTON_E2E_PRIVATE_KEY` repository secret
-and the public SSH key from the `RELAY_BUTTON_E2E_SSH_PUBLIC_KEY` repository
-variable; never store the private key in a tracked `.env` file.
+through the custom-multiaddress UI, and verifies bidirectional replication in
+the main app's default OrbitDB database. It deletes the temporary relay during
+cleanup. CI reads the private key from the dedicated
+`RELAY_BUTTON_E2E_PRIVATE_KEY` repository secret and the public SSH key from the
+`RELAY_BUTTON_E2E_SSH_PUBLIC_KEY` repository variable; never store the private
+key in a tracked `.env` file.
 
 Run the relay-pinning proof against a local `orbitdb-relay` checkout:
 
