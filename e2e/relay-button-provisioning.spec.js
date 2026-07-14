@@ -161,7 +161,50 @@ test.describe('Sponsor Relay button', () => {
 		const agentA = new TodoBrowserAgent('relay-e2e-a', browser, APP_URL, REPLICATION_TIMEOUT);
 		const agentB = new TodoBrowserAgent('relay-e2e-b', browser, APP_URL, REPLICATION_TIMEOUT);
 		let deployed = false;
-		const evidence = { instanceName, ownerAddress: account.address };
+		let cleanupError = null;
+		let testError = null;
+		const evidence = {
+			instanceName,
+			ownerAddress: account.address,
+			startedAt: new Date(startedAt).toISOString(),
+			steps: {
+				walletAndManifest: {
+					label: 'Wallet connected and relay manifest accepted',
+					status: 'pending'
+				},
+				instanceProvisioned: { label: 'Aleph relay VM provisioned', status: 'pending' },
+				bootstrapPublished: { label: 'Browser multiaddress published to Aleph', status: 'pending' },
+				healthVerified: { label: 'Relay /health endpoint and peer ID verified', status: 'pending' },
+				browserAConnected: {
+					label: 'Browser A connected through custom multiaddress',
+					status: 'pending'
+				},
+				browserBConnected: {
+					label: 'Browser B connected through custom multiaddress',
+					status: 'pending'
+				},
+				sharedDatabase: {
+					label: 'Both browsers opened the same mnemonic and OrbitDB address',
+					status: 'pending'
+				},
+				browserPeersConnected: {
+					label: 'Browser-to-browser relay connection established',
+					status: 'pending'
+				},
+				replicationAToB: {
+					label: 'TODO replicated from browser A to browser B',
+					status: 'pending'
+				},
+				replicationBToA: {
+					label: 'TODO replicated from browser B to browser A',
+					status: 'pending'
+				},
+				cleanup: { label: 'Temporary Aleph relay deleted', status: 'pending' }
+			}
+		};
+		const pass = (step, detail = '') => {
+			evidence.steps[step] = { ...evidence.steps[step], status: 'passed', detail };
+		};
 
 		try {
 			await deploymentPage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
@@ -170,10 +213,12 @@ test.describe('Sponsor Relay button', () => {
 			await deploymentPage.getByRole('button', { name: 'Connect MetaMask' }).click();
 			const deployButton = deploymentPage.getByRole('button', { name: 'Deploy Relay' });
 			await expect(deployButton).toBeEnabled({ timeout: 120_000 });
+			pass('walletAndManifest');
 			await deployButton.click();
 			deployed = true;
 			const { instanceHash } = await waitForDeploymentInstance(deploymentPage, instanceName);
 			evidence.instanceHash = instanceHash;
+			pass('instanceProvisioned', instanceHash);
 
 			const registration = await waitForBootstrapRegistration({
 				ownerAddress: account.address,
@@ -185,17 +230,19 @@ test.describe('Sponsor Relay button', () => {
 			expect(relayAddress, 'new relay must advertise a browser-reachable address').toBeTruthy();
 			evidence.registration = registration;
 			evidence.relayAddress = relayAddress;
+			pass('bootstrapPublished', relayAddress);
 			evidence.health = await waitForRelayHealth(relayAddress, relayPeerId);
+			pass('healthVerified', relayPeerId);
 
 			await Promise.all([agentA.open(), agentB.open()]);
 			await Promise.all([
 				agentA.connectToMultiaddr(relayAddress),
 				agentB.connectToMultiaddr(relayAddress)
 			]);
-			await Promise.all([
-				agentA.waitForPeerConnection(relayPeerId),
-				agentB.waitForPeerConnection(relayPeerId)
-			]);
+			await agentA.waitForPeerConnection(relayPeerId);
+			pass('browserAConnected', relayPeerId);
+			await agentB.waitForPeerConnection(relayPeerId);
+			pass('browserBConnected', relayPeerId);
 
 			await Promise.all([agentA.waitForDialAddress(), agentB.waitForDialAddress()]);
 			const [diagnosticsA, diagnosticsB] = await Promise.all([
@@ -203,6 +250,7 @@ test.describe('Sponsor Relay button', () => {
 				agentB.diagnostics()
 			]);
 			expect(diagnosticsA.databaseAddress).toBe(diagnosticsB.databaseAddress);
+			pass('sharedDatabase', diagnosticsA.databaseAddress);
 			const addressForB = selectPeerDialAddress(diagnosticsB, diagnosticsB.peerId, {
 				relayPeerId
 			});
@@ -214,13 +262,16 @@ test.describe('Sponsor Relay button', () => {
 				agentA.waitForDatabaseSyncPeer(),
 				agentB.waitForDatabaseSyncPeer()
 			]);
+			pass('browserPeersConnected', `${diagnosticsA.peerId} ↔ ${diagnosticsB.peerId}`);
 
 			const todoA = `${instanceName}-from-a`;
 			const todoB = `${instanceName}-from-b`;
 			await agentA.createTodo(todoA);
 			await agentB.waitForTodo(todoA);
+			pass('replicationAToB', todoA);
 			await agentB.createTodo(todoB);
 			await agentA.waitForTodo(todoB);
+			pass('replicationBToA', todoB);
 			evidence.final = {
 				agentA: await agentA.diagnostics(),
 				agentB: await agentB.diagnostics(),
@@ -231,11 +282,32 @@ test.describe('Sponsor Relay button', () => {
 				agentB.screenshot(`${OUTPUT_DIR}/browser-b.png`),
 				deploymentPage.screenshot({ path: `${OUTPUT_DIR}/relay-panel.png`, fullPage: true })
 			]);
-		} finally {
-			await writeFile(`${OUTPUT_DIR}/result.json`, `${JSON.stringify(evidence, null, 2)}\n`);
-			await Promise.allSettled([agentA.close(), agentB.close()]);
-			if (deployed) await deleteProvisionedRelay(deploymentPage, instanceName);
-			await deploymentContext.close();
+		} catch (error) {
+			testError = error instanceof Error ? error : new Error(String(error));
+			evidence.error = testError.message;
 		}
+
+		await Promise.allSettled([agentA.close(), agentB.close()]);
+		if (deployed) {
+			try {
+				await deleteProvisionedRelay(deploymentPage, instanceName);
+				pass('cleanup');
+			} catch (error) {
+				cleanupError = error instanceof Error ? error : new Error(String(error));
+				evidence.steps.cleanup.status = 'failed';
+				evidence.steps.cleanup.detail = cleanupError.message;
+			}
+		} else {
+			evidence.steps.cleanup = {
+				...evidence.steps.cleanup,
+				status: 'skipped',
+				detail: 'No VM was submitted.'
+			};
+		}
+		evidence.finishedAt = new Date().toISOString();
+		await writeFile(`${OUTPUT_DIR}/result.json`, `${JSON.stringify(evidence, null, 2)}\n`);
+		await deploymentContext.close();
+		if (cleanupError) throw cleanupError;
+		if (testError) throw testError;
 	});
 });
