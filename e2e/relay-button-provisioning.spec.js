@@ -10,6 +10,8 @@ const APP_URL = process.env.RELAY_BUTTON_E2E_APP_URL ?? 'http://localhost:4173';
 const OUTPUT_DIR = 'test-results/relay-button';
 const PROVISION_TIMEOUT = 20 * 60_000;
 const REPLICATION_TIMEOUT = 3 * 60_000;
+const TEST_SSH_PUBLIC_KEY =
+	'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA/c8LHhXbdZMdwxmkHcpzQFg1P8qOwIRa51BiC7GgpA simple-todo-relay-e2e';
 
 function installWalletProvider(context, account) {
 	return context.exposeBinding(
@@ -228,6 +230,8 @@ test.describe('Sponsor Relay button', () => {
 			await deploymentPage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
 			await deploymentPage.getByRole('button', { name: 'Sponsor Relay' }).click();
 			await deploymentPage.getByLabel('Instance Name').fill(instanceName);
+			await deploymentPage.getByText('Advanced', { exact: true }).click();
+			await deploymentPage.getByLabel('SSH Public Key').fill(TEST_SSH_PUBLIC_KEY);
 			await deploymentPage.getByRole('button', { name: 'Connect MetaMask' }).click();
 			const deployButton = deploymentPage.getByRole('button', { name: 'Deploy Relay' });
 			await expect(deployButton).toBeEnabled({ timeout: 120_000 });
