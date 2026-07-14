@@ -1,0 +1,50 @@
+name: Relay button E2E
+
+on:
+  push:
+    branches: [main, feat/issue33-spanish-mnemonic]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: relay-button-e2e
+  cancel-in-progress: false
+
+jobs:
+  provision-and-replicate:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
+    timeout-minutes: 35
+    env:
+      RELAY_BUTTON_E2E_PRIVATE_KEY: ${{ secrets.RELAY_BUTTON_E2E_PRIVATE_KEY }}
+      RELAY_BUTTON_E2E_SSH_PUBLIC_KEY: ${{ vars.RELAY_BUTTON_E2E_SSH_PUBLIC_KEY }}
+      E2E_RELAY_MODE: isolated
+      E2E_PUBLIC_RELAY_BOOTSTRAP_ADDR: /ip4/127.0.0.1/tcp/9/ws/p2p/12D3KooWN7RWonSmxzptUSFZ4DfXEBcLvVoAQpW8Wr3BhshcQPG6
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Require relay deployment credentials
+        run: test -n "$RELAY_BUTTON_E2E_PRIVATE_KEY" && test -n "$RELAY_BUTTON_E2E_SSH_PUBLIC_KEY"
+      - name: Provision relay and verify two-browser replication
+        run: pnpm exec playwright test e2e/relay-button-provisioning.spec.js --project=chromium --workers=1
+      - name: Write relay E2E job summary
+        if: always()
+        run: node scripts/write-relay-e2e-summary.mjs
+      - name: Upload relay E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: relay-button-e2e-${{ github.run_id }}
+          path: test-results/relay-button
+          if-no-files-found: warn
+          retention-days: 14

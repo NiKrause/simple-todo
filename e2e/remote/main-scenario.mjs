@@ -8,10 +8,15 @@ function hasPublicRelayConnection(diagnostics) {
 	);
 }
 
-function selectPeerDialAddress(diagnostics, expectedPeerId, { requirePublic = false } = {}) {
+export function selectPeerDialAddress(
+	diagnostics,
+	expectedPeerId,
+	{ requirePublic = false, relayPeerId = null } = {}
+) {
 	const candidates = diagnostics.multiaddrs.filter(
 		(address) =>
 			address.endsWith(`/p2p/${expectedPeerId}`) &&
+			(!relayPeerId || address.includes(`/p2p/${relayPeerId}/p2p-circuit/`)) &&
 			(!requirePublic ||
 				/\/dns[46]\//.test(address) ||
 				/\/ip4\/(?!127\.)/.test(address) ||

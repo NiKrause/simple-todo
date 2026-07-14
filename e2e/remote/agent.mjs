@@ -140,14 +140,14 @@ export class TodoBrowserAgent {
 		await networkDetails.getByRole('button', { name: 'Connect', exact: true }).click();
 	}
 
-	async waitForPeerConnection(peerId) {
+	async waitForPeerConnection(peerId, timeout = this.timeout) {
 		await this.page.waitForFunction(
 			(expectedPeerId) =>
 				(window.__simpleTodoDiagnostics?.getConnections?.() ?? []).some(
 					({ remotePeer }) => remotePeer === expectedPeerId
 				),
 			peerId,
-			{ timeout: this.timeout, polling: 1_000 }
+			{ timeout, polling: 1_000 }
 		);
 
 		return this.diagnostics();
