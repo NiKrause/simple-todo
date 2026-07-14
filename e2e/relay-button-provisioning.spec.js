@@ -336,9 +336,22 @@ test.describe('Sponsor Relay button', () => {
 		} catch (error) {
 			testError = error instanceof Error ? error : new Error(String(error));
 			evidence.error = testError.message;
-			await deploymentPage
-				.screenshot({ path: `${OUTPUT_DIR}/relay-panel-error.png`, fullPage: true })
-				.catch(() => {});
+			const [diagnosticsA, diagnosticsB] = await Promise.allSettled([
+				agentA.diagnostics(),
+				agentB.diagnostics()
+			]);
+			evidence.failureDiagnostics = {
+				agentA: diagnosticsA.status === 'fulfilled' ? diagnosticsA.value : null,
+				agentB: diagnosticsB.status === 'fulfilled' ? diagnosticsB.value : null
+			};
+			await Promise.allSettled([
+				deploymentPage.screenshot({
+					path: `${OUTPUT_DIR}/relay-panel-error.png`,
+					fullPage: true
+				}),
+				agentA.screenshot(`${OUTPUT_DIR}/browser-a-error.png`),
+				agentB.screenshot(`${OUTPUT_DIR}/browser-b-error.png`)
+			]);
 		}
 
 		await Promise.allSettled([agentA.close(), agentB.close()]);

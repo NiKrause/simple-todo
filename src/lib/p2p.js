@@ -105,6 +105,8 @@ const RELAY_PING_TIMEOUT_MS = 10_000;
 const DISCOVERY_DIAL_PERIODIC_RETRY_MS = 2_000;
 const DISCOVERY_DIAL_RETRY_COOLDOWN_MS = 5_000;
 const DISCOVERY_DIAL_TIMEOUT_MS = 10_000;
+const CIRCUIT_RELAY_HOP_PROTOCOL = '/libp2p/circuit/relay/0.2.0/hop';
+const CIRCUIT_RELAY_PROTOCOL_WAIT_MS = 5_000;
 /** @type {Map<string, { peer: any, multiaddrs: any[], isDialing: boolean, lastDialAttemptAt: number }>} */
 const discoveredPeers = new Map();
 /** @type {ReturnType<typeof setInterval> | null} */
@@ -700,6 +702,7 @@ export async function connectToMultiaddr(address) {
 
 	const connection = await libp2p.dial(target);
 	const outcome = await waitForManualConnectionOutcome(connection);
+	await reserveManuallyConnectedRelay(target, connection.remotePeer);
 
 	return {
 		status: outcome.status,
@@ -707,6 +710,45 @@ export async function connectToMultiaddr(address) {
 		remotePeer: connection.remotePeer?.toString() ?? null,
 		remoteAddr: connection.remoteAddr?.toString() ?? normalizedAddress
 	};
+}
+
+/**
+ * A relay selected after libp2p startup is not guaranteed to be picked up by
+ * the initial `/p2p-circuit` discovery listener. Once identify confirms that
+ * the manually connected peer supports Circuit Relay v2 HOP, listen on that
+ * specific relay so this browser advertises a dialable circuit address.
+ *
+ * @param {any} target
+ * @param {any} remotePeer
+ */
+async function reserveManuallyConnectedRelay(target, remotePeer) {
+	if (!libp2p || target.toString().includes('/p2p-circuit/')) return;
+
+	const relaySegment = `/p2p/${remotePeer.toString()}/p2p-circuit`;
+	if (
+		libp2p.getMultiaddrs().some((/** @type {any} */ addr) => addr.toString().includes(relaySegment))
+	)
+		return;
+
+	const deadline = Date.now() + CIRCUIT_RELAY_PROTOCOL_WAIT_MS;
+	let supportsCircuitRelay = false;
+	while (Date.now() < deadline) {
+		const peer = await libp2p.peerStore.get(remotePeer).catch(() => null);
+		supportsCircuitRelay = peer?.protocols?.includes(CIRCUIT_RELAY_HOP_PROTOCOL) ?? false;
+		if (supportsCircuitRelay) break;
+		await new Promise((resolve) => setTimeout(resolve, 250));
+	}
+
+	if (!supportsCircuitRelay) return;
+
+	try {
+		await libp2p.components.transportManager.listen([target.encapsulate('/p2p-circuit')]);
+	} catch (error) {
+		console.warn(
+			'Connected to relay but could not create a circuit reservation:',
+			error instanceof Error ? error.message : String(error)
+		);
+	}
 }
 
 /**
