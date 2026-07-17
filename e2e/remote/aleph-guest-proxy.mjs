@@ -1,8 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { timingSafeEqual } from 'node:crypto';
+import { createRequire } from 'node:module';
 import http from 'node:http';
 import httpProxy from 'http-proxy';
-import { version as playwrightVersion } from 'playwright/package.json' with { type: 'json' };
+
+const require = createRequire(import.meta.url);
+const { version: playwrightVersion } = require('playwright/package.json');
 
 const secret = (await readFile('/etc/aleph-playwright-runner.secret', 'utf8')).trim();
 const proxy = httpProxy.createProxyServer({ target: 'ws://127.0.0.1:3000', ws: true });
