@@ -22,7 +22,7 @@ This is a **browser-only** local-first peer-to-peer todo application that operat
 
 This branch extends the basic `main` tutorial with a three-word Spanish shared-list mnemonic, for example `luna-camino-verde`. The normalized mnemonic is the OrbitDB database name: two browsers enter the same words to open and replicate the same list without exchanging a full OrbitDB address. The mnemonic is only a convenient public share code—not a password, recovery phrase, encryption key, or access-control mechanism. Anyone who knows or guesses it can discover and edit the public writable list.
 
-> **Another tutorial path:** The [`collab01`](https://github.com/NiKrause/simple-todo/tree/collab01) branch demonstrates explicit collaboration: users can create or load a todo database by its OrbitDB address, share it with another peer, and replicate changes through the relay.
+> **Collaboration examples:** [`collab01`](https://github.com/NiKrause/simple-todo/tree/collab01) demonstrates mnemonic-based shared lists. The previous explicit OrbitDB-address collaboration example is preserved as [`collab02`](https://github.com/NiKrause/simple-todo/tree/collab02).
 
 ### Key Features
 

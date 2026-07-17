@@ -2,7 +2,7 @@ name: Relay button E2E
 
 on:
   push:
-    branches: [main, collab01, feat/issue33-spanish-mnemonic]
+    branches: [main, collab01]
   workflow_dispatch:
 
 permissions:
