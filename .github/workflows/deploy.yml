@@ -7,7 +7,7 @@ permissions:
 
 on:
   push:
-    branches: [collab01]
+    branches: [collab02]
   workflow_dispatch:
     inputs:
       relay_bootstrap_addr:
@@ -16,22 +16,16 @@ on:
           Comma-separated. Leave empty to use the default from .env.example.
         required: false
         default: ''
-      domain:
-        description: >-
-          Aleph custom domain to link (e.g. simple-todo.le-space.de).
-          Leave empty to skip domain linking.
-        required: false
-        default: ''
 
 jobs:
   e2e:
-    if: github.ref_name == 'collab01'
+    if: github.ref_name == 'collab02'
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.54.2-noble
     timeout-minutes: 15
     steps:
-      - name: Checkout collab01
+      - name: Checkout collab02
         uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v6
@@ -60,7 +54,7 @@ jobs:
           STORE_FORWARD_OUTCOME: ${{ steps.relay-store-forward-e2e.outcome }}
         run: |
           {
-            echo '## collab01 end-to-end tests'
+            echo '## collab02 end-to-end tests'
             echo
             echo "**Result:** ${E2E_OUTCOME}"
             echo "**Relay store-and-forward:** ${STORE_FORWARD_OUTCOME}"
@@ -78,7 +72,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   build-and-deploy:
-    if: github.ref_name == 'collab01'
+    if: github.ref_name == 'collab02'
     needs: e2e
     runs-on: ubuntu-latest
     outputs:
@@ -90,7 +84,7 @@ jobs:
       store_processed: ${{ steps.publish.outputs.store_processed }}
       url: ${{ steps.publish.outputs.url }}
     steps:
-      - name: Checkout collab01
+      - name: Checkout collab02
         uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v6
@@ -108,7 +102,7 @@ jobs:
         env:
           VITE_RELAY_BOOTSTRAP_ADDR_PROD: ${{ inputs.relay_bootstrap_addr || secrets.RELAY_BOOTSTRAP_ADDR_PROD || '' }}
           VITE_NODE_ENV: production
-          VITE_APP_BRANCH: collab01
+          VITE_APP_BRANCH: collab02
         run: pnpm build
 
       - name: Install isolated Aleph deploy tooling
@@ -122,7 +116,7 @@ jobs:
           ALEPH_VM_MODE: site-publish
           ALEPH_SITE_DIRECTORY: ${{ github.workspace }}/build
           ALEPH_SITE_PIN: 'true'
-          ALEPH_SITE_NAME: simple-todo-collab01
+          ALEPH_SITE_NAME: simple-todo-collab02
           ALEPH_SITE_CHANNEL: ALEPH-CLOUDSOLUTIONS
           ALEPH_SITE_PUBLISH_ATTEMPTS: '3'
           ALEPH_SITE_PUBLISH_RETRY_DELAY_MS: '15000'
@@ -137,9 +131,9 @@ jobs:
       needs.build-and-deploy.outputs.store_processed == 'true'
     runs-on: ubuntu-latest
     env:
-      ALEPH_COLLAB01_SITE_DOMAIN: collab01.le-space.de
+      ALEPH_COLLAB02_SITE_DOMAIN: collab02.le-space.de
     steps:
-      - name: Checkout collab01
+      - name: Checkout collab02
         uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v6
@@ -157,14 +151,13 @@ jobs:
         run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.22
 
       - name: Link custom domain
-        if: inputs.domain != '' || env.ALEPH_COLLAB01_SITE_DOMAIN != ''
         id: domain
         env:
           ALEPH_VM_MODE: site-domain-link
           ALEPH_SITE_ITEM_HASH: ${{ needs.build-and-deploy.outputs.item_hash }}
           ALEPH_SITE_IPFS_CID: ${{ needs.build-and-deploy.outputs.ipfs_cid }}
           ALEPH_SITE_IPFS_CID_V0: ${{ needs.build-and-deploy.outputs.ipfs_cid_v0 }}
-          ALEPH_SITE_DOMAIN: ${{ inputs.domain || env.ALEPH_COLLAB01_SITE_DOMAIN }}
+          ALEPH_SITE_DOMAIN: ${{ env.ALEPH_COLLAB02_SITE_DOMAIN }}
           ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
         run: node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"
@@ -183,6 +176,6 @@ jobs:
         run: >-
           gh workflow run remote-replication.yml
           --repo "${{ github.repository }}"
-          --ref collab01
-          -f app_url=https://collab01.le-space.de
+          --ref collab02
+          -f app_url=https://collab02.le-space.de
           -f provider=testingbot
