@@ -65,6 +65,29 @@ pnpm run test:e2e:local-relay-src
 `E2E_RELAY_HTTP_ORIGIN` is required when a pinning proof calls
 `/pinning/sync` and `/pinning/databases`.
 
+## Remote browser replication providers
+
+`remote-replication.yml` keeps browser A on the GitHub runner and supports three
+providers for browser B: `aleph` (default), `local`, and the temporary legacy
+`testingbot` adapter. The Aleph provider deploys a uniquely named VM
+(`simple-todo-<run_id>-<run_attempt>`), installs Playwright 1.61.1 through SSH,
+and connects through a per-run Bearer-authenticated WSS endpoint. It accepts only
+`https://api2.aleph.im` followed by `https://api.aleph.im`; caller-provided api3
+or unrelated hosts are removed.
+
+Normal teardown erases the runtime, sends an owner-signed FORGET for the exact
+INSTANCE hash, verifies the forgotten state on api2 and api, and waits for
+scheduler deallocation. The guest also powers itself off after 45 minutes. This
+TTL limits browser exposure but cannot sign a FORGET after a cancelled GitHub
+job. Phase B still needs an external janitor that records INSTANCE hashes before
+cancellation and repeats erase/FORGET/deallocation verification for orphans.
+
+The workflow requires a funded `ALEPH_PLAYWRIGHT_PRIVATE_KEY` repository secret,
+falling back temporarily to `RELAY_BUTTON_E2E_PRIVATE_KEY`. The SSH key and WSS
+credential are generated per run; the credential is masked and is not uploaded
+with evidence. Do not run this paid live job concurrently with another Aleph VM
+provisioning test. Use `provider=local` for free development runs.
+
 ## Debugging
 
 Open Playwright UI mode:

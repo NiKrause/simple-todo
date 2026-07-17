@@ -1,0 +1,18 @@
+name: Aleph Playwright runner janitor
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    uses: NiKrause/relay-button/.github/workflows/playwright-runner-janitor.yml@fix/guest-bootstrap-cleanup
+    with:
+      repository_scope: NiKrause/simple-todo
+      ttl_ms: 3600000
+    secrets:
+      ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PLAYWRIGHT_PRIVATE_KEY || secrets.RELAY_BUTTON_E2E_PRIVATE_KEY }}

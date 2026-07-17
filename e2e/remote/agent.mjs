@@ -102,24 +102,29 @@ export class TodoBrowserAgent {
 		return this.diagnostics();
 	}
 
-	async waitForPublicDialAddress() {
+	async waitForDialAddress({ requirePublic = false } = {}) {
 		await this.page.waitForFunction(
-			() => {
+			(publicOnly) => {
 				const peerId = window.__simpleTodoDiagnostics?.getPeerId?.();
 				return (window.__simpleTodoDiagnostics?.getMultiaddrs?.() ?? []).some(
 					(address) =>
 						address.endsWith(`/p2p/${peerId}`) &&
 						address.includes('/p2p-circuit/') &&
-						(/\/dns[46]\//.test(address) ||
+						(!publicOnly ||
+							/\/dns[46]\//.test(address) ||
 							/\/ip4\/(?!127\.)/.test(address) ||
-							/\/ip6\//.test(address))
+							/\/ip6\/(?!::1\/)/.test(address))
 				);
 			},
-			undefined,
+			requirePublic,
 			{ timeout: this.timeout, polling: 1_000 }
 		);
 
 		return this.diagnostics();
+	}
+
+	async waitForPublicDialAddress() {
+		return this.waitForDialAddress({ requirePublic: true });
 	}
 
 	async connectToMultiaddr(address) {
@@ -148,35 +153,43 @@ export class TodoBrowserAgent {
 		return this.diagnostics();
 	}
 
-	async createTodo(text) {
-		await this.todoInput().fill(text);
-		await this.page.getByRole('button', { name: 'Add TODO' }).click();
-		await this.waitForTodo(text);
+	async waitForDatabaseSyncPeer(timeout = this.timeout) {
+		await this.page.waitForFunction(
+			() => (window.__simpleTodoDiagnostics?.getDatabasePeers?.() ?? []).length > 0,
+			undefined,
+			{ timeout, polling: 1_000 }
+		);
+		return this.diagnostics();
 	}
 
-	async waitForTodo(text) {
-		await this.page
-			.getByText(text, { exact: true })
-			.waitFor({ state: 'visible', timeout: this.timeout });
+	async createTodo(text, { attempts = 3, attemptTimeout = 40_000 } = {}) {
+		let lastError;
+		for (let attempt = 1; attempt <= attempts; attempt += 1) {
+			await this.todoInput().waitFor({ state: 'visible', timeout: attemptTimeout });
+			await this.todoInput().fill(text);
+			await this.page.getByRole('button', { name: 'Add TODO' }).click();
+			try {
+				await this.waitForTodo(text, attemptTimeout);
+				return;
+			} catch (error) {
+				lastError = error;
+				this.log.push(
+					`[warning] TODO creation attempt ${attempt}/${attempts} did not become visible within ${attemptTimeout}ms`
+				);
+			}
+		}
+
+		throw new Error(
+			`${this.name} could not create local TODO "${text}" after ${attempts} attempts: ${lastError instanceof Error ? lastError.message : String(lastError)}`
+		);
+	}
+
+	async waitForTodo(text, timeout = this.timeout) {
+		await this.page.getByText(text, { exact: true }).waitFor({ state: 'visible', timeout });
 	}
 
 	async screenshot(path) {
 		await this.page?.screenshot({ path, fullPage: true });
-	}
-
-	async setTestingBotStatus(passed, reason) {
-		if (!this.page) return;
-		const command = JSON.stringify({
-			action: 'setSessionStatus',
-			arguments: { passed, reason }
-		});
-		await this.page.evaluate(() => {}, `testingbot_executor: ${command}`);
-	}
-
-	async getTestingBotSessionDetails() {
-		if (!this.page) return null;
-		const command = JSON.stringify({ action: 'getSessionDetails' });
-		return this.page.evaluate(() => {}, `testingbot_executor: ${command}`);
 	}
 
 	todoInput() {

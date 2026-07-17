@@ -120,7 +120,7 @@ jobs:
 
       - name: Install isolated Aleph deploy tooling
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.22
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.30
 
       - name: Publish to Aleph IPFS
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -152,7 +152,9 @@ jobs:
       needs.build-and-deploy.outputs.store_processed == 'true'
     runs-on: ubuntu-latest
     env:
-      ALEPH_MAIN_SITE_DOMAIN: simple-todo.le-space.de
+      # Only a push of the default branch may implicitly update production.
+      # A manually dispatched feature branch must name its target explicitly.
+      ALEPH_MAIN_SITE_DOMAIN: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'simple-todo.le-space.de' || '' }}
     steps:
       - name: Checkout simple-todo
         uses: actions/checkout@v6
@@ -169,7 +171,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Install isolated Aleph deploy tooling
-        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.22
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.30
 
       - name: Link custom domain
         if: inputs.domain != '' || env.ALEPH_MAIN_SITE_DOMAIN != ''
@@ -183,3 +185,15 @@ jobs:
           ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
         run: node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"
+
+  remote-replication:
+    needs: link-domain
+    if: >-
+      needs.link-domain.result == 'success' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+       (github.event_name == 'workflow_dispatch' && inputs.domain != ''))
+    uses: ./.github/workflows/remote-replication.yml
+    with:
+      app_url: ${{ inputs.domain != '' && format('https://{0}', inputs.domain) || 'https://simple-todo.le-space.de' }}
+      provider: aleph
+    secrets: inherit
