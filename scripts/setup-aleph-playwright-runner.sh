@@ -10,15 +10,43 @@ test -s /etc/aleph-playwright-runner.secret
 install -d -m 0755 /opt/aleph-playwright-runner
 install -m 0644 /tmp/aleph-guest-proxy.mjs /opt/aleph-playwright-runner/proxy.mjs
 
-systemctl disable --now orbitdb-relay-pinner.service orbitdb-relay-setup.service caddy.service 2>/dev/null || true
+stop_rootfs_web_services() {
+	for service in \
+		orbitdb-relay-pinner.service \
+		orbitdb-relay-setup.service \
+		caddy.service \
+		nginx.service \
+		apache2.service \
+		lighttpd.service; do
+		systemctl disable --now "$service" 2>/dev/null || true
+	done
+}
+
+stop_rootfs_web_services
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq ca-certificates curl gnupg
+apt-get install -y -qq ca-certificates curl gnupg psmisc
 curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
 apt-get install -y -qq nodejs
 npm install --prefix /opt/aleph-playwright-runner --omit=dev --no-audit --no-fund \
 	playwright@1.61.1 http-proxy@1.18.1
 /opt/aleph-playwright-runner/node_modules/.bin/playwright install --with-deps chromium
+
+# Phase A intentionally reuses the relay RootFS. Record and release any remaining
+# RootFS listener before assigning its public HTTP port to the authenticated proxy.
+stop_rootfs_web_services
+echo 'Port 80 listeners inherited from the Phase A RootFS:'
+ss -ltnp 'sport = :80' || true
+fuser -k 80/tcp 2>/dev/null || true
+for _ in {1..10}; do
+	if ! ss -H -ltn 'sport = :80' | grep -q .; then break; fi
+	sleep 1
+done
+if ss -H -ltn 'sport = :80' | grep -q .; then
+	echo 'Port 80 is still occupied after stopping inherited RootFS services:' >&2
+	ss -ltnp 'sport = :80' >&2 || true
+	exit 1
+fi
 
 cat >/etc/systemd/system/aleph-playwright-server.service <<'UNIT'
 [Unit]
