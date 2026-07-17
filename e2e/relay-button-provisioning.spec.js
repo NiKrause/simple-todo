@@ -306,7 +306,11 @@ test.describe('Relay Button', () => {
 			}
 			await consentModal.getByTestId('shared-list-mnemonic-input').fill(sharedMnemonic);
 			await consentModal.getByRole('button', { name: 'Open shared list' }).click();
-			await deploymentPage.getByRole('button', { name: 'Relay Button' }).click();
+			const relayLauncher = deploymentPage.getByRole('button', {
+				name: /^(?:Relay Button|Sponsor Relay)$/
+			});
+			await relayLauncher.waitFor({ state: 'visible', timeout: 15_000 });
+			await relayLauncher.click();
 			await deploymentPage.getByLabel('Instance Name').fill(instanceName);
 			await deploymentPage.getByText('Advanced', { exact: true }).click();
 			await deploymentPage.getByLabel('SSH Public Key').fill(TEST_SSH_PUBLIC_KEY);
