@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test';
 import {
-	DEFAULT_ALEPH_BOOTSTRAP_COMPACT_POST_TYPE,
 	DEFAULT_ALEPH_BOOTSTRAP_POST_TYPE,
 	fetchAlephBootstrapPosts
 } from '@le-space/aleph-bootstrap';
@@ -83,16 +82,13 @@ async function waitForBootstrapRegistration({ page, ownerAddress, instanceHash, 
 		if (deploymentFailure) {
 			throw new Error(`Relay Button deployment failed: ${deploymentFailure}`);
 		}
-		const posts = (
-			await Promise.all(
-				[DEFAULT_ALEPH_BOOTSTRAP_COMPACT_POST_TYPE, DEFAULT_ALEPH_BOOTSTRAP_POST_TYPE].map(
-					(postType) => fetchAlephBootstrapPosts({ pagination: 200, postType })
-				)
-			).catch((error) => {
-				lastSummary = error instanceof Error ? error.message : String(error);
-				return [];
-			})
-		).flat();
+		const posts = await fetchAlephBootstrapPosts({
+			pagination: 200,
+			postType: DEFAULT_ALEPH_BOOTSTRAP_POST_TYPE
+		}).catch((error) => {
+			lastSummary = error instanceof Error ? error.message : String(error);
+			return [];
+		});
 		const registration = posts.find(({ address, content }) => {
 			const owner = (content?.ownerAddress ?? content?.publisherAddress ?? address)?.toLowerCase();
 			const addresses = content?.browserMultiaddrs?.length
