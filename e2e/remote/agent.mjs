@@ -162,16 +162,30 @@ export class TodoBrowserAgent {
 		return this.diagnostics();
 	}
 
-	async createTodo(text) {
-		await this.todoInput().fill(text);
-		await this.page.getByRole('button', { name: 'Add TODO' }).click();
-		await this.waitForTodo(text);
+	async createTodo(text, { attempts = 3, attemptTimeout = 40_000 } = {}) {
+		let lastError;
+		for (let attempt = 1; attempt <= attempts; attempt += 1) {
+			await this.todoInput().waitFor({ state: 'visible', timeout: attemptTimeout });
+			await this.todoInput().fill(text);
+			await this.page.getByRole('button', { name: 'Add TODO' }).click();
+			try {
+				await this.waitForTodo(text, attemptTimeout);
+				return;
+			} catch (error) {
+				lastError = error;
+				this.log.push(
+					`[warning] TODO creation attempt ${attempt}/${attempts} did not become visible within ${attemptTimeout}ms`
+				);
+			}
+		}
+
+		throw new Error(
+			`${this.name} could not create local TODO "${text}" after ${attempts} attempts: ${lastError instanceof Error ? lastError.message : String(lastError)}`
+		);
 	}
 
-	async waitForTodo(text) {
-		await this.page
-			.getByText(text, { exact: true })
-			.waitFor({ state: 'visible', timeout: this.timeout });
+	async waitForTodo(text, timeout = this.timeout) {
+		await this.page.getByText(text, { exact: true }).waitFor({ state: 'visible', timeout });
 	}
 
 	async screenshot(path) {

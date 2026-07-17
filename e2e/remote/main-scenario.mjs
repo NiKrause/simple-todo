@@ -46,12 +46,14 @@ export async function runMainRemoteScenario({
 	const agentB = new TodoBrowserAgent(`${remoteProvider}-remote`, browserB, appUrl);
 	const result = { runId, appUrl, agents: {}, replication: {}, evidence: {}, passed: false };
 	result.evidence.remoteProvider = { name: remoteProvider, ...remoteEvidence };
+	result.evidence.stage = 'opening-browsers';
 	const requirePublicRelay = process.env.REQUIRE_PUBLIC_RELAY === 'true';
 
 	await mkdir(outputDir, { recursive: true });
 
 	try {
 		await Promise.all([agentA.open(), agentB.open()]);
+		result.evidence.stage = 'verifying-relays';
 		if (requirePublicRelay) {
 			const [relayOptionsA, relayOptionsB] = await Promise.all([
 				agentA.waitForReachableRelayOptions(),
@@ -72,6 +74,7 @@ export async function runMainRemoteScenario({
 		]);
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
+		result.evidence.stage = 'validating-shared-database';
 
 		if (
 			!result.agents.a.databaseAddress ||
@@ -100,6 +103,7 @@ export async function runMainRemoteScenario({
 			);
 		}
 		await agentA.connectToMultiaddr(addressForB);
+		result.evidence.stage = 'connecting-browser-peers';
 		await Promise.all([
 			agentA.waitForPeerConnection(result.agents.b.peerId),
 			agentB.waitForPeerConnection(result.agents.a.peerId)
@@ -108,16 +112,21 @@ export async function runMainRemoteScenario({
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
 
+		result.evidence.stage = 'creating-todo-on-agent-a';
 		const aToBStarted = Date.now();
 		await agentA.createTodo(todoFromA);
+		result.evidence.stage = 'replicating-agent-a-to-agent-b';
 		await agentB.waitForTodo(todoFromA);
 		result.replication.aToBMs = Date.now() - aToBStarted;
 
 		const bToAStarted = Date.now();
+		result.evidence.stage = 'creating-todo-on-agent-b';
 		await agentB.createTodo(todoFromB);
+		result.evidence.stage = 'replicating-agent-b-to-agent-a';
 		await agentA.waitForTodo(todoFromB);
 		result.replication.bToAMs = Date.now() - bToAStarted;
 		result.passed = true;
+		result.evidence.stage = 'completed';
 		await Promise.all([
 			agentA.screenshot(`${outputDir}/agent-a-success.png`),
 			agentB.screenshot(`${outputDir}/agent-b-success.png`)
