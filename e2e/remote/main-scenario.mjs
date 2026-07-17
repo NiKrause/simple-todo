@@ -36,34 +36,40 @@ export async function runMainRemoteScenario({
 	browserB,
 	appUrl,
 	outputDir,
-	remoteProvider = 'local'
+	remoteProvider = 'local',
+	remoteEvidence = {}
 }) {
 	const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 	const todoFromA = `remote-${runId}-from-a`;
 	const todoFromB = `remote-${runId}-from-b`;
 	const agentA = new TodoBrowserAgent('github-local', browserA, appUrl);
-	const agentB = new TodoBrowserAgent('testingbot-remote', browserB, appUrl);
+	const agentB = new TodoBrowserAgent(`${remoteProvider}-remote`, browserB, appUrl);
 	const result = { runId, appUrl, agents: {}, replication: {}, evidence: {}, passed: false };
+	result.evidence.remoteProvider = { name: remoteProvider, ...remoteEvidence };
+	const requirePublicRelay = process.env.REQUIRE_PUBLIC_RELAY === 'true';
 
 	await mkdir(outputDir, { recursive: true });
 
 	try {
 		await Promise.all([agentA.open(), agentB.open()]);
-		const [relayOptionsA, relayOptionsB] = await Promise.all([
-			agentA.waitForReachableRelayOptions(),
-			agentB.waitForReachableRelayOptions()
-		]);
-		result.evidence.pingVerifiedRelayOptions = {
-			agentA: relayOptionsA,
-			agentB: relayOptionsB
-		};
-		if (process.env.REQUIRE_PUBLIC_RELAY === 'true') {
+		if (requirePublicRelay) {
+			const [relayOptionsA, relayOptionsB] = await Promise.all([
+				agentA.waitForReachableRelayOptions(),
+				agentB.waitForReachableRelayOptions()
+			]);
+			result.evidence.pingVerifiedRelayOptions = {
+				agentA: relayOptionsA,
+				agentB: relayOptionsB
+			};
 			await Promise.all([
 				agentA.waitForPublicRelayConnection(),
 				agentB.waitForPublicRelayConnection()
 			]);
-			await Promise.all([agentA.waitForPublicDialAddress(), agentB.waitForPublicDialAddress()]);
 		}
+		await Promise.all([
+			agentA.waitForDialAddress({ requirePublic: requirePublicRelay }),
+			agentB.waitForDialAddress({ requirePublic: requirePublicRelay })
+		]);
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
 
@@ -76,7 +82,7 @@ export async function runMainRemoteScenario({
 			);
 		}
 
-		if (process.env.REQUIRE_PUBLIC_RELAY === 'true') {
+		if (requirePublicRelay) {
 			if (
 				!hasPublicRelayConnection(result.agents.a) ||
 				!hasPublicRelayConnection(result.agents.b)
@@ -86,7 +92,7 @@ export async function runMainRemoteScenario({
 		}
 
 		const addressForB = selectPeerDialAddress(result.agents.b, result.agents.b.peerId, {
-			requirePublic: true
+			requirePublic: requirePublicRelay
 		});
 		if (!addressForB) {
 			throw new Error(
@@ -112,10 +118,6 @@ export async function runMainRemoteScenario({
 		await agentA.waitForTodo(todoFromB);
 		result.replication.bToAMs = Date.now() - bToAStarted;
 		result.passed = true;
-		if (remoteProvider === 'testingbot') {
-			await agentB.setTestingBotStatus(true, 'Bidirectional OrbitDB replication passed.');
-			result.evidence.testingBot = await agentB.getTestingBotSessionDetails();
-		}
 		await Promise.all([
 			agentA.screenshot(`${outputDir}/agent-a-success.png`),
 			agentB.screenshot(`${outputDir}/agent-b-success.png`)
@@ -130,9 +132,6 @@ export async function runMainRemoteScenario({
 		if (diagnosticsA.status === 'fulfilled') result.agents.a = diagnosticsA.value;
 		if (diagnosticsB.status === 'fulfilled') result.agents.b = diagnosticsB.value;
 		result.error = error instanceof Error ? error.message : String(error);
-		if (remoteProvider === 'testingbot') {
-			await agentB.setTestingBotStatus(false, result.error).catch(() => {});
-		}
 		await Promise.allSettled([
 			agentA.screenshot(`${outputDir}/agent-a-failure.png`),
 			agentB.screenshot(`${outputDir}/agent-b-failure.png`)
