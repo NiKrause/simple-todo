@@ -5,10 +5,17 @@ const summaryPath = process.env.GITHUB_STEP_SUMMARY;
 
 if (!summaryPath) process.exit(0);
 
+function workflowCommandValue(value) {
+	return String(value).replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+}
+
 let result;
 try {
 	result = JSON.parse(await readFile(resultPath, 'utf8'));
 } catch (error) {
+	console.log(
+		`::error title=Relay button E2E::${workflowCommandValue(`No structured test result was produced: ${error instanceof Error ? error.message : String(error)}`)}`
+	);
 	await appendFile(
 		summaryPath,
 		`## Relay button E2E\n\n❌ No structured test result was produced.\n\n\`${error instanceof Error ? error.message : String(error)}\`\n`
@@ -41,6 +48,16 @@ const details = [
 	`- Duration: ${duration}`
 ];
 if (result.error) details.push(`- Error: \`${String(result.error).replaceAll('`', "'")}\``);
+
+if (!passed) {
+	const failedSteps = Object.values(result.steps ?? {})
+		.filter((step) => !['passed', 'skipped'].includes(step.status))
+		.map((step) => `${step.label}: ${step.status}${step.detail ? ` (${step.detail})` : ''}`)
+		.join('; ');
+	console.log(
+		`::error title=Relay button E2E::${workflowCommandValue(result.error ?? failedSteps ?? 'Relay provisioning failed')}`
+	);
+}
 
 await appendFile(
 	summaryPath,

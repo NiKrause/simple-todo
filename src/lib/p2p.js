@@ -108,7 +108,8 @@ const DISCOVERY_DIAL_RETRY_COOLDOWN_MS = 5_000;
 const DISCOVERY_DIAL_TIMEOUT_MS = 10_000;
 const CIRCUIT_RELAY_HOP_PROTOCOL = '/libp2p/circuit/relay/0.2.0/hop';
 const CIRCUIT_RELAY_PROTOCOL_WAIT_MS = 5_000;
-const relayReservationAttempts = new Set();
+/** @type {Map<string, Promise<boolean>>} */
+const relayReservationAttempts = new Map();
 /** @type {Map<string, { peer: any, multiaddrs: any[], isDialing: boolean, lastDialAttemptAt: number }>} */
 const discoveredPeers = new Map();
 /** @type {ReturnType<typeof setInterval> | null} */
@@ -417,16 +418,11 @@ function setupAutomaticRelayReservations() {
 			const remotePeerId = connection.remotePeer?.toString?.();
 			const remoteAddr = connection.remoteAddr;
 			if (!remotePeerId || !remoteAddr || remoteAddr.toString().includes('/p2p-circuit/')) continue;
-			if (relayReservationAttempts.has(remotePeerId)) continue;
-
-			relayReservationAttempts.add(remotePeerId);
-			void reserveConnectedRelay(remoteAddr, connection.remotePeer)
-				.then((reserved) => {
-					if (reserved) {
-						console.info(`Reserved Circuit Relay v2 peer ${remotePeerId}`);
-					}
-				})
-				.finally(() => relayReservationAttempts.delete(remotePeerId));
+			void reserveConnectedRelayOnce(remoteAddr, connection.remotePeer).then((reserved) => {
+				if (reserved) {
+					console.info(`Reserved Circuit Relay v2 peer ${remotePeerId}`);
+				}
+			});
 		}
 	};
 
@@ -763,7 +759,7 @@ export async function connectToMultiaddr(address) {
 
 	const connection = await libp2p.dial(target);
 	const outcome = await waitForManualConnectionOutcome(connection);
-	await reserveConnectedRelay(target, connection.remotePeer);
+	await reserveConnectedRelayOnce(target, connection.remotePeer);
 
 	return {
 		status: outcome.status,
@@ -811,6 +807,29 @@ async function reserveConnectedRelay(target, remotePeer) {
 		);
 		return false;
 	}
+}
+
+/**
+ * Share one reservation attempt between automatic connection events and the
+ * manual custom-multiaddress flow. Calling TransportManager.listen twice for
+ * the same relay creates competing listeners and can stall relay setup.
+ *
+ * @param {any} target
+ * @param {any} remotePeer
+ * @returns {Promise<boolean>}
+ */
+function reserveConnectedRelayOnce(target, remotePeer) {
+	const remotePeerId = remotePeer.toString();
+	const existingAttempt = relayReservationAttempts.get(remotePeerId);
+	if (existingAttempt) return existingAttempt;
+
+	const attempt = reserveConnectedRelay(target, remotePeer).finally(() => {
+		if (relayReservationAttempts.get(remotePeerId) === attempt) {
+			relayReservationAttempts.delete(remotePeerId);
+		}
+	});
+	relayReservationAttempts.set(remotePeerId, attempt);
+	return attempt;
 }
 
 /**

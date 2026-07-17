@@ -1,4 +1,4 @@
-name: Collab01 Mnemonic Preview
+name: Issue 33 Mnemonic Preview
 
 permissions:
   contents: read
@@ -6,7 +6,7 @@ permissions:
 
 on:
   push:
-    branches: [collab01]
+    branches: [feat/issue33-spanish-mnemonic]
   workflow_dispatch:
     inputs:
       relay_bootstrap_addr:
@@ -62,7 +62,7 @@ jobs:
       - name: Build mnemonic preview
         env:
           VITE_NODE_ENV: production
-          VITE_APP_BRANCH: collab01
+          VITE_APP_BRANCH: issue33-mnemonic-preview
         run: pnpm build
       - name: Install isolated Aleph deploy tooling
         run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.22
@@ -72,7 +72,7 @@ jobs:
           ALEPH_VM_MODE: site-publish
           ALEPH_SITE_DIRECTORY: ${{ github.workspace }}/build
           ALEPH_SITE_PIN: 'true'
-          ALEPH_SITE_NAME: simple-todo-collab01
+          ALEPH_SITE_NAME: simple-todo-issue33-mnemonic
           ALEPH_SITE_CHANNEL: ALEPH-CLOUDSOLUTIONS
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
         run: |
@@ -120,6 +120,6 @@ jobs:
         run: >-
           gh workflow run remote-replication.yml
           --repo "${{ github.repository }}"
-          --ref collab01
+          --ref feat/issue33-spanish-mnemonic
           -f app_url=https://collab01.le-space.de
           -f provider=testingbot
