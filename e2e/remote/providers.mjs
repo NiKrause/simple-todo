@@ -3,12 +3,14 @@ import { createRequire } from 'node:module';
 export {
 	ALEPH_API_HOSTS,
 	assertPlaywrightVersion,
+	connectWithPlaywrightHeaders,
 	PLAYWRIGHT_VERSION,
 	sanitizeAlephApiHosts,
 	verifyAlephPlaywrightEndpoint
 } from './aleph-provider-contract.mjs';
 import {
 	assertPlaywrightVersion,
+	connectWithPlaywrightHeaders,
 	PLAYWRIGHT_VERSION,
 	verifyAlephPlaywrightEndpoint
 } from './aleph-provider-contract.mjs';
@@ -54,7 +56,7 @@ export async function createTestingBotBrowser({ key, secret, buildName, testName
  *  secret?: string,
  *  versionUrl?: string,
  *  fetchImpl?: typeof globalThis.fetch,
- *  connectImpl?: (options: any) => Promise<any>
+ *  connectImpl?: (wsEndpoint: string, options: any) => Promise<any>
  * }} options
  */
 export async function createAlephBrowser({
@@ -62,7 +64,7 @@ export async function createAlephBrowser({
 	secret,
 	versionUrl,
 	fetchImpl = globalThis.fetch,
-	connectImpl = (options) => chromium.connect(options)
+	connectImpl = (endpoint, options) => chromium.connect(endpoint, options)
 }) {
 	assertPlaywrightVersion(installedPlaywrightVersion, PLAYWRIGHT_VERSION);
 	if (!wsEndpoint?.startsWith('wss://')) {
@@ -70,5 +72,5 @@ export async function createAlephBrowser({
 	}
 	const headers = await verifyAlephPlaywrightEndpoint({ versionUrl, secret, fetchImpl });
 
-	return connectImpl({ wsEndpoint, headers, timeout: 120_000 });
+	return connectWithPlaywrightHeaders(connectImpl, wsEndpoint, headers);
 }

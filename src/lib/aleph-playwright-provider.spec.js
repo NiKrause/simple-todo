@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	ALEPH_API_HOSTS,
 	assertPlaywrightVersion,
+	connectWithPlaywrightHeaders,
 	sanitizeAlephApiHosts,
 	verifyAlephPlaywrightEndpoint
 } from '../../e2e/remote/aleph-provider-contract.mjs';
@@ -33,5 +34,27 @@ describe('Aleph remote Playwright provider', () => {
 		});
 		expect(headers).toEqual({ authorization: 'Bearer per-run-secret' });
 		expect(observedHeaders).toEqual(headers);
+	});
+
+	it('passes Bearer auth in the Playwright 1.61 connect options', async () => {
+		let observedEndpoint;
+		let observedOptions;
+		const browser = { close() {} };
+		const result = await connectWithPlaywrightHeaders(
+			async (endpoint, options) => {
+				observedEndpoint = endpoint;
+				observedOptions = options;
+				return browser;
+			},
+			'wss://runner.example',
+			{ authorization: 'Bearer per-run-secret' }
+		);
+
+		expect(result).toBe(browser);
+		expect(observedEndpoint).toBe('wss://runner.example');
+		expect(observedOptions).toEqual({
+			headers: { authorization: 'Bearer per-run-secret' },
+			timeout: 120_000
+		});
 	});
 });

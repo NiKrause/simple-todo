@@ -1,4 +1,8 @@
 export const PLAYWRIGHT_VERSION = '1.61.1';
+
+export function connectWithPlaywrightHeaders(connectImpl, wsEndpoint, headers) {
+	return connectImpl(wsEndpoint, { headers, timeout: 120_000 });
+}
 export const ALEPH_API_HOSTS = ['https://api2.aleph.im', 'https://api.aleph.im'];
 
 /**
