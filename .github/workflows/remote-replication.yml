@@ -100,13 +100,26 @@ jobs:
 
       - name: Install and start Playwright 1.61.1 in the guest
         if: inputs.provider == 'aleph'
-        run: bash scripts/connect-aleph-playwright-runner.sh
+        env:
+          ALEPH_PLAYWRIGHT_TLS_CERT: ${{ runner.temp }}/aleph-playwright-runner.crt
+          ALEPH_PLAYWRIGHT_TLS_KEY: ${{ runner.temp }}/aleph-playwright-runner.key
+        run: |
+          openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
+            -subj '/CN=aleph-playwright-runner' \
+            -addext "subjectAltName=IP:$ALEPH_PLAYWRIGHT_HOST" \
+            -keyout "$ALEPH_PLAYWRIGHT_TLS_KEY" \
+            -out "$ALEPH_PLAYWRIGHT_TLS_CERT" 2>/dev/null
+          chmod 600 "$ALEPH_PLAYWRIGHT_TLS_KEY"
+          echo "NODE_EXTRA_CA_CERTS=$ALEPH_PLAYWRIGHT_TLS_CERT" >> "$GITHUB_ENV"
+          bash scripts/connect-aleph-playwright-runner.sh
 
       - name: Wait for authenticated WSS proxy
         if: inputs.provider == 'aleph'
         run: |
           for attempt in $(seq 1 60); do
             if curl --fail --silent --show-error \
+              --connect-timeout 5 --max-time 10 \
+              --cacert "$NODE_EXTRA_CA_CERTS" \
               -H "Authorization: Bearer $ALEPH_PLAYWRIGHT_SECRET" \
               "$ALEPH_PLAYWRIGHT_VERSION_URL" >/dev/null; then
               exit 0

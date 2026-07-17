@@ -6,12 +6,19 @@ const proxyUrl = process.env.ALEPH_DEPLOY_PROXY_URL?.trim().replace(/\/+$/u, '')
 const instanceHash = process.env.ALEPH_DEPLOY_INSTANCE_HASH?.trim();
 const mappedPorts = JSON.parse(process.env.ALEPH_DEPLOY_MAPPED_PORTS_JSON || '{}');
 const sshPort = Number(mappedPorts['22']?.host);
-if (!host || !proxyUrl || !instanceHash || !Number.isInteger(sshPort)) {
+const tlsPort = Number(mappedPorts['443']?.host);
+if (
+	!host ||
+	!proxyUrl ||
+	!instanceHash ||
+	!Number.isInteger(sshPort) ||
+	!Number.isInteger(tlsPort)
+) {
 	throw new Error(
-		'Aleph deployment did not return host, proxy URL, exact INSTANCE hash, and SSH mapping.'
+		'Aleph deployment did not return host, proxy URL, exact INSTANCE hash, and SSH/TLS mappings.'
 	);
 }
-const httpsOrigin = proxyUrl.replace(/^http:/u, 'https:');
+const httpsOrigin = `https://${host}:${tlsPort}`;
 const wssEndpoint = httpsOrigin.replace(/^https:/u, 'wss:');
 let region = 'unknown';
 try {
@@ -33,6 +40,7 @@ try {
 const envLines = [
 	`ALEPH_PLAYWRIGHT_HOST=${host}`,
 	`ALEPH_PLAYWRIGHT_SSH_PORT=${sshPort}`,
+	`ALEPH_PLAYWRIGHT_TLS_PORT=${tlsPort}`,
 	`ALEPH_PLAYWRIGHT_INSTANCE_HASH=${instanceHash}`,
 	`ALEPH_PLAYWRIGHT_WS_ENDPOINT=${wssEndpoint}`,
 	`ALEPH_PLAYWRIGHT_VERSION_URL=${httpsOrigin}/version`,
@@ -50,7 +58,9 @@ await writeFile(
 			region,
 			hostIpv4: host,
 			sshPort,
+			tlsPort,
 			proxyOrigin: httpsOrigin,
+			reserved2n6Proxy: proxyUrl,
 			playwrightVersion: '1.61.1'
 		},
 		null,

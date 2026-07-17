@@ -5,13 +5,8 @@ set -euo pipefail
 : "${ALEPH_PLAYWRIGHT_SSH_PORT:?missing SSH port}"
 : "${ALEPH_PLAYWRIGHT_SSH_KEY:?missing SSH key}"
 : "${ALEPH_PLAYWRIGHT_SECRET:?missing per-run secret}"
-: "${ALEPH_PLAYWRIGHT_VERSION_URL:?missing public version URL}"
-
-public_hostname=$(node -e "process.stdout.write(new URL(process.argv[1]).hostname)" "$ALEPH_PLAYWRIGHT_VERSION_URL")
-if [[ ! $public_hostname =~ ^[A-Za-z0-9.-]+$ ]]; then
-	echo 'Aleph Playwright public hostname contains unsupported characters.' >&2
-	exit 1
-fi
+: "${ALEPH_PLAYWRIGHT_TLS_CERT:?missing per-run TLS certificate}"
+: "${ALEPH_PLAYWRIGHT_TLS_KEY:?missing per-run TLS key}"
 
 ssh_opts=(-i "$ALEPH_PLAYWRIGHT_SSH_KEY" -p "$ALEPH_PLAYWRIGHT_SSH_PORT" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20)
 scp_opts=(-i "$ALEPH_PLAYWRIGHT_SSH_KEY" -P "$ALEPH_PLAYWRIGHT_SSH_PORT" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20)
@@ -26,5 +21,8 @@ scp "${scp_opts[@]}" e2e/remote/aleph-guest-proxy.mjs \
 	root@"$ALEPH_PLAYWRIGHT_HOST":/tmp/aleph-guest-proxy.mjs
 scp "${scp_opts[@]}" scripts/setup-aleph-playwright-runner.sh \
 	root@"$ALEPH_PLAYWRIGHT_HOST":/tmp/setup-aleph-playwright-runner.sh
-ssh "${ssh_opts[@]}" root@"$ALEPH_PLAYWRIGHT_HOST" \
-	"bash /tmp/setup-aleph-playwright-runner.sh '$public_hostname'"
+scp "${scp_opts[@]}" "$ALEPH_PLAYWRIGHT_TLS_CERT" \
+	root@"$ALEPH_PLAYWRIGHT_HOST":/tmp/aleph-playwright-runner.crt
+scp "${scp_opts[@]}" "$ALEPH_PLAYWRIGHT_TLS_KEY" \
+	root@"$ALEPH_PLAYWRIGHT_HOST":/tmp/aleph-playwright-runner.key
+ssh "${ssh_opts[@]}" root@"$ALEPH_PLAYWRIGHT_HOST" 'bash /tmp/setup-aleph-playwright-runner.sh'

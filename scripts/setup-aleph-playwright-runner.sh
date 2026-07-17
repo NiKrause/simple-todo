@@ -7,13 +7,12 @@ if [[ ${EUID} -ne 0 ]]; then
 fi
 
 test -s /etc/aleph-playwright-runner.secret
-public_hostname=${1:-}
-if [[ ! $public_hostname =~ ^[A-Za-z0-9.-]+$ ]]; then
-	echo 'A valid public Playwright hostname is required.' >&2
-	exit 1
-fi
+test -s /tmp/aleph-playwright-runner.crt
+test -s /tmp/aleph-playwright-runner.key
 install -d -m 0755 /opt/aleph-playwright-runner
 install -m 0644 /tmp/aleph-guest-proxy.mjs /opt/aleph-playwright-runner/proxy.mjs
+install -m 0644 /tmp/aleph-playwright-runner.crt /etc/aleph-playwright-runner.crt
+install -m 0600 /tmp/aleph-playwright-runner.key /etc/aleph-playwright-runner.key
 
 stop_rootfs_web_services() {
 	for service in \
@@ -37,7 +36,8 @@ npm install --prefix /opt/aleph-playwright-runner --omit=dev --no-audit --no-fun
 /opt/aleph-playwright-runner/node_modules/.bin/playwright install --with-deps chromium
 
 # Phase A intentionally reuses the relay RootFS. Stop its application services,
-# but preserve Caddy because it terminates TLS for the ephemeral 2n6 hostname.
+# but preserve Caddy as the TLS terminator. A per-run certificate avoids relying
+# on a CRN's optional 2n6-to-guest IPv6 route.
 stop_rootfs_web_services
 if ! command -v caddy >/dev/null; then
 	echo 'The Phase A RootFS does not provide the Caddy TLS terminator.' >&2
@@ -48,8 +48,9 @@ install -d -m 0755 /etc/caddy
 if [[ -f /etc/caddy/Caddyfile ]]; then
 	cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.pre-playwright
 fi
-cat >/etc/caddy/Caddyfile <<CADDY
-${public_hostname} {
+cat >/etc/caddy/Caddyfile <<'CADDY'
+https://:443 {
+	tls /etc/aleph-playwright-runner.crt /etc/aleph-playwright-runner.key
 	reverse_proxy 127.0.0.1:3100
 }
 CADDY
