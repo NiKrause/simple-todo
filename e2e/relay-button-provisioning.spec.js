@@ -81,7 +81,7 @@ async function waitForBootstrapRegistration({ page, ownerAddress, instanceHash, 
 			return null;
 		});
 		if (deploymentFailure) {
-			throw new Error(`Sponsor Relay deployment failed: ${deploymentFailure}`);
+			throw new Error(`Relay Button deployment failed: ${deploymentFailure}`);
 		}
 		const posts = (
 			await Promise.all(
@@ -131,7 +131,7 @@ async function waitForDeploymentInstance(page, instanceName) {
 	);
 	const result = await outcome.jsonValue();
 	if (result?.status === 'error') {
-		throw new Error(`Sponsor Relay deployment failed: ${result.message}`);
+		throw new Error(`Relay Button deployment failed: ${result.message}`);
 	}
 	const instance = page.locator('details').filter({ hasText: instanceName }).first();
 	const apiHref = await instance
@@ -220,7 +220,7 @@ async function deleteProvisionedRelay(page, instanceName) {
 	await expect(instance).toBeHidden({ timeout: 3 * 60_000 });
 }
 
-test.describe('Sponsor Relay button', () => {
+test.describe('Relay Button', () => {
 	test.skip(!PRIVATE_KEY, 'RELAY_BUTTON_E2E_PRIVATE_KEY is required to provision an Aleph relay.');
 	test.skip(
 		!TEST_SSH_PUBLIC_KEY,
@@ -306,7 +306,7 @@ test.describe('Sponsor Relay button', () => {
 			}
 			await consentModal.getByTestId('shared-list-mnemonic-input').fill(sharedMnemonic);
 			await consentModal.getByRole('button', { name: 'Open shared list' }).click();
-			await deploymentPage.getByRole('button', { name: 'Sponsor Relay' }).click();
+			await deploymentPage.getByRole('button', { name: 'Relay Button' }).click();
 			await deploymentPage.getByLabel('Instance Name').fill(instanceName);
 			await deploymentPage.getByText('Advanced', { exact: true }).click();
 			await deploymentPage.getByLabel('SSH Public Key').fill(TEST_SSH_PUBLIC_KEY);

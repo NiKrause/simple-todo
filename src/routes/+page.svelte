@@ -263,5 +263,5 @@
 	<TodoList todos={$todosStore} on:delete={handleDelete} on:toggleComplete={handleToggleComplete} />
 </main>
 
-<!-- Floating Sponsor Relay FAB -->
+<!-- Floating Relay Button FAB -->
 <SponsorRelayFab manifestUrl="./rootfs-manifest.json" showInstances={true} />

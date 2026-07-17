@@ -108,6 +108,7 @@ const DISCOVERY_DIAL_RETRY_COOLDOWN_MS = 5_000;
 const DISCOVERY_DIAL_TIMEOUT_MS = 10_000;
 const CIRCUIT_RELAY_HOP_PROTOCOL = '/libp2p/circuit/relay/0.2.0/hop';
 const CIRCUIT_RELAY_PROTOCOL_WAIT_MS = 5_000;
+const relayReservationAttempts = new Set();
 /** @type {Map<string, { peer: any, multiaddrs: any[], isDialing: boolean, lastDialAttemptAt: number }>} */
 const discoveredPeers = new Map();
 /** @type {ReturnType<typeof setInterval> | null} */
@@ -158,6 +159,7 @@ export async function initializeP2P(
 		peerIdStore.set(peerId);
 		discoveredPeers.clear();
 		setupPubsubDiscoveryAutoDial();
+		setupAutomaticRelayReservations();
 
 		// Create Helia (IPFS) instance
 		setInitializationProgress(2);
@@ -230,6 +232,7 @@ async function stopP2P() {
 	activeTodoDatabaseName = '';
 	stopDiscoveryDialRetryInterval();
 	discoveredPeers.clear();
+	relayReservationAttempts.clear();
 
 	const resources = [todoDB, orbitdb, helia, libp2p];
 	todoDB = null;
@@ -395,6 +398,49 @@ function setupPubsubDiscoveryAutoDial() {
 	libp2p.addEventListener('peer:update', handleConnectivityChanged);
 	libp2p.addEventListener('connection:close', handleConnectivityChanged);
 	startDiscoveryDialRetryInterval();
+}
+
+/**
+ * Circuit Relay discovery and bootstrap dialing are independent libp2p
+ * subsystems. If Identify learns that an already-connected bootstrap peer is a
+ * HOP relay after the generic `/p2p-circuit` listener searched for one, no
+ * reservation may be created. Explicitly reserve one connected HOP relay so
+ * AddressManager can advertise a browser-dialable circuit/WebRTC address.
+ */
+function setupAutomaticRelayReservations() {
+	if (!libp2p) return;
+
+	const reserveFromConnections = () => {
+		if (!libp2p || hasCircuitRelayAddress()) return;
+
+		for (const connection of libp2p.getConnections()) {
+			const remotePeerId = connection.remotePeer?.toString?.();
+			const remoteAddr = connection.remoteAddr;
+			if (!remotePeerId || !remoteAddr || remoteAddr.toString().includes('/p2p-circuit/')) continue;
+			if (relayReservationAttempts.has(remotePeerId)) continue;
+
+			relayReservationAttempts.add(remotePeerId);
+			void reserveConnectedRelay(remoteAddr, connection.remotePeer)
+				.then((reserved) => {
+					if (reserved) {
+						console.info(`Reserved Circuit Relay v2 peer ${remotePeerId}`);
+					}
+				})
+				.finally(() => relayReservationAttempts.delete(remotePeerId));
+		}
+	};
+
+	libp2p.addEventListener('connection:open', reserveFromConnections);
+	libp2p.addEventListener('peer:update', reserveFromConnections);
+	reserveFromConnections();
+}
+
+function hasCircuitRelayAddress() {
+	return (
+		libp2p
+			?.getMultiaddrs?.()
+			.some((/** @type {any} */ addr) => addr.toString().includes('/p2p-circuit')) ?? false
+	);
 }
 
 function startDiscoveryDialRetryInterval() {
@@ -717,7 +763,7 @@ export async function connectToMultiaddr(address) {
 
 	const connection = await libp2p.dial(target);
 	const outcome = await waitForManualConnectionOutcome(connection);
-	await reserveManuallyConnectedRelay(target, connection.remotePeer);
+	await reserveConnectedRelay(target, connection.remotePeer);
 
 	return {
 		status: outcome.status,
@@ -728,20 +774,21 @@ export async function connectToMultiaddr(address) {
 }
 
 /**
- * Reserve a manually selected Circuit Relay v2 peer so this browser advertises
- * a dialable circuit address through the newly provisioned relay.
+ * Reserve a connected Circuit Relay v2 peer so this browser advertises a
+ * dialable circuit address through an automatic bootstrap or manually selected
+ * relay.
  *
  * @param {any} target
  * @param {any} remotePeer
  */
-async function reserveManuallyConnectedRelay(target, remotePeer) {
-	if (!libp2p || target.toString().includes('/p2p-circuit/')) return;
+async function reserveConnectedRelay(target, remotePeer) {
+	if (!libp2p || target.toString().includes('/p2p-circuit/')) return false;
 
 	const relaySegment = `/p2p/${remotePeer.toString()}/p2p-circuit`;
 	if (
 		libp2p.getMultiaddrs().some((/** @type {any} */ addr) => addr.toString().includes(relaySegment))
 	)
-		return;
+		return true;
 
 	const deadline = Date.now() + CIRCUIT_RELAY_PROTOCOL_WAIT_MS;
 	let supportsCircuitRelay = false;
@@ -752,15 +799,17 @@ async function reserveManuallyConnectedRelay(target, remotePeer) {
 		await new Promise((resolve) => setTimeout(resolve, 250));
 	}
 
-	if (!supportsCircuitRelay) return;
+	if (!supportsCircuitRelay) return false;
 
 	try {
 		await libp2p.components.transportManager.listen([target.encapsulate('/p2p-circuit')]);
+		return true;
 	} catch (error) {
 		console.warn(
 			'Connected to relay but could not create a circuit reservation:',
 			error instanceof Error ? error.message : String(error)
 		);
+		return false;
 	}
 }
 
