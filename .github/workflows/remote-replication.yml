@@ -1,6 +1,17 @@
 name: Remote browser replication
 
 on:
+  workflow_call:
+    inputs:
+      app_url:
+        description: Public deployment URL produced by the calling workflow
+        required: true
+        type: string
+      provider:
+        description: Second browser provider
+        required: false
+        type: string
+        default: aleph
   workflow_dispatch:
     inputs:
       app_url:
