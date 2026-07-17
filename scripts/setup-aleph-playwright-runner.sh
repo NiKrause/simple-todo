@@ -57,6 +57,11 @@ https://:443 {
 CADDY
 caddy validate --config /etc/caddy/Caddyfile
 
+# The relay RootFS delays Caddy until relay-specific configuration exists. This
+# ephemeral runner supplies its own complete Caddyfile, so remove only that
+# inherited condition from this VM after boot.
+rm -f /etc/systemd/system/caddy.service.d/orbitdb-relay.conf
+
 cat >/etc/systemd/system/aleph-playwright-server.service <<'UNIT'
 [Unit]
 Description=Authenticated Aleph Playwright server
