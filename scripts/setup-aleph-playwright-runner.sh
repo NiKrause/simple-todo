@@ -12,7 +12,8 @@ test -s /tmp/aleph-playwright-runner.key
 install -d -m 0755 /opt/aleph-playwright-runner
 install -m 0644 /tmp/aleph-guest-proxy.mjs /opt/aleph-playwright-runner/proxy.mjs
 install -m 0644 /tmp/aleph-playwright-runner.crt /etc/aleph-playwright-runner.crt
-install -m 0600 /tmp/aleph-playwright-runner.key /etc/aleph-playwright-runner.key
+install -o root -g caddy -m 0640 \
+	/tmp/aleph-playwright-runner.key /etc/aleph-playwright-runner.key
 
 stop_rootfs_web_services() {
 	for service in \
@@ -125,12 +126,15 @@ systemctl restart caddy.service
 systemctl enable --now aleph-playwright-runner-ttl.timer
 
 for _ in {1..60}; do
-	if curl -fsS -H "Authorization: Bearer $(cat /etc/aleph-playwright-runner.secret)" \
-		http://127.0.0.1:3100/version | grep -q '"playwrightVersion":"1.61.1"'; then
+	if systemctl is-active --quiet caddy.service && \
+		curl -kfsS -H "Authorization: Bearer $(cat /etc/aleph-playwright-runner.secret)" \
+			https://127.0.0.1/version | grep -q '"playwrightVersion":"1.61.1"'; then
 		exit 0
 	fi
 	sleep 2
 done
 
+systemctl status caddy.service --no-pager -l >&2 || true
+ss -ltnp >&2 || true
 journalctl -u aleph-playwright-server -u aleph-playwright-auth-proxy -u caddy --no-pager -n 150 >&2
 exit 1
