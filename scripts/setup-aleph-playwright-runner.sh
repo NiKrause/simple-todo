@@ -50,6 +50,10 @@ if [[ -f /etc/caddy/Caddyfile ]]; then
 	cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.pre-playwright
 fi
 cat >/etc/caddy/Caddyfile <<'CADDY'
+{
+	auto_https disable_redirects
+}
+
 https://:443 {
 	tls /etc/aleph-playwright-runner.crt /etc/aleph-playwright-runner.key
 	reverse_proxy 127.0.0.1:3100
