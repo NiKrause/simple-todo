@@ -67,7 +67,13 @@ async function injectWallet(context) {
 	});
 }
 
-async function waitForBootstrapRegistration({ page, ownerAddress, instanceHash, startedAt }) {
+async function waitForBootstrapRegistration({
+	page,
+	ownerAddress,
+	instanceName,
+	instanceHash,
+	startedAt
+}) {
 	const deadline = Date.now() + PROVISION_TIMEOUT;
 	let lastSummary = 'No bootstrap posts returned.';
 
@@ -91,18 +97,19 @@ async function waitForBootstrapRegistration({ page, ownerAddress, instanceHash, 
 		});
 		const registration = posts.find(({ address, content }) => {
 			const owner = (content?.ownerAddress ?? content?.publisherAddress ?? address)?.toLowerCase();
+			const registrationId = content?.registrationId ?? '';
 			const addresses = content?.browserMultiaddrs?.length
 				? content.browserMultiaddrs
 				: content?.multiaddrs;
 			return (
 				owner === ownerAddress.toLowerCase() &&
-				content?.registrationId?.includes(instanceHash) &&
+				(registrationId.includes(instanceName) || registrationId.includes(instanceHash)) &&
 				Number(content?.updatedAt ?? 0) >= startedAt - 60_000 &&
 				(addresses?.length ?? 0) > 0
 			);
 		});
 		if (registration) return registration;
-		lastSummary = `${posts.length} posts checked; no current registration for ${instanceHash}.`;
+		lastSummary = `${posts.length} posts checked; no current registration for ${instanceName} (${instanceHash}).`;
 		await new Promise((resolve) => setTimeout(resolve, 10_000));
 	}
 
@@ -323,6 +330,7 @@ test.describe('Relay Button', () => {
 			const registration = await waitForBootstrapRegistration({
 				page: deploymentPage,
 				ownerAddress: account.address,
+				instanceName,
 				instanceHash,
 				startedAt
 			});
