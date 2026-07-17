@@ -54,7 +54,7 @@ jobs:
 
       - name: Install isolated Aleph deployment tooling
         if: inputs.provider == 'aleph'
-        run: npm install --prefix /tmp/le-space-playwright-provider @le-space/node@0.6.29
+        run: npm install --prefix /tmp/le-space-playwright-provider @le-space/node@0.6.30
 
       - name: Create per-run SSH identity and browser secret
         if: inputs.provider == 'aleph'

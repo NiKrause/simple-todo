@@ -56,7 +56,12 @@
 			}
 
 			const { discoverAlephBootstrapMultiaddrs } = await import('@le-space/aleph-bootstrap');
-			const discovered = await discoverAlephBootstrapMultiaddrs({ browserDialableOnly: true });
+			const discovered = await discoverAlephBootstrapMultiaddrs({
+				browserDialableOnly: true,
+				// Relay guests refresh every six hours. One day tolerates a missed refresh
+				// without keeping dead temporary registrations visible for a week.
+				maxAgeMs: 24 * 60 * 60 * 1000
+			});
 			const candidates = selectValidBrowserBootstrapMultiaddrs(discovered);
 			discoveredAddressCount = candidates.length;
 			const probeResults = await Promise.all(

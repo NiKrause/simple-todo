@@ -1,5 +1,12 @@
 export const PLAYWRIGHT_VERSION = '1.61.1';
 
+/**
+ * @template T
+ * @param {(wsEndpoint: string, options: {headers: Record<string, string>, timeout: number}) => Promise<T>} connectImpl
+ * @param {string} wsEndpoint
+ * @param {Record<string, string>} headers
+ * @returns {Promise<T>}
+ */
 export function connectWithPlaywrightHeaders(connectImpl, wsEndpoint, headers) {
 	return connectImpl(wsEndpoint, { headers, timeout: 120_000 });
 }
