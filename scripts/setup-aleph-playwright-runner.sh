@@ -7,6 +7,11 @@ if [[ ${EUID} -ne 0 ]]; then
 fi
 
 test -s /etc/aleph-playwright-runner.secret
+public_hostname=${1:-}
+if [[ ! $public_hostname =~ ^[A-Za-z0-9.-]+$ ]]; then
+	echo 'A valid public Playwright hostname is required.' >&2
+	exit 1
+fi
 install -d -m 0755 /opt/aleph-playwright-runner
 install -m 0644 /tmp/aleph-guest-proxy.mjs /opt/aleph-playwright-runner/proxy.mjs
 
@@ -14,7 +19,6 @@ stop_rootfs_web_services() {
 	for service in \
 		orbitdb-relay-pinner.service \
 		orbitdb-relay-setup.service \
-		caddy.service \
 		nginx.service \
 		apache2.service \
 		lighttpd.service; do
@@ -25,28 +29,31 @@ stop_rootfs_web_services() {
 stop_rootfs_web_services
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq ca-certificates curl gnupg psmisc
+apt-get install -y -qq ca-certificates curl gnupg
 curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
 apt-get install -y -qq nodejs
 npm install --prefix /opt/aleph-playwright-runner --omit=dev --no-audit --no-fund \
 	playwright@1.61.1 http-proxy@1.18.1
 /opt/aleph-playwright-runner/node_modules/.bin/playwright install --with-deps chromium
 
-# Phase A intentionally reuses the relay RootFS. Record and release any remaining
-# RootFS listener before assigning its public HTTP port to the authenticated proxy.
+# Phase A intentionally reuses the relay RootFS. Stop its application services,
+# but preserve Caddy because it terminates TLS for the ephemeral 2n6 hostname.
 stop_rootfs_web_services
-echo 'Port 80 listeners inherited from the Phase A RootFS:'
-ss -ltnp 'sport = :80' || true
-fuser -k 80/tcp 2>/dev/null || true
-for _ in {1..10}; do
-	if ! ss -H -ltn 'sport = :80' | grep -q .; then break; fi
-	sleep 1
-done
-if ss -H -ltn 'sport = :80' | grep -q .; then
-	echo 'Port 80 is still occupied after stopping inherited RootFS services:' >&2
-	ss -ltnp 'sport = :80' >&2 || true
+if ! command -v caddy >/dev/null; then
+	echo 'The Phase A RootFS does not provide the Caddy TLS terminator.' >&2
 	exit 1
 fi
+
+install -d -m 0755 /etc/caddy
+if [[ -f /etc/caddy/Caddyfile ]]; then
+	cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.pre-playwright
+fi
+cat >/etc/caddy/Caddyfile <<CADDY
+${public_hostname} {
+	reverse_proxy 127.0.0.1:3100
+}
+CADDY
+caddy validate --config /etc/caddy/Caddyfile
 
 cat >/etc/systemd/system/aleph-playwright-server.service <<'UNIT'
 [Unit]
@@ -112,15 +119,17 @@ UNIT
 
 systemctl daemon-reload
 systemctl enable --now aleph-playwright-server.service aleph-playwright-auth-proxy.service
+systemctl enable caddy.service
+systemctl restart caddy.service
 systemctl enable --now aleph-playwright-runner-ttl.timer
 
 for _ in {1..60}; do
 	if curl -fsS -H "Authorization: Bearer $(cat /etc/aleph-playwright-runner.secret)" \
-		http://127.0.0.1/version | grep -q '"playwrightVersion":"1.61.1"'; then
+		http://127.0.0.1:3100/version | grep -q '"playwrightVersion":"1.61.1"'; then
 		exit 0
 	fi
 	sleep 2
 done
 
-journalctl -u aleph-playwright-server -u aleph-playwright-auth-proxy --no-pager -n 100 >&2
+journalctl -u aleph-playwright-server -u aleph-playwright-auth-proxy -u caddy --no-pager -n 150 >&2
 exit 1

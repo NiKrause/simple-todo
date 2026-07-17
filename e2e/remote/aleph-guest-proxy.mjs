@@ -42,4 +42,4 @@ server.on('upgrade', (request, socket, head) => {
 	proxy.ws(request, socket, head);
 });
 
-server.listen(80, '0.0.0.0');
+server.listen(3100, '127.0.0.1');
