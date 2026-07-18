@@ -199,28 +199,23 @@ jobs:
         env:
           ALEPH_PLAYWRIGHT_INSTANCE_HASH: ${{ steps.aleph-deploy.outputs.instance_item_hash }}
         run: |
-          npm install -g @le-space/core @le-space/node @le-space/playwright 2>/dev/null || true
-          node -e "
-            const { createHash } = await import('node:crypto');
-            const { appendFile, writeFile } = await import('node:fs/promises');
-            const { eraseInstanceOnCrn, forgetAlephMessages } = await import('@le-space/core');
-            const { waitForAlephInstanceDeletion } = await import('@le-space/playwright');
+          node --input-type=module -e "
+            import { createHash } from 'node:crypto';
+            import { appendFile, writeFile } from 'node:fs/promises';
+            import { eraseInstanceOnCrn, forgetAlephMessages } from '@le-space/core';
+            import { createPrivateKeyIdentity } from '@le-space/node';
+            import { waitForAlephInstanceDeletion } from '@le-space/playwright';
 
             const instanceHash = process.env.ALEPH_PLAYWRIGHT_INSTANCE_HASH?.trim();
             if (!/^[a-f0-9]{64}$/iu.test(instanceHash ?? '')) throw new Error('Cleanup requires one exact INSTANCE hash');
 
-            const privateKey = process.env.ALEPH_VM_PRIVATE_KEY;
-            const { createPrivateKeyIdentity } = await import('@le-space/node');
-
-            const identity = await createPrivateKeyIdentity(privateKey);
+            const identity = await createPrivateKeyIdentity(process.env.ALEPH_VM_PRIVATE_KEY);
             const apiHosts = ['https://api2.aleph.im', 'https://api.aleph.im'];
             const fetchImpl = globalThis.fetch.bind(globalThis);
             let erase;
             for (const apiHost of apiHosts) {
-              try {
-                erase = await eraseInstanceOnCrn({ sender: identity.address, signer: identity.signer, instanceHash, fetch: fetchImpl, apiHost });
-                break;
-              } catch { /* retry next */ }
+              try { erase = await eraseInstanceOnCrn({ sender: identity.address, signer: identity.signer, instanceHash, fetch: fetchImpl, apiHost }); break; }
+              catch { /* skip */ }
             }
             let forget;
             for (const apiHost of apiHosts) {
