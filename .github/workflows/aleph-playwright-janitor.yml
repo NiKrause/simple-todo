@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   cleanup:
-    uses: NiKrause/relay-button/.github/workflows/playwright-runner-janitor.yml@fix/guest-bootstrap-cleanup
+    uses: NiKrause/relay-button/.github/workflows/playwright-runner-janitor.yml@main
     with:
       repository_scope: NiKrause/simple-todo
       ttl_ms: 3600000

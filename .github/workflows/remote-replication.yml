@@ -45,9 +45,6 @@ jobs:
       TESTINGBOT_KEY: ${{ secrets.TESTINGBOT_KEY }}
       TESTINGBOT_SECRET: ${{ secrets.TESTINGBOT_SECRET }}
       ALEPH_VM_PRIVATE_KEY: ${{ secrets.ALEPH_PLAYWRIGHT_PRIVATE_KEY || secrets.RELAY_BUTTON_E2E_PRIVATE_KEY }}
-      ALEPH_VM_API_HOSTS: https://api2.aleph.im,https://api.aleph.im
-      LE_SPACE_NODE_MODULE_PATH: /tmp/le-space-playwright-provider/node_modules/@le-space/node/index.js
-      LE_SPACE_CORE_MODULE_PATH: /tmp/le-space-playwright-provider/node_modules/@le-space/core/index.js
       ALEPH_PLAYWRIGHT_REGION: DE-preferred
     steps:
       - uses: actions/checkout@v6
@@ -63,9 +60,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Install isolated Aleph deployment tooling
-        if: inputs.provider == 'aleph'
-        run: npm install --prefix /tmp/le-space-playwright-provider @le-space/node@0.6.30
+      - name: Install local Chromium
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Create per-run SSH identity and browser secret
         if: inputs.provider == 'aleph'
@@ -77,90 +73,64 @@ jobs:
           echo "ALEPH_PLAYWRIGHT_SSH_KEY=$RUNNER_TEMP/aleph-playwright-id" >> "$GITHUB_ENV"
           echo "ALEPH_VM_SSH_PUBLIC_KEY=$(cat "$RUNNER_TEMP/aleph-playwright-id.pub")" >> "$GITHUB_ENV"
 
-      - name: Check Aleph credentials and credits
-        if: inputs.provider == 'aleph'
-        run: node scripts/check-aleph-playwright-preflight.mjs
-
-      - name: Deploy temporary Aleph Playwright VM
+      - name: Deploy Aleph Playwright runner (Phase B)
         if: inputs.provider == 'aleph'
         id: aleph-deploy
-        env:
-          ALEPH_VM_MODE: deploy
-          ALEPH_VM_PROFILE: playwright-runner-phase-a
-          ALEPH_VM_NAME: simple-todo-${{ github.run_id }}-${{ github.run_attempt }}
-          ALEPH_VM_ROOTFS_MANIFEST_URL: https://raw.githubusercontent.com/NiKrause/simple-todo/main/static/rootfs-manifest.json
-          ALEPH_VM_VCPUS: '2'
-          ALEPH_VM_MEMORY_MIB: '4096'
-          ALEPH_VM_PREFERRED_COUNTRY_CODE: DE
-          ALEPH_VM_CHANNEL: TEST
-          ALEPH_VM_AUTO_CONFIGURE: 'false'
-          ALEPH_VM_VERIFY_REACHABILITY: 'false'
-          ALEPH_VM_PRESERVE_FAILED_DEPLOYMENT: 'false'
-        run: node scripts/run-aleph-playwright-deploy.mjs
+        uses: NiKrause/relay-button/.github/actions/aleph-playwright-runner@main
+        with:
+          aleph_private_key: ${{ env.ALEPH_VM_PRIVATE_KEY }}
+          rootfs_item_hash: '896efced139438fb02fda4a99926861c5d4485faf87604987e4d9e0030da70f1'
+          name: simple-todo-${{ github.run_id }}-${{ github.run_attempt }}
+          ssh_public_key: ${{ env.ALEPH_VM_SSH_PUBLIC_KEY }}
+          ssh_private_key_path: ${{ env.ALEPH_PLAYWRIGHT_SSH_KEY }}
+          secret: ${{ env.ALEPH_PLAYWRIGHT_SECRET }}
+          preferred_country_code: DE
+          vcpus: '2'
+          memory_mib: '4096'
 
-      - name: Record Aleph runtime and endpoint
-        if: inputs.provider == 'aleph'
-        env:
-          ALEPH_DEPLOY_INSTANCE_HASH: ${{ steps.aleph-deploy.outputs.instance_item_hash }}
-          ALEPH_DEPLOY_HOST: ${{ steps.aleph-deploy.outputs.host_ipv4 }}
-          ALEPH_DEPLOY_PROXY_URL: ${{ steps.aleph-deploy.outputs.web_proxy_url }}
-          ALEPH_DEPLOY_MAPPED_PORTS_JSON: ${{ steps.aleph-deploy.outputs.mapped_ports_json }}
-          ALEPH_DEPLOY_CRN_HASH: ${{ steps.aleph-deploy.outputs.crn_hash }}
-          ALEPH_DEPLOY_CRN_NAME: ${{ steps.aleph-deploy.outputs.crn_name }}
-        run: node scripts/prepare-aleph-playwright-runtime.mjs
-
-      - name: Install and start Playwright 1.61.1 in the guest
-        if: inputs.provider == 'aleph'
-        env:
-          ALEPH_PLAYWRIGHT_TLS_CERT: ${{ runner.temp }}/aleph-playwright-runner.crt
-          ALEPH_PLAYWRIGHT_TLS_KEY: ${{ runner.temp }}/aleph-playwright-runner.key
-        run: |
-          openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 1 \
-            -subj '/CN=aleph-playwright-runner' \
-            -addext "subjectAltName=IP:$ALEPH_PLAYWRIGHT_HOST" \
-            -keyout "$ALEPH_PLAYWRIGHT_TLS_KEY" \
-            -out "$ALEPH_PLAYWRIGHT_TLS_CERT" 2>/dev/null
-          chmod 600 "$ALEPH_PLAYWRIGHT_TLS_KEY"
-          echo "NODE_EXTRA_CA_CERTS=$ALEPH_PLAYWRIGHT_TLS_CERT" >> "$GITHUB_ENV"
-          bash scripts/connect-aleph-playwright-runner.sh
-
-      - name: Wait for authenticated WSS proxy
+      - name: Export Aleph runtime env vars
         if: inputs.provider == 'aleph'
         run: |
-          for attempt in $(seq 1 60); do
-            if curl --fail --silent --show-error \
-              --connect-timeout 5 --max-time 10 \
-              --cacert "$NODE_EXTRA_CA_CERTS" \
-              -H "Authorization: Bearer $ALEPH_PLAYWRIGHT_SECRET" \
-              "$ALEPH_PLAYWRIGHT_VERSION_URL" >/dev/null; then
-              exit 0
-            fi
-            sleep 5
-          done
-          echo 'Authenticated Aleph Playwright endpoint did not become ready.' >&2
-          exit 1
-
-      - name: Install local Chromium
-        run: pnpm exec playwright install --with-deps chromium
+          echo "ALEPH_PLAYWRIGHT_WS_ENDPOINT=${{ steps.aleph-deploy.outputs.ws_endpoint }}" >> "$GITHUB_ENV"
+          echo "ALEPH_PLAYWRIGHT_VERSION_URL=${{ steps.aleph-deploy.outputs.version_url }}" >> "$GITHUB_ENV"
+          echo "ALEPH_PLAYWRIGHT_INSTANCE_HASH=${{ steps.aleph-deploy.outputs.instance_item_hash }}" >> "$GITHUB_ENV"
+          echo "ALEPH_PLAYWRIGHT_CRN_HASH=${{ steps.aleph-deploy.outputs.crn_hash }}" >> "$GITHUB_ENV"
+          echo "ALEPH_PLAYWRIGHT_CRN_NAME=${{ steps.aleph-deploy.outputs.crn_name }}" >> "$GITHUB_ENV"
+          if [[ -n "${{ steps.aleph-deploy.outputs.ca_cert_path }}" ]]; then
+            echo "NODE_EXTRA_CA_CERTS=${{ steps.aleph-deploy.outputs.ca_cert_path }}" >> "$GITHUB_ENV"
+          fi
 
       - name: Run cross-network main replication
         run: pnpm run test:e2e:remote:main
 
       - name: Collect Aleph guest logs on failure
         if: failure() && inputs.provider == 'aleph'
-        run: bash scripts/collect-aleph-playwright-logs.sh
+        env:
+          ALEPH_PLAYWRIGHT_HOST: ${{ steps.aleph-deploy.outputs.host_ipv4 }}
+          ALEPH_PLAYWRIGHT_SSH_PORT: ${{ steps.aleph-deploy.outputs.ssh_port }}
+        run: |
+          ssh -i "$ALEPH_PLAYWRIGHT_SSH_KEY" \
+            -o StrictHostKeyChecking=accept-new \
+            -o ConnectTimeout=20 \
+            -p "$ALEPH_PLAYWRIGHT_SSH_PORT" \
+            "root@$ALEPH_PLAYWRIGHT_HOST" \
+            'journalctl --no-pager --lines=200 -u playwright-runner-bootstrap.service -u playwright-runner.service -u playwright-runner-proxy.service' \
+            > "${{ runner.temp }}/aleph-guest-logs.txt" 2>&1 || true
 
       - name: Erase and forget exact Aleph INSTANCE
         if: always() && inputs.provider == 'aleph'
-        env:
-          ALEPH_PLAYWRIGHT_INSTANCE_HASH: ${{ steps.aleph-deploy.outputs.instance_item_hash }}
-        run: node scripts/cleanup-aleph-playwright-runner.mjs
+        uses: NiKrause/relay-button/.github/actions/aleph-playwright-runner-cleanup@main
+        with:
+          aleph_private_key: ${{ env.ALEPH_VM_PRIVATE_KEY }}
+          instance_item_hash: ${{ steps.aleph-deploy.outputs.instance_item_hash }}
 
       - name: Upload remote replication evidence
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: remote-main-replication-${{ github.run_id }}
-          path: test-results/remote-main
+          path: |
+            test-results/remote-main
+            ${{ runner.temp }}/aleph-guest-logs.txt
           if-no-files-found: warn
           retention-days: 14
