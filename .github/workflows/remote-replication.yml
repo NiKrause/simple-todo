@@ -169,6 +169,7 @@ jobs:
       - name: Export Aleph runtime env vars
         if: inputs.provider == 'aleph'
         run: |
+          echo "ALEPH_PLAYWRIGHT_SECRET=${{ steps.credentials.outputs.secret }}" >> "$GITHUB_ENV"
           echo "ALEPH_PLAYWRIGHT_WS_ENDPOINT=${{ steps.runtime.outputs.ws_endpoint }}" >> "$GITHUB_ENV"
           echo "ALEPH_PLAYWRIGHT_VERSION_URL=${{ steps.runtime.outputs.version_url }}" >> "$GITHUB_ENV"
           echo "ALEPH_PLAYWRIGHT_INSTANCE_HASH=${{ steps.aleph-deploy.outputs.instance_item_hash }}" >> "$GITHUB_ENV"
