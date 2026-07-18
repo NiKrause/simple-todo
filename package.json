@@ -110,6 +110,7 @@
 		"uint8arrays": "^5.1.0",
 		"vite-plugin-node-polyfills": "^0.24.0",
 		"@le-space/playwright": "^0.6.30",
-		"@le-space/node": "^0.6.30"
+		"@le-space/node": "^0.6.30",
+		"@le-space/core": "^0.6.30"
 	}
 }

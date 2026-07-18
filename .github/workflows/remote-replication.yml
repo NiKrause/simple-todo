@@ -198,7 +198,7 @@ jobs:
         if: always() && inputs.provider == 'aleph'
         env:
           ALEPH_PLAYWRIGHT_INSTANCE_HASH: ${{ steps.aleph-deploy.outputs.instance_item_hash }}
-        run: node scripts/cleanup-aleph-instance.mjs
+        run: pnpm exec node scripts/cleanup-aleph-instance.mjs
 
       - name: Upload remote replication evidence
         if: always()

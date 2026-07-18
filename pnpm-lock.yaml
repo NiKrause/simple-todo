@@ -39,6 +39,9 @@ importers:
       '@le-space/aleph-bootstrap':
         specifier: ^0.6.30
         version: 0.6.30(typescript@5.9.2)
+      '@le-space/core':
+        specifier: ^0.6.30
+        version: 0.6.30(typescript@5.9.2)
       '@le-space/node':
         specifier: ^0.6.30
         version: 0.6.30(react-native@0.80.2(@babel/core@7.29.7)(react@19.2.6))(typescript@5.9.2)
