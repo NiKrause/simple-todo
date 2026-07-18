@@ -84,7 +84,7 @@ jobs:
           api_hosts: https://api2.aleph.im,https://api.aleph.im
           name: simple-todo-${{ github.run_id }}-${{ github.run_attempt }}
           ssh_public_key: ${{ steps.credentials.outputs.ssh_public_key }}
-          rootfs_item_hash: '896efced139438fb02fda4a99926861c5d4485faf87604987e4d9e0030da70f1'
+          rootfs_item_hash: 'c392fba3a392a9daa88a44620e0b0f4e5a260ccc3b56853eda8ed02009d8d4f1'
           rootfs_version: playwright-1.61.1
           rootfs_size_mib: '20480'
           preferred_country_code: DE
