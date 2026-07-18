@@ -47,7 +47,28 @@ jobs:
       ALEPH_VM_PRIVATE_KEY: ${{ secrets.ALEPH_PLAYWRIGHT_PRIVATE_KEY || secrets.RELAY_BUTTON_E2E_PRIVATE_KEY }}
       ALEPH_PLAYWRIGHT_REGION: DE-preferred
     steps:
-      - uses: actions/checkout@v6
+      # Phase B: relay-button playwright-runner Composite Action
+      # Die Action referenziert interne Actions via ./.github/actions/...
+      # Deshalb muss relay-button im Workspace-Root liegen und simple-todo im Subdir
+      - name: Checkout relay-button at workspace root (Phase B)
+        if: inputs.provider == 'aleph'
+        uses: actions/checkout@v6
+        with:
+          repository: NiKrause/relay-button
+          ref: main
+          path: __relay_button
+
+      - name: Checkout simple-todo in project subdirectory
+        uses: actions/checkout@v6
+        with:
+          path: __project
+
+      - name: Symlink relay-button actions to workspace root
+        if: inputs.provider == 'aleph'
+        run: |
+          ln -sf "$PWD/__relay_button/.github" "$PWD/.github"
+          ln -sf "$PWD/__relay_button/packages" "$PWD/packages"
+          ln -sf "$PWD/__relay_button/scripts" "$PWD/scripts"
 
       - uses: pnpm/action-setup@v6
         with:
@@ -57,11 +78,12 @@ jobs:
         with:
           node-version: '24.x'
           cache: pnpm
+          cache-dependency-path: __project/pnpm-lock.yaml
 
-      - run: pnpm install --frozen-lockfile
+      - run: cd __project && pnpm install --frozen-lockfile
 
       - name: Install local Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: cd __project && pnpm exec playwright install --with-deps chromium
 
       - name: Create per-run SSH identity and browser secret
         if: inputs.provider == 'aleph'
@@ -76,7 +98,7 @@ jobs:
       - name: Deploy Aleph Playwright runner (Phase B)
         if: inputs.provider == 'aleph'
         id: aleph-deploy
-        uses: NiKrause/relay-button/.github/actions/aleph-playwright-runner@main
+        uses: ./.github/actions/aleph-playwright-runner
         with:
           aleph_private_key: ${{ env.ALEPH_VM_PRIVATE_KEY }}
           rootfs_item_hash: '896efced139438fb02fda4a99926861c5d4485faf87604987e4d9e0030da70f1'
@@ -101,6 +123,7 @@ jobs:
           fi
 
       - name: Run cross-network main replication
+        working-directory: __project
         run: pnpm run test:e2e:remote:main
 
       - name: Collect Aleph guest logs on failure
@@ -119,7 +142,7 @@ jobs:
 
       - name: Erase and forget exact Aleph INSTANCE
         if: always() && inputs.provider == 'aleph'
-        uses: NiKrause/relay-button/.github/actions/aleph-playwright-runner-cleanup@main
+        uses: ./.github/actions/aleph-playwright-runner-cleanup
         with:
           aleph_private_key: ${{ env.ALEPH_VM_PRIVATE_KEY }}
           instance_item_hash: ${{ steps.aleph-deploy.outputs.instance_item_hash }}
@@ -130,7 +153,7 @@ jobs:
         with:
           name: remote-main-replication-${{ github.run_id }}
           path: |
-            test-results/remote-main
+            __project/test-results/remote-main
             ${{ runner.temp }}/aleph-guest-logs.txt
           if-no-files-found: warn
           retention-days: 14
