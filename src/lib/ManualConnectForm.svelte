@@ -16,9 +16,10 @@
 	let useCustomMultiaddr = false;
 	/** @type {string[]} */
 	let discoveredMultiaddrs = [];
-	let isDiscovering = true;
+	let isDiscovering = false;
 	let discoveredAddressCount = 0;
-	let addressesPingVerified = false;
+	/** Addresses that answered a live libp2p ping during a manual refresh. @type {Set<string>} */
+	let pingVerifiedAddresses = new Set();
 	/** @type {string | null} */
 	let discoveryError = null;
 	let isConnecting = false;
@@ -26,15 +27,35 @@
 	let errorMessage = null;
 	/** @type {{ tone: 'success' | 'warning' | 'info', title: string, detail: string } | null} */
 	let statusMessage = null;
-	let hasStartedInitialDiscovery = false;
+	let hasLoadedSnapshot = false;
+
+	// Ping candidates in small batches so reachable relays appear in the
+	// dropdown progressively instead of blocking until all ~50 finish (#38).
+	const DISCOVERY_PING_BATCH_SIZE = 5;
 
 	const dispatch = createEventDispatcher();
 
 	/** @typedef {{ status: 'stable' | 'dropped', detail: string, remotePeer: string | null, remoteAddr: string }} ManualConnectResult */
 
-	$: if (!disabled && !hasStartedInitialDiscovery) {
-		hasStartedInitialDiscovery = true;
-		void refreshBootstrapMultiaddrs();
+	// #38: no automatic Aleph discovery on page load. The dropdown starts with
+	// the pre-validated build-time snapshot so the page is immediately usable;
+	// the Refresh button triggers live discovery in the background.
+	$: if (!disabled && !hasLoadedSnapshot) {
+		hasLoadedSnapshot = true;
+		loadBuildTimeSnapshot();
+	}
+
+	function loadBuildTimeSnapshot() {
+		const configured =
+			import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV ||
+			import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_PROD ||
+			'';
+		discoveredMultiaddrs = selectValidBrowserBootstrapMultiaddrs(
+			parseBootstrapMultiaddrs(configured)
+		);
+		discoveredAddressCount = discoveredMultiaddrs.length;
+		pingVerifiedAddresses = new Set();
+		selectedMultiaddr = discoveredMultiaddrs[0] ?? '';
 	}
 
 	async function refreshBootstrapMultiaddrs() {
@@ -42,16 +63,7 @@
 		discoveryError = null;
 		try {
 			if (import.meta.env.VITE_ALEPH_BOOTSTRAP_DISCOVERY === 'false') {
-				const configured =
-					import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV ||
-					import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_PROD ||
-					'';
-				discoveredMultiaddrs = selectValidBrowserBootstrapMultiaddrs(
-					parseBootstrapMultiaddrs(configured)
-				);
-				discoveredAddressCount = discoveredMultiaddrs.length;
-				addressesPingVerified = false;
-				selectedMultiaddr = discoveredMultiaddrs[0] ?? '';
+				loadBuildTimeSnapshot();
 				return;
 			}
 
@@ -64,29 +76,42 @@
 			});
 			const candidates = selectValidBrowserBootstrapMultiaddrs(discovered);
 			discoveredAddressCount = candidates.length;
-			const probeResults = await Promise.all(
-				candidates.map(async (address) => {
-					try {
-						await pingMultiaddr(address);
-						return address;
-					} catch (error) {
-						console.warn(`Ignoring unreachable Aleph relay address ${address}:`, error);
-						return null;
+			/** @type {string[]} */
+			const reachable = [];
+			for (let index = 0; index < candidates.length; index += DISCOVERY_PING_BATCH_SIZE) {
+				const batch = candidates.slice(index, index + DISCOVERY_PING_BATCH_SIZE);
+				const results = await Promise.all(
+					batch.map(async (address) => {
+						try {
+							await pingMultiaddr(address);
+							return address;
+						} catch (error) {
+							console.warn(`Ignoring unreachable Aleph relay address ${address}:`, error);
+							return null;
+						}
+					})
+				);
+				for (const address of results) {
+					if (address == null) continue;
+					reachable.push(address);
+					pingVerifiedAddresses = new Set([...pingVerifiedAddresses, address]);
+					// Progressive insertion: show each reachable relay as soon as it
+					// answers, without waiting for the remaining candidates.
+					if (!discoveredMultiaddrs.includes(address)) {
+						discoveredMultiaddrs = [...discoveredMultiaddrs, address];
 					}
-				})
-			);
-			discoveredMultiaddrs = probeResults.filter((address) => address != null);
-			addressesPingVerified = true;
-			if (
-				discoveredMultiaddrs.length > 0 &&
-				(!selectedMultiaddr || !discoveredMultiaddrs.includes(selectedMultiaddr))
-			) {
-				selectedMultiaddr = discoveredMultiaddrs[0];
+				}
+			}
+			if (reachable.length > 0) {
+				// Once the pass is complete, keep only live-verified relays so stale
+				// snapshot entries do not linger; otherwise keep the snapshot usable.
+				discoveredMultiaddrs = reachable;
+				pingVerifiedAddresses = new Set(reachable);
+				if (!selectedMultiaddr || !discoveredMultiaddrs.includes(selectedMultiaddr)) {
+					selectedMultiaddr = discoveredMultiaddrs[0];
+				}
 			}
 		} catch (error) {
-			discoveredMultiaddrs = [];
-			discoveredAddressCount = 0;
-			addressesPingVerified = false;
 			discoveryError = error instanceof Error ? error.message : String(error);
 		} finally {
 			isDiscovering = false;
@@ -175,16 +200,21 @@
 			<select
 				data-testid="reachable-relay-select"
 				bind:value={selectedMultiaddr}
-				disabled={disabled || isConnecting || isDiscovering || discoveredMultiaddrs.length === 0}
+				disabled={disabled || isConnecting || discoveredMultiaddrs.length === 0}
 				class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
 			>
-				{#if isDiscovering}
-					<option value="">Discovering and pinging Aleph relays…</option>
-				{:else if discoveredMultiaddrs.length === 0}
-					<option value="">No relay addresses discovered</option>
+				{#if discoveredMultiaddrs.length === 0}
+					<option value=""
+						>{isDiscovering
+							? 'Discovering and pinging Aleph relays…'
+							: 'No relay addresses discovered'}</option
+					>
 				{:else}
 					{#each discoveredMultiaddrs as address}
-						<option value={address} data-ping-verified={addressesPingVerified ? 'true' : undefined}
+						<option
+							value={address}
+							data-ping-verified={pingVerifiedAddresses.has(address) ? 'true' : undefined}
+							data-prevalidated={pingVerifiedAddresses.has(address) ? undefined : 'true'}
 							>{describeBootstrapMultiaddr(address)}</option
 						>
 					{/each}
@@ -231,7 +261,7 @@
 			<p class="text-sm text-amber-700">
 				{discoveredAddressCount > 0
 					? `None of the ${discoveredAddressCount} discovered relay addresses answered a libp2p ping.`
-					: 'No current browser-dialable relays were found.'}
+					: 'No relays in the build-time snapshot.'}
 				Refresh or enter a custom multiaddress.
 			</p>
 		{/if}
