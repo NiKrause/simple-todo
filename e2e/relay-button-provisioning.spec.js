@@ -18,6 +18,14 @@ const RELAY_DIAL_ATTEMPT_TIMEOUT = 20_000;
 const RELAY_READINESS_TIMEOUT = 8 * 60_000;
 const TEST_SSH_PUBLIC_KEY = process.env.RELAY_BUTTON_E2E_SSH_PUBLIC_KEY?.trim();
 
+/**
+ * Live progress logging: Playwright shows no output between test start and
+ * finish, so a 12-30 minute provisioning run looks frozen in CI logs.
+ */
+function progress(message) {
+	console.log(`[relay-e2e ${new Date().toISOString()}] ${message}`);
+}
+
 function installWalletProvider(context, account) {
 	return context.exposeBinding(
 		'__relayE2eWalletRequest',
@@ -107,8 +115,12 @@ async function waitForBootstrapRegistration({
 				(addresses?.length ?? 0) > 0
 			);
 		});
-		if (registration) return registration;
+		if (registration) {
+			progress(`bootstrap registration found for ${instanceName} (peerId ${registration.content?.peerId}).`);
+			return registration;
+		}
 		lastSummary = `${posts.length} posts checked; no current registration for ${instanceName} (${instanceHash}).`;
+		progress(`waiting for bootstrap registration: ${lastSummary}`);
 		await new Promise((resolve) => setTimeout(resolve, 10_000));
 	}
 
@@ -116,6 +128,7 @@ async function waitForBootstrapRegistration({
 }
 
 async function waitForDeploymentInstance(page, instanceName) {
+	progress(`waiting for Aleph INSTANCE ${instanceName} to appear (up to ${PROVISION_TIMEOUT / 60_000} min)...`);
 	const outcome = await page.waitForFunction(
 		(expectedName) => {
 			const instance = [...document.querySelectorAll('details')].find((element) =>
@@ -141,6 +154,7 @@ async function waitForDeploymentInstance(page, instanceName) {
 		.getAttribute('href');
 	const instanceHash = apiHref?.match(/\/messages\/([^/?#]+)/)?.[1];
 	if (!instanceHash) throw new Error(`Could not read the Aleph instance hash for ${instanceName}.`);
+	progress(`Aleph INSTANCE resolved: ${instanceHash}`);
 	return { instance, instanceHash };
 }
 
@@ -174,6 +188,11 @@ async function connectBrowsersToRelay(agents, addresses, relayPeerId) {
 				dialSubmitted: dialResults.map(({ status }) => status === 'fulfilled'),
 				connected: results.map(({ status }) => status === 'fulfilled')
 			});
+			progress(
+				`relay dial attempt via ${address}: connected=[${results
+					.map(({ status }) => (status === 'fulfilled' ? 'yes' : 'no'))
+					.join(', ')}]`
+			);
 			if (results.every(({ status }) => status === 'fulfilled')) return { address, attempts };
 			if (Date.now() >= deadline) break;
 		}
@@ -292,14 +311,21 @@ test.describe('Sponsor Relay button', () => {
 		};
 		const pass = (step, detail = '') => {
 			evidence.steps[step] = { ...evidence.steps[step], status: 'passed', detail };
+			progress(`PASSED: ${evidence.steps[step].label}${detail ? ` (${detail})` : ''}`);
 		};
 		const skip = (step, detail = '') => {
 			evidence.steps[step] = { ...evidence.steps[step], status: 'skipped', detail };
+			progress(`SKIPPED: ${evidence.steps[step].label}${detail ? ` (${detail})` : ''}`);
 		};
+		progress(`starting relay provisioning E2E as ${account.address} (instance ${instanceName})`);
 
 		try {
 			await deploymentPage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
-			await deploymentPage.getByRole('button', { name: 'Sponsor Relay' }).click();
+			progress('waiting for the Relay Button launcher...');
+			const launcher = deploymentPage.getByRole('button', { name: 'Relay Button', exact: true });
+			await launcher.waitFor({ state: 'visible', timeout: 60_000 });
+			await launcher.click();
+			progress('launcher opened; filling deployment form...');
 			await deploymentPage.getByLabel('Instance Name').fill(instanceName);
 			await deploymentPage.getByText('Advanced', { exact: true }).click();
 			await deploymentPage.getByLabel('SSH Public Key').fill(TEST_SSH_PUBLIC_KEY);
@@ -400,6 +426,7 @@ test.describe('Sponsor Relay button', () => {
 		} catch (error) {
 			testError = error instanceof Error ? error : new Error(String(error));
 			evidence.error = testError.message;
+			progress(`FAILED: ${testError.message}`);
 			const [diagnosticsA, diagnosticsB] = await Promise.allSettled([
 				agentA.diagnostics(),
 				agentB.diagnostics()
@@ -421,6 +448,7 @@ test.describe('Sponsor Relay button', () => {
 		await Promise.allSettled([agentA.close(), agentB.close()]);
 		if (deployed) {
 			try {
+				progress(`cleanup: deleting provisioned relay ${instanceName}...`);
 				await deleteProvisionedRelay(deploymentPage, instanceName);
 				pass('cleanup');
 			} catch (error) {
