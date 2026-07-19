@@ -1,5 +1,10 @@
 const DEFAULT_TIMEOUT = 120_000;
 
+/** Timestamped live progress line so CI logs show what remote runs are doing. */
+export function remoteProgress(message) {
+	console.log(`[remote-e2e ${new Date().toISOString()}] ${message}`);
+}
+
 export class TodoBrowserAgent {
 	constructor(name, browser, appUrl, timeout = DEFAULT_TIMEOUT) {
 		this.name = name;
@@ -16,16 +21,27 @@ export class TodoBrowserAgent {
 		this.page = await this.context.newPage();
 		this.page.on('console', (message) => {
 			const text = message.text();
-			if (
-				!/(todo|orbitdb|database peer|entry updated|connect|dial|relay|tls|websocket|pinning)/i.test(
+			const type = message.type();
+			const relevant =
+				/(todo|orbitdb|database peer|entry updated|connect|dial|relay|tls|websocket|pinning)/i.test(
 					text
-				)
-			) {
+				);
+			if (!relevant && type !== 'error' && type !== 'warning') {
 				return;
 			}
-			this.log.push(`[${message.type()}] ${text}`);
+			this.log.push(`[${type}] ${text}`);
 			if (this.log.length > 200) this.log.shift();
+			// Stream warnings/errors and relay-related lines live into the CI log:
+			// buried browser console output (e.g. TooManyOutboundProtocolStreams
+			// during relay pings) has repeatedly been the actual root cause.
+			if (type === 'error' || type === 'warning' || /relay|dial|connect/i.test(text)) {
+				remoteProgress(`[${this.name} ${type}] ${text.slice(0, 400)}`);
+			}
 		});
+		this.page.on('pageerror', (error) => {
+			remoteProgress(`[${this.name} pageerror] ${error.message}`);
+		});
+		remoteProgress(`[${this.name}] opening ${this.appUrl}...`);
 		await this.page.goto(this.appUrl, { waitUntil: 'domcontentloaded', timeout: this.timeout });
 
 		const modal = this.page.locator('div.fixed.inset-0.z-50');
