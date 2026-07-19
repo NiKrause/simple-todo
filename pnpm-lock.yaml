@@ -37,14 +37,14 @@ importers:
         specifier: ^11.0.0
         version: 11.0.0
       '@le-space/aleph-bootstrap':
-        specifier: ^0.6.30
-        version: 0.6.30(typescript@5.9.2)
+        specifier: ^0.6.32
+        version: 0.6.32(typescript@5.9.2)
       '@le-space/orbitdb-identity-provider-webauthn-did':
         specifier: 0.3.1
         version: 0.3.1(@orbitdb/core@4.0.0)(rollup@4.46.2)(vite@7.0.6(@types/node@26.1.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.49.0)(yaml@2.9.0))
       '@le-space/ui':
-        specifier: ^0.6.30
-        version: 0.6.30(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(svelte@5.37.2)(typescript@5.9.2)
+        specifier: ^0.6.32
+        version: 0.6.32(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(svelte@5.37.2)(typescript@5.9.2)
       '@libp2p/autonat':
         specifier: ^3.0.22
         version: 3.0.22
@@ -879,14 +879,14 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@le-space/aleph-bootstrap@0.6.30':
-    resolution: {integrity: sha512-FwZcm657MKAl9wZezrO3rf8gUC1J0pdvt3xJYav5nhX6EFp9TrHfkZBhDLrTDf9UTACBQhp0qdNM4hrEyLvZVQ==}
+  '@le-space/aleph-bootstrap@0.6.32':
+    resolution: {integrity: sha512-E4SRO2mG0LTJZ047B+4wj2cmsOKkXvINNuLhjHp16rqtcG4BuDBSK7xdsYxCZX6IN44YqCC7/MCGIrhAoeeoJg==}
 
-  '@le-space/browser@0.6.30':
-    resolution: {integrity: sha512-LJvaTbrVB6WpRD8sSjkZnB+CXoK48jJaiXG0EL1llNpjET9Py1wa1vd/Ph5G951EESY0TYv5RTJyCR0XA2t+0g==}
+  '@le-space/browser@0.6.32':
+    resolution: {integrity: sha512-UQHEgA2nlDZC3CGTEtSNlaNZ+g1UdbtBrR5VcTInMcOkkhH2SiGyD3e+FYZd1Ee1UmxySvs+64l7l+4y244z3w==}
 
-  '@le-space/core@0.6.30':
-    resolution: {integrity: sha512-GlGvBb9mG+BZSkE4SsDFVnhHsfR/fFhtAxP+XYMzSo2vHehSdGz3Vml+dt5F4QZ9js/VhZYRrl0msYpt5pxCOw==}
+  '@le-space/core@0.6.32':
+    resolution: {integrity: sha512-aJ5zIeyRc4RP84mw1PnhcYdZwwFturxN4ZxZ9ONr15UoNZGQ3QWCNyWnaBvqQaDIl/VXQBn8cX/1ZN1ja5e2rw==}
 
   '@le-space/iso-base@4.3.0':
     resolution: {integrity: sha512-aZerTomLgkGAAh6zAa8PWQu2rfMzrA5tiBIe4PWI8LDBJHwlgFwRsiDpdM/3eRjE7ocHi4rrPXdVfy+FH7knFA==}
@@ -912,8 +912,8 @@ packages:
     peerDependencies:
       '@orbitdb/core': ^4.0.0
 
-  '@le-space/shared-types@0.6.30':
-    resolution: {integrity: sha512-4YkfBKNdUepNCXkWLYFH+4IvddwIDn1BxC8E+FsfHCQeEIjsC1wJx8SSqyK/pOGDfGMwSnxv0M+cSs3ob8nVfw==}
+  '@le-space/shared-types@0.6.32':
+    resolution: {integrity: sha512-0i8ny/fbRNgz+KbkOCIjIZm27soFJbRWSbUOAVSG1sPCGvc1TY4qKuuorGUKX6jEebGLdFAEl9QjJrAIEK3gKA==}
 
   '@le-space/ucanto-interface@11.1.1':
     resolution: {integrity: sha512-K7f/itvJMeeYyylR9D1TD83IBBW9OWrhdjEGT6vFcsjaResVL1zFVte3kt+8opyGhqgSNJ8cLotEfIbDcKyrkw==}
@@ -921,8 +921,8 @@ packages:
   '@le-space/ucanto-principal@9.1.2':
     resolution: {integrity: sha512-vWRXFPLKQwfC7CXhgrl3p11cOgEWHcgQyosR4EztgKfHmKAbYOn2y7VQpr4pEtJHw/iB92EJSyJBGYecTmF/2g==}
 
-  '@le-space/ui@0.6.30':
-    resolution: {integrity: sha512-V5hHBhRco6V5fFUd9P/zXo1kJq1Uzgi1qOLMqyX2Xf2gip8i7jImAX9hY5F+Y/c3/eLafTV5hfxZEVfbsMUUmQ==}
+  '@le-space/ui@0.6.32':
+    resolution: {integrity: sha512-noNXhkt1aTqIWaZ6kJ1VWFtpH9anfPK6AoE0Efc+1VzFDtEVIHDXFRs5M4iGZnhn2BQgRjhHyMxShpbJErmXZA==}
     peerDependencies:
       react: 19.2.6
       react-dom: 19.2.6
@@ -5891,7 +5891,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@le-space/aleph-bootstrap@0.6.30(typescript@5.9.2)':
+  '@le-space/aleph-bootstrap@0.6.32(typescript@5.9.2)':
     dependencies:
       '@libp2p/bootstrap': 11.0.47
       viem: 2.53.1(typescript@5.9.2)
@@ -5901,12 +5901,12 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@le-space/browser@0.6.30': {}
+  '@le-space/browser@0.6.32': {}
 
-  '@le-space/core@0.6.30(typescript@5.9.2)':
+  '@le-space/core@0.6.32(typescript@5.9.2)':
     dependencies:
-      '@le-space/aleph-bootstrap': 0.6.30(typescript@5.9.2)
-      '@le-space/shared-types': 0.6.30
+      '@le-space/aleph-bootstrap': 0.6.32(typescript@5.9.2)
+      '@le-space/shared-types': 0.6.32
     transitivePeerDependencies:
       - bufferutil
       - typescript
@@ -5964,7 +5964,7 @@ snapshots:
       - rollup
       - vite
 
-  '@le-space/shared-types@0.6.30': {}
+  '@le-space/shared-types@0.6.32': {}
 
   '@le-space/ucanto-interface@11.1.1':
     dependencies:
@@ -5981,10 +5981,10 @@ snapshots:
       multiformats: 13.4.2
       one-webcrypto: 1.0.3
 
-  '@le-space/ui@0.6.30(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(svelte@5.37.2)(typescript@5.9.2)':
+  '@le-space/ui@0.6.32(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(svelte@5.37.2)(typescript@5.9.2)':
     dependencies:
-      '@le-space/browser': 0.6.30
-      '@le-space/core': 0.6.30(typescript@5.9.2)
+      '@le-space/browser': 0.6.32
+      '@le-space/core': 0.6.32(typescript@5.9.2)
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
       svelte: 5.37.2
