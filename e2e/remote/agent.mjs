@@ -70,23 +70,29 @@ export class TodoBrowserAgent {
 	}
 
 	async waitForReachableRelayOptions() {
+		// #38: discovery no longer runs on page load. The dropdown is
+		// pre-populated with the build-time snapshot (data-prevalidated);
+		// live ping-verified entries (data-ping-verified) appear only after a
+		// manual refresh. Both are dialable, so accept either.
+		const optionSelector =
+			'[data-testid="reachable-relay-select"] option[data-ping-verified="true"], ' +
+			'[data-testid="reachable-relay-select"] option[data-prevalidated="true"]';
 		const select = this.page.getByTestId('reachable-relay-select');
 		await select.waitFor({ state: 'attached', timeout: this.timeout });
 		await this.page.waitForFunction(
-			() =>
-				document.querySelectorAll(
-					'[data-testid="reachable-relay-select"] option[data-ping-verified="true"]'
-				).length > 0,
-			undefined,
+			(selector) => document.querySelectorAll(selector).length > 0,
+			optionSelector,
 			{ timeout: this.timeout, polling: 500 }
 		);
 
-		return select.locator('option[data-ping-verified="true"]').evaluateAll((options) =>
-			options.map((option) => ({
-				address: option.value,
-				label: option.textContent?.trim() ?? ''
-			}))
-		);
+		return select
+			.locator('option[data-ping-verified="true"], option[data-prevalidated="true"]')
+			.evaluateAll((options) =>
+				options.map((option) => ({
+					address: option.value,
+					label: option.textContent?.trim() ?? ''
+				}))
+			);
 	}
 
 	async waitForPublicRelayConnection() {
