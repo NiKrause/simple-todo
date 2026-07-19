@@ -55,6 +55,16 @@ function installWalletProvider(context, account) {
 }
 
 async function injectWallet(context) {
+	// Enable @le-space/ui controller tracing so deploy-phase diagnostics
+	// (CRN selection, allocation notify, failover, cleanup) reach the
+	// browser console, where the test forwards them into the CI log.
+	await context.addInitScript(() => {
+		try {
+			localStorage.setItem('LE_SPACE_UI_DEBUG', '1');
+		} catch {
+			// localStorage may be unavailable; tracing is best-effort.
+		}
+	});
 	await context.addInitScript(() => {
 		const listeners = new Map();
 		Object.defineProperty(window, 'ethereum', {
@@ -293,6 +303,22 @@ test.describe('Sponsor Relay button', () => {
 		await installWalletProvider(deploymentContext, account);
 		await injectWallet(deploymentContext);
 		const deploymentPage = await deploymentContext.newPage();
+		// Forward deploy-page diagnostics into the CI log: run #41 died on a
+		// bare "Failed to fetch" whose origin was invisible because the
+		// controller's trace events only exist in the browser console.
+		deploymentPage.on('console', (message) => {
+			const text = message.text();
+			if (
+				text.includes('[le-space/ui]') ||
+				message.type() === 'error' ||
+				message.type() === 'warning'
+			) {
+				progress(`[deploy-page ${message.type()}] ${text.slice(0, 500)}`);
+			}
+		});
+		deploymentPage.on('pageerror', (error) => {
+			progress(`[deploy-page pageerror] ${error.message}`);
+		});
 		const agentA = new TodoBrowserAgent('relay-e2e-a', browser, APP_URL, REPLICATION_TIMEOUT);
 		const agentB = new TodoBrowserAgent('relay-e2e-b', browser, APP_URL, REPLICATION_TIMEOUT);
 		let deployed = false;
