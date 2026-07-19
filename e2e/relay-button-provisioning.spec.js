@@ -16,6 +16,7 @@ const RELAY_HEALTH_TIMEOUT = 60_000;
 const REPLICATION_TIMEOUT = 3 * 60_000;
 const RELAY_DIAL_ATTEMPT_TIMEOUT = 20_000;
 const RELAY_READINESS_TIMEOUT = 8 * 60_000;
+const FALLBACK_REGISTRATION_GRACE = 3 * 60_000;
 const TEST_SSH_PUBLIC_KEY = process.env.RELAY_BUTTON_E2E_SSH_PUBLIC_KEY?.trim();
 
 /**
@@ -83,6 +84,7 @@ async function waitForBootstrapRegistration({
 }) {
 	const deadline = Date.now() + PROVISION_TIMEOUT;
 	let lastSummary = 'No bootstrap posts returned.';
+	let fallbackSeenAt = null;
 
 	while (Date.now() < deadline) {
 		const deploymentFailure = await page.evaluate(() => {
@@ -102,7 +104,7 @@ async function waitForBootstrapRegistration({
 			lastSummary = error instanceof Error ? error.message : String(error);
 			return [];
 		});
-		const registration = posts.find(({ address, content }) => {
+		const matches = posts.filter(({ address, content }) => {
 			const owner = (content?.ownerAddress ?? content?.publisherAddress ?? address)?.toLowerCase();
 			const registrationId = content?.registrationId ?? '';
 			const addresses = content?.browserMultiaddrs?.length
@@ -115,9 +117,38 @@ async function waitForBootstrapRegistration({
 				(addresses?.length ?? 0) > 0
 			);
 		});
+		const isFallback = ({ address, content }) =>
+			!content?.ownerAddress &&
+			(content?.publisherAddress ?? address ?? '').toLowerCase() === ownerAddress.toLowerCase();
+		const registration = matches.find((match) => !isFallback(match)) ?? matches[0];
 		if (registration) {
-			progress(`bootstrap registration found for ${instanceName} (peerId ${registration.content?.peerId}).`);
-			return registration;
+			// The Sponsor Relay UI publishes a browser-side fallback registration
+			// (signed by the test wallet, without ownerAddress) when the guest VM
+			// is "delayed". For this test that fallback must not count as success:
+			// it previously masked a dead relay VM for the whole 8-minute dial
+			// window (run #37). Only a guest-published registration proves the VM
+			// is alive.
+			const content = registration.content ?? {};
+			const publishedByTestWallet = isFallback(registration);
+			if (!publishedByTestWallet) {
+				progress(
+					`guest bootstrap registration found for ${instanceName} (peerId ${content.peerId}).`
+				);
+				return registration;
+			}
+			if (fallbackSeenAt == null) {
+				fallbackSeenAt = Date.now();
+				progress(
+					'WARNING: only the browser-fallback registration exists (published by the test wallet). ' +
+						`The relay VM has not registered itself yet; waiting up to ${FALLBACK_REGISTRATION_GRACE / 60_000} more minutes for a guest registration.`
+				);
+			} else if (Date.now() - fallbackSeenAt > FALLBACK_REGISTRATION_GRACE) {
+				throw new Error(
+					`Relay VM never published its own bootstrap registration: only the browser-fallback record ` +
+						`(publisher ${content.publisherAddress}) exists ${FALLBACK_REGISTRATION_GRACE / 60_000} minutes after it appeared. ` +
+						'The guest VM is most likely not running or failed to boot its relay services - do not wait for the dial timeout.'
+				);
+			}
 		}
 		lastSummary = `${posts.length} posts checked; no current registration for ${instanceName} (${instanceHash}).`;
 		progress(`waiting for bootstrap registration: ${lastSummary}`);
