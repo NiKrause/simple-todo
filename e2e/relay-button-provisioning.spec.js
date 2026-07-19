@@ -321,7 +321,11 @@ test.describe('Sponsor Relay button', () => {
 
 		try {
 			await deploymentPage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
-			await deploymentPage.getByRole('button', { name: 'Sponsor Relay' }).click();
+			progress('waiting for the Relay Button launcher...');
+			const launcher = deploymentPage.getByRole('button', { name: 'Relay Button', exact: true });
+			await launcher.waitFor({ state: 'visible', timeout: 60_000 });
+			await launcher.click();
+			progress('launcher opened; filling deployment form...');
 			await deploymentPage.getByLabel('Instance Name').fill(instanceName);
 			await deploymentPage.getByText('Advanced', { exact: true }).click();
 			await deploymentPage.getByLabel('SSH Public Key').fill(TEST_SSH_PUBLIC_KEY);
