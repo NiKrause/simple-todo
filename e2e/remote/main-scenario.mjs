@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { TodoBrowserAgent } from './agent.mjs';
+import { TodoBrowserAgent, remoteProgress } from './agent.mjs';
 
 function hasPublicRelayConnection(diagnostics) {
 	return diagnostics.connections.some(({ remoteAddr }) =>
@@ -46,14 +46,18 @@ export async function runMainRemoteScenario({
 	const agentB = new TodoBrowserAgent(`${remoteProvider}-remote`, browserB, appUrl);
 	const result = { runId, appUrl, agents: {}, replication: {}, evidence: {}, passed: false };
 	result.evidence.remoteProvider = { name: remoteProvider, ...remoteEvidence };
-	result.evidence.stage = 'opening-browsers';
 	const requirePublicRelay = process.env.REQUIRE_PUBLIC_RELAY === 'true';
+	const setStage = (stage, detail = '') => {
+		result.evidence.stage = stage;
+		remoteProgress(`stage: ${stage}${detail ? ` (${detail})` : ''}`);
+	};
+	setStage('opening-browsers', `provider=${remoteProvider}, requirePublicRelay=${requirePublicRelay}`);
 
 	await mkdir(outputDir, { recursive: true });
 
 	try {
 		await Promise.all([agentA.open(), agentB.open()]);
-		result.evidence.stage = 'verifying-relays';
+		setStage('verifying-relays');
 		if (requirePublicRelay) {
 			const [relayOptionsA, relayOptionsB] = await Promise.all([
 				agentA.waitForReachableRelayOptions(),
@@ -63,18 +67,26 @@ export async function runMainRemoteScenario({
 				agentA: relayOptionsA,
 				agentB: relayOptionsB
 			};
+			remoteProgress(
+				`relay options: agentA=[${relayOptionsA.map(({ label }) => label).join(', ')}] agentB=[${relayOptionsB.map(({ label }) => label).join(', ')}]`
+			);
+			remoteProgress('waiting for a public relay connection on both browsers...');
 			await Promise.all([
 				agentA.waitForPublicRelayConnection(),
 				agentB.waitForPublicRelayConnection()
 			]);
 		}
+		remoteProgress('waiting for dialable peer addresses on both browsers...');
 		await Promise.all([
 			agentA.waitForDialAddress({ requirePublic: requirePublicRelay }),
 			agentB.waitForDialAddress({ requirePublic: requirePublicRelay })
 		]);
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
-		result.evidence.stage = 'validating-shared-database';
+		remoteProgress(
+			`peers: agentA=${result.agents.a.peerId} (${result.agents.a.connections.length} connections), agentB=${result.agents.b.peerId} (${result.agents.b.connections.length} connections)`
+		);
+		setStage('validating-shared-database');
 
 		if (
 			!result.agents.a.databaseAddress ||
@@ -102,8 +114,9 @@ export async function runMainRemoteScenario({
 				`Agent B did not advertise a public dial address for ${result.agents.b.peerId}.`
 			);
 		}
+		remoteProgress(`agent A dialing agent B via ${addressForB}`);
 		await agentA.connectToMultiaddr(addressForB);
-		result.evidence.stage = 'connecting-browser-peers';
+		setStage('connecting-browser-peers');
 		await Promise.all([
 			agentA.waitForPeerConnection(result.agents.b.peerId),
 			agentB.waitForPeerConnection(result.agents.a.peerId)
@@ -112,21 +125,23 @@ export async function runMainRemoteScenario({
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
 
-		result.evidence.stage = 'creating-todo-on-agent-a';
+		setStage('creating-todo-on-agent-a');
 		const aToBStarted = Date.now();
 		await agentA.createTodo(todoFromA);
-		result.evidence.stage = 'replicating-agent-a-to-agent-b';
+		setStage('replicating-agent-a-to-agent-b');
 		await agentB.waitForTodo(todoFromA);
 		result.replication.aToBMs = Date.now() - aToBStarted;
+		remoteProgress(`replicated A -> B in ${result.replication.aToBMs} ms`);
 
 		const bToAStarted = Date.now();
-		result.evidence.stage = 'creating-todo-on-agent-b';
+		setStage('creating-todo-on-agent-b');
 		await agentB.createTodo(todoFromB);
-		result.evidence.stage = 'replicating-agent-b-to-agent-a';
+		setStage('replicating-agent-b-to-agent-a');
 		await agentA.waitForTodo(todoFromB);
 		result.replication.bToAMs = Date.now() - bToAStarted;
+		remoteProgress(`replicated B -> A in ${result.replication.bToAMs} ms`);
 		result.passed = true;
-		result.evidence.stage = 'completed';
+		setStage('completed');
 		await Promise.all([
 			agentA.screenshot(`${outputDir}/agent-a-success.png`),
 			agentB.screenshot(`${outputDir}/agent-b-success.png`)
@@ -141,6 +156,7 @@ export async function runMainRemoteScenario({
 		if (diagnosticsA.status === 'fulfilled') result.agents.a = diagnosticsA.value;
 		if (diagnosticsB.status === 'fulfilled') result.agents.b = diagnosticsB.value;
 		result.error = error instanceof Error ? error.message : String(error);
+		remoteProgress(`FAILED at stage "${result.evidence.stage}": ${result.error}`);
 		await Promise.allSettled([
 			agentA.screenshot(`${outputDir}/agent-a-failure.png`),
 			agentB.screenshot(`${outputDir}/agent-b-failure.png`)
