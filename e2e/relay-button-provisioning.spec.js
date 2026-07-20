@@ -7,7 +7,8 @@ import {
 	updateRelayEvidenceStep,
 	writeRelayEvidence,
 	installEip1193WalletMock,
-	waitForPubsubSubscriber
+	waitForPubsubSubscriber,
+	RelayButtonDriver
 } from '@le-space/playwright';
 import { TodoBrowserAgent } from './remote/agent.mjs';
 import { selectPeerDialAddress } from './remote/main-scenario.mjs';
@@ -37,6 +38,30 @@ const PUBSUB_TOPIC = 'simple-todos';
  */
 function progress(message) {
 	console.log(`[relay-e2e ${new Date().toISOString()}] ${message}`);
+}
+
+/**
+ * The kit's default RelayButtonDriver fills the deploy form by placeholder,
+ * which fits the js-peer (React) Relay Button. @le-space/ui's Svelte form
+ * (SponsorRelayFab) labels its fields with a wrapping `<label><span>…</span>`
+ * and sets no placeholder, so the placeholder locators never match and
+ * `fill()` hangs. Target the fields by their label text instead — the same
+ * selectors this migration otherwise replaced. Kit follow-up (#29 "same
+ * page-driver contract for React and Svelte"): teach RelayButtonDriver to
+ * accept a label strategy so this override can be dropped.
+ */
+class SvelteRelayButtonDriver extends RelayButtonDriver {
+	async prepare({ instanceName, sshPublicKey }) {
+		const launcher = this.page.getByRole('button', { name: this.options.launcherName });
+		await launcher.waitFor({ state: 'visible', timeout: 60_000 });
+		await launcher.click();
+		await this.page.getByLabel('Instance Name').fill(instanceName);
+		await this.page.getByText('Advanced', { exact: true }).click();
+		await this.page.getByLabel('SSH Public Key').fill(sshPublicKey);
+		await this.page
+			.getByRole('button', { name: this.options.connectWalletName, exact: true })
+			.click();
+	}
 }
 
 async function connectAgentToRelay(agent, addresses, relayPeerId) {
@@ -156,6 +181,7 @@ relayTest.describe('Sponsor Relay button', () => {
 					instanceName,
 					sshPublicKey: SSH_PUBLIC_KEY,
 					startedAt,
+					driver: new SvelteRelayButtonDriver(deploymentPage),
 					provisionTimeoutMs: PROVISION_TIMEOUT,
 					registrationTimeoutMs: REGISTRATION_TIMEOUT,
 					onPhase: (phase, detail = '') =>
