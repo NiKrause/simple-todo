@@ -106,21 +106,35 @@ export async function runMainRemoteScenario({
 			}
 		}
 
+		// A direct browser-to-browser WebRTC connection is welcome but NOT
+		// required: OrbitDB sync runs over gossipsub on the relay circuit
+		// (`runOnLimitedConnection: true`), so the todo replicates relay-mediated
+		// even when the (slower/absent) direct dial never completes — proven by
+		// the UC cross-host run (<0.3 s over a single relay). Attempt the direct
+		// connection best-effort, then gate on the real signals: a database sync
+		// peer and the todo actually replicating.
+		setStage('connecting-browser-peers');
 		const addressForB = selectPeerDialAddress(result.agents.b, result.agents.b.peerId, {
 			requirePublic: requirePublicRelay
 		});
-		if (!addressForB) {
-			throw new Error(
-				`Agent B did not advertise a public dial address for ${result.agents.b.peerId}.`
+		if (addressForB) {
+			remoteProgress(`agent A dialing agent B via ${addressForB} (best-effort)`);
+			await agentA
+				.connectToMultiaddr(addressForB)
+				.catch((error) =>
+					remoteProgress(
+						`direct dial did not complete, continuing relay-mediated: ${error instanceof Error ? error.message : String(error)}`
+					)
+				);
+			await Promise.allSettled([
+				agentA.waitForPeerConnection(result.agents.b.peerId, 30_000),
+				agentB.waitForPeerConnection(result.agents.a.peerId, 30_000)
+			]);
+		} else {
+			remoteProgress(
+				`agent B advertised no direct dial address for ${result.agents.b.peerId}; relying on relay-mediated replication`
 			);
 		}
-		remoteProgress(`agent A dialing agent B via ${addressForB}`);
-		await agentA.connectToMultiaddr(addressForB);
-		setStage('connecting-browser-peers');
-		await Promise.all([
-			agentA.waitForPeerConnection(result.agents.b.peerId),
-			agentB.waitForPeerConnection(result.agents.a.peerId)
-		]);
 		await Promise.all([agentA.waitForDatabaseSyncPeer(), agentB.waitForDatabaseSyncPeer()]);
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
