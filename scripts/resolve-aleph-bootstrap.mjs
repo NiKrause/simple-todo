@@ -77,10 +77,16 @@ async function verifyBootstrapMultiaddrs(addresses) {
 
 const override = process.env.RELAY_BOOTSTRAP_OVERRIDE?.trim() || '';
 const fallback = process.env.RELAY_BOOTSTRAP_FALLBACK?.trim() || '';
+// Multiple relay implementations register in the same Aleph channel
+// (`orbitdb-relay` for simple-todo, `uc-go-peer` for universal-connectivity).
+// Scope discovery to our own profile so the build never bakes in a relay the
+// browsers cannot form a shared circuit with (a `uc-go-peer` relay leaves two
+// orbitdb browsers stuck at `candidates: 0`).
+const profile = process.env.RELAY_BOOTSTRAP_PROFILE?.trim() || 'orbitdb-relay';
 
 let resolution = resolveBootstrapMultiaddrs({ override, fallback });
 if (resolution.source !== 'override') {
-	const discovered = await discoverAlephBootstrapMultiaddrs({ browserDialableOnly: true });
+	const discovered = await discoverAlephBootstrapMultiaddrs({ browserDialableOnly: true, profile });
 	resolution = resolveBootstrapMultiaddrs({ override, discovered, fallback });
 }
 
