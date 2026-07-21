@@ -56,7 +56,13 @@
 			}
 
 			const { discoverAlephBootstrapMultiaddrs } = await import('@le-space/aleph-bootstrap');
-			const discovered = await discoverAlephBootstrapMultiaddrs({ browserDialableOnly: true });
+			// Scope discovery to our relay profile — the Aleph channel is shared
+			// with other profiles (e.g. universal-connectivity's `uc-go-peer`),
+			// whose relays leave two orbitdb browsers stuck at `candidates: 0`.
+			const discovered = await discoverAlephBootstrapMultiaddrs({
+				browserDialableOnly: true,
+				profile: import.meta.env.VITE_RELAY_BOOTSTRAP_PROFILE || 'orbitdb-relay'
+			});
 			const candidates = selectValidBrowserBootstrapMultiaddrs(discovered);
 			discoveredAddressCount = candidates.length;
 			const probeResults = await Promise.all(
