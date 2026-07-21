@@ -128,8 +128,8 @@ importers:
         specifier: ^9.18.0
         version: 9.32.0
       '@le-space/playwright':
-        specifier: 0.6.34
-        version: 0.6.34(@playwright/test@1.61.1)(typescript@5.9.2)
+        specifier: 0.6.35
+        version: 0.6.35(@playwright/test@1.61.1)(typescript@5.9.2)
       '@playwright/test':
         specifier: 1.61.1
         version: 1.61.1
@@ -885,11 +885,17 @@ packages:
   '@le-space/aleph-bootstrap@0.6.34':
     resolution: {integrity: sha512-Zb2Ew/Hbi2e6zW0tcD3586twtQvdNmLECa2eDjPw5JeMU4QVrtJyQTcgSBhP1yYUX8fBJIAmK8jZD/cSxgFtcg==}
 
+  '@le-space/aleph-bootstrap@0.6.35':
+    resolution: {integrity: sha512-jCEmQRHOM2P46r/ISfQGQ/YRNUNMlVo27VtdKVl5vutSFdsoXLEEB/h7ilVwBAEsz9zZH51Uy9x660xjYk0cog==}
+
   '@le-space/browser@0.6.34':
     resolution: {integrity: sha512-lD6OXw5y0csU+TRPHqJJb+QkU4AY+pxV0XQw0+Jd5GfF+sjY+uYvhnSndqwY5gLXKguLPCwzLJf6yjh4OKnhNg==}
 
   '@le-space/core@0.6.34':
     resolution: {integrity: sha512-NCiYl/wPciEZYWYhb+q+j4K3tjDdFIvwB/ieqxzyuBLSoSzh1GZ0slts7Zcy9W21lt/G0lVEbcNa+x4BQFnIiw==}
+
+  '@le-space/core@0.6.35':
+    resolution: {integrity: sha512-8jjGKyiByJ9U7NpCv825J63k7VbF5okAU0JS0cOLziCdcPMPtpF3E9ZV4f67jGr4w4BcdOPGBAIX4nb+3XueEw==}
 
   '@le-space/iso-base@4.3.0':
     resolution: {integrity: sha512-aZerTomLgkGAAh6zAa8PWQu2rfMzrA5tiBIe4PWI8LDBJHwlgFwRsiDpdM/3eRjE7ocHi4rrPXdVfy+FH7knFA==}
@@ -915,14 +921,17 @@ packages:
     peerDependencies:
       '@orbitdb/core': ^4.0.0
 
-  '@le-space/playwright@0.6.34':
-    resolution: {integrity: sha512-oktWjtoxnPp336kqfQz4PX0yhG1OiuJfxExXQ5vfCzP8yIYIyHNjYwPjKnR6KxPyTtIHXehpZ34kZqdVQ4Pdag==}
+  '@le-space/playwright@0.6.35':
+    resolution: {integrity: sha512-TqC6/yEMCVLxU+FaMaBG1voQQKz5zbafenJ1pnlR/AcpOo7ZuwfHuy7IQ+XdVLMENd0EoWSo2kL+pRlxcvsICQ==}
     hasBin: true
     peerDependencies:
       '@playwright/test': '>=1.61.1 <1.62.0'
 
   '@le-space/shared-types@0.6.34':
     resolution: {integrity: sha512-r338xuFO+mw9/9EcNw2d+se1UDklw4Ek7pBW4kKaEgZHk8pRQHZVXipiBgNqCW6UVSCAzt8Ak3HZtKtl/0RkHw==}
+
+  '@le-space/shared-types@0.6.35':
+    resolution: {integrity: sha512-xIdEQ6WHb063uj9ixagno1GdxCvHjNXgScJttZS1kZN2z0X+50kRIitWzL3RQpQIRXMLyHiuharw/j5jZCZeZg==}
 
   '@le-space/ucanto-interface@11.1.1':
     resolution: {integrity: sha512-K7f/itvJMeeYyylR9D1TD83IBBW9OWrhdjEGT6vFcsjaResVL1zFVte3kt+8opyGhqgSNJ8cLotEfIbDcKyrkw==}
@@ -5910,12 +5919,32 @@ snapshots:
       - utf-8-validate
       - zod
 
+  '@le-space/aleph-bootstrap@0.6.35(typescript@5.9.2)':
+    dependencies:
+      '@libp2p/bootstrap': 11.0.47
+      viem: 2.53.1(typescript@5.9.2)
+    transitivePeerDependencies:
+      - bufferutil
+      - typescript
+      - utf-8-validate
+      - zod
+
   '@le-space/browser@0.6.34': {}
 
   '@le-space/core@0.6.34(typescript@5.9.2)':
     dependencies:
       '@le-space/aleph-bootstrap': 0.6.34(typescript@5.9.2)
       '@le-space/shared-types': 0.6.34
+    transitivePeerDependencies:
+      - bufferutil
+      - typescript
+      - utf-8-validate
+      - zod
+
+  '@le-space/core@0.6.35(typescript@5.9.2)':
+    dependencies:
+      '@le-space/aleph-bootstrap': 0.6.35(typescript@5.9.2)
+      '@le-space/shared-types': 0.6.35
     transitivePeerDependencies:
       - bufferutil
       - typescript
@@ -5973,10 +6002,10 @@ snapshots:
       - rollup
       - vite
 
-  '@le-space/playwright@0.6.34(@playwright/test@1.61.1)(typescript@5.9.2)':
+  '@le-space/playwright@0.6.35(@playwright/test@1.61.1)(typescript@5.9.2)':
     dependencies:
-      '@le-space/aleph-bootstrap': 0.6.34(typescript@5.9.2)
-      '@le-space/core': 0.6.34(typescript@5.9.2)
+      '@le-space/aleph-bootstrap': 0.6.35(typescript@5.9.2)
+      '@le-space/core': 0.6.35(typescript@5.9.2)
       '@playwright/test': 1.61.1
     transitivePeerDependencies:
       - bufferutil
@@ -5985,6 +6014,8 @@ snapshots:
       - zod
 
   '@le-space/shared-types@0.6.34': {}
+
+  '@le-space/shared-types@0.6.35': {}
 
   '@le-space/ucanto-interface@11.1.1':
     dependencies:
