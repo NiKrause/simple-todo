@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { TodoBrowserAgent } from './agent.mjs';
+import { TodoBrowserAgent, remoteProgress } from './agent.mjs';
 import { generateSpanishMnemonic } from '../../src/lib/spanish-mnemonic.js';
 
 function hasPublicRelayConnection(diagnostics) {
@@ -37,14 +37,17 @@ export async function runMainRemoteScenario({
 	browserB,
 	appUrl,
 	outputDir,
-	remoteProvider = 'local'
+	remoteProvider = 'local',
+	remoteEvidence = {}
 }) {
 	const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 	const todoFromA = `remote-${runId}-from-a`;
 	const todoFromB = `remote-${runId}-from-b`;
+	// Chapter-specific: both browsers open the same Spanish-mnemonic-named shared
+	// OrbitDB list and replicate through it.
 	const sharedMnemonic = generateSpanishMnemonic();
 	const agentA = new TodoBrowserAgent('github-local', browserA, appUrl);
-	const agentB = new TodoBrowserAgent('testingbot-remote', browserB, appUrl);
+	const agentB = new TodoBrowserAgent(`${remoteProvider}-remote`, browserB, appUrl);
 	const result = {
 		runId,
 		appUrl,
@@ -54,35 +57,61 @@ export async function runMainRemoteScenario({
 		evidence: {},
 		passed: false
 	};
+	result.evidence.remoteProvider = { name: remoteProvider, ...remoteEvidence };
+	const requirePublicRelay = process.env.REQUIRE_PUBLIC_RELAY === 'true';
+	const setStage = (stage, detail = '') => {
+		result.evidence.stage = stage;
+		remoteProgress(`stage: ${stage}${detail ? ` (${detail})` : ''}`);
+	};
+	setStage(
+		'opening-browsers',
+		`provider=${remoteProvider}, requirePublicRelay=${requirePublicRelay}`
+	);
 
 	await mkdir(outputDir, { recursive: true });
 
 	try {
 		await Promise.all([agentA.open(sharedMnemonic), agentB.open(sharedMnemonic)]);
-		const requirePingVerified = process.env.REQUIRE_PUBLIC_RELAY === 'true';
-		const [relayOptionsA, relayOptionsB] = await Promise.all([
-			agentA.waitForReachableRelayOptions({ requirePingVerified }),
-			agentB.waitForReachableRelayOptions({ requirePingVerified })
-		]);
-		result.evidence.pingVerifiedRelayOptions = {
-			agentA: relayOptionsA,
-			agentB: relayOptionsB
-		};
-		if (process.env.REQUIRE_PUBLIC_RELAY === 'true') {
+		setStage('verifying-relays');
+		if (requirePublicRelay) {
+			const [relayOptionsA, relayOptionsB] = await Promise.all([
+				agentA.waitForReachableRelayOptions(),
+				agentB.waitForReachableRelayOptions()
+			]);
+			result.evidence.pingVerifiedRelayOptions = {
+				agentA: relayOptionsA,
+				agentB: relayOptionsB
+			};
+			remoteProgress(
+				`relay options: agentA=[${relayOptionsA.map(({ label }) => label).join(', ')}] agentB=[${relayOptionsB.map(({ label }) => label).join(', ')}]`
+			);
+			remoteProgress('waiting for a public relay connection on both browsers...');
 			await Promise.all([
 				agentA.waitForPublicRelayConnection(),
 				agentB.waitForPublicRelayConnection()
 			]);
-			await Promise.all([agentA.waitForPublicDialAddress(), agentB.waitForPublicDialAddress()]);
-		} else {
-			await Promise.all([agentA.waitForDialAddress(), agentB.waitForDialAddress()]);
 		}
+		remoteProgress('waiting for dialable peer addresses on both browsers...');
+		await Promise.all([
+			agentA.waitForDialAddress({ requirePublic: requirePublicRelay }),
+			agentB.waitForDialAddress({ requirePublic: requirePublicRelay })
+		]);
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
+		remoteProgress(
+			`peers: agentA=${result.agents.a.peerId} (${result.agents.a.connections.length} connections), agentB=${result.agents.b.peerId} (${result.agents.b.connections.length} connections)`
+		);
+		setStage('validating-shared-database');
 
 		if (
 			result.agents.a.databaseName !== sharedMnemonic ||
-			result.agents.b.databaseName !== sharedMnemonic ||
+			result.agents.b.databaseName !== sharedMnemonic
+		) {
+			throw new Error(
+				`agents did not open the shared mnemonic list "${sharedMnemonic}": agentA=${result.agents.a.databaseName}, agentB=${result.agents.b.databaseName}`
+			);
+		}
+		if (
 			!result.agents.a.databaseAddress ||
 			result.agents.a.databaseAddress !== result.agents.b.databaseAddress
 		) {
@@ -91,7 +120,7 @@ export async function runMainRemoteScenario({
 			);
 		}
 
-		if (process.env.REQUIRE_PUBLIC_RELAY === 'true') {
+		if (requirePublicRelay) {
 			if (
 				!hasPublicRelayConnection(result.agents.a) ||
 				!hasPublicRelayConnection(result.agents.b)
@@ -100,37 +129,56 @@ export async function runMainRemoteScenario({
 			}
 		}
 
+		// A direct browser-to-browser WebRTC connection is welcome but NOT
+		// required: OrbitDB sync runs over gossipsub on the relay circuit
+		// (`runOnLimitedConnection: true`), so the todo replicates relay-mediated
+		// even when the (slower/absent) direct dial never completes — proven by
+		// the UC cross-host run (<0.3 s over a single relay). Attempt the direct
+		// connection best-effort, then gate on the real signals: a database sync
+		// peer and the todo actually replicating.
+		setStage('connecting-browser-peers');
 		const addressForB = selectPeerDialAddress(result.agents.b, result.agents.b.peerId, {
-			requirePublic: process.env.REQUIRE_PUBLIC_RELAY === 'true'
+			requirePublic: requirePublicRelay
 		});
-		if (!addressForB) {
-			throw new Error(
-				`Agent B did not advertise a usable dial address for ${result.agents.b.peerId}.`
+		if (addressForB) {
+			remoteProgress(`agent A dialing agent B via ${addressForB} (best-effort)`);
+			await agentA
+				.connectToMultiaddr(addressForB)
+				.catch((error) =>
+					remoteProgress(
+						`direct dial did not complete, continuing relay-mediated: ${error instanceof Error ? error.message : String(error)}`
+					)
+				);
+			await Promise.allSettled([
+				agentA.waitForPeerConnection(result.agents.b.peerId, 30_000),
+				agentB.waitForPeerConnection(result.agents.a.peerId, 30_000)
+			]);
+		} else {
+			remoteProgress(
+				`agent B advertised no direct dial address for ${result.agents.b.peerId}; relying on relay-mediated replication`
 			);
 		}
-		await agentA.connectToMultiaddr(addressForB);
-		await Promise.all([
-			agentA.waitForPeerConnection(result.agents.b.peerId),
-			agentB.waitForPeerConnection(result.agents.a.peerId)
-		]);
 		await Promise.all([agentA.waitForDatabaseSyncPeer(), agentB.waitForDatabaseSyncPeer()]);
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
 
+		setStage('creating-todo-on-agent-a');
 		const aToBStarted = Date.now();
 		await agentA.createTodo(todoFromA);
+		setStage('replicating-agent-a-to-agent-b');
 		await agentB.waitForTodo(todoFromA);
 		result.replication.aToBMs = Date.now() - aToBStarted;
+		remoteProgress(`replicated A -> B in ${result.replication.aToBMs} ms`);
 
 		const bToAStarted = Date.now();
+		setStage('creating-todo-on-agent-b');
 		await agentB.createTodo(todoFromB);
+		setStage('replicating-agent-b-to-agent-a');
 		await agentA.waitForTodo(todoFromB);
 		result.replication.bToAMs = Date.now() - bToAStarted;
+		remoteProgress(`replicated B -> A in ${result.replication.bToAMs} ms`);
 		result.passed = true;
-		if (remoteProvider === 'testingbot') {
-			await agentB.setTestingBotStatus(true, 'Bidirectional OrbitDB replication passed.');
-			result.evidence.testingBot = await agentB.getTestingBotSessionDetails();
-		}
+		setStage('completed');
 		await Promise.all([
 			agentA.screenshot(`${outputDir}/agent-a-success.png`),
 			agentB.screenshot(`${outputDir}/agent-b-success.png`)
@@ -145,9 +193,7 @@ export async function runMainRemoteScenario({
 		if (diagnosticsA.status === 'fulfilled') result.agents.a = diagnosticsA.value;
 		if (diagnosticsB.status === 'fulfilled') result.agents.b = diagnosticsB.value;
 		result.error = error instanceof Error ? error.message : String(error);
-		if (remoteProvider === 'testingbot') {
-			await agentB.setTestingBotStatus(false, result.error).catch(() => {});
-		}
+		remoteProgress(`FAILED at stage "${result.evidence.stage}": ${result.error}`);
 		await Promise.allSettled([
 			agentA.screenshot(`${outputDir}/agent-a-failure.png`),
 			agentB.screenshot(`${outputDir}/agent-b-failure.png`)
