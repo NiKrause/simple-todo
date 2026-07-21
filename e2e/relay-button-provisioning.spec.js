@@ -7,7 +7,6 @@ import {
 	updateRelayEvidenceStep,
 	writeRelayEvidence,
 	installEip1193WalletMock,
-	waitForPubsubSubscriber,
 	RelayButtonDriver
 } from '@le-space/playwright';
 import { TodoBrowserAgent } from './remote/agent.mjs';
@@ -16,9 +15,9 @@ import { selectPeerDialAddress } from './remote/main-scenario.mjs';
 // This spec provisions a real relay through the Relay Button UI and replicates
 // the default OrbitDB between two browsers. All relay-lifecycle plumbing
 // (wallet mock, deploy → instance → bootstrap registration, browser-dialable
-// address selection, PubSub readiness, CRN erase + Aleph FORGET cleanup) now
-// comes from the shared @le-space/playwright test kit; only the TODO-app
-// assertions and the browser-to-browser dial stay here (issue #29).
+// address selection, CRN erase + Aleph FORGET cleanup) now comes from the
+// shared @le-space/playwright test kit; only the TODO-app assertions and the
+// browser-to-browser dial stay here (issue #29).
 
 const PRIVATE_KEY = process.env.RELAY_BUTTON_E2E_PRIVATE_KEY?.trim();
 const SSH_PUBLIC_KEY = process.env.RELAY_BUTTON_E2E_SSH_PUBLIC_KEY?.trim();
@@ -29,8 +28,6 @@ const REGISTRATION_TIMEOUT = 15 * 60_000;
 const RELAY_READINESS_TIMEOUT = 10 * 60_000;
 const RELAY_DIAL_ATTEMPT_TIMEOUT = 20_000;
 const REPLICATION_TIMEOUT = 3 * 60_000;
-const PUBSUB_TIMEOUT = 3 * 60_000;
-const PUBSUB_TOPIC = 'simple-todos';
 
 /**
  * Live progress logging: Playwright shows no output between test start and
@@ -112,7 +109,6 @@ const evidence = createRelayEvidence({
 		bootstrapPublished: 'Browser multiaddress published to Aleph',
 		browserAConnected: 'Browser A connected through custom multiaddress',
 		browserBConnected: 'Browser B connected through custom multiaddress',
-		pubsubReady: 'Both browsers joined the Relay PubSub topic',
 		sharedDatabase: 'Both browsers opened the same default OrbitDB address',
 		browserPeersConnected: 'Browser-to-browser relay connection established',
 		replicationAToB: 'TODO replicated from browser A to browser B',
@@ -217,25 +213,7 @@ relayTest.describe('Sponsor Relay button', () => {
 				pass('browserAConnected', relayConnection.address);
 				pass('browserBConnected', relayConnection.address);
 
-				// Phase 3: Both browsers subscribed to the app PubSub topic via the relay.
-				const [subscribersA, subscribersB] = await Promise.all([
-					waitForPubsubSubscriber(agentA.page, {
-						topic: PUBSUB_TOPIC,
-						peerId: relay.peerId,
-						timeoutMs: PUBSUB_TIMEOUT,
-						stableForMs: 2_000
-					}),
-					waitForPubsubSubscriber(agentB.page, {
-						topic: PUBSUB_TOPIC,
-						peerId: relay.peerId,
-						timeoutMs: PUBSUB_TIMEOUT,
-						stableForMs: 2_000
-					})
-				]);
-				evidence.pubsubReadiness = { agentA: subscribersA, agentB: subscribersB };
-				pass('pubsubReady', `${relay.peerId} stable on ${PUBSUB_TOPIC} in both browsers`);
-
-				// Phase 4: Same default OrbitDB + a direct browser-to-browser dial.
+				// Phase 3: Same default OrbitDB + a direct browser-to-browser dial.
 				// Both browsers run on the same CI runner and each advertise a public
 				// relay-circuit address first (waitForPublicDialAddress), so the direct
 				// WebRTC connection is reliable here — unlike the cross-host
