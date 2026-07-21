@@ -49,9 +49,9 @@
     }
   ],
   "rootfsSizeMiB": 20480,
-  "createdAt": "2026-07-13T13:14:09.137Z",
+  "createdAt": "2026-07-21T21:34:01.364Z",
   "notes": "The OrbitDB relay image prebakes Node.js, production dependencies, and Caddy into the qcow2, delays first relay start until Aleph host port mappings are known, exposes a temporary setup endpoint on port 80, and uses Caddy on port 443 to front both HTTPS helper routes and secure libp2p WSS transport for the configured proxy hostname.",
-  "rootfsSourceSizeBytes": 662144512,
-  "rootfsCid": "QmegYBP526TSMpcVcKKChng7GQx8icsPmdXfjqscqJWbSW",
-  "rootfsItemHash": "f50d5005c147df26e86f4b02b6571d7f4c1c363d399fb6a407354b90f0d78408"
+  "rootfsSourceSizeBytes": 664478208,
+  "rootfsCid": "QmYr6webXEyyenSqJESQfHb8CmYqUyFwJ8XW2qKwM9kEhn",
+  "rootfsItemHash": "ea2577d2ed59da1382cf794e3819f89b4a545a95cbac3e8a520cfd7fb961ffa7"
 }
