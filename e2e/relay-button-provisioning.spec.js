@@ -26,7 +26,7 @@ const APP_URL = process.env.RELAY_BUTTON_E2E_APP_URL ?? 'http://localhost:4173';
 const OUTPUT_DIR = 'test-results/relay-button';
 const PROVISION_TIMEOUT = 20 * 60_000;
 const REGISTRATION_TIMEOUT = 15 * 60_000;
-const RELAY_READINESS_TIMEOUT = 8 * 60_000;
+const RELAY_READINESS_TIMEOUT = 10 * 60_000;
 const RELAY_DIAL_ATTEMPT_TIMEOUT = 20_000;
 const REPLICATION_TIMEOUT = 3 * 60_000;
 const PUBSUB_TIMEOUT = 3 * 60_000;
@@ -64,27 +64,33 @@ class SvelteRelayButtonDriver extends RelayButtonDriver {
 	}
 }
 
-async function connectAgentToRelay(agent, addresses, relayPeerId) {
-	const deadline = Date.now() + RELAY_READINESS_TIMEOUT;
+// Dial BOTH browsers at each relay address concurrently and keep retrying
+// until both hold a connection to the relay peer, or the readiness window
+// elapses. Freshly provisioned relays can take minutes to become
+// browser-dialable (guest boot + AutoTLS), so both browsers must share one
+// window rather than burning it sequentially — this mirrors the currently
+// green main behaviour (a per-agent sequential dial wastes the window and
+// can miss a slow relay by a hair).
+async function connectBrowsersToRelay(agents, addresses, relayPeerId) {
 	const attempts = [];
+	const deadline = Date.now() + RELAY_READINESS_TIMEOUT;
 
 	while (Date.now() < deadline) {
 		for (const address of addresses) {
-			try {
-				await agent.connectToMultiaddr(address);
-				await agent.waitForPeerConnection(relayPeerId, RELAY_DIAL_ATTEMPT_TIMEOUT);
-				return { address, attempts };
-			} catch (error) {
-				attempts.push({
-					address,
-					error: error instanceof Error ? error.message : String(error)
-				});
-			}
+			await Promise.allSettled(agents.map((agent) => agent.connectToMultiaddr(address)));
+			const results = await Promise.allSettled(
+				agents.map((agent) => agent.waitForPeerConnection(relayPeerId, RELAY_DIAL_ATTEMPT_TIMEOUT))
+			);
+			const connected = results.map(({ status }) => status === 'fulfilled');
+			attempts.push({ at: new Date().toISOString(), address, connected });
+			progress(`relay dial via ${address}: connected=[${connected.join(', ')}]`);
+			if (connected.every(Boolean)) return { address, attempts };
+			if (Date.now() >= deadline) break;
 		}
 		await new Promise((resolve) => setTimeout(resolve, 5_000));
 	}
 
-	throw new Error(`${agent.name} did not connect to ${relayPeerId}: ${JSON.stringify(attempts)}`);
+	throw new Error(`browsers did not connect to relay ${relayPeerId}: ${JSON.stringify(attempts)}`);
 }
 
 // A placeholder key keeps the file collectable when credentials are absent:
@@ -202,10 +208,14 @@ relayTest.describe('Sponsor Relay button', () => {
 
 				// Phase 2: Browser A + B connect to the freshly provisioned relay.
 				await Promise.all([agentA.open(), agentB.open()]);
-				const connectionA = await connectAgentToRelay(agentA, relayAddresses, relay.peerId);
-				pass('browserAConnected', connectionA.address);
-				const connectionB = await connectAgentToRelay(agentB, relayAddresses, relay.peerId);
-				pass('browserBConnected', connectionB.address);
+				const relayConnection = await connectBrowsersToRelay(
+					[agentA, agentB],
+					relayAddresses,
+					relay.peerId
+				);
+				evidence.relayConnection = relayConnection;
+				pass('browserAConnected', relayConnection.address);
+				pass('browserBConnected', relayConnection.address);
 
 				// Phase 3: Both browsers subscribed to the app PubSub topic via the relay.
 				const [subscribersA, subscribersB] = await Promise.all([
