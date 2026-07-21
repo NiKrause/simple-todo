@@ -1,5 +1,10 @@
 const DEFAULT_TIMEOUT = 120_000;
 
+/** Timestamped live progress line so CI logs show what remote runs are doing. */
+export function remoteProgress(message) {
+	console.log(`[remote-e2e ${new Date().toISOString()}] ${message}`);
+}
+
 export class TodoBrowserAgent {
 	constructor(name, browser, appUrl, timeout = DEFAULT_TIMEOUT) {
 		this.name = name;
@@ -16,12 +21,27 @@ export class TodoBrowserAgent {
 		this.page = await this.context.newPage();
 		this.page.on('console', (message) => {
 			const text = message.text();
-			if (!/(todo|orbitdb|database peer|entry updated|connection stable|pinning)/i.test(text)) {
+			const type = message.type();
+			const relevant =
+				/(todo|orbitdb|database peer|entry updated|connect|dial|relay|tls|websocket|pinning)/i.test(
+					text
+				);
+			if (!relevant && type !== 'error' && type !== 'warning') {
 				return;
 			}
-			this.log.push(`[${message.type()}] ${text}`);
+			this.log.push(`[${type}] ${text}`);
 			if (this.log.length > 200) this.log.shift();
+			// Stream warnings/errors and relay-related lines live into the CI log:
+			// buried browser console output (e.g. TooManyOutboundProtocolStreams
+			// during relay pings) has repeatedly been the actual root cause.
+			if (type === 'error' || type === 'warning' || /relay|dial|connect/i.test(text)) {
+				remoteProgress(`[${this.name} ${type}] ${text.slice(0, 400)}`);
+			}
 		});
+		this.page.on('pageerror', (error) => {
+			remoteProgress(`[${this.name} pageerror] ${error.message}`);
+		});
+		remoteProgress(`[${this.name}] opening ${this.appUrl}...`);
 		await this.page.goto(this.appUrl, { waitUntil: 'domcontentloaded', timeout: this.timeout });
 
 		const modal = this.page.locator('div.fixed.inset-0.z-50');
@@ -30,6 +50,9 @@ export class TodoBrowserAgent {
 			for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
 				await checkbox.check();
 			}
+			// Chapter-specific: collab01 replicates a Spanish-mnemonic-named shared
+			// OrbitDB list, so open that list by its mnemonic instead of the plain
+			// "Proceed to Test the App" flow.
 			await modal.getByTestId('shared-list-mnemonic-input').fill(mnemonic);
 			await this.page.getByRole('button', { name: 'Open shared list' }).click();
 		}
@@ -67,12 +90,16 @@ export class TodoBrowserAgent {
 		return { ...diagnostics, log: this.log.slice(-100) };
 	}
 
-	async waitForReachableRelayOptions({ requirePingVerified = true } = {}) {
+	async waitForReachableRelayOptions() {
+		// #38: discovery no longer runs on page load. The dropdown is
+		// pre-populated with the build-time snapshot (data-prevalidated);
+		// live ping-verified entries (data-ping-verified) appear only after a
+		// manual refresh. Both are dialable, so accept either.
+		const optionSelector =
+			'[data-testid="reachable-relay-select"] option[data-ping-verified="true"], ' +
+			'[data-testid="reachable-relay-select"] option[data-prevalidated="true"]';
 		const select = this.page.getByTestId('reachable-relay-select');
 		await select.waitFor({ state: 'attached', timeout: this.timeout });
-		const optionSelector = requirePingVerified
-			? '[data-testid="reachable-relay-select"] option[data-ping-verified="true"]'
-			: '[data-testid="reachable-relay-select"] option[value^="/"]';
 		await this.page.waitForFunction(
 			(selector) => document.querySelectorAll(selector).length > 0,
 			optionSelector,
@@ -80,7 +107,7 @@ export class TodoBrowserAgent {
 		);
 
 		return select
-			.locator(optionSelector.replace('[data-testid="reachable-relay-select"] ', ''))
+			.locator('option[data-ping-verified="true"], option[data-prevalidated="true"]')
 			.evaluateAll((options) =>
 				options.map((option) => ({
 					address: option.value,
@@ -102,10 +129,6 @@ export class TodoBrowserAgent {
 		return this.diagnostics();
 	}
 
-	async waitForPublicDialAddress() {
-		return this.waitForDialAddress({ requirePublic: true });
-	}
-
 	async waitForDialAddress({ requirePublic = false } = {}) {
 		await this.page.waitForFunction(
 			(publicOnly) => {
@@ -125,6 +148,10 @@ export class TodoBrowserAgent {
 		);
 
 		return this.diagnostics();
+	}
+
+	async waitForPublicDialAddress() {
+		return this.waitForDialAddress({ requirePublic: true });
 	}
 
 	async connectToMultiaddr(address) {
@@ -153,45 +180,43 @@ export class TodoBrowserAgent {
 		return this.diagnostics();
 	}
 
-	async waitForDatabaseSyncPeer() {
+	async waitForDatabaseSyncPeer(timeout = this.timeout) {
 		await this.page.waitForFunction(
 			() => (window.__simpleTodoDiagnostics?.getDatabasePeers?.() ?? []).length > 0,
 			undefined,
-			{ timeout: this.timeout, polling: 500 }
+			{ timeout, polling: 1_000 }
 		);
-
 		return this.diagnostics();
 	}
 
-	async createTodo(text) {
-		await this.todoInput().fill(text);
-		await this.page.getByRole('button', { name: 'Add TODO' }).click();
-		await this.waitForTodo(text);
+	async createTodo(text, { attempts = 3, attemptTimeout = 40_000 } = {}) {
+		let lastError;
+		for (let attempt = 1; attempt <= attempts; attempt += 1) {
+			await this.todoInput().waitFor({ state: 'visible', timeout: attemptTimeout });
+			await this.todoInput().fill(text);
+			await this.page.getByRole('button', { name: 'Add TODO' }).click();
+			try {
+				await this.waitForTodo(text, attemptTimeout);
+				return;
+			} catch (error) {
+				lastError = error;
+				this.log.push(
+					`[warning] TODO creation attempt ${attempt}/${attempts} did not become visible within ${attemptTimeout}ms`
+				);
+			}
+		}
+
+		throw new Error(
+			`${this.name} could not create local TODO "${text}" after ${attempts} attempts: ${lastError instanceof Error ? lastError.message : String(lastError)}`
+		);
 	}
 
-	async waitForTodo(text) {
-		await this.page
-			.getByText(text, { exact: true })
-			.waitFor({ state: 'visible', timeout: this.timeout });
+	async waitForTodo(text, timeout = this.timeout) {
+		await this.page.getByText(text, { exact: true }).waitFor({ state: 'visible', timeout });
 	}
 
 	async screenshot(path) {
 		await this.page?.screenshot({ path, fullPage: true });
-	}
-
-	async setTestingBotStatus(passed, reason) {
-		if (!this.page) return;
-		const command = JSON.stringify({
-			action: 'setSessionStatus',
-			arguments: { passed, reason }
-		});
-		await this.page.evaluate(() => {}, `testingbot_executor: ${command}`);
-	}
-
-	async getTestingBotSessionDetails() {
-		if (!this.page) return null;
-		const command = JSON.stringify({ action: 'getSessionDetails' });
-		return this.page.evaluate(() => {}, `testingbot_executor: ${command}`);
 	}
 
 	todoInput() {

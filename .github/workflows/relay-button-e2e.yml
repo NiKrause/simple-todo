@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.61.1-noble
-    timeout-minutes: 35
+    timeout-minutes: 40
     env:
       RELAY_BUTTON_E2E_PRIVATE_KEY: ${{ secrets.RELAY_BUTTON_E2E_PRIVATE_KEY }}
       RELAY_BUTTON_E2E_SSH_PUBLIC_KEY: ${{ vars.RELAY_BUTTON_E2E_SSH_PUBLIC_KEY }}
@@ -36,7 +36,7 @@ jobs:
       - name: Require relay deployment credentials
         run: test -n "$RELAY_BUTTON_E2E_PRIVATE_KEY" && test -n "$RELAY_BUTTON_E2E_SSH_PUBLIC_KEY"
       - name: Provision relay and verify two-browser replication
-        run: pnpm exec playwright test e2e/relay-button-provisioning.spec.js --project=chromium --workers=1
+        run: pnpm exec playwright test e2e/relay-button-provisioning.spec.js --project=chromium --workers=1 --reporter=list
       - name: Write relay E2E job summary
         if: always()
         run: node scripts/write-relay-e2e-summary.mjs

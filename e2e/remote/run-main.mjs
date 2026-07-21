@@ -1,25 +1,55 @@
 import { writeFile } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
-import { createLocalBrowser, createTestingBotBrowser } from './providers.mjs';
+import {
+	createAlephBrowser,
+	createLocalBrowser,
+	createTestingBotBrowser,
+	PLAYWRIGHT_VERSION
+} from './providers.mjs';
 import { runMainRemoteScenario } from './main-scenario.mjs';
 
 const appUrl = process.env.REMOTE_APP_URL || 'https://simple-todo.le-space.de';
-const provider = process.env.REMOTE_PROVIDER || 'local';
+const provider = process.env.REMOTE_PROVIDER || 'aleph';
 const outputDir = process.env.REMOTE_OUTPUT_DIR || 'test-results/remote-main';
 const buildName = process.env.GITHUB_RUN_ID
 	? `simple-todo-${process.env.GITHUB_RUN_ID}`
 	: `simple-todo-${Date.now()}`;
 
 const browserA = await createLocalBrowser();
-const browserB =
-	provider === 'testingbot'
-		? await createTestingBotBrowser({
-				key: process.env.TESTINGBOT_KEY,
-				secret: process.env.TESTINGBOT_SECRET,
-				buildName,
-				testName: 'main cross-network OrbitDB replication'
-			})
-		: await createLocalBrowser();
+let browserB;
+try {
+	if (provider === 'testingbot') {
+		browserB = await createTestingBotBrowser({
+			key: process.env.TESTINGBOT_KEY,
+			secret: process.env.TESTINGBOT_SECRET,
+			buildName,
+			testName: 'main cross-network OrbitDB replication'
+		});
+	} else if (provider === 'aleph') {
+		browserB = await createAlephBrowser({
+			wsEndpoint: process.env.ALEPH_PLAYWRIGHT_WS_ENDPOINT,
+			versionUrl: process.env.ALEPH_PLAYWRIGHT_VERSION_URL,
+			secret: process.env.ALEPH_PLAYWRIGHT_SECRET
+		});
+	} else if (provider === 'local') {
+		browserB = await createLocalBrowser();
+	} else {
+		throw new Error(`Unsupported REMOTE_PROVIDER "${provider}". Use aleph, local, or testingbot.`);
+	}
+} catch (error) {
+	await browserA.close();
+	throw error;
+}
+
+const remoteEvidence =
+	provider === 'aleph'
+		? {
+				instanceHash: process.env.ALEPH_PLAYWRIGHT_INSTANCE_HASH ?? null,
+				crnHash: process.env.ALEPH_PLAYWRIGHT_CRN_HASH ?? null,
+				crnName: process.env.ALEPH_PLAYWRIGHT_CRN_NAME ?? null,
+				region: process.env.ALEPH_PLAYWRIGHT_REGION ?? null,
+				playwrightVersion: PLAYWRIGHT_VERSION
+			}
+		: {};
 
 try {
 	const result = await runMainRemoteScenario({
@@ -27,24 +57,15 @@ try {
 		browserB,
 		appUrl,
 		outputDir,
-		remoteProvider: provider
+		remoteProvider: provider,
+		remoteEvidence
 	});
 	const githubRunUrl = process.env.GITHUB_RUN_ID
 		? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
 		: null;
 	const githubArtifactsUrl = githubRunUrl ? `${githubRunUrl}#artifacts` : null;
-	const testingBotSessionId = result.evidence.testingBot?.sessionId ?? null;
-	const testingBotShareUrl =
-		testingBotSessionId && process.env.TESTINGBOT_KEY && process.env.TESTINGBOT_SECRET
-			? `https://testingbot.com/tests/${testingBotSessionId}?auth=${createHash('md5')
-					.update(
-						`${process.env.TESTINGBOT_KEY}:${process.env.TESTINGBOT_SECRET}:${testingBotSessionId}`
-					)
-					.digest('hex')}`
-			: null;
 	result.evidence.githubRunUrl = githubRunUrl;
 	result.evidence.githubArtifactsUrl = githubArtifactsUrl;
-	result.evidence.testingBotShareUrl = testingBotShareUrl;
 	console.log(JSON.stringify(result, null, 2));
 	if (process.env.GITHUB_STEP_SUMMARY) {
 		await writeFile(
@@ -63,7 +84,9 @@ try {
 				(githubArtifactsUrl
 					? `- [Success screenshots and result JSON](${githubArtifactsUrl})\n`
 					: '') +
-				(testingBotShareUrl ? `- [TestingBot session and video](${testingBotShareUrl})\n` : ''),
+				(provider === 'aleph'
+					? `- Aleph INSTANCE: \`${remoteEvidence.instanceHash ?? 'unknown'}\`\n- CRN/region: \`${remoteEvidence.crnName ?? remoteEvidence.crnHash ?? 'unknown'}\` / \`${remoteEvidence.region ?? 'unknown'}\`\n- Playwright: \`${PLAYWRIGHT_VERSION}\`\n`
+					: ''),
 			{ flag: 'a' }
 		);
 	}
