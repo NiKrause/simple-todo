@@ -114,7 +114,7 @@ jobs:
     needs: link-domain
     runs-on: ubuntu-latest
     steps:
-      - name: Start TestingBot replication against the preview
+      - name: Start remote replication against the preview
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
@@ -122,4 +122,4 @@ jobs:
           --repo "${{ github.repository }}"
           --ref collab01
           -f app_url=https://collab01.le-space.de
-          -f provider=testingbot
+          -f provider=aleph
