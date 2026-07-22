@@ -160,6 +160,33 @@ export async function runMainRemoteScenario({
 		);
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
+		// Condensed pubsub view per agent: whether the database topic is
+		// subscribed and who sits in its gossipsub mesh. Live head propagation
+		// depends on exactly this, and it has failed while everything else
+		// (connections, sync peers, relay pinning) looked healthy.
+		for (const [label, agent] of [
+			['agentA', result.agents.a],
+			['agentB', result.agents.b]
+		]) {
+			const pubsub = agent.pubsub;
+			if (!pubsub) {
+				remoteProgress(`${label} pubsub state: unavailable (older app build?)`);
+				continue;
+			}
+			const dbTopic = pubsub.topics.find((topic) => topic.includes('/orbitdb/')) ?? null;
+			remoteProgress(
+				`${label} pubsub: topics=${pubsub.topics.length} peers=[${pubsub.peers
+					.map((peer) => peer.slice(-6))
+					.join(',')}] dbTopic=${dbTopic ? 'subscribed' : 'MISSING'} dbMesh=[${(
+					(dbTopic && pubsub.mesh[dbTopic]) ||
+					[]
+				)
+					.map((peer) => peer.slice(-6))
+					.join(',')}] dbSubscribers=[${((dbTopic && pubsub.subscribers[dbTopic]) || [])
+					.map((peer) => peer.slice(-6))
+					.join(',')}]`
+			);
+		}
 
 		setStage('creating-todo-on-agent-a');
 		const aToBStarted = Date.now();
