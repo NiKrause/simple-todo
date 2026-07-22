@@ -320,7 +320,34 @@ function getReadOnlyDiagnostics() {
 			libp2p?.getConnections?.().map((/** @type {any} */ connection) => ({
 				remotePeer: connection.remotePeer?.toString() ?? null,
 				remoteAddr: connection.remoteAddr?.toString() ?? null
-			})) ?? []
+			})) ?? [],
+		// Read-only gossipsub introspection for the remote-replication E2E: live
+		// head propagation runs over pubsub on the database topic, and a run has
+		// shown both browsers fully synced and relay-joined while the freshly
+		// created entry still never arrived. These getters make the topic
+		// subscriptions and the gossipsub mesh observable from the test so that
+		// failure mode is attributable instead of an opaque timeout.
+		getPubsubState: () => {
+			const pubsub = /** @type {any} */ (libp2p?.services?.pubsub);
+			if (!pubsub) return null;
+			const topics = pubsub.getTopics?.() ?? [];
+			return {
+				topics,
+				peers: (pubsub.getPeers?.() ?? []).map(String),
+				subscribers: Object.fromEntries(
+					topics.map((/** @type {string} */ topic) => [
+						topic,
+						(pubsub.getSubscribers?.(topic) ?? []).map(String)
+					])
+				),
+				mesh: Object.fromEntries(
+					Array.from(pubsub.mesh?.entries?.() ?? [], ([topic, peers]) => [
+						topic,
+						Array.from(peers ?? [], String)
+					])
+				)
+			};
+		}
 	};
 }
 

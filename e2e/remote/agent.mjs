@@ -83,6 +83,7 @@ export class TodoBrowserAgent {
 				databasePeers: diagnostics?.getDatabasePeers?.() ?? [],
 				multiaddrs: diagnostics?.getMultiaddrs?.() ?? [],
 				connections: diagnostics?.getConnections?.() ?? [],
+				pubsub: diagnostics?.getPubsubState?.() ?? null,
 				appStamp: document.querySelector('header p')?.textContent?.trim() ?? null,
 				userAgent: navigator.userAgent
 			};
