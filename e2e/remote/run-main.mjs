@@ -1,9 +1,9 @@
 import { writeFile } from 'node:fs/promises';
+import { PLAYWRIGHT_RUNNER_VERSION } from '@le-space/playwright';
 import {
 	createAlephBrowser,
 	createLocalBrowser,
-	createTestingBotBrowser,
-	PLAYWRIGHT_VERSION
+	createTestingBotBrowser
 } from './providers.mjs';
 import { runMainRemoteScenario } from './main-scenario.mjs';
 
@@ -47,7 +47,7 @@ const remoteEvidence =
 				crnHash: process.env.ALEPH_PLAYWRIGHT_CRN_HASH ?? null,
 				crnName: process.env.ALEPH_PLAYWRIGHT_CRN_NAME ?? null,
 				region: process.env.ALEPH_PLAYWRIGHT_REGION ?? null,
-				playwrightVersion: PLAYWRIGHT_VERSION
+				playwrightVersion: PLAYWRIGHT_RUNNER_VERSION
 			}
 		: {};
 
@@ -84,7 +84,7 @@ try {
 					? `- [Success screenshots and result JSON](${githubArtifactsUrl})\n`
 					: '') +
 				(provider === 'aleph'
-					? `- Aleph INSTANCE: \`${remoteEvidence.instanceHash ?? 'unknown'}\`\n- CRN/region: \`${remoteEvidence.crnName ?? remoteEvidence.crnHash ?? 'unknown'}\` / \`${remoteEvidence.region ?? 'unknown'}\`\n- Playwright: \`${PLAYWRIGHT_VERSION}\`\n`
+					? `- Aleph INSTANCE: \`${remoteEvidence.instanceHash ?? 'unknown'}\`\n- CRN/region: \`${remoteEvidence.crnName ?? remoteEvidence.crnHash ?? 'unknown'}\` / \`${remoteEvidence.region ?? 'unknown'}\`\n- Playwright: \`${PLAYWRIGHT_RUNNER_VERSION}\`\n`
 					: ''),
 			{ flag: 'a' }
 		);
