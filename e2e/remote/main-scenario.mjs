@@ -51,7 +51,10 @@ export async function runMainRemoteScenario({
 		result.evidence.stage = stage;
 		remoteProgress(`stage: ${stage}${detail ? ` (${detail})` : ''}`);
 	};
-	setStage('opening-browsers', `provider=${remoteProvider}, requirePublicRelay=${requirePublicRelay}`);
+	setStage(
+		'opening-browsers',
+		`provider=${remoteProvider}, requirePublicRelay=${requirePublicRelay}`
+	);
 
 	await mkdir(outputDir, { recursive: true });
 
@@ -111,8 +114,8 @@ export async function runMainRemoteScenario({
 		// (`runOnLimitedConnection: true`), so the todo replicates relay-mediated
 		// even when the (slower/absent) direct dial never completes — proven by
 		// the UC cross-host run (<0.3 s over a single relay). Attempt the direct
-		// connection best-effort, then gate on the real signals: a database sync
-		// peer and the todo actually replicating.
+		// connection best-effort, then gate on the real signal: the todo actually
+		// replicating.
 		setStage('connecting-browser-peers');
 		const addressForB = selectPeerDialAddress(result.agents.b, result.agents.b.peerId, {
 			requirePublic: requirePublicRelay
@@ -135,7 +138,26 @@ export async function runMainRemoteScenario({
 				`agent B advertised no direct dial address for ${result.agents.b.peerId}; relying on relay-mediated replication`
 			);
 		}
-		await Promise.all([agentA.waitForDatabaseSyncPeer(), agentB.waitForDatabaseSyncPeer()]);
+		// Do NOT hard-gate on a database sync peer before the first todo exists.
+		// The relay only joins a database when the app's replication-proof flow
+		// runs on a todo (POST /pinning/sync in verifyRelayReplication) — so on a
+		// fresh database (or a freshly redeployed relay with an empty datastore)
+		// the only pre-todo path to a sync peer is the best-effort direct dial
+		// above, which routinely fails between NAT'd CI browsers. That made this
+		// stage fail deterministically on collab01 (fresh mnemonic database every
+		// run) and sporadically on main right after relay redeploys. Probe briefly
+		// for the fast path, then let the replication assertions below be the real
+		// gate: creating the first todo triggers the relay join, and waitForTodo
+		// proves the mesh either way.
+		const earlySyncPeers = await Promise.allSettled([
+			agentA.waitForDatabaseSyncPeer(30_000),
+			agentB.waitForDatabaseSyncPeer(30_000)
+		]);
+		remoteProgress(
+			`pre-todo database sync peers (informational): agentA=${
+				earlySyncPeers[0].status === 'fulfilled' ? 'yes' : 'not yet'
+			} agentB=${earlySyncPeers[1].status === 'fulfilled' ? 'yes' : 'not yet'}`
+		);
 		result.agents.a = await agentA.diagnostics();
 		result.agents.b = await agentB.diagnostics();
 
