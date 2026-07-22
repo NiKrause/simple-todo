@@ -21,7 +21,8 @@ on:
       domain:
         description: >-
           Aleph custom domain to link (e.g. simple-todo.le-space.de).
-          Leave empty to skip domain linking.
+          Leave empty to use the default: runs on main always link
+          simple-todo.le-space.de, runs on other refs skip domain linking.
         required: false
         default: ''
 
@@ -154,7 +155,11 @@ jobs:
     env:
       # Only a push of the default branch may implicitly update production.
       # A manually dispatched feature branch must name its target explicitly.
-      ALEPH_MAIN_SITE_DOMAIN: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'simple-todo.le-space.de' || '' }}
+      # Any deploy of main is a production deploy, so it must relink the domain —
+      # a manual run used to publish the new build to IPFS and then silently skip
+      # the link step, leaving simple-todo.le-space.de pinned to the previous CID
+      # while the run still reported success. `domain` still overrides this.
+      ALEPH_MAIN_SITE_DOMAIN: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && 'simple-todo.le-space.de' || '' }}
     steps:
       - name: Checkout simple-todo
         uses: actions/checkout@v6
