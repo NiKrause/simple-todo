@@ -1,22 +1,12 @@
 import { chromium } from 'playwright';
-import { createRequire } from 'node:module';
 export {
 	ALEPH_API_HOSTS,
-	assertPlaywrightVersion,
-	connectWithPlaywrightHeaders,
-	PLAYWRIGHT_VERSION,
-	sanitizeAlephApiHosts,
-	verifyAlephPlaywrightEndpoint
-} from './aleph-provider-contract.mjs';
-import {
-	assertPlaywrightVersion,
-	connectWithPlaywrightHeaders,
-	PLAYWRIGHT_VERSION,
-	verifyAlephPlaywrightEndpoint
+	sanitizeAlephApiHosts
 } from './aleph-provider-contract.mjs';
 
-const require = createRequire(import.meta.url);
-const installedPlaywrightVersion = require('playwright/package.json').version;
+export { PLAYWRIGHT_VERSION } from './aleph-provider-contract.mjs';
+
+import { connectAlephChromium, PLAYWRIGHT_RUNNER_VERSION } from '@le-space/playwright';
 
 export async function createLocalBrowser() {
 	return chromium.launch({ headless: true });
@@ -54,23 +44,15 @@ export async function createTestingBotBrowser({ key, secret, buildName, testName
  * @param {{
  *  wsEndpoint?: string,
  *  secret?: string,
- *  versionUrl?: string,
- *  fetchImpl?: typeof globalThis.fetch,
- *  connectImpl?: (wsEndpoint: string, options: any) => Promise<any>
+ *  versionUrl?: string
  * }} options
  */
-export async function createAlephBrowser({
-	wsEndpoint,
-	secret,
-	versionUrl,
-	fetchImpl = globalThis.fetch,
-	connectImpl = (endpoint, options) => chromium.connect(endpoint, options)
-}) {
-	assertPlaywrightVersion(installedPlaywrightVersion, PLAYWRIGHT_VERSION);
-	if (!wsEndpoint?.startsWith('wss://')) {
-		throw new Error('ALEPH_PLAYWRIGHT_WS_ENDPOINT must be an authenticated wss:// endpoint.');
-	}
-	const headers = await verifyAlephPlaywrightEndpoint({ versionUrl, secret, fetchImpl });
-
-	return connectWithPlaywrightHeaders(connectImpl, wsEndpoint, headers);
+export async function createAlephBrowser({ wsEndpoint, secret, versionUrl }) {
+	return connectAlephChromium({
+		chromium: { connect: (endpoint, options) => chromium.connect(endpoint, options) },
+		wsEndpoint,
+		versionUrl,
+		secret,
+		expectedVersion: PLAYWRIGHT_RUNNER_VERSION
+	});
 }

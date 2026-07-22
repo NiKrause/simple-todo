@@ -35,6 +35,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Require relay deployment credentials
         run: test -n "$RELAY_BUTTON_E2E_PRIVATE_KEY" && test -n "$RELAY_BUTTON_E2E_SSH_PUBLIC_KEY"
+      # Fail in seconds with an actionable message when the pinned rootfs was
+      # pruned from Aleph, instead of burning ~14 minutes on a provisioning run
+      # that ends in a bare "Aleph rejected this deployment (error 301)".
+      - name: Verify the pinned rootfs still exists on Aleph
+        run: node scripts/check-rootfs-manifest.mjs
       - name: Provision relay and verify two-browser replication
         run: pnpm exec playwright test e2e/relay-button-provisioning.spec.js --project=chromium --workers=1 --reporter=list
       - name: Write relay E2E job summary
