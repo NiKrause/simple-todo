@@ -166,6 +166,40 @@ relayTest.describe('Relay Button', () => {
 				progress(`[deploy-page pageerror] ${error.message}`)
 			);
 
+			// Mixed-content guard. Deploying from an HTTPS origin used to be
+			// impossible because the browser POSTed the guest's configuration to
+			// a plain-HTTP setup endpoint (http://<vm-ip>:<port>/…), which a
+			// HTTPS page blocks as mixed content. The guest now pulls its config
+			// from an Aleph aggregate over HTTPS, so no such request should
+			// exist. These collectors fail the test if one reappears — the
+			// regression is invisible to a plain green run because this suite is
+			// served over http://localhost, where mixed content never applies.
+			const insecureGuestRequests = [];
+			const mixedContentErrors = [];
+			deploymentPage.on('request', (request) => {
+				let url;
+				try {
+					url = new URL(request.url());
+				} catch {
+					return;
+				}
+				const host = url.hostname;
+				const isLocal =
+					host === 'localhost' ||
+					host === '127.0.0.1' ||
+					host === '::1' ||
+					host === '[::1]';
+				if (url.protocol === 'http:' && !isLocal) {
+					insecureGuestRequests.push(request.url());
+					progress(`[mixed-content-guard] insecure request: ${request.url()}`);
+				}
+			});
+			deploymentPage.on('console', (message) => {
+				if (/mixed content/i.test(message.text())) {
+					mixedContentErrors.push(message.text());
+				}
+			});
+
 			const pass = (step, detail = '') => {
 				updateRelayEvidenceStep(evidence, step, 'passed', detail);
 				progress(`PASSED: ${evidence.steps[step].label}${detail ? ` (${detail})` : ''}`);
@@ -297,6 +331,21 @@ relayTest.describe('Relay Button', () => {
 					agentB.screenshot(`${OUTPUT_DIR}/browser-b.png`),
 					deploymentPage.screenshot({ path: `${OUTPUT_DIR}/relay-panel.png`, fullPage: true })
 				]);
+
+				// Deployment succeeded — assert it did so without ever touching a
+				// guest's plain-HTTP endpoint. On an HTTPS origin such a request
+				// is a hard mixed-content failure; here it proves the browser took
+				// the Aleph aggregate handoff, not the legacy push path.
+				if (insecureGuestRequests.length > 0 || mixedContentErrors.length > 0) {
+					throw new Error(
+						`Deployment used the insecure push path. ` +
+							`Insecure guest requests: ${JSON.stringify(insecureGuestRequests.slice(0, 5))}; ` +
+							`mixed-content console errors: ${JSON.stringify(mixedContentErrors.slice(0, 5))}.`
+					);
+				}
+				progress(
+					'PASSED: mixed-content guard (no insecure guest requests during deployment)'
+				);
 			} catch (error) {
 				testError = error instanceof Error ? error : new Error(String(error));
 				evidence.error = testError.message;
