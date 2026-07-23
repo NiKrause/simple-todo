@@ -18,7 +18,7 @@ of the deployment published on July 11, 2026.
 
 ## 🎯 What is this?
 
-This is a **browser-only** local-first peer-to-peer todo application that operates without any traditional server infrastructure. It connects directly to other browsers and mobile devices through peer-to-peer connections, creating a truly decentralized experience. So far, a LibP2P signaling node is necessary to connect the peers, and in this version it also stores the todos since this browser version works with MemoryStorage only instead of local IPFSStorage (e.g. LevelBlockstore).
+This is a **browser-only** local-first peer-to-peer todo application that operates without any traditional server infrastructure. It connects directly to other browsers and mobile devices through peer-to-peer connections, creating a truly decentralized experience. So far, a LibP2P signaling node is necessary to connect the peers, and in this version it does not store the todos locally since this browser version works with MemoryStorage only instead of local IPFSStorage (e.g. LevelBlockstore). Doing so is showing how the OrbitDB relay works as a signaling and db pinning node.
 
 ### Main Branch Scope
 
