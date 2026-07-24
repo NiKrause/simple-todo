@@ -55,13 +55,19 @@
 				return;
 			}
 
-			const { discoverAlephBootstrapMultiaddrs } = await import('@le-space/aleph-bootstrap');
-			// Scope discovery to our relay profile — the Aleph channel is shared
-			// with other profiles (e.g. universal-connectivity's `uc-go-peer`),
-			// whose relays leave two orbitdb browsers stuck at `candidates: 0`.
-			const discovered = await discoverAlephBootstrapMultiaddrs({
-				browserDialableOnly: true,
-				profile: import.meta.env.VITE_RELAY_BOOTSTRAP_PROFILE || 'orbitdb-relay'
+			const { discoverScopedBootstrapMultiaddrs } = await import(
+				'./aleph-bootstrap-discovery.js'
+			);
+			// Scope discovery to our relay profile AND our production registration.
+			// The Aleph channel is shared with other profiles (e.g.
+			// universal-connectivity's `uc-go-peer`), and orphaned registrations
+			// of erased E2E relays (`simple-todo-e2e-*`) otherwise flood the probe
+			// wave with dead addresses (issue #84).
+			const discovered = await discoverScopedBootstrapMultiaddrs({
+				profile: import.meta.env.VITE_RELAY_BOOTSTRAP_PROFILE || 'orbitdb-relay',
+				registrationId:
+					import.meta.env.VITE_RELAY_BOOTSTRAP_REGISTRATION_ID ||
+					'relay:orbitdb-relay:orbitdb-relay'
 			});
 			const candidates = selectValidBrowserBootstrapMultiaddrs(discovered);
 			discoveredAddressCount = candidates.length;
