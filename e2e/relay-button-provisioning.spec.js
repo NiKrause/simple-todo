@@ -22,7 +22,10 @@ const PRIVATE_KEY = process.env.RELAY_BUTTON_E2E_PRIVATE_KEY?.trim();
 const SSH_PUBLIC_KEY = process.env.RELAY_BUTTON_E2E_SSH_PUBLIC_KEY?.trim();
 const APP_URL = process.env.RELAY_BUTTON_E2E_APP_URL ?? 'http://localhost:4173';
 const OUTPUT_DIR = 'test-results/relay-button';
-const PROVISION_TIMEOUT = 20 * 60_000;
+// Must fit several CRN failover attempts: a single failed attempt costs
+// 7-13 min (VM boot + config-ack wait + HTTPS activation wait) before the
+// controller moves to the next CRN, and two flaky CRNs in a row are routine.
+const PROVISION_TIMEOUT = 35 * 60_000;
 const REGISTRATION_TIMEOUT = 15 * 60_000;
 const RELAY_READINESS_TIMEOUT = 10 * 60_000;
 const RELAY_DIAL_ATTEMPT_TIMEOUT = 20_000;
@@ -103,7 +106,7 @@ relayTest.describe('Sponsor Relay button', () => {
 		!SSH_PUBLIC_KEY,
 		'RELAY_BUTTON_E2E_SSH_PUBLIC_KEY is required to provision an Aleph relay.'
 	);
-	relayTest.setTimeout(30 * 60_000);
+	relayTest.setTimeout(50 * 60_000);
 
 	relayTest(
 		'provisions a relay and replicates the main database between two browsers',
