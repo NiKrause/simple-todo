@@ -67,16 +67,20 @@
 				return;
 			}
 
-			const { discoverAlephBootstrapMultiaddrs } = await import('@le-space/aleph-bootstrap');
-			const discovered = await discoverAlephBootstrapMultiaddrs({
-				browserDialableOnly: true,
+			const { discoverScopedBootstrapMultiaddrs } = await import(
+				'./aleph-bootstrap-discovery.js'
+			);
+			const discovered = await discoverScopedBootstrapMultiaddrs({
 				// Only surface relays of our own implementation. The Aleph channel is
 				// shared with other relay profiles (e.g. universal-connectivity's
 				// `uc-go-peer`) that an orbitdb browser cannot replicate through.
 				profile: import.meta.env.VITE_RELAY_BOOTSTRAP_PROFILE || 'orbitdb-relay',
-				// Relay guests refresh every six hours. One day tolerates a missed refresh
-				// without keeping dead temporary registrations visible for a week.
-				maxAgeMs: 24 * 60 * 60 * 1000
+				// Scope to the production registration: ephemeral E2E relays register
+				// as `simple-todo-e2e-*` and their orphaned records otherwise flood
+				// the probe wave with dead addresses (issue #84).
+				registrationId:
+					import.meta.env.VITE_RELAY_BOOTSTRAP_REGISTRATION_ID ||
+					'relay:orbitdb-relay:orbitdb-relay'
 			});
 			const candidates = selectValidBrowserBootstrapMultiaddrs(discovered);
 			discoveredAddressCount = candidates.length;
