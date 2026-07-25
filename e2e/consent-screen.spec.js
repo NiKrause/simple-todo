@@ -11,7 +11,7 @@ test.describe('Consent Screen', () => {
 		await expect(modal).toBeVisible();
 
 		// Check that the title is present in the modal
-		await expect(modal.locator('h1').filter({ hasText: 'Simple TODO Example' })).toBeVisible();
+		await expect(modal.locator('h1').filter({ hasText: 'Simple-Todo' })).toBeVisible();
 
 		// Check that all required checkboxes are present and initially unchecked
 		const relayConnectionCheckbox = page
@@ -68,7 +68,7 @@ test.describe('Consent Screen', () => {
 		await expect(modal).not.toBeVisible();
 
 		// Check that the main app content is now visible (outside the modal)
-		await expect(page.locator('main h1').filter({ hasText: 'Simple TODO Example' })).toBeVisible();
+		await expect(page.locator('main h1').filter({ hasText: 'Simple-Todo' })).toBeVisible();
 
 		// Check for the loading spinner or main app content
 		const loadingSpinner = page.locator('text=Initializing P2P connection');

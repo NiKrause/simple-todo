@@ -7,7 +7,7 @@
 	const fallbackBuildDate = typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev';
 
 	export let show = true;
-	export let title = 'Simple TODO Example';
+	export let title = 'Simple-Todo';
 	export let version = `v${fallbackVersion} [${fallbackBuildDate}]`;
 	export let description = 'Before joining this local-first P2P demo, please note:';
 	export let features = [
