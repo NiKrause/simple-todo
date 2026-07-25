@@ -4,6 +4,13 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@le-space/orbitdb-identity-provider-webauthn-did': 0.3.1
+  orbitdb-relay>@orbitdb/core: 4.0.0
+  react: 19.2.6
+  react-dom: 19.2.6
+  '@ipshipyard/node-datachannel': npm:node-datachannel@0.29.0
+
 importers:
 
   .:
@@ -894,10 +901,6 @@ packages:
   '@ipshipyard/libp2p-auto-tls@2.0.2':
     resolution: {integrity: sha512-jnGqf/eif9GpjH03PaenekRWRvlJgoVZ1JsAawW0dJxcIW8qHiSMIbVh49xOjUGTK8vUbN26bsO+Rustg0n72A==}
 
-  '@ipshipyard/node-datachannel@0.26.6':
-    resolution: {integrity: sha512-70HdhYMyAGXEMuCUq9ATO1Rx/JmiENM5LrGN94KT/q/Et2VsMjJpOWbyFzgodtkQJjDG5saNXTOiQpYZ1AnvEg==}
-    engines: {node: '>=18.20.0'}
-
   '@isaacs/fs-minipass@4.0.1':
     resolution: {integrity: sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w==}
     engines: {node: '>=18.0.0'}
@@ -993,7 +996,7 @@ packages:
   '@le-space/orbitdb-access-controller-delegated-todo@0.1.0':
     resolution: {integrity: sha512-IYqHNFWlwKWRXYXsxbw2pIdwRVe//YP1Y6VWmMkkl/BulOyDAkiV3Xz+CZRVAbyVscVPm5tQtjxb7fdqaLznKg==}
     peerDependencies:
-      '@le-space/orbitdb-identity-provider-webauthn-did': ^0.2.10
+      '@le-space/orbitdb-identity-provider-webauthn-did': 0.3.1
       '@orbitdb/core': ^3.0.0
 
   '@le-space/orbitdb-identity-provider-webauthn-did@0.3.1':
@@ -1026,8 +1029,8 @@ packages:
   '@le-space/ui@0.7.0':
     resolution: {integrity: sha512-hDMZimpF58AIpYA4hLKAz2SJ4Th7e1erxIXHcn9HtxEmpD3G7N5A+cN6GnKeQyH9TbzCDBAQIJhgp0qwmTteEw==}
     peerDependencies:
-      react: '>=18'
-      react-dom: '>=18'
+      react: 19.2.6
+      react-dom: 19.2.6
       svelte: '>=4'
 
   '@leichtgewicht/ip-codec@2.0.5':
@@ -1418,7 +1421,7 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       '@types/react': ^19.0.0
-      react: '*'
+      react: 19.2.6
       react-native: '*'
     peerDependenciesMeta:
       '@types/react':
@@ -3841,6 +3844,10 @@ packages:
     resolution: {integrity: sha512-OhYaY5sDsIka7H7AtijtI9jwGYLyl29eQn/W623DiN/MIv5sUqc4g7BIDThX+gb7di9f6xK02nkp8sdfFWZLTg==}
     engines: {node: '>=10'}
 
+  node-datachannel@0.29.0:
+    resolution: {integrity: sha512-aCRJA5uZRqxMvQAl2QtOnCkodF1qJa1dCUVaXW9D7rku2p6F7PWe5OuRLcIgOYe+e2ZyJu0LefIQ95TtCn6xxA==}
+    engines: {node: '>=18.20.0'}
+
   node-datachannel@0.32.3:
     resolution: {integrity: sha512-Aok1ZhLsll472lRefgWYuWJ0070jh0ecHravTdRyZEmoESumebMEQV8Y+poBwSW2ZbEwAokAOGsK5Cu8pDDT2g==}
     engines: {node: '>=18.20.0'}
@@ -4330,7 +4337,7 @@ packages:
   react-dom@19.2.6:
     resolution: {integrity: sha512-0prMI+hvBbPjsWnxDLxlCGyM8PN6UuWjEUCYmZhO67xIV9Xasa/r/vDnq+Xyq4Lo27g8QSbO5YzARu0D1Sps3g==}
     peerDependencies:
-      react: ^19.2.6
+      react: 19.2.6
 
   react-is@17.0.2:
     resolution: {integrity: sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==}
@@ -4349,7 +4356,7 @@ packages:
     hasBin: true
     peerDependencies:
       '@types/react': ^19.1.0
-      react: ^19.1.0
+      react: 19.2.6
     peerDependenciesMeta:
       '@types/react':
         optional: true
@@ -6208,10 +6215,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@ipshipyard/node-datachannel@0.26.6':
-    dependencies:
-      prebuild-install: 7.1.3
-
   '@isaacs/fs-minipass@4.0.1':
     dependencies:
       minipass: 7.1.2
@@ -7179,7 +7182,7 @@ snapshots:
     dependencies:
       '@chainsafe/is-ip': 2.1.0
       '@chainsafe/libp2p-noise': 16.1.5
-      '@ipshipyard/node-datachannel': 0.26.6
+      '@ipshipyard/node-datachannel': node-datachannel@0.29.0
       '@libp2p/crypto': 5.1.21
       '@libp2p/interface': 2.11.0
       '@libp2p/interface-internal': 2.3.19
@@ -10480,6 +10483,10 @@ snapshots:
   node-abi@3.75.0:
     dependencies:
       semver: 7.8.4
+
+  node-datachannel@0.29.0:
+    dependencies:
+      prebuild-install: 7.1.3
 
   node-datachannel@0.32.3:
     dependencies:
