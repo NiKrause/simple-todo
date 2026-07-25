@@ -410,7 +410,7 @@
 
 <div
 	class:rounded-lg={!compact}
-	class:bg-white={!compact}
+	class:bg-surface={!compact}
 	class:p-6={!compact}
 	class:shadow-md={!compact}
 >
@@ -438,9 +438,9 @@
 					data-peer-id={peer.peerId}
 				>
 					{#if showOnlineIndicator}
-						<div class="h-2 w-2 rounded-full bg-green-500" title="Online"></div>
+						<div class="h-2 w-2 rounded-full bg-identity-500" title="Online"></div>
 					{/if}
-					<code class="min-w-0 truncate rounded bg-gray-100 px-2 py-1 text-xs" title={peer.peerId}
+					<code class="min-w-0 truncate rounded bg-surface-2 px-2 py-1 text-xs" title={peer.peerId}
 						>{formatPeerId(peer.peerId)}</code
 					>
 					{#each peer.transports as transport (transport)}
@@ -450,7 +450,7 @@
 					<!-- Optional: Add action buttons -->
 					<button
 						on:click={() => disconnectPeer(peer.peerId)}
-						class="text-xs text-red-600 hover:text-red-800"
+						class="text-xs text-danger-600 hover:text-danger-800"
 						title="Disconnect peer"
 					>
 						✕
@@ -459,6 +459,6 @@
 			{/each}
 		</div>
 	{:else}
-		<p class:h-28={compact} class="text-xs text-gray-500">{emptyMessage}</p>
+		<p class:h-28={compact} class="text-xs text-faint">{emptyMessage}</p>
 	{/if}
 </div>
