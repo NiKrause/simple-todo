@@ -2,6 +2,144 @@
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
+/* Le-Space branding — theme-switchable tokens.
+   Toggle is driven by a `.dark` class on <html> (see ThemeToggle.svelte and the
+   no-flash init in app.html). Colours flip via semantic CSS variables that are
+   exposed to Tailwind through `@theme inline`, so a single utility-class set
+   (bg-surface, text-heading, text-coral, …) is theme-aware. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Light mode (default) — Le-Space light palette */
+:root {
+	--bg: #edf1f8; /* Starlight */
+	--surface: #ffffff;
+	--surface-2: #f2f5fb;
+	--border: #d4dcea;
+	--heading: #141b2e; /* Ink */
+	--text: #41506b;
+	--faint: #6b7891;
+	--coral: #e8503f; /* light Coral */
+	--cyan: #0e86c4; /* light Cyan */
+	--identity: #1fa971;
+	--data: #c7891a;
+	--infra: #7c5cff;
+	--danger: #dc2626;
+}
+
+/* Dark mode — Le-Space "Space" palette */
+.dark {
+	--bg: #0b0e15; /* Deep Space */
+	--surface: #141926; /* Nebula */
+	--surface-2: #1b2233;
+	--border: #232b3d; /* Horizon */
+	--heading: #edf1f8; /* Starlight */
+	--text: #a8b3c7; /* Stardust */
+	--faint: #5c677a;
+	--coral: #ff6b5b; /* Signal Coral */
+	--cyan: #58c7f3; /* Sync Cyan */
+	--identity: #3edc97;
+	--data: #ffc24b;
+	--infra: #a78bfa;
+	--danger: #ff6b6b;
+}
+
+@theme inline {
+	--color-bg: var(--bg);
+	--color-surface: var(--surface);
+	--color-surface-2: var(--surface-2);
+	--color-border: var(--border);
+	--color-heading: var(--heading);
+	--color-text: var(--text);
+	--color-faint: var(--faint);
+	--color-coral: var(--coral);
+	--color-cyan: var(--cyan);
+	--color-identity: var(--identity);
+	--color-data: var(--data);
+	--color-infra: var(--infra);
+	--color-danger: var(--danger);
+
+	/* Accent scales (theme-static brand hues — read on both light & dark).
+	   Used for buttons, focus rings and status chips. */
+	--color-cyan-50: #ecf8fe;
+	--color-cyan-100: #d2effc;
+	--color-cyan-200: #a9def9;
+	--color-cyan-300: #82d3f6;
+	--color-cyan-400: #58c7f3;
+	--color-cyan-500: #38b6ef;
+	--color-cyan-600: #1592cf;
+	--color-cyan-700: #0e86c4;
+	--color-cyan-800: #135a7e;
+
+	--color-coral-500: #ff6b5b;
+	--color-coral-600: #ef5443;
+	--color-coral-700: #cf3f30;
+
+	--color-identity-200: #b7f0d8;
+	--color-identity-500: #3edc97;
+	--color-identity-600: #23b57b;
+	--color-identity-800: #155e42;
+
+	--color-data-100: #fdeecb;
+	--color-data-200: #fbe1a3;
+	--color-data-400: #ffc24b;
+	--color-data-600: #cf9421;
+	--color-data-700: #a5741a;
+	--color-data-800: #6f4e13;
+
+	--color-danger-100: #fbdcdc;
+	--color-danger-400: #f87171;
+	--color-danger-500: #ef4444;
+	--color-danger-600: #dc2626;
+	--color-danger-700: #b91c1c;
+	--color-danger-800: #7c1d1d;
+
+	--color-infra-200: #ddd3fe;
+	--color-infra-800: #4a3a94;
+
+	/* Fixed dark "code" panel (peer ids, multiaddrs) — dark in both themes */
+	--color-code: #0f1420;
+
+	--font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	--font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+}
+
+html {
+	color-scheme: light;
+}
+html.dark {
+	color-scheme: dark;
+}
+
+body {
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font-sans);
+	-webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+	color: var(--heading);
+}
+
+a {
+	color: var(--cyan);
+}
+
+/* Form controls follow the theme (override @tailwindcss/forms light defaults) */
+input:not([type='checkbox']):not([type='radio']),
+textarea,
+select {
+	background-color: var(--surface-2);
+	border-color: var(--border);
+	color: var(--heading);
+}
+input::placeholder,
+textarea::placeholder {
+	color: var(--faint);
+}
+
 /* Custom badge styles */
 .badge {
 	@apply inline-flex items-center rounded-full px-2 py-1 text-xs font-medium;

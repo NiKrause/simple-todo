@@ -188,7 +188,7 @@
 
 <div
 	class:rounded-lg={!compact}
-	class:bg-white={!compact}
+	class:bg-surface={!compact}
 	class:p-6={!compact}
 	class:shadow-md={!compact}
 >
@@ -197,7 +197,7 @@
 			<h2 class:text-xl={!compact} class:text-sm={compact} class="font-semibold">
 				Connect to relay
 			</h2>
-			<p class="mt-1 text-xs text-gray-500">
+			<p class="mt-1 text-xs text-faint">
 				Choose a current browser-reachable relay discovered through Aleph.
 			</p>
 		</div>
@@ -209,7 +209,7 @@
 				data-testid="reachable-relay-select"
 				bind:value={selectedMultiaddr}
 				disabled={disabled || isConnecting || discoveredMultiaddrs.length === 0}
-				class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+				class="min-w-0 flex-1 rounded-md border border-border px-2 py-1.5 text-xs focus:border-transparent focus:ring-2 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:bg-surface-2"
 			>
 				{#if discoveredMultiaddrs.length === 0}
 					<option value=""
@@ -232,13 +232,13 @@
 				type="button"
 				on:click={refreshBootstrapMultiaddrs}
 				disabled={disabled || isConnecting || isDiscovering}
-				class="rounded-md border border-gray-300 px-2 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100"
+				class="rounded-md border border-border px-2 py-1.5 text-xs font-medium text-text hover:bg-surface disabled:cursor-not-allowed disabled:bg-surface-2"
 			>
 				{isDiscovering ? 'Loading…' : 'Refresh'}
 			</button>
 		</div>
 
-		<label class="flex items-center gap-2 text-xs text-gray-600">
+		<label class="flex items-center gap-2 text-xs text-text">
 			<input
 				type="checkbox"
 				bind:checked={useCustomMultiaddr}
@@ -253,7 +253,7 @@
 				bind:value={customMultiaddr}
 				placeholder="/dns4/example.com/tcp/443/wss/p2p/12D3KooW..."
 				disabled={disabled || isConnecting}
-				class="w-full rounded-md border border-gray-300 px-2 py-1.5 font-mono text-xs focus:border-transparent focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-100"
+				class="w-full rounded-md border border-border px-2 py-1.5 font-mono text-xs focus:border-transparent focus:ring-2 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:bg-surface-2"
 				on:keydown={handleKeydown}
 			/>
 		{/if}
@@ -266,7 +266,7 @@
 				{compact}
 			/>
 		{:else if !isDiscovering && discoveredMultiaddrs.length === 0}
-			<p class="text-sm text-amber-700">
+			<p class="text-sm text-data-700">
 				{discoveredAddressCount > 0
 					? `None of the ${discoveredAddressCount} discovered relay addresses answered a libp2p ping.`
 					: 'No relays in the build-time snapshot.'}
@@ -297,7 +297,7 @@
 				disabled={disabled ||
 					isConnecting ||
 					!(useCustomMultiaddr ? customMultiaddr.trim() : selectedMultiaddr)}
-				class="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-gray-400"
+				class="rounded-md bg-code px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-code disabled:cursor-not-allowed disabled:bg-faint"
 			>
 				{isConnecting ? 'Connecting...' : 'Connect'}
 			</button>

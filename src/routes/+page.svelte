@@ -5,6 +5,8 @@
 	import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
+	import ThemeToggle from '$lib/ThemeToggle.svelte';
+	import LeSpaceLogo from '$lib/LeSpaceLogo.svelte';
 	import ToastNotification from '$lib/ToastNotification.svelte';
 	import P2PStatusNav from '$lib/P2PStatusNav.svelte';
 	import ErrorAlert from '$lib/ErrorAlert.svelte';
@@ -136,7 +138,7 @@
 
 <svelte:head>
 	<title
-		>Simple TODO Example {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title
+		>Simple-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title
 	>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<meta
@@ -149,7 +151,7 @@
 {#if showModal}
 	<ConsentModal
 		bind:show={showModal}
-		title="Simple TODO Example"
+		title="Simple-Todo"
 		bind:rememberDecision
 		rememberLabel="Don't show this again on this device"
 		proceedButtonText="Proceed to Test the App"
@@ -161,19 +163,22 @@
 <main class="container mx-auto max-w-4xl p-6">
 	<!-- Header with title and social icons -->
 	<header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<div class="flex-1">
-			<h1 class="text-2xl font-bold text-gray-800 sm:text-3xl">Simple TODO Example</h1>
-			<p class="mt-1 text-sm text-gray-500">
-				• A Basic Local-First Peer-To-Peer PWA with IPFS and OrbitDB v{typeof __APP_VERSION__ !==
-				'undefined'
-					? __APP_VERSION__
-					: '0.0.0'} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{typeof __BUILD_DATE__ !==
-				'undefined'
-					? __BUILD_DATE__
-					: 'dev'}]
-			</p>
+		<div class="flex flex-1 items-center gap-3">
+			<LeSpaceLogo size={52} />
+			<div>
+				<h1 class="text-2xl font-bold text-heading sm:text-3xl">Simple-Todo</h1>
+				<p class="mt-1 text-sm text-faint">
+					A local-first peer-to-peer PWA · IPFS + OrbitDB v{typeof __APP_VERSION__ !== 'undefined'
+						? __APP_VERSION__
+						: '0.0.0'} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{typeof __BUILD_DATE__ !==
+					'undefined'
+						? __BUILD_DATE__
+						: 'dev'}]
+				</p>
+			</div>
 		</div>
-		<div class="flex-shrink-0 self-start sm:self-auto">
+		<div class="flex flex-shrink-0 items-center gap-2 self-start sm:self-auto">
+			<ThemeToggle />
 			<SocialIcons size="w-5 h-5" className="" />
 		</div>
 	</header>

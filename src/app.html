@@ -4,6 +4,20 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 
+		<!-- Theme init (before paint) — set light/dark from stored choice or system pref -->
+		<script>
+			(function () {
+				try {
+					var t = localStorage.getItem('theme');
+					if (t !== 'light' && t !== 'dark') {
+						t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+					}
+					document.documentElement.classList.toggle('dark', t === 'dark');
+					document.documentElement.style.background = t === 'dark' ? '#0B0E15' : '#EDF1F8';
+				} catch (e) {}
+			})();
+		</script>
+
 		<!-- Favicon and Icons -->
 			<link rel="icon" type="image/svg+xml" href="./favicon.svg" />
 			<link rel="icon" type="image/x-icon" href="./favicon.ico" />
@@ -11,65 +25,54 @@
 			<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png" />
 			<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
 			<link rel="manifest" href="./manifest.json" />
-		<meta name="theme-color" content="#3B82F6" />
+		<meta name="theme-color" content="#0B0E15" />
 
 		<!-- SEO Meta Tags -->
-		<title>Simple TODO List - A Local-First Peer-To-Peer Application</title>
+		<title>Simple-Todo — A Local-First Peer-to-Peer TODO</title>
 		<meta
 			name="description"
-			content="A simple local-first peer-to-peer TODO list application using OrbitDB, IPFS and libp2p. No servers, no tracking, truly decentralized."
+			content="Simple-Todo — a local-first peer-to-peer todo list. No servers, no accounts, no passwords — data you own. Built with OrbitDB, IPFS and libp2p."
 		/>
 		<meta name="author" content="Nico Krause" />
 		<meta
 			name="keywords"
-			content="peer-to-peer, local-first, libp2p, todo, list, orbitdb, ipfs, decentralized, p2p, blockchain, web3"
+			content="peer-to-peer, local-first, libp2p, todo, list, orbitdb, ipfs, decentralized, p2p, le-space"
 		/>
 
-		<!-- Open Graph / Facebook -->
+		<!-- Open Graph / Facebook / Telegram -->
 		<meta property="og:type" content="website" />
 		<meta property="og:url" content="https://simple-todo.le-space.de/" />
-		<meta
-			property="og:title"
-			content="Simple TODO Example - A Basic Local-First Peer-To-Peer Application"
-		/>
+		<meta property="og:title" content="Simple-Todo — A Local-First Peer-to-Peer TODO" />
 		<meta
 			property="og:description"
-			content="Experience the future of productivity apps! A completely decentralized todo list that runs entirely in your browser using OrbitDB, IPFS, and libp2p. No servers, no tracking, just peer-to-peer collaboration."
+			content="A local-first peer-to-peer todo list. No servers, no accounts, no passwords — data you own. OrbitDB · IPFS · libp2p."
 		/>
 		<meta property="og:image" content="https://simple-todo.le-space.de/og-image.png" />
-		<meta
-			property="og:image:alt"
-			content="Simple TODO Example - P2P network visualization with technology stack"
-		/>
+		<meta property="og:image:type" content="image/png" />
+		<meta property="og:image:alt" content="Simple-Todo — Le-Space local-first peer-to-peer stack" />
 		<meta property="og:image:width" content="1200" />
 		<meta property="og:image:height" content="630" />
-		<meta property="og:site_name" content="Simple TODO Example" />
+		<meta property="og:site_name" content="Simple-Todo" />
 		<meta property="og:locale" content="en_US" />
 
 		<!-- Twitter -->
 		<meta property="twitter:card" content="summary_large_image" />
 		<meta property="twitter:url" content="https://simple-todo.le-space.de/" />
-		<meta
-			property="twitter:title"
-			content="Simple TODO Example - A Basic Local-First Peer-To-Peer Application"
-		/>
+		<meta property="twitter:title" content="Simple-Todo — A Local-First Peer-to-Peer TODO" />
 		<meta
 			property="twitter:description"
-			content="Experience the future of productivity apps! A completely decentralized todo list using OrbitDB, IPFS, and libp2p. No servers, just P2P collaboration."
+			content="A local-first peer-to-peer todo list. No servers, no accounts, no passwords — data you own. OrbitDB · IPFS · libp2p."
 		/>
 		<meta property="twitter:image" content="https://simple-todo.le-space.de/og-image.png" />
-		<meta
-			property="twitter:image:alt"
-			content="Simple TODO Example - P2P network visualization with technology stack"
-		/>
+		<meta property="twitter:image:alt" content="Simple-Todo — Le-Space local-first peer-to-peer stack" />
 
 		<!-- Additional Meta Tags -->
-		<meta name="application-name" content="P2P Todo" />
+		<meta name="application-name" content="Simple-Todo" />
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-capable" content="yes" />
-		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
-		<meta name="apple-mobile-web-app-title" content="P2P Todo" />
-		<meta name="msapplication-TileColor" content="#3B82F6" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<meta name="apple-mobile-web-app-title" content="Simple-Todo" />
+		<meta name="msapplication-TileColor" content="#0B0E15" />
 			<meta name="msapplication-config" content="./browserconfig.xml" />
 
 		<!-- Technical Meta Tags -->
@@ -77,14 +80,11 @@
 		<meta name="robots" content="index, follow" />
 		<meta name="googlebot" content="index, follow" />
 
-		<!-- Schema.org markup for Google+ -->
-		<meta
-			itemprop="name"
-			content="Simple TODO Example - A Basic Local-First Peer-To-Peer Application"
-		/>
+		<!-- Schema.org markup -->
+		<meta itemprop="name" content="Simple-Todo — A Local-First Peer-to-Peer TODO" />
 		<meta
 			itemprop="description"
-			content="A simple local-first peer-to-peer TODO list application using OrbitDB, IPFS and libp2p. No servers, no tracking, truly decentralized."
+			content="A local-first peer-to-peer todo list using OrbitDB, IPFS and libp2p. No servers, no accounts, no passwords — data you own."
 		/>
 		<meta itemprop="image" content="https://simple-todo.le-space.de/og-image.png" />
 

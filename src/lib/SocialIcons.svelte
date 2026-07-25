@@ -10,7 +10,7 @@
 			target="_blank"
 			rel="noopener noreferrer"
 			aria-label="GitHub"
-			class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-gray-900"
+			class="rounded-md p-2 text-text transition-colors duration-200 hover:bg-surface-2 hover:text-heading"
 			title="GitHub (/NiKrause/simple-todo)"
 	>
 		<svg class={size} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -28,7 +28,7 @@
 			target="_blank"
 			rel="noopener noreferrer"
 			aria-label="X"
-			class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-blue-500"
+			class="rounded-md p-2 text-text transition-colors duration-200 hover:bg-surface-2 hover:text-cyan-500"
 			title="X (@NicoKrauseX)"
 	>
 		<svg class={size} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -44,7 +44,7 @@
 			target="_blank"
 			rel="noopener noreferrer"
 			aria-label="LinkedIn"
-			class="rounded-md p-2 text-gray-600 transition-colors duration-200 hover:bg-gray-100 hover:text-blue-700"
+			class="rounded-md p-2 text-text transition-colors duration-200 hover:bg-surface-2 hover:text-cyan-700"
 			title="LinkedIn (/in/nicokrause)"
 	>
 		<svg class={size} fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">

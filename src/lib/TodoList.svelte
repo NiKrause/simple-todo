@@ -27,7 +27,7 @@
 	}
 </script>
 
-<div class="mb-6 rounded-lg bg-white p-6 shadow-md">
+<div class="mb-6 rounded-lg bg-surface p-6 shadow-md">
 	<h2 class="mb-4 text-xl font-semibold">{title} ({todos.length})</h2>
 	{#if todos.length > 0}
 		<div class="space-y-3">
@@ -46,6 +46,6 @@
 			{/each}
 		</div>
 	{:else}
-		<p class="py-8 text-center text-gray-500">{emptyMessage}</p>
+		<p class="py-8 text-center text-faint">{emptyMessage}</p>
 	{/if}
 </div>

@@ -14,32 +14,32 @@
 			case 'webrtc':
 				return {
 					label: 'WebRTC',
-					classes: 'bg-green-200 text-green-800'
+					classes: 'bg-identity-200 text-identity-800'
 				};
 			case 'circuit-relay':
 				return {
 					label: 'Relay',
-					classes: 'bg-blue-200 text-blue-800'
+					classes: 'bg-cyan-200 text-cyan-800'
 				};
 			case 'websocket':
 				return {
 					label: 'WS',
-					classes: 'bg-purple-200 text-purple-800'
+					classes: 'bg-infra-200 text-infra-800'
 				};
 			case 'webtransport':
 				return {
 					label: 'WebTransport',
-					classes: 'bg-indigo-200 text-indigo-800'
+					classes: 'bg-infra-200 text-infra-800'
 				};
 			case 'tcp':
 				return {
 					label: 'TCP',
-					classes: 'bg-orange-200 text-orange-800'
+					classes: 'bg-data-200 text-data-800'
 				};
 			default:
 				return {
 					label: transport,
-					classes: 'bg-gray-200 text-gray-800'
+					classes: 'bg-surface-2 text-heading'
 				};
 		}
 	}

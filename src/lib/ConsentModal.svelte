@@ -74,17 +74,17 @@
 </script>
 
 {#if show}
-	<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black p-4">
-		<div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white shadow-xl">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+		<div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-surface shadow-xl">
 			<div class="p-6">
-				<h1 class="text-center text-2xl font-bold text-gray-800">{title}</h1>
+				<h1 class="text-center text-2xl font-bold text-heading">{title}</h1>
 				{#if version}
-					<p class="mt-2 text-center text-sm text-gray-500">{version}</p>
+					<p class="mt-2 text-center text-sm text-faint">{version}</p>
 				{/if}
 
 				<div class="mb-6 space-y-4">
-					<p class="text-gray-700">{description}</p>
-					<ul class="ml-4 list-inside list-disc space-y-2 text-gray-700">
+					<p class="text-text">{description}</p>
+					<ul class="ml-4 list-inside list-disc space-y-2 text-text">
 						{#each features as feature, index (index)}
 							<li>{feature}</li>
 						{/each}
@@ -92,7 +92,7 @@
 				</div>
 
 				<div class="mb-6 space-y-4">
-					<p class="font-medium text-gray-700">{confirmationLabel}</p>
+					<p class="font-medium text-text">{confirmationLabel}</p>
 
 					{#each Object.entries(checkboxes) as [key, item] (key)}
 						<label class="flex cursor-pointer items-start space-x-3">
@@ -110,21 +110,21 @@
 										);
 									}
 								}}
-								class="mt-1 h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
+								class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
 							/>
-							<span class="text-gray-700">{item.label}</span>
+							<span class="text-text">{item.label}</span>
 						</label>
 					{/each}
 				</div>
 
-				<div class="mt-6 border-t border-gray-200 pt-4">
+				<div class="mt-6 border-t border-border pt-4">
 					<label class="flex cursor-pointer items-start space-x-3">
 						<input
 							type="checkbox"
 							bind:checked={rememberDecision}
-							class="mt-1 h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
+							class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
 						/>
-						<span class="text-gray-700">{rememberLabel}</span>
+						<span class="text-text">{rememberLabel}</span>
 					</label>
 				</div>
 
@@ -132,7 +132,7 @@
 					<button
 						on:click={handleProceed}
 						disabled={!allCheckboxesChecked}
-						class="rounded-md bg-blue-500 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-600 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:hover:bg-gray-300"
+						class="rounded-md bg-coral-500 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-surface-2 disabled:hover:bg-surface-2"
 					>
 						{allCheckboxesChecked ? proceedButtonText : disabledButtonText}
 					</button>
