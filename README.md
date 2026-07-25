@@ -125,6 +125,25 @@ This branch extends the basic `main` tutorial with a three-word Spanish shared-l
 5. **Wait for Connection** - The app will automatically discover and connect peers
 6. **Add Todos** - Create todos in one browser and watch them appear in the other
 
+### Try this chapter (per-DID write permissions)
+
+The mnemonic list above stays public. To exercise access control, create a
+**private list** and share it by address:
+
+1. In browser A (owner), pick **Create a passkey** during onboarding, then
+   click **Create private list**. Add a todo and copy the shown
+   `/orbitdb/…` address.
+2. In browser B (guest), create a *different* passkey, paste the address into
+   **Open a shared list by address**, and open it. You see the owner's todo,
+   but adding one is **denied** with a visible error.
+3. In browser A, copy browser B's **Passkey DID** (its header badge) into the
+   **Write permissions** panel and click **Add DID**.
+4. In browser B, add the todo again → it succeeds and both browsers converge.
+   Owner and guest roles are symmetric — try it the other way around too.
+
+See the full [Alice ↔ Bob walkthrough](#alice--bob-walkthrough) above for the
+same flow described step by step.
+
 ## 📚 Documentation
 
 For comprehensive guides on how this app works, implementation details, and reusable components:
