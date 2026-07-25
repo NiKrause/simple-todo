@@ -9,7 +9,8 @@ A basic decentralized, local-first, peer-to-peer todo application built with **l
 
 ## 🚀 Live Demo
 
-- **Current deployment**: https://simple-todo.le-space.de
+- **This chapter (acl01)**: https://acl01.le-space.de
+- **Main app**: https://simple-todo.le-space.de
 - **IPFS snapshot (Aleph gateway)**: https://ipfs.aleph.im/ipfs/bafybeigo5dip5jl5q6tzyp7xqtnzml25lbbw4y34kvkukgsa7au6qie37y/
 - **IPFS snapshot (dweb.link)**: https://dweb.link/ipfs/bafybeigo5dip5jl5q6tzyp7xqtnzml25lbbw4y34kvkukgsa7au6qie37y/
 
