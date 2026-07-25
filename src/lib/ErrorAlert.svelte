@@ -23,11 +23,11 @@
 
 		switch (type) {
 			case 'warning':
-				return `${baseClasses} bg-yellow-100 border-yellow-400 text-yellow-700`;
+				return `${baseClasses} bg-data-100 border-data-400 text-data-700`;
 			case 'info':
-				return `${baseClasses} bg-blue-100 border-blue-400 text-blue-700`;
+				return `${baseClasses} bg-cyan-100 border-cyan-400 text-cyan-700`;
 			default: // error
-				return `${baseClasses} bg-red-100 border-red-400 text-red-700`;
+				return `${baseClasses} bg-danger-100 border-danger-400 text-danger-700`;
 		}
 	}
 

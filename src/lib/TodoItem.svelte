@@ -38,18 +38,18 @@
 </script>
 
 <div
-	class="flex items-center justify-between rounded-md border border-gray-200 p-3 hover:bg-gray-50"
+	class="flex items-center justify-between rounded-md border border-border p-3 hover:bg-surface"
 	data-testid="todo-item"
 >
 	<div class="flex flex-1 items-center space-x-3">
 		<button
 			type="button"
 			class:animate-pulse={replicationStatus === 'pending'}
-			class:bg-blue-500={replicationStatus === 'pending'}
-			class:bg-green-500={replicationStatus === 'pinned'}
-			class:bg-amber-400={replicationStatus === 'unavailable'}
-			class:bg-gray-300={replicationStatus === 'unknown'}
-			class="relative inline-flex h-2 w-2 shrink-0 cursor-help rounded-full p-0 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+			class:bg-cyan-500={replicationStatus === 'pending'}
+			class:bg-identity-500={replicationStatus === 'pinned'}
+			class:bg-data-400={replicationStatus === 'unavailable'}
+			class:bg-surface-2={replicationStatus === 'unknown'}
+			class="relative inline-flex h-2 w-2 shrink-0 cursor-help rounded-full p-0 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
 			aria-label={getReplicationDescription(replicationStatus)}
 			data-testid="todo-relay-status"
 			data-status={replicationStatus}
@@ -60,7 +60,7 @@
 		>
 			{#if showReplicationTooltip}
 				<span
-					class="pointer-events-none absolute bottom-full left-0 z-30 mb-2 w-max max-w-72 rounded-md bg-slate-800 px-3 py-2 text-xs leading-relaxed text-white shadow-lg"
+					class="pointer-events-none absolute bottom-full left-0 z-30 mb-2 w-max max-w-72 rounded-md bg-code px-3 py-2 text-xs leading-relaxed text-white shadow-lg"
 					role="tooltip"
 					data-testid="todo-relay-tooltip"
 				>
@@ -73,26 +73,26 @@
 			type="checkbox"
 			checked={completed}
 			on:change={handleToggleComplete}
-			class="h-4 w-4 rounded text-blue-600 focus:ring-blue-500"
+			class="h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
 		/>
 		<div class="flex-1">
-			<span class={completed ? 'text-gray-500 line-through' : 'text-gray-800'}>
+			<span class={completed ? 'text-faint line-through' : 'text-heading'}>
 				{text}
 			</span>
-			<div class="mt-1 text-sm text-gray-500">
+			<div class="mt-1 text-sm text-faint">
 				{#if assignee}
-					Assigned to: <code class="rounded bg-gray-100 px-1">{formatPeerId(assignee)}</code>
+					Assigned to: <code class="rounded bg-surface-2 px-1">{formatPeerId(assignee)}</code>
 				{:else}
-					<span class="text-orange-600">Unassigned</span>
+					<span class="text-data-600">Unassigned</span>
 				{/if}
-				• Created by: <code class="rounded bg-gray-100 px-1">{formatPeerId(createdBy)}</code>
+				• Created by: <code class="rounded bg-surface-2 px-1">{formatPeerId(createdBy)}</code>
 			</div>
 		</div>
 	</div>
 	<div class="flex space-x-2">
 		<button
 			on:click={handleDelete}
-			class="rounded-md px-3 py-1 text-red-500 transition-colors hover:text-red-700"
+			class="rounded-md px-3 py-1 text-danger-500 transition-colors hover:text-danger-700"
 		>
 			Delete
 		</button>
