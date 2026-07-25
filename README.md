@@ -81,6 +81,18 @@ This branch extends the basic `main` tutorial with a three-word Spanish shared-l
 5. **Wait for Connection** - The app will automatically discover and connect peers
 6. **Add Todos** - Create todos in one browser and watch them appear in the other
 
+### Try this chapter (passkey identities)
+
+1. On the onboarding screen pick **Create a passkey**, enter a user id and
+   display name, then **Open shared list**. Your **Passkey DID** appears in
+   the header (with a copy button).
+2. Add a todo — it shows *Created by: your DID*. Have a second browser create
+   its own passkey; each todo is attributed to the writer's DID on both sides.
+3. **Reload** the page. The app preselects *Use an existing passkey*; confirm,
+   and your DID is recovered unchanged (largeBlob, or localStorage fallback).
+4. To compare, start once more with **Continue without a passkey** — you get
+   the anonymous per-browser identity from the previous chapter.
+
 ## 📚 Documentation
 
 For comprehensive guides on how this app works, implementation details, and reusable components:
