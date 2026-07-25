@@ -242,14 +242,14 @@
 </script>
 
 <nav
-	class="mb-6 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm"
+	class="mb-6 rounded-lg border border-border bg-surface px-4 py-3 shadow-sm"
 	aria-label="P2P initialization and connection status"
 	data-testid="p2p-status-nav"
 >
-	<div class="mb-2 flex items-center gap-2 text-sm font-medium text-gray-700" aria-live="polite">
+	<div class="mb-2 flex items-center gap-2 text-sm font-medium text-text" aria-live="polite">
 		{#if !allComplete}
 			<span
-				class="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"
+				class="h-3 w-3 animate-spin rounded-full border-2 border-border border-t-blue-600"
 				aria-hidden="true"
 				data-testid="p2p-status-spinner"
 			></span>
@@ -260,7 +260,7 @@
 	<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
 		{#each allSteps as step}
 			<div
-				class="flex cursor-help items-center gap-2 text-xs whitespace-nowrap text-gray-500 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+				class="flex cursor-help items-center gap-2 text-xs whitespace-nowrap text-faint outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
 				aria-label={`${step.label}: ${step.description}`}
 				data-testid="p2p-status-step"
 				data-status={step.status}
@@ -273,21 +273,21 @@
 			>
 				<span
 					class:animate-pulse={step.status === 'active'}
-					class:bg-blue-500={step.status === 'active'}
-					class:bg-green-500={step.status === 'complete'}
-					class:bg-red-500={step.status === 'error'}
-					class:bg-gray-300={step.status === 'pending'}
+					class:bg-cyan-500={step.status === 'active'}
+					class:bg-identity-500={step.status === 'complete'}
+					class:bg-danger-500={step.status === 'error'}
+					class:bg-surface-2={step.status === 'pending'}
 					class="h-2 w-2 rounded-full shadow-sm"
 					aria-hidden="true"
 				></span>
-				<span class:text-gray-700={step.status === 'active'}>{step.label}</span>
+				<span class:text-text={step.status === 'active'}>{step.label}</span>
 			</div>
 		{/each}
 	</div>
 
 	{#if tooltipStep}
 		<div
-			class="mt-3 rounded-md border border-slate-200 bg-slate-800 px-3 py-2 text-xs leading-relaxed text-white shadow-lg"
+			class="mt-3 rounded-md border border-border bg-code px-3 py-2 text-xs leading-relaxed text-white shadow-lg"
 			role="tooltip"
 			data-testid="p2p-status-tooltip"
 		>
@@ -297,9 +297,9 @@
 	{/if}
 
 	{#if $$slots.default}
-		<details class="group mt-3 border-t border-gray-100 pt-2" data-testid="network-details">
+		<details class="group mt-3 border-t border-border pt-2" data-testid="network-details">
 			<summary
-				class="flex cursor-pointer list-none items-center gap-2 rounded px-1 py-1 text-xs font-medium text-gray-600 outline-none hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-blue-500 [&::-webkit-details-marker]:hidden"
+				class="flex cursor-pointer list-none items-center gap-2 rounded px-1 py-1 text-xs font-medium text-text outline-none hover:text-heading focus-visible:ring-2 focus-visible:ring-cyan-500 [&::-webkit-details-marker]:hidden"
 			>
 				<svg
 					class="h-3.5 w-3.5 transition-transform group-open:rotate-90"
@@ -314,16 +314,16 @@
 					/>
 				</svg>
 				<span>Network details</span>
-				<span class="font-normal text-gray-400"
+				<span class="font-normal text-faint"
 					>· {connectedPeerCount} {connectedPeerCount === 1 ? 'peer' : 'peers'}</span
 				>
 				{#if peerId}
-					<code class="hidden font-mono font-normal text-gray-400 sm:inline"
+					<code class="hidden font-mono font-normal text-faint sm:inline"
 						>· {peerId.slice(0, 8)}…{peerId.slice(-6)}</code
 					>
 				{/if}
 			</summary>
-			<div class="mt-3 grid gap-3 border-t border-gray-100 pt-3 lg:grid-cols-3">
+			<div class="mt-3 grid gap-3 border-t border-border pt-3 lg:grid-cols-3">
 				<slot />
 			</div>
 		</details>

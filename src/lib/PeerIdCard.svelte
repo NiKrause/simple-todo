@@ -54,20 +54,20 @@
 	}
 </script>
 
-<div class:rounded-lg={!compact} class:bg-white={!compact} class:p-6={!compact} class:shadow-md={!compact}>
+<div class:rounded-lg={!compact} class:bg-surface={!compact} class:p-6={!compact} class:shadow-md={!compact}>
 	<h2 class:mb-4={!compact} class:mb-2={compact} class:text-xl={!compact} class:text-sm={compact} class="font-semibold">{title}</h2>
 	{#if peerId}
-		<div class="relative rounded-md bg-blue-50" class:p-3={!compact} class:p-2={compact}>
+		<div class="relative rounded-md bg-cyan-50" class:p-3={!compact} class:p-2={compact}>
 			<code class="block truncate pr-7 font-mono text-xs select-all" title={peerId}>{formatPeerId(peerId)}</code>
 			{#if copyable}
 				<button
 					on:click={copyToClipboard}
-					class="absolute top-2 right-2 rounded p-1 transition-colors hover:bg-blue-200"
+					class="absolute top-2 right-2 rounded p-1 transition-colors hover:bg-cyan-200"
 					title={copied ? 'Copied!' : 'Copy to clipboard'}
 				>
 					{#if copied}
 						<svg
-							class="h-4 w-4 text-green-600"
+							class="h-4 w-4 text-identity-600"
 							fill="none"
 							stroke="currentColor"
 							viewBox="0 0 24 24"
@@ -81,7 +81,7 @@
 						</svg>
 					{:else}
 						<svg
-							class="h-4 w-4 text-gray-600"
+							class="h-4 w-4 text-text"
 							fill="none"
 							stroke="currentColor"
 							viewBox="0 0 24 24"
@@ -98,12 +98,12 @@
 			{/if}
 		</div>
 		{#if description && !compact}
-			<p class="mt-2 text-sm text-gray-600">{description}</p>
+			<p class="mt-2 text-sm text-text">{description}</p>
 		{/if}
 		{#if copied}
-			<p class="mt-1 text-sm font-medium text-green-600">Copied to clipboard!</p>
+			<p class="mt-1 text-sm font-medium text-identity-600">Copied to clipboard!</p>
 		{/if}
 	{:else}
-		<p class="text-gray-500">{loadingMessage}</p>
+		<p class="text-faint">{loadingMessage}</p>
 	{/if}
 </div>

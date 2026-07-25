@@ -1,11 +1,11 @@
 {
-  "name": "Simple TODO Example - A Basic Local-First Peer-To-Peer ",
-  "short_name": "P2P Todo",
-  "description": "A simple local-first peer-to-peer TODO list app using OrbitDB, IPFS and libp2p",
+  "name": "Simple-Todo",
+  "short_name": "Simple-Todo",
+  "description": "A local-first peer-to-peer todo list using OrbitDB, IPFS and libp2p. No servers, no accounts, no passwords.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#3B82F6",
+  "background_color": "#0B0E15",
+  "theme_color": "#0B0E15",
   "categories": ["productivity", "utilities"],
   "icons": [
     {
