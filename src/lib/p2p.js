@@ -5,7 +5,8 @@ import { createHeliaLight } from 'helia';
 import { withBitswap } from '@helia/bitswap';
 import { withHTTP } from '@helia/http';
 import { withLibp2p } from '@helia/libp2p';
-import { createOrbitDB, IPFSAccessController } from '@orbitdb/core';
+import { createOrbitDB, IPFSAccessController, Identities, useIdentityProvider } from '@orbitdb/core';
+import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-identity-provider-webauthn-did';
 import * as dagCbor from '@ipld/dag-cbor';
 import * as dagJson from '@ipld/dag-json';
 import * as json from 'multiformats/codecs/json';
@@ -22,6 +23,9 @@ export { setWebRTCEnabled, webrtcEnabledStore };
 // Export libp2p instance for plugins
 export const libp2pStore = writable(/** @type {any} */ (null));
 export const peerIdStore = writable(/** @type {string | null} */ (null));
+// The DID of the passkey-backed OrbitDB identity, or null when the user
+// chose the anonymous throwaway identity from the previous chapters.
+export const ownDidStore = writable(/** @type {string | null} */ (null));
 
 const INITIALIZATION_STEP_DEFINITIONS = [
 	{
@@ -97,6 +101,13 @@ let helia = /** @type {any} */ (null);
 let orbitdb = /** @type {any} */ (null);
 
 let peerId = /** @type {string | null} */ (null);
+/**
+ * The WebAuthn credential backing the current session identity. Kept at
+ * module level so restartP2P (e.g. when switching the shared list) reuses
+ * the same passkey identity without another WebAuthn prompt.
+ * @type {any | null}
+ */
+let activePasskeyCredential = null;
 let todoDB = /** @type {any} */ (null);
 let defaultTodoDbAddress = '';
 let activeTodoDatabaseName = '';
@@ -139,8 +150,11 @@ function createHeliaWithLibp2p(libp2pNode) {
  * This function should be called only after the user has accepted the consent modal
  */
 export async function initializeP2P(
-	options = /** @type {{ todoDbAddress?: string, todoDbName?: string }} */ ({})
+	options = /** @type {{ todoDbAddress?: string, todoDbName?: string, passkeyCredential?: any }} */ ({})
 ) {
+	if (Object.prototype.hasOwnProperty.call(options, 'passkeyCredential')) {
+		activePasskeyCredential = options.passkeyCredential ?? null;
+	}
 	console.log('🚀 Starting P2P initialization after user consent...');
 
 	try {
@@ -170,7 +184,7 @@ export async function initializeP2P(
 		// Create OrbitDB instance
 		setInitializationProgress(3);
 		console.log('🛬 Creating OrbitDB instance...');
-		orbitdb = await createOrbitDB({ ipfs: helia, id: getOrCreateOrbitDBIdentityId() });
+		orbitdb = await createOrbitDBInstance(helia);
 		setInitializationProgress(4);
 		todoDB = await openInitialTodoDatabase(options.todoDbAddress, options.todoDbName);
 
@@ -229,6 +243,7 @@ async function stopP2P() {
 	setInitializationProgress(0);
 	libp2pStore.set(null);
 	peerIdStore.set(null);
+	ownDidStore.set(null);
 	peerId = null;
 	activeTodoDatabaseName = '';
 	stopDiscoveryDialRetryInterval();
@@ -272,6 +287,40 @@ async function openInitialTodoDatabase(address, databaseName) {
 
 	defaultTodoDbAddress = defaultTodoDB.address?.toString?.() ?? '';
 	return defaultTodoDB;
+}
+
+/**
+ * Create the OrbitDB instance with either the passkey-backed WebAuthn DID
+ * identity (this chapter) or the anonymous browser-profile identity from the
+ * previous chapters — the onboarding screen makes it a user choice.
+ * @param {any} heliaNode
+ */
+async function createOrbitDBInstance(heliaNode) {
+	if (!activePasskeyCredential) {
+		ownDidStore.set(null);
+		return createOrbitDB({ ipfs: heliaNode, id: getOrCreateOrbitDBIdentityId() });
+	}
+
+	// Register the provider type once so Identities can verify webauthn
+	// identities received from other peers.
+	try {
+		useIdentityProvider(OrbitDBWebAuthnIdentityProviderFunction);
+	} catch {
+		// Already registered — fine.
+	}
+
+	const identities = await Identities({ ipfs: heliaNode });
+	const identity = await identities.createIdentity({
+		provider: OrbitDBWebAuthnIdentityProviderFunction({
+			webauthnCredential: activePasskeyCredential,
+			// One WebAuthn prompt per session: the Ed25519 keystore key is
+			// encrypted at rest and unlocked once through the passkey.
+			encryptKeystore: true
+		})
+	});
+	ownDidStore.set(identity.id);
+	console.log(`✅ Passkey identity ready: ${identity.id}`);
+	return createOrbitDB({ ipfs: heliaNode, identities, identity });
 }
 
 /**
