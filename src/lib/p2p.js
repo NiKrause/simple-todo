@@ -282,7 +282,10 @@ async function openInitialTodoDatabase(address, databaseName) {
 		type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
 		create: true, // Allows the database to be created if it doesn't exist
 		sync: true, // Enables automatic synchronization with other peers
-		AccessController: IPFSAccessController({ write: ['*'] }) //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
+		// The mnemonic default list stays public (write: ['*']) so the shared-list
+		// collaboration from collab01 keeps working. Access-controlled lists are
+		// created explicitly as *private lists* (see createPrivateTodoList).
+		AccessController: IPFSAccessController({ write: ['*'] })
 	});
 
 	defaultTodoDbAddress = defaultTodoDB.address?.toString?.() ?? '';

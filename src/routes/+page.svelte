@@ -26,6 +26,8 @@
 	import OwnMultiaddrs from '$lib/OwnMultiaddrs.svelte';
 	import SharedListSelector from '$lib/SharedListSelector.svelte';
 	import SharedListDetails from '$lib/SharedListDetails.svelte';
+	import PermissionsPanel from '$lib/PermissionsPanel.svelte';
+	import OpenDatabaseForm from '$lib/OpenDatabaseForm.svelte';
 	import {
 		SPANISH_MNEMONIC_STORAGE_KEY,
 		generateSpanishMnemonic,
@@ -164,11 +166,11 @@
 	 * @param {AddTodoEvent} event
 	 */
 	const handleAddTodo = async (event) => {
-		const success = await addTodo(event.detail.text);
-		if (success) {
+		const result = await addTodo(event.detail.text);
+		if (result.ok) {
 			showToast('✅ Todo added successfully!', 'success');
 		} else {
-			showToast('❌ Failed to add todo', 'error');
+			showToast(`❌ ${result.error ?? 'Failed to add todo'}`, 'error');
 		}
 	};
 
@@ -304,6 +306,11 @@
 
 	{#if error || $initializationStore.error}
 		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
+	{/if}
+
+	{#if $initializationStore.isInitialized}
+		<OpenDatabaseForm />
+		<PermissionsPanel />
 	{/if}
 
 	<!-- Add TODO Form -->

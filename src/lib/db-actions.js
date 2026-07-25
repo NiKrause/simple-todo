@@ -1,4 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
+import { OrbitDBAccessController } from '@orbitdb/core';
 import { peerIdStore } from './p2p.js';
 import { relayHttpStatusStore } from './relay-status.js';
 
@@ -169,6 +170,34 @@ export async function loadTodoDatabase(address) {
 			`Failed to load Todo DB: ${error instanceof Error ? error.message : String(error)}`
 		);
 	}
+}
+
+/**
+ * Create a NEW private todo list: an OrbitDBAccessController database whose
+ * initial write set is only the creator's own identity. Grants/revokes then
+ * happen at runtime through the permissions panel without changing the
+ * address (acl01). The new list becomes the active list.
+ *
+ * @param {string} [name] optional human name; a unique suffix is always added
+ * @returns {Promise<{ address: string }>}
+ */
+export async function createPrivateTodoList(name = 'private-todos') {
+	const orbitdb = get(orbitdbStore);
+	if (!orbitdb) throw new Error('OrbitDB is not initialized yet.');
+
+	const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+	const dbName = `${name.trim() || 'private-todos'}-${suffix}`;
+	const privateDB = await orbitdb.open(dbName, {
+		type: 'keyvalue',
+		create: true,
+		sync: true,
+		AccessController: OrbitDBAccessController({ write: [orbitdb.identity.id] })
+	});
+
+	setActiveTodoDatabase(privateDB);
+	setupDatabaseListeners(privateDB);
+	await loadTodos();
+	return { address: getDatabaseAddress(privateDB) || '' };
 }
 
 // Load all todos from the database
@@ -353,12 +382,12 @@ export async function addTodo(text, assignee = null) {
 
 	if (!todoDB || !myPeerId) {
 		console.error('❌ Database or peer ID not available');
-		return false;
+		return { ok: false, error: 'Database is not ready yet.' };
 	}
 
 	if (!text || text.trim() === '') {
 		console.error('❌ Todo text cannot be empty');
-		return false;
+		return { ok: false, error: 'Todo text cannot be empty.' };
 	}
 
 	try {
@@ -376,10 +405,19 @@ export async function addTodo(text, assignee = null) {
 		const entryHash = String(await todoDB.put(todoId, todo));
 		scheduleRelayReplicationProof(todoId, entryHash, getDatabaseAddress(todoDB));
 		console.log('✅ Todo added:', todoId);
-		return true;
+		return { ok: true };
 	} catch (error) {
+		// A denied write throws inside OrbitDB's canAppend gate BEFORE anything
+		// is appended locally, so nothing shows up as "saved" — surface why.
 		console.error('❌ Error adding todo:', error);
-		return false;
+		const message = error instanceof Error ? error.message : String(error);
+		const denied = /not allowed to write|does not have write access|access denied/i.test(message);
+		return {
+			ok: false,
+			error: denied
+				? 'Your identity has no write permission for this list. Ask the owner to add your DID.'
+				: `Failed to add todo: ${message}`
+		};
 	}
 }
 
