@@ -5,7 +5,7 @@
 
 A basic decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
-> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `collab02` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `collab01` chapter (mnemonic-based shared-list collaboration).
+> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `collab02`, `passkey01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `passkey01` chapter (passkey-backed WebAuthn DID identities, built on `collab01`).
 
 ## 🚀 Live Demo
 
@@ -15,6 +15,45 @@ A basic decentralized, local-first, peer-to-peer todo application built with **l
 
 The custom-domain link tracks the current deployment. The immutable CID links above are a snapshot
 of the deployment published on July 11, 2026.
+
+## 🔐 This Chapter: Passkey Identities (`passkey01`)
+
+The previous chapter (`collab01`) gave every browser a random throwaway
+OrbitDB identity: entries were attributable to *a* peer, but not to *you*.
+This chapter replaces that with an opt-in **passkey-backed identity**:
+
+- **Onboarding choice** before the P2P stack starts: *create a passkey*
+  (user id + display name), *use an existing passkey* (recovery), or
+  *continue without one* (exactly the previous chapter's behaviour).
+- **Keystore-based DID provider** from
+  [`@le-space/orbitdb-identity-provider-webauthn-did`](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did)
+  with `encryptKeystore`: an Ed25519 OrbitDB signing key is encrypted at
+  rest and unlocked with **one WebAuthn prompt per session**. (The stricter
+  *varsig* variant — a passkey prompt for every single write — exists in the
+  same package and is a good follow-up exercise, but is not used here.)
+- **Create-or-recover flow** (`src/lib/passkey-identity.js`): identity
+  metadata is written to the authenticator's `largeBlob` when supported and
+  always to `localStorage` as fallback; recovery tries `largeBlob` first.
+  This flow currently lives here — upstreaming it into the provider package
+  is an open TODO.
+- **Visible identity**: your DID appears in the header (shortened, with a
+  copy button), and every todo shows its author resolved from
+  `entry.identity` — the field OrbitDB signs itself, so it cannot be faked
+  by writing a different name into the todo payload.
+- **Access control is unchanged** (`write: ['*']`): this chapter is only
+  about *who you are*, not yet about *who may write*. That is the next
+  chapter (`acl01`).
+
+### ⚠️ Passkeys are bound to the origin (rpId)
+
+A WebAuthn credential is scoped to the domain that created it. A passkey
+registered on `http://localhost:5173` does **not** exist on
+`https://simple-todo.le-space.de`, and a passkey created on one IPFS
+gateway (`dweb.link`) is invisible on another (`ipfs.aleph.im`) — even for
+the identical app build. For a local-first app distributed through many
+gateways this is a real constraint: your DID is only portable across
+devices via passkey sync (iCloud Keychain, Google Password Manager, …), not
+across origins. Pin one canonical domain if stable identities matter.
 
 ## 🎯 What is this?
 
