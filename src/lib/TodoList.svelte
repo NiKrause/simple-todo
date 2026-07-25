@@ -3,7 +3,7 @@
 	import TodoItem from './TodoItem.svelte';
 	import { todoReplicationStatusStore } from './db-actions.js';
 
-	/** @typedef {{ id: string, text: string, completed: boolean, assignee: string | null, createdBy: string, key: string }} TodoItemData */
+	/** @typedef {{ id: string, text: string, completed: boolean, assignee: string | null, createdBy: string, author?: string, key: string }} TodoItemData */
 
 	/** @type {TodoItemData[]} */
 	export let todos = [];
@@ -31,13 +31,14 @@
 	<h2 class="mb-4 text-xl font-semibold">{title} ({todos.length})</h2>
 	{#if todos.length > 0}
 		<div class="space-y-3">
-			{#each todos as { id, text, completed, assignee, createdBy, key } (key)}
+			{#each todos as { id, text, completed, assignee, createdBy, author, key } (key)}
 				<TodoItem
 					{id}
 					{text}
 					{completed}
 					{assignee}
 					{createdBy}
+					{author}
 					replicationStatus={$todoReplicationStatusStore[key] ?? 'unknown'}
 					todoKey={key}
 					on:delete={handleDelete}

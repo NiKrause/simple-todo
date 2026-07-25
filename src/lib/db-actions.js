@@ -181,6 +181,7 @@ export async function loadTodos() {
 			todosReloadRequested = false;
 			await loadTodosSnapshot();
 		} while (todosReloadRequested);
+		await annotateTodoAuthors();
 	})().finally(() => {
 		pendingTodosLoad = null;
 	});
@@ -242,6 +243,55 @@ function sortTodos(todos) {
 	});
 }
 
+// Resolve an entry's identity hash to the author's identity id (the DID for
+// passkey identities). entry.identity is set by OrbitDB itself, so unlike a
+// value field it cannot be spoofed by whoever writes the todo payload.
+/** @type {Map<string, string>} */
+const authorByIdentityHash = new Map();
+
+/** @param {string | undefined} identityHash */
+async function resolveAuthor(identityHash) {
+	if (!identityHash) return '';
+	const cached = authorByIdentityHash.get(identityHash);
+	if (cached !== undefined) return cached;
+	try {
+		const orbitdb = get(orbitdbStore);
+		const identity = await orbitdb?.identities?.getIdentity?.(identityHash);
+		const author = identity?.id ?? '';
+		authorByIdentityHash.set(identityHash, author);
+		return author;
+	} catch {
+		return '';
+	}
+}
+
+/** @param {string} key @param {string} author */
+function patchTodoAuthor(key, author) {
+	if (!author) return;
+	todosStore.update((todos) =>
+		todos.map((todo) => (todo.key === key && !todo.author ? { ...todo, author } : todo))
+	);
+}
+
+/**
+ * Backfill authors for todos loaded through the iterator (which yields only
+ * hash/key/value): fetch the full log entry to reach entry.identity.
+ */
+async function annotateTodoAuthors() {
+	const todoDB = get(todoDBStore);
+	if (!todoDB?.log?.get) return;
+	const todos = get(todosStore);
+	for (const todo of todos) {
+		if (todo.author || !todo.id) continue;
+		try {
+			const entry = await todoDB.log.get(todo.id);
+			patchTodoAuthor(todo.key, await resolveAuthor(entry?.identity));
+		} catch {
+			// entry not locally available yet — a later update event will carry it
+		}
+	}
+}
+
 /**
  * @param {any} entry
  * @param {boolean} [trackDuringLoad=true]
@@ -257,6 +307,7 @@ function applyTodoEntry(entry, trackDuringLoad = true) {
 
 		return sortTodos([...withoutPreviousValue, { id: entry.hash, key, ...value }]);
 	});
+	void resolveAuthor(entry?.identity).then((author) => patchTodoAuthor(key, author));
 	return true;
 }
 

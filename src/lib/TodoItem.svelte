@@ -9,6 +9,10 @@
 			return 'No exact relay replication proof is currently available for this entry.';
 		return 'Relay replication status was not observed for this existing entry.';
 	}
+	/** @param {string} did */
+	function formatDid(did) {
+		return did.length > 24 ? `${did.slice(0, 14)}…${did.slice(-6)}` : did;
+	}
 </script>
 
 <script>
@@ -21,6 +25,7 @@
 	/** @type {string | null} */
 	export let assignee = null;
 	export let createdBy = '';
+	export let author = '';
 	export let todoKey = '';
 	/** @type {'unknown' | 'pending' | 'pinned' | 'unavailable'} */
 	export let replicationStatus = 'unknown';
@@ -85,7 +90,10 @@
 				{:else}
 					<span class="text-data-600">Unassigned</span>
 				{/if}
-				• Created by: <code class="rounded bg-surface-2 px-1">{formatPeerId(createdBy)}</code>
+				• Created by:
+				<code class="rounded bg-surface-2 px-1" data-testid="todo-author" data-author={author || ''}
+					>{author ? formatDid(author) : formatPeerId(createdBy)}</code
+				>
 			</div>
 		</div>
 	</div>
