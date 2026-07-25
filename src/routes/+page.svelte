@@ -28,6 +28,7 @@
 	import SharedListDetails from '$lib/SharedListDetails.svelte';
 	import PermissionsPanel from '$lib/PermissionsPanel.svelte';
 	import OpenDatabaseForm from '$lib/OpenDatabaseForm.svelte';
+	import NewPrivateListButton from '$lib/NewPrivateListButton.svelte';
 	import {
 		SPANISH_MNEMONIC_STORAGE_KEY,
 		generateSpanishMnemonic,
@@ -309,6 +310,7 @@
 	{/if}
 
 	{#if $initializationStore.isInitialized}
+		<NewPrivateListButton />
 		<OpenDatabaseForm />
 		<PermissionsPanel />
 	{/if}
