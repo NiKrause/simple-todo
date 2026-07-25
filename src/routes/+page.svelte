@@ -1,7 +1,10 @@
 <script>
 	/* eslint-disable no-undef */
 	import { onMount } from 'svelte';
-	import { peerIdStore, initializeP2P, initializationStore, restartP2P } from '$lib/p2p.js';
+	import { peerIdStore, ownDidStore, initializeP2P, initializationStore, restartP2P } from '$lib/p2p.js';
+	import PasskeyOnboarding from '$lib/PasskeyOnboarding.svelte';
+	import DidBadge from '$lib/DidBadge.svelte';
+	import { createPasskeyCredential, recoverPasskeyCredential } from '$lib/passkey-identity.js';
 	import {
 		todosStore,
 		todoDBAddressStore,
@@ -38,6 +41,12 @@
 	/** @typedef {{ detail: { key: string } }} TodoActionEvent */
 
 	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
+	const IDENTITY_MODE_KEY = 'simpleTodo.identityMode';
+
+	/** @type {'create' | 'existing' | 'anonymous'} */
+	let identityMode = 'anonymous';
+	let passkeyUserId = '';
+	let passkeyDisplayName = '';
 
 	/** @type {string | null} */
 	let toastMessage = null;
@@ -67,10 +76,35 @@
 			// ignore storage errors
 		}
 		try {
+			// Resolve the identity choice first — WebAuthn calls must run inside
+			// the user gesture of the proceed click.
+			let passkeyCredential = null;
+			if (identityMode === 'create') {
+				if (!passkeyUserId.trim() || !passkeyDisplayName.trim()) {
+					throw new Error('Please enter a user id and display name for the new passkey.');
+				}
+				passkeyCredential = await createPasskeyCredential({
+					userId: passkeyUserId.trim(),
+					displayName: passkeyDisplayName.trim()
+				});
+			} else if (identityMode === 'existing') {
+				passkeyCredential = await recoverPasskeyCredential();
+				if (!passkeyCredential) {
+					throw new Error(
+						'No passkey found for this origin. Create a new one or continue without a passkey.'
+					);
+				}
+			}
+			try {
+				localStorage.setItem(IDENTITY_MODE_KEY, passkeyCredential ? 'passkey' : 'anon');
+			} catch {
+				// ignore storage errors
+			}
+
 			if ($initializationStore.isInitialized) {
 				await restartP2P({ todoDbName: canonicalMnemonic });
 			} else {
-				await initializeP2P({ todoDbName: canonicalMnemonic });
+				await initializeP2P({ todoDbName: canonicalMnemonic, passkeyCredential });
 			}
 			activeMnemonic = canonicalMnemonic;
 		} catch (err) {
@@ -83,10 +117,15 @@
 	onMount(async () => {
 		try {
 			selectedMnemonic = loadOrGenerateMnemonic();
-			if (localStorage.getItem(CONSENT_KEY) === 'true') {
+			const rememberedIdentityMode = localStorage.getItem(IDENTITY_MODE_KEY);
+			if (rememberedIdentityMode === 'passkey') {
+				// A WebAuthn prompt needs a user gesture, so a remembered passkey
+				// session cannot auto-start: preselect recovery and show the modal.
+				identityMode = 'existing';
+			} else if (localStorage.getItem(CONSENT_KEY) === 'true') {
 				showModal = false;
 				activeMnemonic = normalizeSpanishMnemonic(selectedMnemonic);
-				await initializeP2P({ todoDbName: activeMnemonic });
+				await initializeP2P({ todoDbName: activeMnemonic, passkeyCredential: null });
 			}
 		} catch {
 			// ignore storage errors
@@ -204,6 +243,11 @@
 	>
 		<svelte:fragment slot="before-confirmation">
 			<SharedListSelector bind:value={selectedMnemonic} />
+			<PasskeyOnboarding
+				bind:mode={identityMode}
+				bind:userId={passkeyUserId}
+				bind:displayName={passkeyDisplayName}
+			/>
 		</svelte:fragment>
 	</ConsentModal>
 {/if}
@@ -226,6 +270,7 @@
 			</div>
 		</div>
 		<div class="flex flex-shrink-0 items-center gap-2 self-start sm:self-auto">
+			<DidBadge did={$ownDidStore ?? ''} />
 			<ThemeToggle />
 			<SocialIcons size="w-5 h-5" className="" />
 		</div>
