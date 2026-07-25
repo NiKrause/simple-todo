@@ -5,7 +5,7 @@
 
 A basic decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
-> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `collab02`, `passkey01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `passkey01` chapter (passkey-backed WebAuthn DID identities, built on `collab01`).
+> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `collab02`, `passkey01`, `acl01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `acl01` chapter (per-DID write permissions, built on `passkey01`).
 
 ## 🚀 Live Demo
 
@@ -16,7 +16,51 @@ A basic decentralized, local-first, peer-to-peer todo application built with **l
 The custom-domain link tracks the current deployment. The immutable CID links above are a snapshot
 of the deployment published on July 11, 2026.
 
-## 🔐 This Chapter: Passkey Identities (`passkey01`)
+## 🔑 This Chapter: Per-DID Write Permissions (`acl01`)
+
+Built on `passkey01`. Passkey identities become *meaningful*: you can grant
+specific DIDs write access to a list of yours.
+
+- **Public list stays public.** The mnemonic shared list from `collab01`
+  keeps `write: ['*']` — open collaboration is unchanged.
+- **Private lists are owner-only.** "Create private list" opens a new
+  database on OrbitDB's mutable `OrbitDBAccessController` with
+  `write: [your identity]`. Only you can write until you grant others.
+- **Grant / revoke at runtime.** The permissions panel lists the write DIDs
+  and lets the list admin add or remove them. The access controller is a
+  replicated OrbitDB store, so grants propagate to peers **without changing
+  the list's address**.
+- **Sharing is by address.** A private list is shared via its full
+  `/orbitdb/…` address (the "Open a shared list by address" form). Readers
+  can replicate immediately; writing needs a grant.
+- **Denied writes fail loudly.** A write from an unauthorized identity is
+  rejected inside OrbitDB's `canAppend` gate *before* anything is appended,
+  so nothing ever looks saved — the UI shows a clear "no write permission,
+  ask the owner to add your DID" message instead of crashing.
+
+### Alice ↔ Bob walkthrough
+
+1. Alice creates a private list `alice-todos` and adds a todo. She copies its
+   `/orbitdb/…` address.
+2. Bob opens that address, sees Alice's todo (read/replication works), but
+   his own write is **denied** with a visible error.
+3. Alice pastes Bob's DID into the permissions panel and grants write.
+4. Bob writes again → success; both see both todos. The reverse (Bob owner,
+   Alice guest) works identically.
+
+### ⚠️ Relay / access-controller version compatibility
+
+The chosen access-controller type must be known to the relay/pinner that
+replicates the list. `orbitdb-relay` registers `orbitdb`,
+`orbitdb-deferred` and `todo-delegation`; this chapter uses the built-in
+`orbitdb` type, so no extra relay configuration is needed. If you switch to
+a custom controller such as
+[`@le-space/orbitdb-access-controller-delegated-todo`](https://www.npmjs.com/package/@le-space/orbitdb-access-controller-delegated-todo)
+(a token-delegation controller, a good follow-up exercise), keep its
+version in sync between the app and the relay, or replication of the
+controller's own store will fail.
+
+## 🔐 Passkey Identities (from `passkey01`)
 
 The previous chapter (`collab01`) gave every browser a random throwaway
 OrbitDB identity: entries were attributable to *a* peer, but not to *you*.
