@@ -46,6 +46,32 @@ const RELAY_BOOTSTRAP_ADDR = (isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_B
 console.log('RELAY_BOOTSTRAP_ADDR', RELAY_BOOTSTRAP_ADDR);
 
 /**
+ * True when dialing this multiaddr would open an insecure WebSocket from a
+ * page that the browser serves over HTTPS — which Chrome blocks as mixed
+ * content. A multiaddr counts as secure when it carries `/tls/` (covers both
+ * `/tls/ws` and the AutoTLS `/tls/sni/<host>/ws` form) or `/wss`.
+ *
+ * On an http:// origin (local dev, the Playwright E2E suite) mixed content
+ * does not apply, so plain `/ws` stays dialable there.
+ *
+ * @param {{ toString: () => string }} multiaddr
+ * @param {string} [pageProtocol] defaults to the current page protocol
+ * @returns {boolean}
+ */
+export function isInsecureWebSocketDial(
+	multiaddr,
+	pageProtocol = typeof location === 'undefined' ? '' : location.protocol
+) {
+	if (pageProtocol !== 'https:') return false;
+
+	const address = String(multiaddr).toLowerCase();
+	const isWebSocket = /\/wss?(\/|$)/.test(address);
+	if (!isWebSocket) return false;
+
+	return !address.includes('/tls/') && !/\/wss(\/|$)/.test(address);
+}
+
+/**
  * @param {unknown | null} [privateKey=null]
  * @returns {Promise<any>}
  */
@@ -100,7 +126,22 @@ export async function createLibp2pConfig(privateKey = null) {
 		],
 		connectionEncrypters: [noise()],
 		connectionGater: {
-			denyDialMultiaddr: () => false,
+			// Chrome blocks ws:// from an https:// page as mixed content, so a plain
+			// WebSocket dial from a deployed chapter can never succeed — it only burns
+			// a dial attempt and floods the console. These dials do not come from our
+			// bootstrap list (that only carries wss/2n6 addresses) but from peers
+			// discovered over pubsub/identify, which announce their internal ws ports.
+			//
+			// libp2p used to filter this inside the transport, but @libp2p/websockets
+			// removed the browser dial filter (9.1.1, libp2p/js-libp2p#2838) and then
+			// the ws filters entirely (9.2.1, #2983) — both explicitly "in favour of
+			// the connection gater", i.e. this hook. Ours stubbed every check to
+			// `() => false`, so nothing was gated at all.
+			//
+			// Gate on the page protocol instead of banning /ws outright: local dev and
+			// the E2E suite serve the app over http://localhost and dial a plain-ws
+			// relay, where mixed content does not apply.
+			denyDialMultiaddr: (multiaddr) => isInsecureWebSocketDial(multiaddr),
 			denyDialPeer: () => false,
 			denyInboundConnection: () => false,
 			denyOutboundConnection: () => false,
