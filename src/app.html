@@ -41,8 +41,8 @@
 
 		<!-- Open Graph / Facebook / Telegram -->
 		<meta property="og:type" content="website" />
-		<meta property="og:url" content="https://simple-todo.le-space.de/" />
-		<meta property="og:title" content="Simple-Todo — A Local-First Peer-to-Peer TODO" />
+		<meta property="og:url" content="https://acl01.le-space.de/" />
+		<meta property="og:title" content="Simple-Todo — acl01 tutorial chapter" />
 		<meta
 			property="og:description"
 			content="A local-first peer-to-peer todo list. No servers, no accounts, no passwords — data you own. OrbitDB · IPFS · libp2p."
@@ -75,10 +75,16 @@
 		<meta name="msapplication-TileColor" content="#0B0E15" />
 			<meta name="msapplication-config" content="./browserconfig.xml" />
 
+		<!-- Tutorial chapter: this deployment shows an intentionally older state of
+		     the app, so it must not compete with the live product in search results.
+		     It stays crawlable (a disallowed page's noindex is never seen) but is
+		     de-indexed and points its canonical at the production app. -->
+		<link rel="canonical" href="https://simple-todo.le-space.de/" />
+
 		<!-- Technical Meta Tags -->
 		<meta name="format-detection" content="telephone=no" />
-		<meta name="robots" content="index, follow" />
-		<meta name="googlebot" content="index, follow" />
+		<meta name="robots" content="noindex, follow" />
+		<meta name="googlebot" content="noindex, follow" />
 
 		<!-- Schema.org markup -->
 		<meta itemprop="name" content="Simple-Todo — A Local-First Peer-to-Peer TODO" />
