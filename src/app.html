@@ -27,7 +27,7 @@
 
 		<!-- Open Graph / Facebook -->
 		<meta property="og:type" content="website" />
-		<meta property="og:url" content="https://simple-todo.le-space.de/" />
+		<meta property="og:url" content="https://collab02.le-space.de/" />
 		<meta
 			property="og:title"
 			content="Simple TODO Example - A Basic Local-First Peer-To-Peer Application"
@@ -72,10 +72,16 @@
 		<meta name="msapplication-TileColor" content="#3B82F6" />
 			<meta name="msapplication-config" content="./browserconfig.xml" />
 
+		<!-- Tutorial chapter: this deployment shows an intentionally older state of
+		     the app, so it must not compete with the live product in search results.
+		     It stays crawlable (a disallowed page's noindex is never seen) but is
+		     de-indexed and points its canonical at the production app. -->
+		<link rel="canonical" href="https://simple-todo.le-space.de/" />
+
 		<!-- Technical Meta Tags -->
 		<meta name="format-detection" content="telephone=no" />
-		<meta name="robots" content="index, follow" />
-		<meta name="googlebot" content="index, follow" />
+		<meta name="robots" content="noindex, follow" />
+		<meta name="googlebot" content="noindex, follow" />
 
 		<!-- Schema.org markup for Google+ -->
 		<meta
