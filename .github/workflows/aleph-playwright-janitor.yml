@@ -16,5 +16,15 @@ jobs:
     with:
       repository_scope: NiKrause/simple-todo
       ttl_ms: 3600000
+      # The remote-replication E2E names its ephemeral relay VMs
+      # `simple-todo-e2e-<timestamp>`, which matches no
+      # `playwright-<repository>-` prefix. Two of them therefore ran 47 h and
+      # drained the E2E wallet from 846k to 35k credits while seven janitor runs
+      # reported success (#88).
+      extra_name_prefixes: simple-todo-e2e-
+      # This wallet only ever funds ephemeral E2E VMs — the production relay is
+      # funded separately — so anything past the TTL that the janitor cannot
+      # sweep is money burning and must turn the run red rather than warn.
+      fail_on_unswept: true
     secrets:
       ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PLAYWRIGHT_PRIVATE_KEY || secrets.RELAY_BUTTON_E2E_PRIVATE_KEY }}
