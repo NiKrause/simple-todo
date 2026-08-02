@@ -160,10 +160,7 @@ relayTest.describe('Sponsor Relay button', () => {
 				}
 				const host = url.hostname;
 				const isLocal =
-					host === 'localhost' ||
-					host === '127.0.0.1' ||
-					host === '::1' ||
-					host === '[::1]';
+					host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
 				if (url.protocol === 'http:' && !isLocal) {
 					insecureGuestRequests.push(request.url());
 					progress(`[mixed-content-guard] insecure request: ${request.url()}`);
@@ -183,6 +180,8 @@ relayTest.describe('Sponsor Relay button', () => {
 			const agentA = new TodoBrowserAgent('relay-e2e-a', browser, APP_URL, REPLICATION_TIMEOUT);
 			const agentB = new TodoBrowserAgent('relay-e2e-b', browser, APP_URL, REPLICATION_TIMEOUT);
 			let testError = null;
+			/** Cleanup failures used to be swallowed — see the rethrow below. */
+			let cleanupError = null;
 
 			try {
 				progress(
@@ -284,9 +283,7 @@ relayTest.describe('Sponsor Relay button', () => {
 							`mixed-content console errors: ${JSON.stringify(mixedContentErrors.slice(0, 5))}.`
 					);
 				}
-				progress(
-					'PASSED: mixed-content guard (no insecure guest requests during deployment)'
-				);
+				progress('PASSED: mixed-content guard (no insecure guest requests during deployment)');
 			} catch (error) {
 				testError = error instanceof Error ? error : new Error(String(error));
 				evidence.error = testError.message;
@@ -320,18 +317,26 @@ relayTest.describe('Sponsor Relay button', () => {
 					} else {
 						pass('cleanup', results[0]?.verificationSummary ?? '');
 					}
-				} catch (cleanupError) {
-					const detail =
-						cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+				} catch (error) {
+					const detail = error instanceof Error ? error.message : String(error);
 					updateRelayEvidenceStep(evidence, 'cleanup', 'failed', detail);
 					progress(`cleanup FAILED: ${detail}`);
+					cleanupError = new Error(`Aleph VM ${instanceName} was left running: ${detail}`, {
+						cause: error instanceof Error ? error : undefined
+					});
 				}
 				evidence.finishedAt = new Date().toISOString();
 				await writeRelayEvidence(`${OUTPUT_DIR}/result.json`, evidence);
 				await deploymentContext.close();
 			}
 
+			// The provisioning failure is the more informative one, so it wins.
 			if (testError) throw testError;
+			// A surviving VM burns credits until the janitor's next sweep, up to
+			// ~7 h later at a 6 h cron against a 1 h TTL. Reporting the run green
+			// hid exactly that: four orphans from four "successful" runs drained
+			// the E2E wallet by ~811k credits before anyone looked (#88).
+			if (cleanupError) throw cleanupError;
 		}
 	);
 });
