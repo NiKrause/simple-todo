@@ -92,7 +92,18 @@ jobs:
           rootfs_item_hash: 'b41c7fe9fe687a22f37f52b52d008a9a924280faec04591ecf47976038f065be'
           rootfs_version: playwright-1.61.1
           rootfs_size_mib: '20480'
-          preferred_country_code: DE
+          # Manual placement is what gives us CRN failover at all. Scheduler
+          # placement builds exactly one candidate ("attempting scheduler
+          # placement 1/1"), so a node that reserves the proxy slot and never
+          # boots the VM fails the whole run — and max_crn_attempts, which only
+          # shapes the manual candidate list, stays inert.
+          placement_strategy: manual
+          # Five is the size of the ranker's shuffled top pool; going past it
+          # lets failover walk into the ordered tail (6th, 7th, 8th).
+          max_crn_attempts: '8'
+          # No preferred_country_code on purpose: any preference switches the
+          # ranker to deterministic geo-first ordering and disables the top-5
+          # shuffle, sending every run at the same congested node.
           vcpus: '2'
           memory_mib: '4096'
           auto_configure: 'false'
