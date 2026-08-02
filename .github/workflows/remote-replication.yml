@@ -84,7 +84,12 @@ jobs:
           api_hosts: https://api2.aleph.im,https://api.aleph.im
           name: simple-todo-${{ github.run_id }}-${{ github.run_attempt }}
           ssh_public_key: ${{ steps.credentials.outputs.ssh_public_key }}
-          rootfs_item_hash: 'c392fba3a392a9daa88a44620e0b0f4e5a260ccc3b56853eda8ed02009d8d4f1'
+          # Republished 2026-08-01 by relay-button's Playwright Runner RootFS
+          # workflow. The previous pin (c392fba3…) no longer resolves on either
+          # Aleph replica, so every INSTANCE was rejected with error 301
+          # (referenced message missing). Same image contents — the manifest
+          # reports playwrightVersion 1.61.1 either way.
+          rootfs_item_hash: 'b41c7fe9fe687a22f37f52b52d008a9a924280faec04591ecf47976038f065be'
           rootfs_version: playwright-1.61.1
           rootfs_size_mib: '20480'
           preferred_country_code: DE
