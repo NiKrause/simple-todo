@@ -4,6 +4,17 @@
 	export let mnemonic = '';
 	export let databaseAddress = '';
 	export let embedded = false;
+	/**
+	 * Which list is actually open. The summary used to be hard-wired to
+	 * "Shared list" and the shared mnemonic, so after creating a private list the
+	 * header kept advertising a list the user was no longer writing to (#114).
+	 * @type {{ kind: 'shared' | 'private' | 'guest', name: string }}
+	 */
+	export let activeList = { kind: 'shared', name: '' };
+
+	const LABELS = { shared: 'Shared list', private: 'Private list', guest: 'Opened list' };
+	$: heading = LABELS[activeList?.kind] ?? LABELS.shared;
+	$: subtitle = activeList?.kind === 'shared' ? mnemonic : activeList?.name;
 
 	let copied = false;
 	const dispatch = createEventDispatcher();
@@ -45,14 +56,21 @@
 				clip-rule="evenodd"
 			/>
 		</svg>
-		<span>Shared list</span>
-		{#if mnemonic}
-			<code class="hidden min-w-0 truncate font-mono font-normal text-faint sm:inline"
-				>· {mnemonic}</code
+		<span data-testid="active-list-kind">{heading}</span>
+		{#if subtitle}
+			<code
+				class="hidden min-w-0 truncate font-mono font-normal text-faint sm:inline"
+				data-testid="active-list-label">· {subtitle}</code
 			>
 		{/if}
 	</summary>
 	<div class="mt-3 border-t border-border pt-3">
+		{#if activeList?.kind !== 'shared'}
+			<p class="mb-2 text-xs text-data-700" data-testid="active-list-note">
+				You are writing to <strong>{activeList.name}</strong>. The mnemonic below still refers to the
+				public shared list.
+			</p>
+		{/if}
 		<p class="text-xs text-faint">Public mnemonic / OrbitDB database name</p>
 		<div class="mt-1 flex items-center gap-2 rounded-md bg-cyan-50 p-2">
 			<code class="min-w-0 flex-1 font-mono text-xs break-all" data-testid="active-shared-list-name"

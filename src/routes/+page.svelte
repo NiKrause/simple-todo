@@ -8,6 +8,7 @@
 	import {
 		todosStore,
 		todoDBAddressStore,
+		activeListStore,
 		addTodo,
 		deleteTodo,
 		toggleTodoComplete
@@ -29,6 +30,7 @@
 	import PermissionsPanel from '$lib/PermissionsPanel.svelte';
 	import OpenDatabaseForm from '$lib/OpenDatabaseForm.svelte';
 	import NewPrivateListButton from '$lib/NewPrivateListButton.svelte';
+	import ListSwitcher from '$lib/ListSwitcher.svelte';
 	import {
 		SPANISH_MNEMONIC_STORAGE_KEY,
 		generateSpanishMnemonic,
@@ -296,6 +298,7 @@
 					embedded
 					mnemonic={activeMnemonic}
 					databaseAddress={$todoDBAddressStore}
+					activeList={$activeListStore}
 					on:change={() => {
 						selectedMnemonic = activeMnemonic;
 						showModal = true;
@@ -311,6 +314,7 @@
 
 	{#if $initializationStore.isInitialized}
 		<NewPrivateListButton />
+		<ListSwitcher />
 		<OpenDatabaseForm />
 		<PermissionsPanel />
 	{/if}
