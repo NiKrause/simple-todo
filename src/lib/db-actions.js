@@ -68,6 +68,22 @@ export const orbitdbStore = writable(/** @type {any} */ (null));
 export const todoDBStore = writable(/** @type {TodoDatabase | null} */ (null));
 export const todoDBAddressStore = writable('');
 
+/**
+ * Which list is currently open, and how the user got to it. Before this the UI
+ * only knew the address, so a freshly created private list was indistinguishable
+ * from the shared one and the header kept advertising the shared mnemonic
+ * (issue #114).
+ *
+ * kind: 'shared'  — the public mnemonic list every visitor lands in
+ *       'private' — created here, owner-only writes
+ *       'guest'   — opened by address, someone else's list
+ *
+ * @typedef {{ kind: 'shared' | 'private' | 'guest', name: string, address: string }} ActiveList
+ */
+export const activeListStore = writable(
+	/** @type {ActiveList} */ ({ kind: 'shared', name: '', address: '' })
+);
+
 // Store for todos
 export const todosStore = writable(/** @type {TodoItem[]} */ ([]));
 /** @typedef {'unknown' | 'pending' | 'pinned' | 'unavailable'} TodoReplicationStatus */
@@ -108,10 +124,13 @@ function getDatabaseAddress(todoDB) {
 
 /**
  * @param {TodoDatabase | null} todoDB
+ * @param {{ kind: 'shared' | 'private' | 'guest', name?: string }} [meta]
  */
-function setActiveTodoDatabase(todoDB) {
+function setActiveTodoDatabase(todoDB, meta) {
+	const address = getDatabaseAddress(todoDB);
 	todoDBStore.set(todoDB);
-	todoDBAddressStore.set(getDatabaseAddress(todoDB));
+	todoDBAddressStore.set(address);
+	if (meta) activeListStore.set({ kind: meta.kind, name: meta.name ?? '', address });
 }
 
 // Initialize database and load existing todos
@@ -121,7 +140,7 @@ function setActiveTodoDatabase(todoDB) {
  */
 export async function initializeDatabase(orbitdb, todoDB) {
 	orbitdbStore.set(orbitdb);
-	setActiveTodoDatabase(todoDB);
+	setActiveTodoDatabase(todoDB, { kind: 'shared', name: todoDB?.name ?? '' });
 
 	// OrbitDB's non-indexed keyvalue.all() traverses the complete append-only
 	// history. Hydrate the UI in the background instead of blocking app startup.
@@ -157,7 +176,7 @@ export async function loadTodoDatabase(address) {
 			sync: true
 		});
 
-		setActiveTodoDatabase(loadedTodoDB);
+		setActiveTodoDatabase(loadedTodoDB, { kind: 'guest', name: loadedTodoDB?.name ?? '' });
 		setupDatabaseListeners(loadedTodoDB);
 		await loadTodos();
 
@@ -179,7 +198,7 @@ export async function loadTodoDatabase(address) {
  * address (acl01). The new list becomes the active list.
  *
  * @param {string} [name] optional human name; a unique suffix is always added
- * @returns {Promise<{ address: string }>}
+ * @returns {Promise<{ address: string, name: string }>}
  */
 export async function createPrivateTodoList(name = 'private-todos') {
 	const orbitdb = get(orbitdbStore);
@@ -194,10 +213,14 @@ export async function createPrivateTodoList(name = 'private-todos') {
 		AccessController: OrbitDBAccessController({ write: [orbitdb.identity.id] })
 	});
 
-	setActiveTodoDatabase(privateDB);
+	const listName = name.trim() || 'private-todos';
+	setActiveTodoDatabase(privateDB, { kind: 'private', name: listName });
 	setupDatabaseListeners(privateDB);
 	await loadTodos();
-	return { address: getDatabaseAddress(privateDB) || '' };
+	// The caller needs both: the address is what gets shared, the name is what
+	// the user recognises it by. Returning only the address is what left the
+	// created list invisible (issue #114).
+	return { address: getDatabaseAddress(privateDB) || '', name: listName };
 }
 
 // Load all todos from the database

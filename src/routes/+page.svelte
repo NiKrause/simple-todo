@@ -8,6 +8,7 @@
 	import {
 		todosStore,
 		todoDBAddressStore,
+		activeListStore,
 		addTodo,
 		deleteTodo,
 		toggleTodoComplete
@@ -296,6 +297,7 @@
 					embedded
 					mnemonic={activeMnemonic}
 					databaseAddress={$todoDBAddressStore}
+					activeList={$activeListStore}
 					on:change={() => {
 						selectedMnemonic = activeMnemonic;
 						showModal = true;
