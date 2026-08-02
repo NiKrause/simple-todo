@@ -45,7 +45,10 @@ jobs:
       TESTINGBOT_KEY: ${{ secrets.TESTINGBOT_KEY }}
       TESTINGBOT_SECRET: ${{ secrets.TESTINGBOT_SECRET }}
       ALEPH_VM_PRIVATE_KEY: ${{ secrets.ALEPH_PLAYWRIGHT_PRIVATE_KEY || secrets.RELAY_BUTTON_E2E_PRIVATE_KEY }}
-      ALEPH_PLAYWRIGHT_REGION: DE-preferred
+      # Display label for the evidence summary only — it does not steer CRN
+      # selection. Kept truthful: placement is unpinned so the ranker can
+      # shuffle its top pool instead of always picking the same node.
+      ALEPH_PLAYWRIGHT_REGION: unpinned
     steps:
       - uses: actions/checkout@v6
 
