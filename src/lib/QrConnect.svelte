@@ -5,11 +5,21 @@
 	let visible = $state(false);
 	let outgoing = $state('');
 	let incoming = $state('');
-	let status = $state('Create an invite, or paste the one you were given.');
+	let status = $state('Create an invite, or scan the code they are showing you.');
 	let busy = $state(false);
+	/** @type {any} */
+	let scanner = $state(null);
 
-	onMount(() => {
+	onMount(async () => {
 		visible = isQrTransportMode();
+
+		if (!visible) {
+			return;
+		}
+
+		// Loaded in the browser only: SvelteKit renders this page on the server
+		// first, where `customElements` does not exist.
+		await import('@le-space/libp2p-webrtc-qr/elements');
 	});
 
 	function session() {
@@ -26,7 +36,7 @@
 		busy = true;
 		try {
 			outgoing = await session().createOffer();
-			status = 'Send this invite. Paste their reply below when it comes back.';
+			status = 'Show this code, or send the text. Then scan their reply.';
 		} catch (/** @type {any} */ error) {
 			status = `Could not create an invite: ${error.message}`;
 		} finally {
@@ -35,30 +45,32 @@
 	}
 
 	/**
-	 * One box for both directions. Which one a payload is decides itself - an
-	 * offer produces a reply, a reply completes the connection - and asking the
+	 * One entry point for both directions. Which one a payload is decides itself -
+	 * an offer produces a reply, a reply completes the connection - and asking the
 	 * user to know which of the two they were handed is asking the wrong person.
+	 *
+	 * @param {string} text
 	 */
-	async function usePayload() {
-		const text = incoming.trim();
+	async function usePayload(text) {
+		const trimmed = text.trim();
 
-		if (text.length === 0) {
+		if (trimmed.length === 0) {
 			return;
 		}
 
 		busy = true;
 		try {
 			if (outgoing.length > 0) {
-				// 0.4.0 dials for us. Before that this had to be done by hand, because
-				// until something dials there is no libp2p connection at all - and this
-				// app has no protocol of its own to open, OrbitDB and gossipsub simply
-				// use whatever connection exists.
-				const { peerId } = await session().acceptAnswer(text);
+				// The session dials for us since 0.4.0: until something dials there is
+				// no libp2p connection, and this app has no protocol of its own to
+				// open - OrbitDB and gossipsub use whatever connection exists.
+				const { peerId } = await session().acceptAnswer(trimmed);
 
 				status = `Connected to ${peerId.slice(0, 12)}…`;
+				outgoing = '';
 			} else {
-				outgoing = await session().acceptOffer(text);
-				status = 'Send this reply back to them.';
+				outgoing = await session().acceptOffer(trimmed);
+				status = 'Show this reply back to them.';
 			}
 			incoming = '';
 		} catch (/** @type {any} */ error) {
@@ -66,6 +78,12 @@
 		} finally {
 			busy = false;
 		}
+	}
+
+	function scan() {
+		scanner?.open().catch((/** @type {any} */ error) => {
+			status = `Camera failed: ${error.message}`;
+		});
 	}
 </script>
 
@@ -86,7 +104,28 @@
 				disabled={busy}
 				data-testid="qr-create-invite">Create invite</button
 			>
+			<button
+				class="rounded border px-3 py-1 text-sm disabled:opacity-50"
+				onclick={scan}
+				disabled={busy}
+				data-testid="qr-scan">Scan their code</button
+			>
 		</div>
+
+		{#if outgoing}
+			<!--
+				Themed entirely from outside through custom properties - the element's
+				own defaults are dark, and this app is light by default. If those
+				properties did not cross the shadow boundary there would be no way to
+				do this without forking the element.
+			-->
+			<qr-invite
+				class="mt-3 block"
+				value={outgoing}
+				style="--qr-invite-max-width: 320px; --qr-invite-caption-color: #4b5563; --qr-invite-radius: 6px;"
+				data-testid="qr-code"
+			></qr-invite>
+		{/if}
 
 		<textarea
 			class="mt-3 w-full rounded border p-2 font-mono text-xs dark:bg-gray-900"
@@ -99,18 +138,25 @@
 		<textarea
 			class="mt-2 w-full rounded border p-2 font-mono text-xs dark:bg-gray-900"
 			rows="2"
-			placeholder="Paste their invite or reply here"
+			placeholder="Or paste their invite or reply here"
 			data-testid="qr-incoming"
 			bind:value={incoming}
 		></textarea>
 
 		<button
 			class="mt-2 rounded border px-3 py-1 text-sm disabled:opacity-50"
-			onclick={usePayload}
+			onclick={() => usePayload(incoming)}
 			disabled={busy}
 			data-testid="qr-use-payload">Use this</button
 		>
 
 		<p class="mt-2 text-xs" data-testid="qr-status">{status}</p>
+
+		<qr-scanner
+			bind:this={scanner}
+			label="Scan their code"
+			style="--qr-scanner-background: #ffffff; --qr-scanner-foreground: #111827; --qr-scanner-border: #d1d5db; --qr-scanner-status-color: #4b5563;"
+			onscan={(/** @type {any} */ event) => usePayload(event.detail.text)}
+		></qr-scanner>
 	</section>
 {/if}

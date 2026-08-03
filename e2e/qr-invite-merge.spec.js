@@ -95,6 +95,12 @@ async function openInviteOnlyApp(page) {
  */
 async function exchangeInvite(alice, bob) {
 	await alice.getByTestId('qr-create-invite').click();
+
+	// The invite is shown as a code by <qr-invite>, themed from outside in this
+	// app's own palette - which is the acceptance criterion #38 asks for and the
+	// only way to know the custom properties actually cross the shadow boundary.
+	await expect(alice.getByTestId('qr-code')).toBeVisible({ timeout });
+	await expect(alice.locator('qr-code img, [data-testid="qr-code"] img').first()).toBeVisible({ timeout });
 	await expect
 		.poll(() => alice.getByTestId('qr-outgoing').inputValue(), { timeout })
 		.not.toHaveLength(0);
