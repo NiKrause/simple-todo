@@ -6,6 +6,7 @@ import { withBitswap } from '@helia/bitswap';
 import { withHTTP } from '@helia/http';
 import { withLibp2p } from '@helia/libp2p';
 import { createOrbitDB, IPFSAccessController } from '@orbitdb/core';
+import { attachQrSession, isQrTransportMode } from './qr-transport.js';
 import * as dagCbor from '@ipld/dag-cbor';
 import * as dagJson from '@ipld/dag-json';
 import * as json from 'multiformats/codecs/json';
@@ -147,6 +148,12 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 		setInitializationProgress(1);
 		libp2p = await createLibp2p(config);
 		libp2pStore.set(libp2p); // Make available to plugins
+
+		// In QR mode the session is the only way this node will ever meet a peer,
+		// so it has to exist before anything tries to dial.
+		if (isQrTransportMode()) {
+			attachQrSession(libp2p);
+		}
 		console.log(`✅ libp2p node created`);
 
 		// Get and set peer ID

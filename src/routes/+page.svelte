@@ -12,6 +12,7 @@
 	import ErrorAlert from '$lib/ErrorAlert.svelte';
 	import AddTodoForm from '$lib/AddTodoForm.svelte';
 	import TodoList from '$lib/TodoList.svelte';
+	import QrConnect from '$lib/QrConnect.svelte';
 	import ConnectedPeers from '$lib/ConnectedPeers.svelte';
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
 	import OwnMultiaddrs from '$lib/OwnMultiaddrs.svelte';
@@ -201,6 +202,8 @@
 	{/if}
 
 	<!-- Add TODO Form -->
+	<QrConnect />
+
 	<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
 
 	<!-- TODO List -->

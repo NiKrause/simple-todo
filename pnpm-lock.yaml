@@ -40,6 +40,9 @@ importers:
       '@le-space/aleph-bootstrap':
         specifier: 0.7.0
         version: 0.7.0(typescript@5.9.2)
+      '@le-space/libp2p-webrtc-qr':
+        specifier: link:../libp2p-webrtc-qr/packages/webrtc-qr
+        version: link:../libp2p-webrtc-qr/packages/webrtc-qr
       '@le-space/orbitdb-identity-provider-webauthn-did':
         specifier: 0.3.1
         version: 0.3.1(@orbitdb/core@4.0.0)(rollup@4.46.2)(vite@7.0.6(@types/node@26.1.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.49.0)(yaml@2.9.0))
@@ -5797,7 +5800,7 @@ snapshots:
       '@libp2p/interface': 3.2.5
       '@libp2p/logger': 6.2.10
       '@libp2p/peer-collections': 7.0.24
-      '@libp2p/utils': 7.3.0
+      '@libp2p/utils': 7.3.1
       '@multiformats/multiaddr': 13.0.3
       any-signal: 4.2.0
       interface-blockstore: 6.0.2
@@ -5855,8 +5858,8 @@ snapshots:
       '@helia/interface': 6.2.1
       '@helia/utils': 2.5.2
       '@libp2p/interface': 3.2.5
-      '@libp2p/peer-id': 6.0.12
-      '@libp2p/utils': 7.3.0
+      '@libp2p/peer-id': 6.0.13
+      '@libp2p/utils': 7.3.1
       '@multiformats/multiaddr': 13.0.3
       '@multiformats/multiaddr-matcher': 3.0.2
       '@multiformats/multiaddr-to-uri': 12.0.0
@@ -5880,7 +5883,7 @@ snapshots:
   '@helia/delegated-routing-v1-http-api-client@6.0.1':
     dependencies:
       '@libp2p/interface': 3.2.5
-      '@libp2p/peer-id': 6.0.12
+      '@libp2p/peer-id': 6.0.13
       '@multiformats/multiaddr': 13.0.3
       any-signal: 4.2.0
       browser-readablestream-to-it: 2.0.12
@@ -5992,7 +5995,7 @@ snapshots:
       '@helia/delegated-routing-v1-http-api-client': 6.0.1
       '@helia/interface': 6.2.1
       '@libp2p/interface': 3.2.5
-      '@libp2p/peer-id': 6.0.12
+      '@libp2p/peer-id': 6.0.13
       '@multiformats/uri-to-multiaddr': 10.0.0
       ipns: 10.1.6
       it-first: 3.0.11
@@ -6022,7 +6025,7 @@ snapshots:
       '@ipld/dag-pb': 4.1.7
       '@libp2p/interface': 3.2.5
       '@libp2p/logger': 6.2.10
-      '@libp2p/utils': 7.3.0
+      '@libp2p/utils': 7.3.1
       '@multiformats/murmur3': 2.2.8
       interface-blockstore: 6.0.2
       ipfs-unixfs: 12.0.2
@@ -6076,7 +6079,7 @@ snapshots:
       '@ipld/dag-pb': 4.1.7
       '@libp2p/interface': 3.2.5
       '@libp2p/keychain': 6.1.4
-      '@libp2p/utils': 7.3.0
+      '@libp2p/utils': 7.3.1
       '@multiformats/dns': 1.0.15
       '@multiformats/multiaddr': 13.0.3
       any-signal: 4.2.0

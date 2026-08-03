@@ -18,6 +18,7 @@ import {
 	parseBootstrapMultiaddrs,
 	selectValidBrowserBootstrapMultiaddrs
 } from './bootstrap-multiaddrs.js';
+import { isQrTransportMode, qrTransports } from './qr-transport.js';
 
 // Environment variables
 const RELAY_BOOTSTRAP_ADDR_DEV =
@@ -85,6 +86,12 @@ export async function createLibp2pConfig(privateKey = null) {
 		} catch (error) {
 			console.warn('Invalid test peer ID, generating random key:', error);
 		}
+	}
+
+	// QR mode reaches peers with a scanned code and nothing else, so it needs no
+	// relay to bootstrap from - and demanding one would fail before it started.
+	if (isQrTransportMode()) {
+		return qrOnlyConfig(privateKey);
 	}
 
 	const relayBootstrapAddrs = selectValidBrowserBootstrapMultiaddrs(
@@ -184,6 +191,42 @@ export async function createLibp2pConfig(privateKey = null) {
 	}
 
 	return config;
+}
+
+/**
+ * One transport, no discovery, no relay.
+ *
+ * Everything removed here is a way for two peers to find each other without
+ * being introduced: bootstrap, pubsub discovery, autonat, dcutr, circuit relay,
+ * websockets. What is left cannot meet anybody by itself, which is the point -
+ * if two of these connect, the scanned code is the only thing that could have
+ * done it.
+ *
+ * Gossipsub stays, because it is not discovery here. OrbitDB exchanges heads
+ * over it, and without it two peers connect and then sit there with a database
+ * that never syncs.
+ *
+ * @param {any} privateKey
+ */
+function qrOnlyConfig(privateKey) {
+	return {
+		...(privateKey ? { privateKey } : {}),
+		addresses: { listen: [] },
+		transports: qrTransports(),
+		connectionEncrypters: [noise()],
+		streamMuxers: [yamux()],
+		peerDiscovery: [],
+		services: {
+			identify: identify(),
+			identifyPush: identifyPush(),
+			ping: ping({ timeout: 10_000 }),
+			pubsub: gossipsub({
+				emitSelf: false,
+				allowPublishToZeroTopicPeers: true,
+				canRelayMessage: true
+			})
+		}
+	};
 }
 
 // Usage example:
