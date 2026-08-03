@@ -49,13 +49,12 @@
 		busy = true;
 		try {
 			if (outgoing.length > 0) {
+				// 0.4.0 dials for us. Before that this had to be done by hand, because
+				// until something dials there is no libp2p connection at all - and this
+				// app has no protocol of its own to open, OrbitDB and gossipsub simply
+				// use whatever connection exists.
 				const { peerId } = await session().acceptAnswer(text);
 
-				// `acceptAnswer` gets WebRTC up and puts the upgrade context in place;
-				// the libp2p connection appears when something dials. This app has no
-				// protocol of its own to open - OrbitDB and gossipsub simply use
-				// whatever connection exists - so dial the peer itself.
-				await session().dial(peerId);
 				status = `Connected to ${peerId.slice(0, 12)}…`;
 			} else {
 				outgoing = await session().acceptOffer(text);

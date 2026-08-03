@@ -86,7 +86,7 @@
 		"@ipld/dag-cbor": "^10.0.1",
 		"@ipld/dag-json": "^11.0.0",
 		"@le-space/aleph-bootstrap": "0.7.0",
-		"@le-space/libp2p-webrtc-qr": "link:../libp2p-webrtc-qr/packages/webrtc-qr",
+		"@le-space/libp2p-webrtc-qr": "^0.4.0",
 		"@le-space/orbitdb-identity-provider-webauthn-did": "0.3.1",
 		"@le-space/ui": "0.7.0",
 		"@libp2p/autonat": "^3.0.24",

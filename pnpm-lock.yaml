@@ -41,8 +41,8 @@ importers:
         specifier: 0.7.0
         version: 0.7.0(typescript@5.9.2)
       '@le-space/libp2p-webrtc-qr':
-        specifier: link:../libp2p-webrtc-qr/packages/webrtc-qr
-        version: link:../libp2p-webrtc-qr/packages/webrtc-qr
+        specifier: ^0.4.0
+        version: 0.4.0(@multiformats/multiaddr@13.0.3)(libp2p@3.3.6)
       '@le-space/orbitdb-identity-provider-webauthn-did':
         specifier: 0.3.1
         version: 0.3.1(@orbitdb/core@4.0.0)(rollup@4.46.2)(vite@7.0.6(@types/node@26.1.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.49.0)(yaml@2.9.0))
@@ -993,6 +993,12 @@ packages:
 
   '@le-space/iso-webauthn-varsig@0.2.0':
     resolution: {integrity: sha512-8sVwcu5yvSKkGZhaXzCA8eSim+TKwMBvz25sNkqGZsUkRIh1s5/PszyjO3C/CZasowHLIouaaLb/xd5VQUNzNw==}
+
+  '@le-space/libp2p-webrtc-qr@0.4.0':
+    resolution: {integrity: sha512-KRS9tgUmlFLdld+tQra6BKZLn07WkdYAlrVCPoR6wL3FbAcDbaZhiiZKfCAWPV01y9byTbjuI125HaJ6TZbiWA==}
+    peerDependencies:
+      '@multiformats/multiaddr': ^13.0.3
+      libp2p: ^3.3.7
 
   '@le-space/node@0.7.0':
     resolution: {integrity: sha512-V5uBTzpzyANgQ4eAs11vfhxjf/cRl/bJJ+uQdH7sfvwoZmwDgbvNMRzzmH9fhgL5nJIKORzRqTIIr7Gv2YPbPA==}
@@ -6385,6 +6391,24 @@ snapshots:
   '@le-space/iso-webauthn-varsig@0.2.0':
     dependencies:
       iso-base: '@le-space/iso-base@4.3.0'
+
+  '@le-space/libp2p-webrtc-qr@0.4.0(@multiformats/multiaddr@13.0.3)(libp2p@3.3.6)':
+    dependencies:
+      '@libp2p/interface': 3.2.5
+      '@libp2p/peer-id': 6.0.13
+      '@libp2p/utils': 7.3.1
+      '@multiformats/multiaddr': 13.0.3
+      it-length-prefixed: 11.0.1
+      it-pushable: 3.2.4
+      libp2p: 3.3.6
+      p-defer: 4.0.1
+      p-event: 7.1.0
+      p-timeout: 7.0.1
+      protons-runtime: 7.0.0
+      race-signal: 2.0.0
+      uint8-varint: 3.0.0
+      uint8arraylist: 3.0.2
+      uint8arrays: 6.1.1
 
   '@le-space/node@0.7.0(react-native@0.80.2(@babel/core@7.29.7)(react@19.2.6))(typescript@5.9.2)':
     dependencies:
