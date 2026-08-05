@@ -41,6 +41,30 @@ The `main` branch is the basic shared-list demo. Every browser opens the same de
 4. **Wait for Connection** - The app will automatically discover and connect peers
 5. **Add Todos** - Create todos in one browser and watch them appear in the other
 
+### 📷 Connecting by invite instead of by relay
+
+Add `?transport=qr` to the URL and the app swaps its whole networking layer for a
+single WebRTC transport whose signalling is **a code someone holds up**. No relay,
+no bootstrap, no pubsub discovery, no pinning — this peer cannot find anybody by
+itself, and nobody can find it.
+
+Two peers meet by one creating an invite and the other scanning it (or pasting
+it, on a device without a camera), then handing the reply back the same way. The
+invite is signed with the peer's own key and carries the DTLS fingerprint, so
+accepting one is what authenticates the other side — there is no relay in the
+middle to be trusted or to fail.
+
+What makes it worth trying: open two windows in that mode, write a few todos in
+each *before* connecting, and they stay apart. Exchange the invite and both
+screens hold everything either of them wrote. Nothing merged — every peer opens
+the same content-addressed database, so the two were always writing to one log
+that had no way to replicate. Connecting is what lets it.
+
+The transport and the on-screen elements come from
+[`@le-space/libp2p-webrtc-qr`](https://github.com/NiKrause/libp2p-webrtc-qr);
+the security model of that handshake is written up in
+[connection-security.md](https://github.com/NiKrause/libp2p-webrtc-qr/blob/main/docs/connection-security.md).
+
 ## 📚 Documentation
 
 For comprehensive guides on how this app works, implementation details, and reusable components:
