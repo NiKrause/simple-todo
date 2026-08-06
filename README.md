@@ -60,6 +60,27 @@ invite connects two people who are already talking to each other. Running both
 is the normal case, which is why `main` loads the QR transport alongside the
 relay transports rather than switching between them.
 
+### Choosing on the consent screen
+
+The consent screen carries a checkbox — **"Connect to the public libp2p relay
+network"**, on by default:
+
+- **On** (default): the browser bootstraps from the public relay and finds peers
+  through pubsub discovery. The invite panel is still available on top of that.
+- **Off**: the node starts with the QR transport and nothing else — no relay, no
+  bootstrap, no discovery, no pinning. Nothing announces this browser and nobody
+  can find it; the only way in or out is an invite you exchange yourself, so the
+  panel opens by itself.
+
+It is deliberately **not** one of the "I understand…" boxes and never blocks the
+proceed button: those are acknowledgements, this is a choice, and unticking it is
+a valid way to continue rather than a refusal to consent.
+
+The choice is stored per browser (`localStorage`), because consent can be
+remembered — in which case the modal never renders again and the node starts
+straight from `onMount`. A preference that lived only in the modal would be
+unreachable for exactly the people who visit most often.
+
 ### 🛰️ Relay Button
 
 Deploys a relay onto an [Aleph](https://aleph.im) VM from inside the browser,
@@ -93,9 +114,10 @@ the security model of that handshake is written up in
 
 #### `?transport=qr` — the isolated variant
 
-Adding `?transport=qr` to the URL builds a node with the QR transport and
-**nothing else**: no relay, no bootstrap, no pubsub discovery, no pinning. This
-peer cannot find anybody by itself, and nobody can find it.
+Adding `?transport=qr` to the URL forces the same invite-only node the consent
+checkbox produces, and **overrides a stored preference of "on"**. A URL that
+promises no relay must not quietly grow one because this browser once ticked a
+box.
 
 That mode exists so the claim is testable rather than taken on trust — if two
 such nodes end up connected, the code is provably the only thing that introduced

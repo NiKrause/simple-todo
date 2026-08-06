@@ -2,6 +2,7 @@
 	/* eslint-disable no-undef */
 	import { onMount } from 'svelte';
 	import { peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js';
+	import { getRelayNetworkEnabled, setRelayNetworkEnabled } from '$lib/network-mode.js';
 	import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
@@ -38,9 +39,15 @@
 	// Modal state
 	let showModal = true;
 	let rememberDecision = false;
+	// Seeded from storage so the box reflects this browser's existing choice
+	// rather than resetting to the default on every visit.
+	let relayNetworkEnabled = getRelayNetworkEnabled();
 
 	const handleModalClose = async () => {
 		showModal = false;
+		// Written before initializeP2P: createLibp2pConfig reads the choice while
+		// building the node, so persisting it afterwards would start the wrong one.
+		setRelayNetworkEnabled(relayNetworkEnabled);
 		try {
 			if (rememberDecision) {
 				localStorage.setItem(CONSENT_KEY, 'true');
@@ -138,9 +145,7 @@
 <ToastNotification message={toastMessage} type={toastType} />
 
 <svelte:head>
-	<title
-		>Simple-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title
-	>
+	<title>Simple-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<meta
 		name="description"
@@ -153,6 +158,7 @@
 	<ConsentModal
 		bind:show={showModal}
 		title="Simple-Todo"
+		bind:relayNetworkEnabled
 		bind:rememberDecision
 		rememberLabel="Don't show this again on this device"
 		proceedButtonText="Proceed to Test the App"

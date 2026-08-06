@@ -1,11 +1,13 @@
 <script>
 	import { onMount } from 'svelte';
-	import { getQrSession, isQrTransportMode } from './qr-transport.js';
+	import { getQrSession } from './qr-transport.js';
+	import { isRelayNetworkMode } from './network-mode.js';
 
-	// Mounted on every page now, not just under `?transport=qr`: the invite is a
-	// second way to meet a peer, next to the relay. What that flag still decides
-	// is whether the panel starts open — QR-only mode has no other way to connect,
-	// and its E2E expects the controls without a click.
+	// Mounted on every page: the invite is a second way to meet a peer, next to
+	// the relay. Whether the panel *starts* open depends on whether there is any
+	// other way to connect — with the relay network switched off (consent screen,
+	// or `?transport=qr`) an invite is the only one, so opening it is the whole
+	// interface rather than an extra.
 	let mounted = $state(false);
 	let open = $state(false);
 	let outgoing = $state('');
@@ -16,7 +18,7 @@
 	let scanner = $state(null);
 
 	onMount(async () => {
-		open = isQrTransportMode();
+		open = !isRelayNetworkMode();
 
 		// Loaded in the browser only: SvelteKit renders this page on the server
 		// first, where `customElements` does not exist.
