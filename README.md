@@ -41,29 +41,85 @@ The `main` branch is the basic shared-list demo. Every browser opens the same de
 4. **Wait for Connection** - The app will automatically discover and connect peers
 5. **Add Todos** - Create todos in one browser and watch them appear in the other
 
-### 📷 Connecting by invite instead of by relay
+## 🤝 Two ways to meet a peer
 
-Add `?transport=qr` to the URL and the app swaps its whole networking layer for a
-single WebRTC transport whose signalling is **a code someone holds up**. No relay,
-no bootstrap, no pubsub discovery, no pinning — this peer cannot find anybody by
-itself, and nobody can find it.
+The app carries **two independent introduction mechanisms**, and they answer
+different questions. Both are reachable from the floating buttons in the
+bottom-right corner.
 
-Two peers meet by one creating an invite and the other scanning it (or pasting
-it, on a device without a camera), then handing the reply back the same way. The
-invite is signed with the peer's own key and carries the DTLS fingerprint, so
-accepting one is what authenticates the other side — there is no relay in the
-middle to be trusted or to fail.
+|                                           | 🛰️ Relay Button                | 📷 Scan Connect SDP                       |
+| ----------------------------------------- | ------------------------------ | ----------------------------------------- |
+| **Question it answers**                   | "How do strangers find me?"    | "How do the two of us connect right now?" |
+| **Introduction via**                      | a relay you deploy and pay for | a code you hand over yourself             |
+| **Needs infrastructure**                  | yes — an Aleph VM              | no                                        |
+| **Works with peers you have never met**   | yes                            | no, someone must show you the code        |
+| **Keeps working after you close the tab** | yes, the relay stays           | no                                        |
 
-What makes it worth trying: open two windows in that mode, write a few todos in
-each *before* connecting, and they stay apart. Exchange the invite and both
-screens hold everything either of them wrote. Nothing merged — every peer opens
-the same content-addressed database, so the two were always writing to one log
-that had no way to replicate. Connecting is what lets it.
+They are **not alternatives**. A relay makes you continuously discoverable; an
+invite connects two people who are already talking to each other. Running both
+is the normal case, which is why `main` loads the QR transport alongside the
+relay transports rather than switching between them.
+
+### 🛰️ Relay Button
+
+Deploys a relay onto an [Aleph](https://aleph.im) VM from inside the browser,
+paid from your own wallet, and publishes its multiaddress so other browsers can
+bootstrap from it. Peers then find each other through pubsub discovery without
+ever having exchanged anything by hand. The button comes from
+[`@le-space/ui`](https://github.com/NiKrause/relay-button); the relay itself is
+[`orbitdb-relay`](https://github.com/NiKrause/orbitdb-relay).
+
+### 📷 Scan Connect SDP
+
+Opens a panel that negotiates a **direct WebRTC connection** through a code you
+exchange yourself. One peer presses _Create invite_ and shows the QR code (or
+copies the text, on a device without a camera); the other scans or pastes it and
+hands the reply back the same way.
+
+The invite is signed with the peer's own key and carries the DTLS fingerprint,
+so **accepting one is what authenticates the other side** — there is no relay in
+the middle to be trusted or to fail.
+
+What makes it worth trying: open two windows, write a few todos in each _before_
+connecting, and they stay apart. Exchange the invite and both screens hold
+everything either of them wrote. Nothing merged — every peer opens the same
+content-addressed database, so the two were always writing to one log that had
+no way to replicate. Connecting is what lets it.
 
 The transport and the on-screen elements come from
 [`@le-space/libp2p-webrtc-qr`](https://github.com/NiKrause/libp2p-webrtc-qr);
 the security model of that handshake is written up in
 [connection-security.md](https://github.com/NiKrause/libp2p-webrtc-qr/blob/main/docs/connection-security.md).
+
+#### `?transport=qr` — the isolated variant
+
+Adding `?transport=qr` to the URL builds a node with the QR transport and
+**nothing else**: no relay, no bootstrap, no pubsub discovery, no pinning. This
+peer cannot find anybody by itself, and nobody can find it.
+
+That mode exists so the claim is testable rather than taken on trust — if two
+such nodes end up connected, the code is provably the only thing that introduced
+them (`e2e/qr-invite-merge.spec.js`). In that mode the panel starts open, since
+there is no other way to connect.
+
+### Wiring
+
+Adding the invite path to a page is three pieces:
+
+```js
+// 1. the transport, next to the relay transports (src/lib/libp2p-config.js)
+transports: [webSockets(), webRTC(), circuitRelayTransport(...), webRTCQRTransport()];
+
+// 2. the session, before anything dials (src/lib/p2p.js)
+attachQrSession(libp2p);
+
+// 3. the UI (src/routes/+page.svelte)
+<QrConnect />;
+```
+
+`attachQrSession` must run at node startup, not on first click: the transport
+asks it for an outbound session while dialing, so a session created only when
+someone presses the button would arrive too late.
 
 ## 📚 Documentation
 

@@ -36,21 +36,34 @@ export function getQrSession() {
 }
 
 /**
- * The transport list for QR mode: exactly one entry, and nothing that could
+ * The transport on its own. `main` carries it next to the relay transports so an
+ * invite works without reloading the page into a different mode, which is what
+ * makes "Scan Connect SDP" a second way to meet a peer rather than a replacement
+ * for the relay.
+ */
+export function webRTCQRTransport() {
+	return webRTCQR({ getOutboundSession: (peerId) => session?.getOutboundSession(peerId) ?? null });
+}
+
+/**
+ * The transport list for QR-only mode: exactly one entry, and nothing that could
  * find a peer by itself. If a test connects two of these, the code is the only
- * thing that could have introduced them.
+ * thing that could have introduced them — which is why `?transport=qr` still
+ * builds a stripped node even though the transport now ships on `main` too.
  */
 export function qrTransports() {
-	return [webRTCQR({ getOutboundSession: (peerId) => session?.getOutboundSession(peerId) ?? null })];
+	return [webRTCQRTransport()];
 }
 
 /**
  * @param {import('libp2p').Libp2p} node
  */
 export function attachQrSession(node) {
-	// Isolation is the claim this mode makes, so a test has to be able to check
-	// it rather than take it on trust.
-	if (typeof window !== 'undefined') {
+	// Isolation is the claim QR-only mode makes, so a test has to be able to
+	// check it rather than take it on trust. Now that the session is attached on
+	// every page load, keep the handle scoped to that mode — a global pointer to
+	// the libp2p node on the production page serves nobody.
+	if (typeof window !== 'undefined' && isQrTransportMode()) {
 		/** @type {any} */ (window).__libp2p = node;
 	}
 

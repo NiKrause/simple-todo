@@ -18,7 +18,7 @@ import {
 	parseBootstrapMultiaddrs,
 	selectValidBrowserBootstrapMultiaddrs
 } from './bootstrap-multiaddrs.js';
-import { isQrTransportMode, qrTransports } from './qr-transport.js';
+import { isQrTransportMode, qrTransports, webRTCQRTransport } from './qr-transport.js';
 
 // Environment variables
 const RELAY_BOOTSTRAP_ADDR_DEV =
@@ -129,7 +129,13 @@ export async function createLibp2pConfig(privateKey = null) {
 					discoverRelays: 1,
 					reservationCompletionTimeout: 20_000
 				})
-			)
+			),
+			// The invite path rides alongside the relay path rather than replacing
+			// it: the relay is how strangers find you, an invite is how two people
+			// who are already talking connect directly. Without this transport here
+			// the "Scan Connect SDP" button could only work after reloading into
+			// `?transport=qr`, which is a different node with no relay at all.
+			webRTCQRTransport()
 		],
 		connectionEncrypters: [noise()],
 		connectionGater: {
