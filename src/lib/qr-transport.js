@@ -57,13 +57,19 @@ export function qrTransports() {
 
 /**
  * @param {import('libp2p').Libp2p} node
+ * @param {{ exposeDebugHandle?: boolean }} [options]
  */
-export function attachQrSession(node) {
-	// Isolation is the claim QR-only mode makes, so a test has to be able to
-	// check it rather than take it on trust. Now that the session is attached on
-	// every page load, keep the handle scoped to that mode — a global pointer to
-	// the libp2p node on the production page serves nobody.
-	if (typeof window !== 'undefined' && isQrTransportMode()) {
+export function attachQrSession(node, options = {}) {
+	// Isolation is the claim invite-only mode makes, so a test has to be able to
+	// check it rather than take it on trust.
+	//
+	// The caller decides whether to expose it, because that mode is reachable two
+	// ways — `?transport=qr` or the consent checkbox — and a handle tied to only
+	// one of them would let an isolation assertion pass *vacuously*: reading zero
+	// connections because the node is invisible to the test rather than because
+	// the peers are apart. Off on a relay-connected page, where a global pointer
+	// to the libp2p node serves nobody.
+	if (typeof window !== 'undefined' && options.exposeDebugHandle === true) {
 		/** @type {any} */ (window).__libp2p = node;
 	}
 

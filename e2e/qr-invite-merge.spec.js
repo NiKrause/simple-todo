@@ -3,11 +3,16 @@ import { test, expect } from '@playwright/test';
 /**
  * Two lists that could not see each other, joined by a scanned code.
  *
- * `?transport=qr` strips this app down to one transport: no relay, no
- * bootstrap, no pubsub discovery, nothing that can find a peer by itself. That
- * is what makes the result mean something - if these two peers end up sharing a
- * list, the invite is the only thing that could have introduced them, and the
- * test proves the isolation before it proves the merge.
+ * Both peers get here the way a user does: they untick "Connect to the public
+ * libp2p relay network" on the consent screen and then press "Scan Connect SDP".
+ * That leaves one transport - no relay, no bootstrap, no pubsub discovery,
+ * nothing that can find a peer by itself. Which is what makes the result mean
+ * something: if these two end up sharing a list, the invite is the only thing
+ * that could have introduced them, and the test proves the isolation before it
+ * proves the merge.
+ *
+ * `?transport=qr` reaches the same node and still works, but it is a developer
+ * shortcut - testing through it would leave the route real users take unproven.
  *
  * What is *not* happening: two databases becoming one. Every peer on `main`
  * opens `simple-todos` with `write: ['*']`, and that manifest is content
@@ -95,7 +100,7 @@ test.describe('Invite-only collaboration', () => {
 				.not.toHaveLength(0);
 
 			const invite = await alice.getByTestId('qr-outgoing').inputValue();
-			const link = `/?transport=qr#invite=${encodeURIComponent(invite)}`;
+			const link = `/#invite=${encodeURIComponent(invite)}`;
 
 			// Recorded rather than asserted against a threshold: whether a payload
 			// still fits a link is a property of the codec, and a number in the log
@@ -105,7 +110,7 @@ test.describe('Invite-only collaboration', () => {
 			// No pasting, no scanning — and the consent screen comes first, so the
 			// invite has to survive a wait for a node that does not exist yet.
 			await bob.goto(link);
-			await acceptConsent(bob);
+			await acceptConsent(bob, { relayNetwork: false });
 			await expect(bob.getByTestId('qr-connect')).toBeVisible({ timeout });
 			await expect
 				.poll(() => bob.getByTestId('qr-outgoing').inputValue(), { timeout })
@@ -130,28 +135,51 @@ test.describe('Invite-only collaboration', () => {
 	});
 });
 
-/** @param {import('@playwright/test').Page} page */
-async function acceptConsent(page) {
+/**
+ * Walk the consent screen the way a person does, and switch the relay network
+ * off there rather than through `?transport=qr`. That URL is a developer
+ * shortcut; the checkbox is the route real users take, and it is what has to
+ * actually produce an isolated node.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+async function acceptConsent(page, { relayNetwork = true } = {}) {
 	const modal = page.locator('div.fixed.inset-0.z-50');
 	await expect(modal).toBeVisible();
 
 	// Only the "I understand…" acknowledgements — they are the ones without a
-	// testid. The other two boxes are not consent: `consent-relay-network`
-	// chooses how to connect and is already on, and ticking `consent-remember`
-	// would persist the decision, so the modal would not reappear when a page
-	// reloads through an invite link — skipping the very state under test.
+	// testid. Ticking `consent-remember` would persist the decision, so the modal
+	// would not reappear when a page reloads through an invite link, skipping the
+	// very state under test.
 	for (const checkbox of await modal.locator('input[type="checkbox"]:not([data-testid])').all()) {
 		await checkbox.check();
 	}
 
-	await page.getByRole('button', { name: 'Proceed to Test the App' }).click();
+	const relayBox = page.getByTestId('consent-relay-network');
+	await expect(relayBox).toBeChecked();
+
+	if (!relayNetwork) {
+		await relayBox.uncheck();
+	}
+
+	// Unticking it must never block the button — it is a choice, not consent.
+	const proceed = page.getByRole('button', { name: 'Proceed to Test the App' });
+	await expect(proceed).toBeEnabled();
+	await proceed.click();
 	await expect(modal).not.toBeVisible();
 }
 
 /** @param {import('@playwright/test').Page} page */
 async function openInviteOnlyApp(page) {
-	await page.goto('/?transport=qr');
-	await acceptConsent(page);
+	await page.goto('/');
+	await acceptConsent(page, { relayNetwork: false });
+
+	// The panel is closed here, and that is not an oversight: the component reads
+	// the preference when it mounts, which happens while the consent screen is
+	// still up and the stored value is still the default. Opening it is what the
+	// "Scan Connect SDP" button is for.
+	await expect(page.getByTestId('qr-connect')).toHaveCount(0);
+	await page.getByTestId('qr-toggle').click();
 	await expect(page.getByTestId('qr-connect')).toBeVisible();
 	await expect(getTodoInput(page)).toBeEnabled({ timeout });
 }

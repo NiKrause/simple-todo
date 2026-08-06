@@ -7,6 +7,7 @@ import { withHTTP } from '@helia/http';
 import { withLibp2p } from '@helia/libp2p';
 import { createOrbitDB, IPFSAccessController } from '@orbitdb/core';
 import { attachQrSession } from './qr-transport.js';
+import { isRelayNetworkMode } from './network-mode.js';
 import * as dagCbor from '@ipld/dag-cbor';
 import * as dagJson from '@ipld/dag-json';
 import * as json from 'multiformats/codecs/json';
@@ -153,7 +154,7 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 		// it is the single way this node will ever meet a peer; on `main` it backs
 		// the "Scan Connect SDP" button, which is useless if the session is only
 		// built once someone presses it.
-		attachQrSession(libp2p);
+		attachQrSession(libp2p, { exposeDebugHandle: !isRelayNetworkMode() });
 		console.log(`✅ libp2p node created`);
 
 		// Get and set peer ID
