@@ -2,10 +2,17 @@ import { get, writable } from 'svelte/store';
 
 import { createLibp2p } from 'libp2p';
 import { createHeliaLight } from 'helia';
+import { IDBBlockstore } from 'blockstore-idb';
+import { IDBDatastore } from 'datastore-idb';
 import { withBitswap } from '@helia/bitswap';
 import { withHTTP } from '@helia/http';
 import { withLibp2p } from '@helia/libp2p';
-import { createOrbitDB, IPFSAccessController, Identities, useIdentityProvider } from '@orbitdb/core';
+import {
+	createOrbitDB,
+	IPFSAccessController,
+	Identities,
+	useIdentityProvider
+} from '@orbitdb/core';
 import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-identity-provider-webauthn-did';
 import * as dagCbor from '@ipld/dag-cbor';
 import * as dagJson from '@ipld/dag-json';
@@ -131,11 +138,24 @@ let discoveryDialRetryInterval = null;
  * @param {any} libp2pNode
  * @returns {any}
  */
-function createHeliaWithLibp2p(libp2pNode) {
+async function createHeliaWithLibp2p(libp2pNode) {
+	// SPIKE (#114): persist blocks and the datastore in IndexedDB instead of
+	// memory, so a database created in this browser survives a reload without
+	// having to be re-fetched from the relay.
+	//
+	// Both stores must be opened before Helia touches them — Helia does not do
+	// it for you, and the failure surfaces late as "Datastore needs to be
+	// opened" from inside libp2p's start.
+	const blockstore = new IDBBlockstore('simple-todo/blocks');
+	const datastore = new IDBDatastore('simple-todo/data');
+	await Promise.all([blockstore.open(), datastore.open()]);
+
 	return withBitswap(
 		withLibp2p(
 			withHTTP(
 				createHeliaLight({
+					blockstore,
+					datastore,
 					codecs: [dagCbor, dagJson, json],
 					hashers: [sha512]
 				})
@@ -178,7 +198,7 @@ export async function initializeP2P(
 
 		// Create Helia (IPFS) instance
 		setInitializationProgress(2);
-		helia = await createHeliaWithLibp2p(libp2p).start();
+		helia = await (await createHeliaWithLibp2p(libp2p)).start();
 		console.log(`✅ Helia created`);
 
 		// Create OrbitDB instance

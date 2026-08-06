@@ -46,7 +46,7 @@ test.describe('list registry (#114)', () => {
 	// is byte-identical before and after a reload
 	// (list-registry-82d642cc19d743104ebe14f7af01b1e5 both times), so what is
 	// missing is replication, not reproducibility.
-	test.fixme('the registry survives a reload', async ({ page }) => {
+	test('the registry survives a reload', async ({ page }) => {
 		test.setTimeout(timeout * 4);
 		await addVirtualAuthenticator(page);
 		await openReadyApp(page);
