@@ -2,7 +2,12 @@
 	import { onMount } from 'svelte';
 	import { getQrSession, isQrTransportMode } from './qr-transport.js';
 
-	let visible = $state(false);
+	// Mounted on every page now, not just under `?transport=qr`: the invite is a
+	// second way to meet a peer, next to the relay. What that flag still decides
+	// is whether the panel starts open — QR-only mode has no other way to connect,
+	// and its E2E expects the controls without a click.
+	let mounted = $state(false);
+	let open = $state(false);
 	let outgoing = $state('');
 	let incoming = $state('');
 	let status = $state('Create an invite, or scan the code they are showing you.');
@@ -11,15 +16,12 @@
 	let scanner = $state(null);
 
 	onMount(async () => {
-		visible = isQrTransportMode();
-
-		if (!visible) {
-			return;
-		}
+		open = isQrTransportMode();
 
 		// Loaded in the browser only: SvelteKit renders this page on the server
 		// first, where `customElements` does not exist.
 		await import('@le-space/libp2p-webrtc-qr/elements');
+		mounted = true;
 	});
 
 	function session() {
@@ -87,14 +89,35 @@
 	}
 </script>
 
-{#if visible}
+<!--
+	Sits directly under the Relay Button FAB, which the @le-space/ui launcher pins
+	at bottom 92.8px / right 22.4px with z-index 10000. Deliberately one notch
+	lower so the two never fight for the same pixels, and stacked rather than
+	side-by-side because the launcher is 166px wide and a row of both would
+	overflow a narrow phone.
+-->
+{#if mounted}
+	<button
+		class="fixed right-[22.4px] bottom-10 z-[9999] rounded-full bg-amber-500 px-4 py-2 text-sm font-medium tracking-wide whitespace-nowrap text-white shadow-lg hover:bg-amber-600"
+		onclick={() => (open = !open)}
+		data-testid="qr-toggle"
+		aria-expanded={open}
+		aria-controls="qr-connect-panel"
+	>
+		Scan Connect SDP
+	</button>
+{/if}
+
+{#if open}
 	<section
+		id="qr-connect-panel"
 		class="mb-4 rounded-lg border border-amber-400/40 bg-amber-50 p-4 dark:bg-gray-800"
 		data-testid="qr-connect"
 	>
 		<h2 class="mb-1 text-sm font-semibold">Connect by invite</h2>
 		<p class="mb-3 text-xs text-gray-600 dark:text-gray-300">
-			No relay, no discovery. This peer meets others only through an invite you exchange yourself.
+			A direct WebRTC connection negotiated through a code you hand over yourself — no relay and no
+			discovery involved in the introduction.
 		</p>
 
 		<div class="flex flex-wrap gap-2">
