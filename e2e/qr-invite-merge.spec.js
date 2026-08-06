@@ -68,21 +68,90 @@ test.describe('Invite-only collaboration', () => {
 			await bobContext.close();
 		}
 	});
+
+	// The same handshake without a camera: Alice sends a link, Bob opens it. The
+	// payload rides in the fragment, so nothing about the offer reaches a server
+	// or an IPFS gateway on the way.
+	test('an invite link connects a browser that never saw the code', async ({ browser }) => {
+		test.setTimeout(timeout * 4);
+
+		const aliceContext = await browser.newContext();
+		// Bob is a genuinely fresh browser whose first act is opening the link —
+		// which is what "sent someone an invite" actually looks like.
+		const bobContext = await browser.newContext();
+		const alice = await aliceContext.newPage();
+		const bob = await bobContext.newPage();
+
+		const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+		const aliceTodo = `alice-link-${runId}`;
+
+		try {
+			await openInviteOnlyApp(alice);
+			await addTodo(alice, aliceTodo);
+
+			await alice.getByTestId('qr-create-invite').click();
+			await expect
+				.poll(() => alice.getByTestId('qr-outgoing').inputValue(), { timeout })
+				.not.toHaveLength(0);
+
+			const invite = await alice.getByTestId('qr-outgoing').inputValue();
+			const link = `/?transport=qr#invite=${encodeURIComponent(invite)}`;
+
+			// Recorded rather than asserted against a threshold: whether a payload
+			// still fits a link is a property of the codec, and a number in the log
+			// is what makes a future regression legible.
+			console.log(`[qr-link] invite payload ${invite.length} chars, link ${link.length} chars`);
+
+			// No pasting, no scanning — and the consent screen comes first, so the
+			// invite has to survive a wait for a node that does not exist yet.
+			await bob.goto(link);
+			await acceptConsent(bob);
+			await expect(bob.getByTestId('qr-connect')).toBeVisible({ timeout });
+			await expect
+				.poll(() => bob.getByTestId('qr-outgoing').inputValue(), { timeout })
+				.not.toHaveLength(0);
+
+			// The spent offer must not survive in the address bar, or a reload would
+			// replay it.
+			expect(await bob.evaluate(() => window.location.hash)).toBe('');
+
+			const reply = await bob.getByTestId('qr-outgoing').inputValue();
+
+			await alice.getByTestId('qr-incoming').fill(reply);
+			await alice.getByTestId('qr-use-payload').click();
+			await expect(alice.getByTestId('qr-status')).toContainText('Connected', { timeout });
+
+			// Bob never saw this todo by any other route.
+			await expectTodo(bob, aliceTodo);
+		} finally {
+			await aliceContext.close();
+			await bobContext.close();
+		}
+	});
 });
 
 /** @param {import('@playwright/test').Page} page */
-async function openInviteOnlyApp(page) {
-	await page.goto('/?transport=qr');
-
+async function acceptConsent(page) {
 	const modal = page.locator('div.fixed.inset-0.z-50');
 	await expect(modal).toBeVisible();
 
-	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
+	// Only the "I understand…" acknowledgements — they are the ones without a
+	// testid. The other two boxes are not consent: `consent-relay-network`
+	// chooses how to connect and is already on, and ticking `consent-remember`
+	// would persist the decision, so the modal would not reappear when a page
+	// reloads through an invite link — skipping the very state under test.
+	for (const checkbox of await modal.locator('input[type="checkbox"]:not([data-testid])').all()) {
 		await checkbox.check();
 	}
 
 	await page.getByRole('button', { name: 'Proceed to Test the App' }).click();
 	await expect(modal).not.toBeVisible();
+}
+
+/** @param {import('@playwright/test').Page} page */
+async function openInviteOnlyApp(page) {
+	await page.goto('/?transport=qr');
+	await acceptConsent(page);
 	await expect(page.getByTestId('qr-connect')).toBeVisible();
 	await expect(getTodoInput(page)).toBeEnabled({ timeout });
 }
@@ -100,7 +169,9 @@ async function exchangeInvite(alice, bob) {
 	// app's own palette - which is the acceptance criterion #38 asks for and the
 	// only way to know the custom properties actually cross the shadow boundary.
 	await expect(alice.getByTestId('qr-code')).toBeVisible({ timeout });
-	await expect(alice.locator('qr-code img, [data-testid="qr-code"] img').first()).toBeVisible({ timeout });
+	await expect(alice.locator('qr-code img, [data-testid="qr-code"] img').first()).toBeVisible({
+		timeout
+	});
 	await expect
 		.poll(() => alice.getByTestId('qr-outgoing').inputValue(), { timeout })
 		.not.toHaveLength(0);

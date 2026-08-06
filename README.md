@@ -92,10 +92,25 @@ ever having exchanged anything by hand. The button comes from
 
 ### 📷 Scan Connect SDP
 
-Opens a panel that negotiates a **direct WebRTC connection** through a code you
-exchange yourself. One peer presses _Create invite_ and shows the QR code (or
-copies the text, on a device without a camera); the other scans or pastes it and
-hands the reply back the same way.
+Opens a panel that negotiates a **direct WebRTC connection** through an invite
+you exchange yourself. One peer presses _Create invite_ and hands it over in
+whichever form fits:
+
+- **the QR code** — the other device scans it;
+- **the text** — paste it into a chat;
+- **_Copy invite link_** — send a URL. Opening it applies the invite by itself,
+  through the consent screen if the recipient is new, and works while their app
+  is already open (the fragment change is handled, not ignored).
+
+Either way the recipient hands the reply back the same way, and that completes
+the connection.
+
+The link carries the payload in the **fragment**, never the query string. A
+fragment is not sent to the server, and this app is served from public IPFS
+gateways as well as its own domain — a query string would hand a signed
+connection offer to every operator on the way and into their logs. The fragment
+is also cleared once used, so a reload cannot replay a spent offer. Measured in
+the E2E: a payload is around **1.1 kB**, so a link stays comfortably shareable.
 
 The invite is signed with the peer's own key and carries the DTLS fingerprint,
 so **accepting one is what authenticates the other side** — there is no relay in

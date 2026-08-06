@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { getQrSession } from './qr-transport.js';
 	import { isRelayNetworkMode } from './network-mode.js';
+	import { buildInviteLink, clearInviteLink, readInviteLink } from './invite-link.js';
 
 	// Mounted on every page: the invite is a second way to meet a peer, next to
 	// the relay. Whether the panel *starts* open depends on whether there is any
@@ -16,6 +17,7 @@
 	let busy = $state(false);
 	/** @type {any} */
 	let scanner = $state(null);
+	let linkCopied = $state(false);
 
 	onMount(async () => {
 		open = !isRelayNetworkMode();
@@ -24,7 +26,75 @@
 		// first, where `customElements` does not exist.
 		await import('@le-space/libp2p-webrtc-qr/elements');
 		mounted = true;
+
+		// Someone opened a link that carries an invite. Show them what is
+		// happening rather than connecting invisibly, and consume the fragment so
+		// a reload does not replay a spent offer.
+		await consumeInviteLink();
+
+		// Opening an invite link while this page is already loaded only changes the
+		// fragment, which is a same-document navigation: no reload, no onMount. The
+		// invite would be silently ignored without this.
+		window.addEventListener('hashchange', () => {
+			void consumeInviteLink();
+		});
 	});
+
+	async function consumeInviteLink() {
+		const invited = readInviteLink();
+
+		if (invited) {
+			open = true;
+			clearInviteLink();
+			status = 'Invite received. Waiting for this peer to start…';
+
+			// A first-time visitor lands on the consent screen, so at this point
+			// there is usually no libp2p node yet — accepting consent is what
+			// creates it. Applying the invite here would fail before the user had
+			// any chance to act on it.
+			if (await waitForSession()) {
+				await usePayload(invited);
+			} else {
+				status = 'Invite received, but this peer never finished starting. Reload to try again.';
+			}
+		}
+	}
+
+	/**
+	 * Resolves once the QR session exists, or false if it never does.
+	 *
+	 * Polls rather than subscribing to `libp2pStore`: that store is set one line
+	 * *before* `attachQrSession`, so reacting to it would still be a hair early.
+	 *
+	 * @param {number} [timeoutMs]
+	 */
+	async function waitForSession(timeoutMs = 120_000) {
+		const deadline = Date.now() + timeoutMs;
+
+		while (Date.now() < deadline) {
+			if (getQrSession() != null) {
+				return true;
+			}
+
+			await new Promise((resolve) => setTimeout(resolve, 100));
+		}
+
+		return false;
+	}
+
+	async function copyInviteLink() {
+		try {
+			await navigator.clipboard.writeText(buildInviteLink(outgoing));
+			linkCopied = true;
+			status = 'Link copied. Send it to them — opening it connects their browser to yours.';
+		} catch (/** @type {any} */ error) {
+			// Clipboard access is denied in plenty of ordinary situations (no
+			// secure context, no user gesture). The link is still in the box below,
+			// so say so instead of failing silently.
+			linkCopied = false;
+			status = `Could not copy: ${error.message}. Copy the invite text below instead.`;
+		}
+	}
 
 	function session() {
 		const current = getQrSession();
@@ -38,6 +108,7 @@
 
 	async function createInvite() {
 		busy = true;
+		linkCopied = false;
 		try {
 			outgoing = await session().createOffer();
 			status = 'Show this code, or send the text. Then scan their reply.';
@@ -159,6 +230,20 @@
 			data-testid="qr-outgoing"
 			value={outgoing}
 		></textarea>
+
+		{#if outgoing}
+			<!--
+				A link for the case the camera is not an option: a different device,
+				a chat window, a phone call. The payload rides in the fragment, so it
+				never reaches the server or an IPFS gateway on the way.
+			-->
+			<button
+				class="mt-2 rounded border px-3 py-1 text-sm disabled:opacity-50"
+				onclick={copyInviteLink}
+				disabled={busy}
+				data-testid="qr-copy-link">{linkCopied ? 'Link copied' : 'Copy invite link'}</button
+			>
+		{/if}
 
 		<textarea
 			class="mt-2 w-full rounded border p-2 font-mono text-xs dark:bg-gray-900"

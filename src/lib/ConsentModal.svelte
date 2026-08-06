@@ -147,6 +147,7 @@
 						<input
 							type="checkbox"
 							bind:checked={rememberDecision}
+							data-testid="consent-remember"
 							class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
 						/>
 						<span class="text-text">{rememberLabel}</span>
