@@ -18,7 +18,8 @@ import {
 	parseBootstrapMultiaddrs,
 	selectValidBrowserBootstrapMultiaddrs
 } from './bootstrap-multiaddrs.js';
-import { isQrTransportMode, qrTransports, webRTCQRTransport } from './qr-transport.js';
+import { qrTransports, webRTCQRTransport } from './qr-transport.js';
+import { isRelayNetworkMode } from './network-mode.js';
 
 // Environment variables
 const RELAY_BOOTSTRAP_ADDR_DEV =
@@ -88,9 +89,10 @@ export async function createLibp2pConfig(privateKey = null) {
 		}
 	}
 
-	// QR mode reaches peers with a scanned code and nothing else, so it needs no
-	// relay to bootstrap from - and demanding one would fail before it started.
-	if (isQrTransportMode()) {
+	// Invite-only mode reaches peers with a scanned code and nothing else, so it
+	// needs no relay to bootstrap from - and demanding one would fail before it
+	// started. Chosen on the consent screen, or forced by `?transport=qr`.
+	if (!isRelayNetworkMode()) {
 		return qrOnlyConfig(privateKey);
 	}
 

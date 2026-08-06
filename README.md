@@ -60,6 +60,27 @@ invite connects two people who are already talking to each other. Running both
 is the normal case, which is why `main` loads the QR transport alongside the
 relay transports rather than switching between them.
 
+### Choosing on the consent screen
+
+The consent screen carries a checkbox — **"Connect to the public libp2p relay
+network"**, on by default:
+
+- **On** (default): the browser bootstraps from the public relay and finds peers
+  through pubsub discovery. The invite panel is still available on top of that.
+- **Off**: the node starts with the QR transport and nothing else — no relay, no
+  bootstrap, no discovery, no pinning. Nothing announces this browser and nobody
+  can find it; the only way in or out is an invite you exchange yourself, so the
+  panel opens by itself.
+
+It is deliberately **not** one of the "I understand…" boxes and never blocks the
+proceed button: those are acknowledgements, this is a choice, and unticking it is
+a valid way to continue rather than a refusal to consent.
+
+The choice is stored per browser (`localStorage`), because consent can be
+remembered — in which case the modal never renders again and the node starts
+straight from `onMount`. A preference that lived only in the modal would be
+unreachable for exactly the people who visit most often.
+
 ### 🛰️ Relay Button
 
 Deploys a relay onto an [Aleph](https://aleph.im) VM from inside the browser,
@@ -71,10 +92,25 @@ ever having exchanged anything by hand. The button comes from
 
 ### 📷 Scan Connect SDP
 
-Opens a panel that negotiates a **direct WebRTC connection** through a code you
-exchange yourself. One peer presses _Create invite_ and shows the QR code (or
-copies the text, on a device without a camera); the other scans or pastes it and
-hands the reply back the same way.
+Opens a panel that negotiates a **direct WebRTC connection** through an invite
+you exchange yourself. One peer presses _Create invite_ and hands it over in
+whichever form fits:
+
+- **the QR code** — the other device scans it;
+- **the text** — paste it into a chat;
+- **_Copy invite link_** — send a URL. Opening it applies the invite by itself,
+  through the consent screen if the recipient is new, and works while their app
+  is already open (the fragment change is handled, not ignored).
+
+Either way the recipient hands the reply back the same way, and that completes
+the connection.
+
+The link carries the payload in the **fragment**, never the query string. A
+fragment is not sent to the server, and this app is served from public IPFS
+gateways as well as its own domain — a query string would hand a signed
+connection offer to every operator on the way and into their logs. The fragment
+is also cleared once used, so a reload cannot replay a spent offer. Measured in
+the E2E: a payload is around **1.1 kB**, so a link stays comfortably shareable.
 
 The invite is signed with the peer's own key and carries the DTLS fingerprint,
 so **accepting one is what authenticates the other side** — there is no relay in
@@ -93,9 +129,10 @@ the security model of that handshake is written up in
 
 #### `?transport=qr` — the isolated variant
 
-Adding `?transport=qr` to the URL builds a node with the QR transport and
-**nothing else**: no relay, no bootstrap, no pubsub discovery, no pinning. This
-peer cannot find anybody by itself, and nobody can find it.
+Adding `?transport=qr` to the URL forces the same invite-only node the consent
+checkbox produces, and **overrides a stored preference of "on"**. A URL that
+promises no relay must not quietly grow one because this browser once ticked a
+box.
 
 That mode exists so the claim is testable rather than taken on trust — if two
 such nodes end up connected, the code is provably the only thing that introduced

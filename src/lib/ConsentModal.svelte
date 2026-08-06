@@ -52,6 +52,16 @@
 	export let rememberDecision = false;
 	export let rememberLabel = "Don't show this again on this device";
 
+	/**
+	 * A choice, not an acknowledgement — which is why it sits outside
+	 * `checkboxes` and never blocks the proceed button. Unticking it is a valid
+	 * way to continue, not a refusal to consent.
+	 */
+	export let relayNetworkEnabled = true;
+	export let relayNetworkLabel = 'Connect to the public libp2p relay network';
+	export let relayNetworkHint =
+		'On: peers find each other automatically through public relay and bootstrap nodes. Off: this browser connects only to peers you invite yourself with a QR code or a copied invite — nothing announces you, and nobody can find you.';
+
 	$: allCheckboxesChecked = Object.values(checkboxes).every((item) => item.checked);
 
 	const handleProceed = () => {
@@ -121,7 +131,23 @@
 					<label class="flex cursor-pointer items-start space-x-3">
 						<input
 							type="checkbox"
+							bind:checked={relayNetworkEnabled}
+							data-testid="consent-relay-network"
+							class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
+						/>
+						<span>
+							<span class="text-text">{relayNetworkLabel}</span>
+							<span class="mt-1 block text-sm text-faint">{relayNetworkHint}</span>
+						</span>
+					</label>
+				</div>
+
+				<div class="mt-4 border-t border-border pt-4">
+					<label class="flex cursor-pointer items-start space-x-3">
+						<input
+							type="checkbox"
 							bind:checked={rememberDecision}
+							data-testid="consent-remember"
 							class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
 						/>
 						<span class="text-text">{rememberLabel}</span>
