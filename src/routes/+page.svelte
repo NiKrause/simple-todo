@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js';
 	import { getRelayNetworkEnabled, setRelayNetworkEnabled } from '$lib/network-mode.js';
+	import { formatBuildDate } from '$lib/build-info.js';
 	import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
@@ -177,10 +178,9 @@
 				<p class="mt-1 text-sm text-faint">
 					A local-first peer-to-peer PWA · IPFS + OrbitDB v{typeof __APP_VERSION__ !== 'undefined'
 						? __APP_VERSION__
-						: '0.0.0'} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{typeof __BUILD_DATE__ !==
-					'undefined'
-						? __BUILD_DATE__
-						: 'dev'}]
+						: '0.0.0'} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{formatBuildDate(
+						typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : ''
+					)}]
 				</p>
 			</div>
 		</div>
@@ -191,11 +191,28 @@
 	</header>
 
 	<P2PStatusNav initialization={$initializationStore} libp2p={$libp2pStore} peerId={myPeerId}>
-		<ManualConnectForm
-			compact
-			disabled={!$initializationStore.isInitialized}
-			on:connected={handleManualConnect}
-		/>
+		<!--
+			Both ways of meeting a peer now live next to the Connect button that
+			opens a relay by hand, instead of floating over the app: this column is
+			where someone already goes to ask "how do I reach anybody", and a
+			launcher pinned to the viewport corner answered that question somewhere
+			the question was never asked.
+		-->
+		<div class="space-y-3">
+			<ManualConnectForm
+				compact
+				disabled={!$initializationStore.isInitialized}
+				on:connected={handleManualConnect}
+			/>
+			<div class="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+				<SponsorRelayFab
+					manifestUrl="./rootfs-manifest.json"
+					showInstances={true}
+					launcherMode="inline"
+				/>
+				<QrConnect />
+			</div>
+		</div>
 		<ConnectedPeers compact bind:this={connectedPeersRef} libp2p={$libp2pStore} />
 		<div class="space-y-3">
 			<PeerIdCard compact peerId={myPeerId} />
@@ -208,13 +225,8 @@
 	{/if}
 
 	<!-- Add TODO Form -->
-	<QrConnect />
-
 	<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
 
 	<!-- TODO List -->
 	<TodoList todos={$todosStore} on:delete={handleDelete} on:toggleComplete={handleToggleComplete} />
 </main>
-
-<!-- Floating Sponsor Relay FAB -->
-<SponsorRelayFab manifestUrl="./rootfs-manifest.json" showInstances={true} />

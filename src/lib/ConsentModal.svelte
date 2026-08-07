@@ -1,10 +1,13 @@
 <script>
 	/* eslint-disable no-undef */
 	import { createEventDispatcher } from 'svelte';
+	import { formatBuildDate } from './build-info.js';
 
 	const dispatch = createEventDispatcher();
 	const fallbackVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
-	const fallbackBuildDate = typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev';
+	const fallbackBuildDate = formatBuildDate(
+		typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : ''
+	);
 
 	export let show = true;
 	export let title = 'Simple-Todo';
