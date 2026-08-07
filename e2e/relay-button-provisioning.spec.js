@@ -34,16 +34,28 @@ const REPLICATION_TIMEOUT = 3 * 60_000;
 /**
  * Expand the network panel that now holds both launchers.
  *
+ * Set rather than clicked, unlike the other specs. This page runs the relay
+ * panel's controller, which re-renders on a 30-second refresh cycle; Playwright
+ * kept restarting its actionability check on the summary and the click never
+ * completed, burning the full 50-minute test budget on one `click()`.
+ *
+ * Clicking the disclosure is still covered by `manual-multiaddr-connection` and
+ * `default-database-collaboration`, which have no such polling — so driving it
+ * directly here loses no coverage of the behaviour itself.
+ *
  * @param {import('@playwright/test').Page} page
  */
 async function openNetworkDetails(page) {
 	const networkDetails = page.getByTestId('network-details');
 
-	if ((await networkDetails.getAttribute('open')) === null) {
-		await networkDetails.getByText('Network details', { exact: true }).click();
-	}
+	await networkDetails.evaluate((element) => {
+		if (element instanceof HTMLDetailsElement) {
+			element.open = true;
+		}
+	});
 
 	await expect(networkDetails).toHaveAttribute('open', '');
+	await expect(page.getByRole('button', { name: 'Relay Button' })).toBeVisible();
 }
 
 /**
