@@ -32,6 +32,21 @@ const RELAY_DIAL_ATTEMPT_TIMEOUT = 20_000;
 const REPLICATION_TIMEOUT = 3 * 60_000;
 
 /**
+ * Expand the network panel that now holds both launchers.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+async function openNetworkDetails(page) {
+	const networkDetails = page.getByTestId('network-details');
+
+	if ((await networkDetails.getAttribute('open')) === null) {
+		await networkDetails.getByText('Network details', { exact: true }).click();
+	}
+
+	await expect(networkDetails).toHaveAttribute('open', '');
+}
+
+/**
  * Live progress logging: Playwright shows no output between test start and
  * finish, so a 12-30 minute provisioning run looks frozen in CI logs.
  */
@@ -190,6 +205,13 @@ relayTest.describe('Sponsor Relay button', () => {
 
 				// Phase 1: Wallet + manifest + provision (deploy → instance → bootstrap).
 				await deploymentPage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
+
+				// The Relay Button no longer floats over the app; it sits inside the
+				// collapsed "Network details" panel next to the manual connect form.
+				// The shared test kit waits for a *visible* launcher, so the panel has
+				// to be expanded first - the same two steps a person now takes.
+				await openNetworkDetails(deploymentPage);
+
 				const relay = await relayLifecycle.provision(deploymentPage, {
 					instanceName,
 					sshPublicKey: SSH_PUBLIC_KEY,
