@@ -143,6 +143,10 @@
 
 				status = `Connected to ${peerId.slice(0, 12)}…`;
 				outgoing = '';
+				// The panel has done its job. Left open it hides the todo list behind
+				// a wall of one-time payloads that are already spent. Delayed so the
+				// confirmation is readable rather than a flash.
+				closeWhenConnected();
 			} else {
 				outgoing = await session().acceptOffer(trimmed);
 				status = 'Show this reply back to them.';
@@ -155,6 +159,16 @@
 		}
 	}
 
+	/** Collapse the panel a moment after a connection is established. */
+	function closeWhenConnected() {
+		setTimeout(() => {
+			open = false;
+			incoming = '';
+			linkCopied = false;
+			status = 'Create an invite, or scan the code they are showing you.';
+		}, 2000);
+	}
+
 	function scan() {
 		scanner?.open().catch((/** @type {any} */ error) => {
 			status = `Camera failed: ${error.message}`;
@@ -163,15 +177,14 @@
 </script>
 
 <!--
-	Sits directly under the Relay Button FAB, which the @le-space/ui launcher pins
-	at bottom 92.8px / right 22.4px with z-index 10000. Deliberately one notch
-	lower so the two never fight for the same pixels, and stacked rather than
-	side-by-side because the launcher is 166px wide and a row of both would
-	overflow a narrow phone.
+	An inline launcher next to the relay controls, not a floating one. It used to
+	be pinned to the viewport corner alongside the Relay Button FAB, which put the
+	answer to "how do I reach anybody" somewhere nobody was asking the question -
+	and covered the app on small screens.
 -->
 {#if mounted}
 	<button
-		class="fixed right-[22.4px] bottom-10 z-[9999] rounded-full bg-amber-500 px-4 py-2 text-sm font-medium tracking-wide whitespace-nowrap text-white shadow-lg hover:bg-amber-600"
+		class="rounded-full bg-amber-500 px-3 py-1.5 text-xs font-medium whitespace-nowrap text-white hover:bg-amber-600"
 		onclick={() => (open = !open)}
 		data-testid="qr-toggle"
 		aria-expanded={open}
@@ -184,7 +197,7 @@
 {#if open}
 	<section
 		id="qr-connect-panel"
-		class="mb-4 rounded-lg border border-amber-400/40 bg-amber-50 p-4 dark:bg-gray-800"
+		class="mt-3 w-full rounded-lg border border-amber-400/40 bg-amber-50 p-4 dark:bg-gray-800"
 		data-testid="qr-connect"
 	>
 		<h2 class="mb-1 text-sm font-semibold">Connect by invite</h2>
