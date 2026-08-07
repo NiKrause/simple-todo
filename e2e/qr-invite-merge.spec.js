@@ -169,10 +169,28 @@ async function acceptConsent(page, { relayNetwork = true } = {}) {
 	await expect(modal).not.toBeVisible();
 }
 
+/**
+ * The invite launcher lives inside the collapsed "Network details" panel now,
+ * next to the manual connect form. It has to be expanded before either launcher
+ * is visible — the same step a person takes.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+async function openNetworkDetails(page) {
+	const networkDetails = page.getByTestId('network-details');
+
+	if ((await networkDetails.getAttribute('open')) === null) {
+		await networkDetails.getByText('Network details', { exact: true }).click();
+	}
+
+	await expect(networkDetails).toHaveAttribute('open', '');
+}
+
 /** @param {import('@playwright/test').Page} page */
 async function openInviteOnlyApp(page) {
 	await page.goto('/');
 	await acceptConsent(page, { relayNetwork: false });
+	await openNetworkDetails(page);
 
 	// The panel is closed here, and that is not an oversight: the component reads
 	// the preference when it mounts, which happens while the consent screen is

@@ -18,9 +18,24 @@
 	/** @type {any} */
 	let scanner = $state(null);
 	let linkCopied = $state(false);
+	/** @type {HTMLElement | undefined} */
+	let root = $state();
+
+	/**
+	 * Opening the panel is not enough to make it visible: it lives inside the
+	 * collapsed "Network details" disclosure, so anything that opens it *for* the
+	 * user - invite-only mode, or arriving through an invite link - has to expand
+	 * that too, or the panel is on screen only in the DOM sense.
+	 */
+	function reveal() {
+		open = true;
+		root?.closest('details')?.setAttribute('open', '');
+	}
 
 	onMount(async () => {
-		open = !isRelayNetworkMode();
+		if (!isRelayNetworkMode()) {
+			reveal();
+		}
 
 		// Loaded in the browser only: SvelteKit renders this page on the server
 		// first, where `customElements` does not exist.
@@ -44,7 +59,7 @@
 		const invited = readInviteLink();
 
 		if (invited) {
-			open = true;
+			reveal();
 			clearInviteLink();
 			status = 'Invite received. Waiting for this peer to start…';
 
@@ -182,6 +197,8 @@
 	answer to "how do I reach anybody" somewhere nobody was asking the question -
 	and covered the app on small screens.
 -->
+<span bind:this={root} class="contents"></span>
+
 {#if mounted}
 	<button
 		class="rounded-full bg-amber-500 px-3 py-1.5 text-xs font-medium whitespace-nowrap text-white hover:bg-amber-600"

@@ -129,6 +129,23 @@ async function acceptConsent(page, { relayNetwork = true } = {}) {
 	await expect(getTodoInput(page)).toBeEnabled({ timeout });
 }
 
+/**
+ * The invite launcher lives inside the collapsed "Network details" panel now,
+ * next to the manual connect form. It has to be expanded before either launcher
+ * is visible — the same step a person takes.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+async function openNetworkDetails(page) {
+	const networkDetails = page.getByTestId('network-details');
+
+	if ((await networkDetails.getAttribute('open')) === null) {
+		await networkDetails.getByText('Network details', { exact: true }).click();
+	}
+
+	await expect(networkDetails).toHaveAttribute('open', '');
+}
+
 /** @param {import('@playwright/test').Page} page */
 async function openRelayApp(page) {
 	await page.goto('/');
@@ -139,6 +156,7 @@ async function openRelayApp(page) {
 async function openInviteOnlyApp(page) {
 	await page.goto('/');
 	await acceptConsent(page, { relayNetwork: false });
+	await openNetworkDetails(page);
 	await openInvitePanel(page);
 }
 
@@ -150,6 +168,9 @@ async function openInviteOnlyApp(page) {
  * @param {import('@playwright/test').Page} guest
  */
 async function exchangeInvite(host, guest) {
+	// The host may still be in relay mode with the panel untouched, so its
+	// launcher is behind the collapsed network panel too.
+	await openNetworkDetails(host);
 	await openInvitePanel(host);
 
 	await host.getByTestId('qr-create-invite').click();
