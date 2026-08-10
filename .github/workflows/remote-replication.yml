@@ -24,7 +24,6 @@ on:
         type: choice
         options:
           - aleph
-          - testingbot
           - local
         default: aleph
 
@@ -42,8 +41,6 @@ jobs:
       REMOTE_APP_URL: ${{ inputs.app_url }}
       REMOTE_PROVIDER: ${{ inputs.provider }}
       REQUIRE_PUBLIC_RELAY: 'true'
-      TESTINGBOT_KEY: ${{ secrets.TESTINGBOT_KEY }}
-      TESTINGBOT_SECRET: ${{ secrets.TESTINGBOT_SECRET }}
       ALEPH_VM_PRIVATE_KEY: ${{ secrets.ALEPH_PLAYWRIGHT_PRIVATE_KEY || secrets.RELAY_BUTTON_E2E_PRIVATE_KEY }}
       # Display label for the evidence summary only — it does not steer CRN
       # selection. Kept truthful: placement is unpinned so the ranker can
