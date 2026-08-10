@@ -5,7 +5,7 @@
 
 A basic decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
-> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `collab02` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `main` chapter (the basic local-first PWA).
+> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `main` chapter (the basic local-first PWA).
 
 ## 🚀 Live Demo
 
