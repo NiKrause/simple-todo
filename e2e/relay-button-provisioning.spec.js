@@ -133,7 +133,13 @@ relayTest.describe('Sponsor Relay button', () => {
 		!SSH_PUBLIC_KEY,
 		'RELAY_BUTTON_E2E_SSH_PUBLIC_KEY is required to provision an Aleph relay.'
 	);
-	relayTest.setTimeout(50 * 60_000);
+	// 75, not 50. The phase budgets above already sum to 63 minutes
+	// (35 provision + 15 registration + 10 readiness + 3 replication), so a
+	// 50-minute cap could never let them all run — the test was unwinnable on
+	// paper the moment provisioning turned slow, which CRN failover across eight
+	// candidates made routine. The remainder covers app startup for three
+	// browsers and the CRN erase + Aleph FORGET at the end.
+	relayTest.setTimeout(75 * 60_000);
 
 	relayTest(
 		'provisions a relay and replicates the main database between two browsers',
