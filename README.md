@@ -5,7 +5,7 @@
 
 A basic decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
-> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `collab02`, `passkey01`, `acl01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `acl01` chapter (per-DID write permissions, built on `passkey01`).
+> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `passkey01`, `acl01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `acl01` chapter (per-DID write permissions, built on `passkey01`).
 
 ## 🚀 Live Demo
 
@@ -108,7 +108,7 @@ This is a **browser-only** local-first peer-to-peer todo application that operat
 
 This branch extends the basic `main` tutorial with a three-word Spanish shared-list mnemonic, for example `luna-camino-verde`. The normalized mnemonic is the OrbitDB database name: two browsers enter the same words to open and replicate the same list without exchanging a full OrbitDB address. The mnemonic is only a convenient public share code—not a password, recovery phrase, encryption key, or access-control mechanism. Anyone who knows or guesses it can discover and edit the public writable list.
 
-> **Collaboration examples:** [`collab01`](https://github.com/NiKrause/simple-todo/tree/collab01) demonstrates mnemonic-based shared lists. The previous explicit OrbitDB-address collaboration example is preserved as [`collab02`](https://github.com/NiKrause/simple-todo/tree/collab02).
+> **Collaboration examples:** [`collab01`](https://github.com/NiKrause/simple-todo/tree/collab01) demonstrates mnemonic-based shared lists.
 
 ### Key Features
 
