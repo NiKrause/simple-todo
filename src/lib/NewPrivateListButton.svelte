@@ -8,18 +8,31 @@
 	let busy = false;
 	/** @type {string | null} */
 	let errorMessage = null;
+	/** @type {{ name: string, address: string } | null} */
+	let created = null;
+	let copied = false;
 
 	async function create() {
 		busy = true;
 		errorMessage = null;
+		created = null;
 		try {
-			await createPrivateTodoList(name);
+			// Keep the result. Dropping it is what made a created list invisible:
+			// the box promises "share its address" and then never showed one (#114).
+			created = await createPrivateTodoList(name);
 			name = '';
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : String(error);
 		} finally {
 			busy = false;
 		}
+	}
+
+	async function copyAddress() {
+		if (!created?.address) return;
+		await navigator.clipboard.writeText(created.address);
+		copied = true;
+		setTimeout(() => (copied = false), 2000);
 	}
 </script>
 
@@ -51,5 +64,35 @@
 	</div>
 	{#if errorMessage}
 		<p class="mt-2 text-xs text-red-600" data-testid="new-list-error">{errorMessage}</p>
+	{/if}
+
+	{#if created}
+		<div
+			class="mt-3 rounded-md border border-emerald-300 bg-emerald-50 p-2 dark:border-emerald-800 dark:bg-emerald-950"
+			data-testid="new-list-created"
+		>
+			<p class="text-xs text-heading">
+				Created <strong data-testid="new-list-created-name">{created.name}</strong> — you are now writing
+				to it.
+			</p>
+			<p class="mt-2 text-xs text-faint">
+				Share this address so others can open the list. They can read it right away; writing needs a
+				grant below.
+			</p>
+			<div class="mt-1 flex items-center gap-2">
+				<code
+					class="min-w-0 flex-1 font-mono text-xs break-all"
+					data-testid="new-list-created-address">{created.address}</code
+				>
+				<button
+					type="button"
+					on:click={copyAddress}
+					data-testid="new-list-copy-address"
+					class="shrink-0 rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-800"
+				>
+					{copied ? 'Copied' : 'Copy'}
+				</button>
+			</div>
+		</div>
 	{/if}
 </section>

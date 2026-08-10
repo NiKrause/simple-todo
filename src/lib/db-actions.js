@@ -1,6 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { OrbitDBAccessController } from '@orbitdb/core';
 import { peerIdStore } from './p2p.js';
+import { rememberList, listRegistryStore, openListRegistry } from './list-registry.js';
 import { relayHttpStatusStore } from './relay-status.js';
 
 /**
@@ -68,6 +69,22 @@ export const orbitdbStore = writable(/** @type {any} */ (null));
 export const todoDBStore = writable(/** @type {TodoDatabase | null} */ (null));
 export const todoDBAddressStore = writable('');
 
+/**
+ * Which list is currently open, and how the user got to it. Before this the UI
+ * only knew the address, so a freshly created private list was indistinguishable
+ * from the shared one and the header kept advertising the shared mnemonic
+ * (issue #114).
+ *
+ * kind: 'shared'  — the public mnemonic list every visitor lands in
+ *       'private' — created here, owner-only writes
+ *       'guest'   — opened by address, someone else's list
+ *
+ * @typedef {{ kind: 'shared' | 'private' | 'guest', name: string, address: string }} ActiveList
+ */
+export const activeListStore = writable(
+	/** @type {ActiveList} */ ({ kind: 'shared', name: '', address: '' })
+);
+
 // Store for todos
 export const todosStore = writable(/** @type {TodoItem[]} */ ([]));
 /** @typedef {'unknown' | 'pending' | 'pinned' | 'unavailable'} TodoReplicationStatus */
@@ -108,10 +125,13 @@ function getDatabaseAddress(todoDB) {
 
 /**
  * @param {TodoDatabase | null} todoDB
+ * @param {{ kind: 'shared' | 'private' | 'guest', name?: string }} [meta]
  */
-function setActiveTodoDatabase(todoDB) {
+function setActiveTodoDatabase(todoDB, meta) {
+	const address = getDatabaseAddress(todoDB);
 	todoDBStore.set(todoDB);
-	todoDBAddressStore.set(getDatabaseAddress(todoDB));
+	todoDBAddressStore.set(address);
+	if (meta) activeListStore.set({ kind: meta.kind, name: meta.name ?? '', address });
 }
 
 // Initialize database and load existing todos
@@ -121,12 +141,20 @@ function setActiveTodoDatabase(todoDB) {
  */
 export async function initializeDatabase(orbitdb, todoDB) {
 	orbitdbStore.set(orbitdb);
-	setActiveTodoDatabase(todoDB);
+	setActiveTodoDatabase(todoDB, { kind: 'shared', name: todoDB?.name ?? '' });
 
 	// OrbitDB's non-indexed keyvalue.all() traverses the complete append-only
 	// history. Hydrate the UI in the background instead of blocking app startup.
 	setupDatabaseListeners(todoDB);
 	void loadTodos();
+
+	// Open the registry at startup, not just when something is written to it.
+	// Opening it lazily meant a reload showed no lists at all: nothing writes on
+	// a fresh load, so the registry was never opened and the switcher stayed
+	// hidden even though the entries were there.
+	void openListRegistry(orbitdb).catch((error) => {
+		console.warn('List registry unavailable:', error);
+	});
 }
 
 /**
@@ -157,12 +185,31 @@ export async function loadTodoDatabase(address) {
 			sync: true
 		});
 
-		setActiveTodoDatabase(loadedTodoDB);
+		// Prefer what the registry already knows: a list you created is yours even
+		// when you reach it through the switcher, and its friendly name is not the
+		// suffixed database name.
+		const openedAddressForMeta = getDatabaseAddress(loadedTodoDB) || normalizedAddress;
+		const known = get(listRegistryStore).find((entry) => entry.address === openedAddressForMeta);
+		setActiveTodoDatabase(loadedTodoDB, {
+			kind: known?.role === 'owner' ? 'private' : 'guest',
+			name: known?.name || loadedTodoDB?.name || ''
+		});
 		setupDatabaseListeners(loadedTodoDB);
 		await loadTodos();
 
+		const openedAddress = getDatabaseAddress(loadedTodoDB) || normalizedAddress;
+		try {
+			await rememberList(orbitdb, {
+				address: openedAddress,
+				name: loadedTodoDB?.name ?? '',
+				role: 'guest'
+			});
+		} catch (error) {
+			console.warn('Could not record the opened list in the registry:', error);
+		}
+
 		return {
-			address: getDatabaseAddress(loadedTodoDB) || normalizedAddress,
+			address: openedAddress,
 			count: get(todosCountStore)
 		};
 	} catch (error) {
@@ -179,7 +226,7 @@ export async function loadTodoDatabase(address) {
  * address (acl01). The new list becomes the active list.
  *
  * @param {string} [name] optional human name; a unique suffix is always added
- * @returns {Promise<{ address: string }>}
+ * @returns {Promise<{ address: string, name: string }>}
  */
 export async function createPrivateTodoList(name = 'private-todos') {
 	const orbitdb = get(orbitdbStore);
@@ -194,10 +241,22 @@ export async function createPrivateTodoList(name = 'private-todos') {
 		AccessController: OrbitDBAccessController({ write: [orbitdb.identity.id] })
 	});
 
-	setActiveTodoDatabase(privateDB);
+	const listName = name.trim() || 'private-todos';
+	setActiveTodoDatabase(privateDB, { kind: 'private', name: listName });
 	setupDatabaseListeners(privateDB);
 	await loadTodos();
-	return { address: getDatabaseAddress(privateDB) || '' };
+	const address = getDatabaseAddress(privateDB) || '';
+	// Record it, so the list survives a reload and shows up in the switcher.
+	// Best effort: a failing registry must not lose the list the user just made.
+	try {
+		await rememberList(orbitdb, { address, name: listName, role: 'owner' });
+	} catch (error) {
+		console.warn('Could not record the new list in the registry:', error);
+	}
+	// The caller needs both: the address is what gets shared, the name is what
+	// the user recognises it by. Returning only the address is what left the
+	// created list invisible (issue #114).
+	return { address, name: listName };
 }
 
 // Load all todos from the database
