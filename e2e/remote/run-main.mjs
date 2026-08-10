@@ -1,30 +1,16 @@
 import { writeFile } from 'node:fs/promises';
 import { PLAYWRIGHT_RUNNER_VERSION } from '@le-space/playwright';
-import {
-	createAlephBrowser,
-	createLocalBrowser,
-	createTestingBotBrowser
-} from './providers.mjs';
+import { createAlephBrowser, createLocalBrowser } from './providers.mjs';
 import { runMainRemoteScenario } from './main-scenario.mjs';
 
 const appUrl = process.env.REMOTE_APP_URL || 'https://simple-todo.le-space.de';
 const provider = process.env.REMOTE_PROVIDER || 'aleph';
 const outputDir = process.env.REMOTE_OUTPUT_DIR || 'test-results/remote-main';
-const buildName = process.env.GITHUB_RUN_ID
-	? `simple-todo-${process.env.GITHUB_RUN_ID}`
-	: `simple-todo-${Date.now()}`;
 
 const browserA = await createLocalBrowser();
 let browserB;
 try {
-	if (provider === 'testingbot') {
-		browserB = await createTestingBotBrowser({
-			key: process.env.TESTINGBOT_KEY,
-			secret: process.env.TESTINGBOT_SECRET,
-			buildName,
-			testName: 'main cross-network OrbitDB replication'
-		});
-	} else if (provider === 'aleph') {
+	if (provider === 'aleph') {
 		browserB = await createAlephBrowser({
 			wsEndpoint: process.env.ALEPH_PLAYWRIGHT_WS_ENDPOINT,
 			versionUrl: process.env.ALEPH_PLAYWRIGHT_VERSION_URL,
@@ -33,7 +19,7 @@ try {
 	} else if (provider === 'local') {
 		browserB = await createLocalBrowser();
 	} else {
-		throw new Error(`Unsupported REMOTE_PROVIDER "${provider}". Use aleph, local, or testingbot.`);
+		throw new Error(`Unsupported REMOTE_PROVIDER "${provider}". Use aleph or local.`);
 	}
 } catch (error) {
 	await browserA.close();
