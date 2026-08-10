@@ -18,8 +18,11 @@ export default defineConfig({
 		screenshot: 'only-on-failure',
 		// Record video on first retry
 		video: 'retain-on-failure',
-		// Collect trace on failure
-		trace: 'on-first-retry'
+		// Collect trace on failure — which `on-first-retry` did NOT do, because no
+		// `retries` are configured, so there is never a first retry. A 50-minute
+		// relay provisioning run that fails opaquely is undiagnosable without the
+		// call log, and that is exactly what happened while chasing #137.
+		trace: 'retain-on-failure'
 	},
 	// Run the suite against Chrome/Chromium only.
 	projects: [

@@ -50,6 +50,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: relay-button-e2e-${{ github.run_id }}
-          path: test-results/relay-button
+          # The whole directory, not just relay-button/: Playwright writes traces
+          # and videos into per-test folders beside it, and uploading only the
+          # evidence subfolder silently dropped both.
+          path: test-results/
           if-no-files-found: warn
           retention-days: 14
