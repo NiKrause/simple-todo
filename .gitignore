@@ -28,3 +28,7 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Local-only pnpm config. It has no `packages:` field, so committing it makes
+# every CI job fail at `pnpm store path` in setup-node before install runs.
+pnpm-workspace.yaml
