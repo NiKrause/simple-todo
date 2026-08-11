@@ -109,3 +109,26 @@ jobs:
           ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
         run: node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"
+
+  # Dispatched as a separate run rather than called with `uses:`, mirroring
+  # collab01: replication provisions an ephemeral Aleph VM and takes far longer
+  # than the deploy, so gating the preview on it would leave the chapter
+  # undeployed for the duration of a test that is about the deployed site.
+  #
+  # Unlike collab01 the URL follows the `domain` input, so dispatching this
+  # workflow with a custom domain tests the site that was actually linked
+  # instead of the default one.
+  start-remote-replication:
+    needs: link-domain
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start remote replication against the preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_URL: https://${{ inputs.domain || 'passkey01.le-space.de' }}
+        run: >-
+          gh workflow run remote-replication.yml
+          --repo "${{ github.repository }}"
+          --ref passkey01
+          -f app_url="${APP_URL}"
+          -f provider=aleph
