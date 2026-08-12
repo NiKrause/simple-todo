@@ -32,6 +32,38 @@ const RELAY_DIAL_ATTEMPT_TIMEOUT = 20_000;
 const REPLICATION_TIMEOUT = 3 * 60_000;
 
 /**
+ * Accept the consent modal, the way `TodoBrowserAgent.open` already does for
+ * the two browser peers.
+ *
+ * The deployment page never did this. It did not look like it mattered: the
+ * modal does not stop `openNetworkDetails` (which sets `open` in JS rather than
+ * clicking) and `toBeVisible()` on the launcher passes straight through an
+ * overlay. So the test reported progress right up to the point where the shared
+ * kit clicks the launcher — and that click never became actionable, with no
+ * action timeout to cut it short, so it consumed the entire 75-minute budget.
+ * Every failure since the launchers moved into the panel looked like a
+ * provisioning hang and was none.
+ *
+ * Verified both directions against this build: with the modal up, clicking the
+ * launcher times out ("waiting for element to be visible, enabled and stable");
+ * with it dismissed, the same click succeeds.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+async function acceptConsent(page) {
+	const modal = page.locator('div.fixed.inset-0.z-50');
+
+	await modal.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+	if (!(await modal.isVisible())) return;
+
+	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
+		await checkbox.check();
+	}
+	await page.getByRole('button', { name: 'Proceed to Test the App' }).click();
+	await expect(modal).toBeHidden();
+}
+
+/**
  * Expand the network panel that now holds both launchers.
  *
  * Set rather than clicked, unlike the other specs. This page runs the relay
@@ -224,11 +256,17 @@ relayTest.describe('Sponsor Relay button', () => {
 				// Phase 1: Wallet + manifest + provision (deploy → instance → bootstrap).
 				await deploymentPage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
 
+				// Consent first: until it is accepted the app never initialises, and
+				// nothing on the page below it can be clicked.
+				await acceptConsent(deploymentPage);
+				progress('consent accepted on the deployment page');
+
 				// The Relay Button no longer floats over the app; it sits inside the
 				// collapsed "Network details" panel next to the manual connect form.
 				// The shared test kit waits for a *visible* launcher, so the panel has
 				// to be expanded first - the same two steps a person now takes.
 				await openNetworkDetails(deploymentPage);
+				progress('network panel expanded, launcher visible');
 
 				const relay = await relayLifecycle.provision(deploymentPage, {
 					instanceName,
