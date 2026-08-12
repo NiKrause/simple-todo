@@ -11,16 +11,50 @@ export function extractPeerIdFromMultiaddr(address) {
 }
 
 /**
+ * Can a browser dial this, and is it encrypted?
+ *
+ * The second half is the point, and it used to be missing. `/ws` was accepted
+ * outright, which let a plain-text WebSocket address into a production build -
+ * where an https page blocks it as mixed content and it can never connect. The
+ * other two branches were dead anyway, since `/ws` is a substring of both
+ * `/tls/ws` and `/wss`.
+ *
+ * A relay we run ourselves on localhost is the one honest exception: there is no
+ * https origin to violate and no certificate to expect, so `allowInsecure` opens
+ * exactly that door and nothing else. It is off unless a caller asks.
+ *
+ * What this cannot check is whether an address that *claims* TLS actually has
+ * it. Our own relay currently announces `/tcp/52194/tls/sni/….libp2p.direct/ws`
+ * for a port that answers plain-text `101 Switching Protocols` - so the string
+ * passes here and fails on the wire. Only a probe catches that
+ * (scripts/resolve-aleph-bootstrap.mjs), which is why the probe stays.
+ *
  * @param {string} address
+ * @param {{ allowInsecure?: boolean }} [options]
  * @returns {boolean}
  */
-export function isBrowserDialableBootstrapMultiaddr(address) {
+export function isBrowserDialableBootstrapMultiaddr(address, { allowInsecure = false } = {}) {
 	const normalized = address.toLowerCase();
+
+	// `/tls/` rather than `/tls/ws`: AutoTLS announces `/tls/sni/<host>/ws`, which
+	// is the same guarantee written differently, and matching the narrow form
+	// silently dropped it.
+	if (normalized.includes('/tls/') || normalized.includes('/wss')) return true;
+	if (normalized.includes('/webrtc-direct')) return true;
+	if (!normalized.includes('/ws')) return false;
+
+	// Plain WebSocket: only ours, only locally.
+	return allowInsecure && isLoopbackMultiaddr(normalized);
+}
+
+/** @param {string} normalized a lower-cased multiaddr */
+function isLoopbackMultiaddr(normalized) {
 	return (
-		normalized.includes('/tls/ws') ||
-		normalized.includes('/ws') ||
-		normalized.includes('/wss') ||
-		normalized.includes('/webrtc-direct')
+		normalized.startsWith('/ip4/127.') ||
+		normalized.startsWith('/ip6/::1/') ||
+		normalized.startsWith('/dns4/localhost/') ||
+		normalized.startsWith('/dns6/localhost/') ||
+		normalized.startsWith('/dns/localhost/')
 	);
 }
 
@@ -45,9 +79,14 @@ function rankBrowserBootstrapMultiaddr(address) {
  * @param {readonly string[]} addresses
  * @returns {string[]}
  */
-export function selectValidBrowserBootstrapMultiaddrs(addresses) {
+/**
+ * @param {readonly string[]} addresses
+ * @param {{ allowInsecure?: boolean }} [options] `allowInsecure` is for a relay
+ *   started by a local dev or test run, never for a deployed build.
+ */
+export function selectValidBrowserBootstrapMultiaddrs(addresses, options = {}) {
 	return [...new Set(addresses.map((address) => address.trim()).filter(Boolean))]
-		.filter(isBrowserDialableBootstrapMultiaddr)
+		.filter((address) => isBrowserDialableBootstrapMultiaddr(address, options))
 		.filter((address) => {
 			try {
 				multiaddr(address);
@@ -80,7 +119,17 @@ export function parseBootstrapMultiaddrs(value) {
  * @param {{ override?: string | null, discovered?: readonly string[], fallback?: string | null }} options
  * @returns {{ addresses: string[], source: 'override' | 'aleph' | 'fallback' | 'none' }}
  */
-export function resolveBootstrapMultiaddrs({ override, discovered = [], fallback } = {}) {
+/**
+ * @param {{ override?: string, discovered?: readonly string[], fallback?: string,
+ *   allowInsecure?: boolean }} [options] `allowInsecure` is passed straight to
+ *   the selector - see isBrowserDialableBootstrapMultiaddr.
+ */
+export function resolveBootstrapMultiaddrs({
+	override,
+	discovered = [],
+	fallback,
+	allowInsecure = false
+} = {}) {
 	/** @type {Array<['override' | 'aleph' | 'fallback', string[]]>} */
 	const candidates = [
 		['override', parseBootstrapMultiaddrs(override)],
@@ -89,7 +138,7 @@ export function resolveBootstrapMultiaddrs({ override, discovered = [], fallback
 	];
 
 	for (const [source, addresses] of candidates) {
-		const selected = selectValidBrowserBootstrapMultiaddrs(addresses);
+		const selected = selectValidBrowserBootstrapMultiaddrs(addresses, { allowInsecure });
 		if (selected.length > 0) {
 			return {
 				addresses: selected,

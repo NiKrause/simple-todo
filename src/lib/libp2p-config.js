@@ -96,8 +96,13 @@ export async function createLibp2pConfig(privateKey = null) {
 		return qrOnlyConfig(privateKey);
 	}
 
+	// A plain-text relay is allowed only where we start one ourselves: local dev
+	// and the e2e suite, both on http://localhost. A deployed build runs on
+	// https, where such an address is blocked as mixed content anyway - so
+	// letting it through there would only trade a clear failure for a silent one.
 	const relayBootstrapAddrs = selectValidBrowserBootstrapMultiaddrs(
-		parseBootstrapMultiaddrs(RELAY_BOOTSTRAP_ADDR.join(','))
+		parseBootstrapMultiaddrs(RELAY_BOOTSTRAP_ADDR.join(',')),
+		{ allowInsecure: isDevelopment }
 	);
 	if (relayBootstrapAddrs.length === 0) {
 		throw new Error('No valid browser-dialable relay bootstrap multiaddresses are configured.');
