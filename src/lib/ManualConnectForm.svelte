@@ -2,6 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import ErrorAlert from './ErrorAlert.svelte';
 	import { connectToMultiaddr, pingMultiaddr } from './p2p.js';
+	import { probeRelayAddresses } from './relay-probe.js';
 	import {
 		describeBootstrapMultiaddr,
 		parseBootstrapMultiaddrs,
@@ -55,9 +56,7 @@
 				return;
 			}
 
-			const { discoverScopedBootstrapMultiaddrs } = await import(
-				'./aleph-bootstrap-discovery.js'
-			);
+			const { discoverScopedBootstrapMultiaddrs } = await import('./aleph-bootstrap-discovery.js');
 			// Scope discovery to our relay profile AND our production registration.
 			// The Aleph channel is shared with other profiles (e.g.
 			// universal-connectivity's `uc-go-peer`), and orphaned registrations
@@ -71,18 +70,18 @@
 			});
 			const candidates = selectValidBrowserBootstrapMultiaddrs(discovered);
 			discoveredAddressCount = candidates.length;
-			const probeResults = await Promise.all(
-				candidates.map(async (address) => {
-					try {
-						await pingMultiaddr(address);
-						return address;
-					} catch (error) {
-						console.warn(`Ignoring unreachable Aleph relay address ${address}:`, error);
-						return null;
-					}
-				})
-			);
-			discoveredMultiaddrs = probeResults.filter((address) => address != null);
+			// Grouped by peer, not flat. Several of these addresses belong to the
+			// same relay — `…libp2p.direct` and `…2n6.me`, each as dns4 and dns6 — and
+			// libp2p muxes them onto one connection, where the ping service permits a
+			// single outbound stream. Probing them together made the second ping fail
+			// with TooManyOutboundProtocolStreamsError and the address was written off
+			// as unreachable; on passkey01 that discarded every address of the only
+			// live relay, leaving both browsers with nothing to dial (run 31717535131).
+			discoveredMultiaddrs = await probeRelayAddresses(candidates, {
+				ping: pingMultiaddr,
+				onUnreachable: (address, error) =>
+					console.warn(`Ignoring unreachable Aleph relay address ${address}:`, error)
+			});
 			addressesPingVerified = true;
 			if (
 				discoveredMultiaddrs.length > 0 &&
