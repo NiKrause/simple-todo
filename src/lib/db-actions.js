@@ -1,6 +1,12 @@
 import { writable, derived, get } from 'svelte/store';
 import { peerIdStore } from './p2p.js';
 import { relayHttpStatusStore } from './relay-status.js';
+import {
+	decideProofOutcome,
+	nextProofDelayMs,
+	statusForExhaustedBudget,
+	RELAY_PROOF_BUDGET_MS
+} from './relay-proof.js';
 
 /**
  * @typedef {{
@@ -87,7 +93,6 @@ let todoEntriesReceivedDuringLoad = [];
 // This is a collaborative demo database with an append-only history. Reading an
 // unlimited history can monopolize IndexedDB/IPFS long enough to delay live sync.
 const INITIAL_TODO_LIMIT = 250;
-const RELAY_PROOF_ATTEMPTS = 3;
 /**
  * @param {TodoDatabase | null | undefined} todoDB
  * @returns {string}
@@ -352,56 +357,132 @@ function scheduleRelayReplicationProof(todoKey, entryHash, dbAddress) {
  * @param {string} dbAddress
  */
 async function verifyRelayReplication(todoKey, entryHash, dbAddress) {
-	const { origin } = get(relayHttpStatusStore);
-	if (!origin || !entryHash || !dbAddress) {
+	// Only these two are unfixable for this call — no later event can supply a
+	// hash the caller never had. A missing relay origin is different and is
+	// handled inside the loop below.
+	if (!entryHash || !dbAddress) {
 		console.warn('Relay replication proof skipped:', {
 			todoKey,
-			reason: !origin
-				? 'no connected relay HTTP origin'
-				: !entryHash
-					? 'missing OrbitDB entry hash'
-					: 'missing OrbitDB database address'
+			reason: !entryHash ? 'missing OrbitDB entry hash' : 'missing OrbitDB database address'
 		});
 		todoReplicationStatusStore.update((statuses) => ({
 			...statuses,
-			[todoKey]: 'unavailable'
+			[todoKey]: 'unknown'
 		}));
 		return;
 	}
 
+	const deadline = Date.now() + RELAY_PROOF_BUDGET_MS;
+	/** @type {import('./relay-proof.js').RelayProofOutcome} */
+	let outcome = 'indeterminate';
+
 	try {
-		for (let attempt = 1; attempt <= RELAY_PROOF_ATTEMPTS; attempt++) {
-			const proof = await requestRelayReplicationProof(origin, dbAddress, todoKey, attempt);
-			const replicated = proof?.ok === true && proof?.lastRecord?.hash === entryHash;
-			if (replicated) {
-				console.info('Relay replication proof verified:', { todoKey, entryHash, attempt });
-				todoReplicationStatusStore.update((statuses) => ({
-					...statuses,
-					[todoKey]: 'pinned'
-				}));
-				return;
+		for (let attempt = 1; ; attempt++) {
+			// Re-read every round rather than once up front. A todo written before
+			// the relay's HTTP origin is known used to return here immediately and
+			// latch a terminal negative — the relay had not failed to replicate it,
+			// nobody had asked yet. That is the path CI hits, where the write lands
+			// while the relay connection is still coming up.
+			const { origin } = get(relayHttpStatusStore);
+
+			if (origin) {
+				const sync = await requestRelayReplicationProof(origin, dbAddress, todoKey, attempt);
+				const membership = await requestRelayEntryMembership(origin, dbAddress, entryHash, todoKey);
+				outcome = decideProofOutcome({ membership, sync, entryHash });
+
+				if (outcome === 'pinned') {
+					console.info('Relay replication proof verified:', {
+						todoKey,
+						entryHash,
+						attempt,
+						via: membership?.ok === true ? 'has-entry' : 'lastRecord'
+					});
+					todoReplicationStatusStore.update((statuses) => ({
+						...statuses,
+						[todoKey]: 'pinned'
+					}));
+					return;
+				}
+
+				console.warn('Relay has not proven this entry yet:', {
+					todoKey,
+					attempt,
+					outcome,
+					expectedEntryHash: entryHash,
+					hasEntry: membership?.hasEntry ?? null,
+					membershipSource: membership?.source ?? null,
+					reportedEntryHash: sync?.lastRecord?.hash ?? null,
+					relayOk: sync?.ok ?? null,
+					entryCount: sync?.entryCount ?? null,
+					snapshotSource: sync?.snapshotSource ?? null
+				});
+			} else {
+				outcome = 'indeterminate';
+				console.info('Waiting for a connected relay HTTP origin before proving:', {
+					todoKey,
+					attempt
+				});
 			}
 
-			console.warn('Relay replication proof did not include the expected entry:', {
-				todoKey,
-				attempt,
-				expectedEntryHash: entryHash,
-				reportedEntryHash: proof?.lastRecord?.hash ?? null,
-				relayOk: proof?.ok ?? null,
-				entryCount: proof?.entryCount ?? null,
-				snapshotSource: proof?.snapshotSource ?? null
-			});
+			const delay = nextProofDelayMs(attempt);
+			if (Date.now() + delay >= deadline) break;
+			await new Promise((resolve) => setTimeout(resolve, delay));
 		}
-		todoReplicationStatusStore.update((statuses) => ({
-			...statuses,
-			[todoKey]: 'unavailable'
-		}));
 	} catch (error) {
 		console.warn('Relay pinning proof unavailable for todo:', todoKey, error);
-		todoReplicationStatusStore.update((statuses) => ({
-			...statuses,
-			[todoKey]: 'unavailable'
-		}));
+		outcome = 'indeterminate';
+	}
+
+	// Only a scanned miss earns the red state. Anything else is "we could not
+	// tell", which is what the previous three-strikes-and-latch behaviour got
+	// wrong: a relay that was merely slow ended up permanently marked as not
+	// holding the entry, and nothing ever re-checked.
+	todoReplicationStatusStore.update((statuses) => ({
+		...statuses,
+		[todoKey]: statusForExhaustedBudget(outcome)
+	}));
+}
+
+/**
+ * Ask the relay whether it holds this exact entry (orbitdb-relay >= 0.10.3).
+ *
+ * Returns null for any relay that cannot answer — 501 from a relay built before
+ * the route, 404 from an even older one, or a transport error. The caller then
+ * falls back to comparing `lastRecord`, so an older relay keeps exactly the
+ * behaviour it had.
+ *
+ * @param {string} origin
+ * @param {string} dbAddress
+ * @param {string} entryHash
+ * @param {string} todoKey
+ */
+async function requestRelayEntryMembership(origin, dbAddress, entryHash, todoKey) {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 30_000);
+	try {
+		const response = await fetch(`${origin}/pinning/has-entry`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ dbAddress, entryHash }),
+			signal: controller.signal
+		});
+		if (response.status === 501 || response.status === 404) {
+			console.info('Relay does not support entry membership; using lastRecord fallback:', {
+				todoKey,
+				status: response.status
+			});
+			return null;
+		}
+		if (!response.ok) return null;
+		return await response.json();
+	} catch (error) {
+		console.info('Relay entry membership request failed; using lastRecord fallback:', {
+			todoKey,
+			error: error instanceof Error ? error.message : String(error)
+		});
+		return null;
+	} finally {
+		clearTimeout(timeout);
 	}
 }
 
