@@ -2,6 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import ErrorAlert from './ErrorAlert.svelte';
 	import { connectToMultiaddr, pingMultiaddr } from './p2p.js';
+	import { probeRelayAddresses } from './relay-probe.js';
 	import {
 		describeBootstrapMultiaddr,
 		parseBootstrapMultiaddrs,
@@ -67,9 +68,7 @@
 				return;
 			}
 
-			const { discoverScopedBootstrapMultiaddrs } = await import(
-				'./aleph-bootstrap-discovery.js'
-			);
+			const { discoverScopedBootstrapMultiaddrs } = await import('./aleph-bootstrap-discovery.js');
 			const discovered = await discoverScopedBootstrapMultiaddrs({
 				// Only surface relays of our own implementation. The Aleph channel is
 				// shared with other relay profiles (e.g. universal-connectivity's
@@ -84,24 +83,20 @@
 			});
 			const candidates = selectValidBrowserBootstrapMultiaddrs(discovered);
 			discoveredAddressCount = candidates.length;
-			/** @type {string[]} */
-			const reachable = [];
-			for (let index = 0; index < candidates.length; index += DISCOVERY_PING_BATCH_SIZE) {
-				const batch = candidates.slice(index, index + DISCOVERY_PING_BATCH_SIZE);
-				const results = await Promise.all(
-					batch.map(async (address) => {
-						try {
-							await pingMultiaddr(address);
-							return address;
-						} catch (error) {
-							console.warn(`Ignoring unreachable Aleph relay address ${address}:`, error);
-							return null;
-						}
-					})
-				);
-				for (const address of results) {
-					if (address == null) continue;
-					reachable.push(address);
+			// Batched by peer, not by position. Several of these addresses belong to
+			// the same relay — `…libp2p.direct` and `…2n6.me`, each as dns4 and dns6 —
+			// and libp2p muxes them onto one connection, where the ping service
+			// permits a single outbound stream. A positional batch could hold two of
+			// them; the second ping then failed with
+			// TooManyOutboundProtocolStreamsError and the address was written off as
+			// unreachable. When that hit every address of the only live relay, the app
+			// was left with nothing to dial (passkey01 run 31717535131).
+			const reachable = await probeRelayAddresses(candidates, {
+				ping: pingMultiaddr,
+				groupConcurrency: DISCOVERY_PING_BATCH_SIZE,
+				onUnreachable: (address, error) =>
+					console.warn(`Ignoring unreachable Aleph relay address ${address}:`, error),
+				onReachable: (address) => {
 					pingVerifiedAddresses = new Set([...pingVerifiedAddresses, address]);
 					// Progressive insertion: show each reachable relay as soon as it
 					// answers, without waiting for the remaining candidates.
@@ -109,7 +104,7 @@
 						discoveredMultiaddrs = [...discoveredMultiaddrs, address];
 					}
 				}
-			}
+			});
 			if (reachable.length > 0) {
 				// Once the pass is complete, keep only live-verified relays so stale
 				// snapshot entries do not linger; otherwise keep the snapshot usable.
