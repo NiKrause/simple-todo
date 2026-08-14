@@ -357,19 +357,17 @@ function scheduleRelayReplicationProof(todoKey, entryHash, dbAddress) {
  * @param {string} dbAddress
  */
 async function verifyRelayReplication(todoKey, entryHash, dbAddress) {
-	const { origin } = get(relayHttpStatusStore);
-	if (!origin || !entryHash || !dbAddress) {
+	// Only these two are unfixable for this call — no later event can supply a
+	// hash the caller never had. A missing relay origin is different and is
+	// handled inside the loop below.
+	if (!entryHash || !dbAddress) {
 		console.warn('Relay replication proof skipped:', {
 			todoKey,
-			reason: !origin
-				? 'no connected relay HTTP origin'
-				: !entryHash
-					? 'missing OrbitDB entry hash'
-					: 'missing OrbitDB database address'
+			reason: !entryHash ? 'missing OrbitDB entry hash' : 'missing OrbitDB database address'
 		});
 		todoReplicationStatusStore.update((statuses) => ({
 			...statuses,
-			[todoKey]: 'unavailable'
+			[todoKey]: 'unknown'
 		}));
 		return;
 	}
@@ -380,36 +378,51 @@ async function verifyRelayReplication(todoKey, entryHash, dbAddress) {
 
 	try {
 		for (let attempt = 1; ; attempt++) {
-			const sync = await requestRelayReplicationProof(origin, dbAddress, todoKey, attempt);
-			const membership = await requestRelayEntryMembership(origin, dbAddress, entryHash, todoKey);
-			outcome = decideProofOutcome({ membership, sync, entryHash });
+			// Re-read every round rather than once up front. A todo written before
+			// the relay's HTTP origin is known used to return here immediately and
+			// latch a terminal negative — the relay had not failed to replicate it,
+			// nobody had asked yet. That is the path CI hits, where the write lands
+			// while the relay connection is still coming up.
+			const { origin } = get(relayHttpStatusStore);
 
-			if (outcome === 'pinned') {
-				console.info('Relay replication proof verified:', {
+			if (origin) {
+				const sync = await requestRelayReplicationProof(origin, dbAddress, todoKey, attempt);
+				const membership = await requestRelayEntryMembership(origin, dbAddress, entryHash, todoKey);
+				outcome = decideProofOutcome({ membership, sync, entryHash });
+
+				if (outcome === 'pinned') {
+					console.info('Relay replication proof verified:', {
+						todoKey,
+						entryHash,
+						attempt,
+						via: membership?.ok === true ? 'has-entry' : 'lastRecord'
+					});
+					todoReplicationStatusStore.update((statuses) => ({
+						...statuses,
+						[todoKey]: 'pinned'
+					}));
+					return;
+				}
+
+				console.warn('Relay has not proven this entry yet:', {
 					todoKey,
-					entryHash,
 					attempt,
-					via: membership?.ok === true ? 'has-entry' : 'lastRecord'
+					outcome,
+					expectedEntryHash: entryHash,
+					hasEntry: membership?.hasEntry ?? null,
+					membershipSource: membership?.source ?? null,
+					reportedEntryHash: sync?.lastRecord?.hash ?? null,
+					relayOk: sync?.ok ?? null,
+					entryCount: sync?.entryCount ?? null,
+					snapshotSource: sync?.snapshotSource ?? null
 				});
-				todoReplicationStatusStore.update((statuses) => ({
-					...statuses,
-					[todoKey]: 'pinned'
-				}));
-				return;
+			} else {
+				outcome = 'indeterminate';
+				console.info('Waiting for a connected relay HTTP origin before proving:', {
+					todoKey,
+					attempt
+				});
 			}
-
-			console.warn('Relay has not proven this entry yet:', {
-				todoKey,
-				attempt,
-				outcome,
-				expectedEntryHash: entryHash,
-				hasEntry: membership?.hasEntry ?? null,
-				membershipSource: membership?.source ?? null,
-				reportedEntryHash: sync?.lastRecord?.hash ?? null,
-				relayOk: sync?.ok ?? null,
-				entryCount: sync?.entryCount ?? null,
-				snapshotSource: sync?.snapshotSource ?? null
-			});
 
 			const delay = nextProofDelayMs(attempt);
 			if (Date.now() + delay >= deadline) break;
