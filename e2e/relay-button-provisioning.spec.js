@@ -194,15 +194,89 @@ relayTest.describe('Sponsor Relay button', () => {
 				}
 			});
 			const deploymentPage = await deploymentContext.newPage();
+
+			// Dial failures are expected on this page and carry no signal. Under
+			// E2E_RELAY_MODE=isolated the bootstrap addresses point nowhere on
+			// purpose: nothing listens on /ip4/127.0.0.1/tcp/4001/ws (the default
+			// RELAY_BOOTSTRAP_ADDR), and E2E_PUBLIC_RELAY_BOOTSTRAP_ADDR sits on
+			// port 9, which Chrome refuses outright as an unsafe port. libp2p
+			// retries both for the whole provisioning window at a steady ~25
+			// failures per minute — in run 31875248033 that was 313 of the step's
+			// 770 lines, burying the [le-space/ui] deploy tracing that a failure
+			// actually has to be read from. So forward one of each kind verbatim,
+			// then only count the repeats.
+			//
+			// The suppression lives here rather than upstream on purpose: the
+			// mixed-content collector below is a separate `console` listener and
+			// still receives every message, so its assertions are unaffected.
+			const DIAL_NOISE_PATTERNS = [
+				{ label: 'ERR_CONNECTION_REFUSED', pattern: /ERR_CONNECTION_REFUSED/ },
+				{ label: 'ERR_UNSAFE_PORT', pattern: /ERR_UNSAFE_PORT/ },
+				{
+					label: 'Failed to dial pubsub-discovered peer',
+					pattern: /Failed to dial pubsub-discovered peer/
+				}
+			];
+			const DIAL_NOISE_SUMMARY_INTERVAL = 60_000;
+			/** @type {Map<string, number>} noise label -> lines withheld since the last summary */
+			const suppressedDialFailures = new Map();
+			/** Labels already shown verbatim once, so the log names what it is dropping. */
+			const sampledDialFailures = new Set();
+			let lastDialSummaryAt = Date.now();
+
+			// Driven by arriving messages rather than a timer (no interval to clear,
+			// nothing keeping the process alive), which means the last stretch of
+			// noise can outlive the final periodic summary — hence the flush in
+			// `finally` below, after which no count is lost.
+			const summarizeDialFailures = () => {
+				if (suppressedDialFailures.size === 0) return;
+				const counts = [...suppressedDialFailures.entries()];
+				const total = counts.reduce((sum, [, count]) => sum + count, 0);
+				// Sorted by label, not by insertion: consecutive summaries then list
+				// the same kinds in the same order and can be read down the column.
+				const detail = counts
+					.sort(([a], [b]) => a.localeCompare(b))
+					.map(([label, count]) => `${count}x ${label}`)
+					.join(', ');
+				suppressedDialFailures.clear();
+				lastDialSummaryAt = Date.now();
+				progress(`[deploy-page] suppressed ${total} dial failures (${detail})`);
+			};
+
 			deploymentPage.on('console', (message) => {
 				const text = message.text();
-				if (
-					text.includes('[le-space/ui]') ||
-					message.type() === 'error' ||
-					message.type() === 'warning'
-				) {
-					progress(`[deploy-page ${message.type()}] ${text.slice(0, 500)}`);
+				const type = message.type();
+				// Controller tracing is never collapsed, even if a trace happens to
+				// mention a dial failure: forwarding it is why this handler exists.
+				const isTrace = text.includes('[le-space/ui]');
+				// Unchanged forwarding predicate, applied before the noise test so
+				// this can only ever drop lines the old handler printed, never
+				// promote a level it already ignored.
+				if (!isTrace && type !== 'error' && type !== 'warning') return;
+
+				const noise = isTrace
+					? undefined
+					: DIAL_NOISE_PATTERNS.find(({ pattern }) => pattern.test(text));
+
+				if (noise) {
+					if (!sampledDialFailures.has(noise.label)) {
+						sampledDialFailures.add(noise.label);
+						progress(`[deploy-page ${type}] ${text.slice(0, 500)} (repeats suppressed)`);
+						return;
+					}
+					// Counts only what was actually withheld, so the sample line
+					// above is not double-reported in the totals.
+					suppressedDialFailures.set(
+						noise.label,
+						(suppressedDialFailures.get(noise.label) ?? 0) + 1
+					);
+					if (Date.now() - lastDialSummaryAt >= DIAL_NOISE_SUMMARY_INTERVAL) {
+						summarizeDialFailures();
+					}
+					return;
 				}
+
+				progress(`[deploy-page ${type}] ${text.slice(0, 500)}`);
 			});
 			deploymentPage.on('pageerror', (error) =>
 				progress(`[deploy-page pageerror] ${error.message}`)
@@ -451,6 +525,10 @@ relayTest.describe('Sponsor Relay button', () => {
 				}
 				evidence.finishedAt = new Date().toISOString();
 				await writeRelayEvidence(`${OUTPUT_DIR}/result.json`, evidence);
+				// Last flush, immediately before the page that produces the noise
+				// goes away: the deployment page keeps dialling right through
+				// cleanup, so flushing any earlier would drop that tail.
+				summarizeDialFailures();
 				await deploymentContext.close();
 			}
 
