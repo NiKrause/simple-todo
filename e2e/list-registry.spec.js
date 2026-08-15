@@ -1,4 +1,9 @@
 import { test, expect } from '@playwright/test';
+import {
+	openReadyApp as openApp,
+	createPasskey,
+	restorePasskey as restoreSharedPasskey
+} from './open-app.mjs';
 
 // Chapter (acl01), issue #114 step 3: the registry.
 //
@@ -165,29 +170,31 @@ async function addVirtualAuthenticator(page) {
  *
  * qr01 always starts anonymously — `onMount` cannot prompt for WebAuthn — so a
  * reloaded session comes back as a different identity and the registry, which
- * is keyed to a signature, looks empty. Recovering the passkey is what brings
- * the lists back, and it is a click for the same reason it was a click before.
+ * is keyed to a signature, looks empty. Recovering the passkey brings the lists
+ * back, and it waits on the shared helper for the same reason creating one
+ * does: the restart is asynchronous and "the app looks ready" is true of the
+ * stack that is about to be replaced.
  *
  * @param {import('@playwright/test').Page} page
  */
 async function restorePasskey(page) {
-	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
-	await page.getByTestId('identity-recover').click();
-	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
+	await restoreSharedPasskey(page, { timeout });
 }
 
 /** @param {import('@playwright/test').Page} page */
 async function openReadyApp(page) {
 	const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-	await page.goto(testUrl);
-	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
-
-	// qr01 starts anonymously with no gate; the registry is keyed to a signing
-	// identity, so this test still needs a passkey — created from a real click,
-	// because WebAuthn will not run without a user gesture.
-	await page.getByTestId('identity-create-toggle').click();
-	await page.getByTestId('identity-user-id').fill(`${runId}@example.com`);
-	await page.getByTestId('identity-display-name').fill(`User ${runId}`);
-	await page.getByTestId('identity-create').click();
-	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
+	// The shared helper, not a copy of it. This spec kept its own inline passkey
+	// flow with a plain "wait until the app looks ready" after the click, which
+	// is the race `createPasskey` exists to avoid — and because the copy lived
+	// here, two rounds of fixing that race in open-app.mjs changed nothing at
+	// all for these four tests. Measured: the passkey restart still landed
+	// between filling the list name and clicking create, so the remount cleared
+	// the field and the list was created under the default name.
+	await openApp(page, { url: testUrl, timeout });
+	await createPasskey(page, {
+		userId: `${runId}@example.com`,
+		displayName: `User ${runId}`,
+		timeout
+	});
 }

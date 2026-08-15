@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openReadyApp as openApp, createPasskey } from './open-app.mjs';
 
 // Chapter (acl01), issue #114: creating a private list used to leave no trace in
 // the UI. The list was created and became active, but its name was never
@@ -141,15 +142,15 @@ async function addVirtualAuthenticator(page) {
  */
 async function openReadyApp(page) {
 	const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-	await page.goto(testUrl);
-	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
-
-	await page.getByTestId('identity-create-toggle').click();
-	await page.getByTestId('identity-user-id').fill(`${runId}@example.com`);
-	await page.getByTestId('identity-display-name').fill(`User ${runId}`);
-	await page.getByTestId('identity-create').click();
-
-	// The passkey restarts the P2P stack, so wait for the app to come back up
-	// rather than racing the teardown.
-	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
+	// Via the shared helper, not a local copy of it. An inline copy here waited
+	// for "the app looks ready" after the click, which is true of the stack the
+	// restart is about to replace — and because the copy was local, fixing that
+	// race in open-app.mjs did nothing for this file. That cost four tests in
+	// list-registry.spec.js a long time to diagnose.
+	await openApp(page, { url: testUrl, timeout });
+	await createPasskey(page, {
+		userId: `${runId}@example.com`,
+		displayName: `User ${runId}`,
+		timeout
+	});
 }

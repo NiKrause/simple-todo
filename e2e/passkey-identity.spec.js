@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { SPANISH_MNEMONIC_STORAGE_KEY } from '../src/lib/spanish-mnemonic.js';
+import { createPasskey, restorePasskey as restoreSharedPasskey } from './open-app.mjs';
 
 // Chapter (passkey01): Alice and Bob each register a WebAuthn passkey in
 // their own browser context (CDP virtual authenticator), write todos into
@@ -97,21 +98,18 @@ async function openReadyAppWithNewPasskey(page, { userId, displayName }) {
 	// qr01 opens anonymously with no gate, then upgrades on a real click.
 	await expectAppReady(page);
 
-	await page.getByTestId('identity-create-toggle').click();
-	await page.getByTestId('identity-user-id').fill(userId);
-	await page.getByTestId('identity-display-name').fill(displayName);
-	await page.getByTestId('identity-create').click();
-
-	await expectAppReady(page);
+	// The shared helper does the waiting. A local copy of this used to end with
+	// "wait until the app looks ready", which is satisfied by the stack the
+	// restart is about to tear down — the panels then remount and clear
+	// themselves underneath the next step.
+	await createPasskey(page, { userId, displayName, timeout: collaborationTimeout });
 }
 
 /** @param {import('@playwright/test').Page} page */
 async function proceedWithExistingPasskey(page) {
 	// Nothing is preselected any more: a reloaded session is anonymous until
 	// the passkey is restored, which is what this click does.
-	await expectAppReady(page);
-	await page.getByTestId('identity-recover').click();
-	await expectAppReady(page);
+	await restoreSharedPasskey(page, { timeout: collaborationTimeout });
 }
 
 /**
