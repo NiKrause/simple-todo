@@ -1,9 +1,8 @@
 <script>
-	/* eslint-disable no-undef */
 	import { onMount } from 'svelte';
 	import { peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js';
 	import { getRelayNetworkEnabled, setRelayNetworkEnabled } from '$lib/network-mode.js';
-	import { formatBuildDate } from '$lib/build-info.js';
+	import { formatBuildDate, formatVersions } from '$lib/build-info.js';
 	import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
@@ -176,9 +175,9 @@
 			<div>
 				<h1 class="text-2xl font-bold text-heading sm:text-3xl">Simple-Todo</h1>
 				<p class="mt-1 text-sm text-faint">
-					A local-first peer-to-peer PWA · IPFS + OrbitDB v{typeof __APP_VERSION__ !== 'undefined'
-						? __APP_VERSION__
-						: '0.0.0'} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{formatBuildDate(
+					A local-first peer-to-peer PWA · {formatVersions({
+						appName: 'Simple-Todo'
+					})} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{formatBuildDate(
 						typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : ''
 					)}]
 				</p>

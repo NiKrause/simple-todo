@@ -1,5 +1,4 @@
 <script>
-	/* eslint-disable no-undef */
 	import '../app.css';
 	import { formatBuildDate } from '$lib/build-info.js';
 	// import favicon from '$lib/assets/favicon.svg';
