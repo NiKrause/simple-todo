@@ -9,6 +9,8 @@
 	} from '$lib/p2p.js';
 	import DidBadge from '$lib/DidBadge.svelte';
 	import IdentityPanel from '$lib/IdentityPanel.svelte';
+	import QrTransfer from '$lib/QrTransfer.svelte';
+	import { qrCodeOnScreen } from '$lib/qr-transport.js';
 	import {
 		todosStore,
 		todoDBAddressStore,
@@ -278,6 +280,7 @@
 	{/if}
 
 	{#if $initializationStore.isInitialized}
+		<QrTransfer />
 		<IdentityPanel />
 		<NewPrivateListButton />
 		<ListSwitcher />
@@ -292,5 +295,21 @@
 	<TodoList todos={$todosStore} on:delete={handleDelete} on:toggleComplete={handleToggleComplete} />
 </main>
 
-<!-- Floating Relay Button FAB -->
-<SponsorRelayFab manifestUrl="./rootfs-manifest.json" showInstances={true} />
+<!--
+	The Relay Button, out of the way while a code is being scanned.
+
+	It renders itself `position: fixed` at bottom-right with `z-index: 10000`,
+	so it sat squarely on top of the QR code — covering part of a code someone
+	is holding up to a camera, which is the one interaction this chapter exists
+	for. A wrapper cannot move it (fixed elements ignore their container) and
+	overriding the position with `!important` would be fighting the component,
+	so it simply is not drawn for the few seconds a code is up.
+
+	It is also the least relevant control here until milestone 3 adds a relay,
+	which is the other half of "less intrusive than in the earlier chapters".
+-->
+{#if !$qrCodeOnScreen}
+	<div data-testid="relay-button-slot">
+		<SponsorRelayFab manifestUrl="./rootfs-manifest.json" showInstances={true} />
+	</div>
+{/if}

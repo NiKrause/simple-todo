@@ -40,21 +40,27 @@
 	);
 
 	$: initializationComplete = initialization?.isInitialized === true;
+	// The relay step only exists when a relay does.
+	//
+	// Left in unconditionally it read "Connecting to relay" with a spinner that
+	// never stops, on a chapter that deliberately has no relay to connect to —
+	// an app that looks broken while working exactly as designed. It reappears
+	// on its own once one is configured, which is what milestone 3 does.
 	$: connectivitySteps = [
+		...(relayConnected || $relayHttpStatusStore.origin
+			? [
+					{
+						label: 'Relay connected',
+						description: getRelayDescription(),
+						status: relayConnected ? 'complete' : initializationComplete ? 'active' : 'pending'
+					}
+				]
+			: []),
 		{
-			label: 'Relay connected',
-			description: getRelayDescription(),
-			status: relayConnected ? 'complete' : initializationComplete ? 'active' : 'pending'
-		},
-		{
-			label: 'WebRTC connected',
+			label: 'Peer connected',
 			description:
-				'A live libp2p connection using WebRTC is available. This normally appears after another browser peer has been discovered.',
-			status: webRTCConnected
-				? 'complete'
-				: initializationComplete && relayConnected
-					? 'active'
-					: 'pending'
+				'A live libp2p connection to another browser. In this chapter that connection is built by scanning a QR code — there is nothing to discover until someone does.',
+			status: webRTCConnected ? 'complete' : initializationComplete ? 'active' : 'pending'
 		}
 	];
 	$: allSteps = [...(initialization?.steps ?? []), ...connectivitySteps];
@@ -323,9 +329,7 @@
 					>
 				{/if}
 			</summary>
-			<div
-				class="mt-3 grid min-w-0 gap-3 border-t border-border pt-3 lg:grid-cols-3 [&>*]:min-w-0"
-			>
+			<div class="mt-3 grid min-w-0 gap-3 border-t border-border pt-3 lg:grid-cols-3 [&>*]:min-w-0">
 				<slot />
 			</div>
 		</details>

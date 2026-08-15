@@ -11,6 +11,20 @@
 
 	export let disabled = false;
 	export let compact = false;
+	/**
+	 * Discover relay addresses on mount.
+	 *
+	 * Off in this chapter. Discovery used to run automatically, fetch live relay
+	 * registrations from the shared Aleph channel and *ping* them — and a ping is
+	 * a dial. Making the libp2p config relay-free was therefore not enough: the
+	 * app still came up holding three connections to a production relay, with
+	 * circuit reservations, on a chapter whose entire claim is that two devices
+	 * meet by nothing but a scanned code. Found by looking at the running app,
+	 * not by reading the config.
+	 *
+	 * The button still discovers on demand, and milestone 3 turns this back on.
+	 */
+	export let autoDiscover = false;
 
 	let selectedMultiaddr = '';
 	let customMultiaddr = '';
@@ -33,10 +47,14 @@
 
 	/** @typedef {{ status: 'stable' | 'dropped', detail: string, remotePeer: string | null, remoteAddr: string }} ManualConnectResult */
 
-	$: if (!disabled && !hasStartedInitialDiscovery) {
+	$: if (!disabled && !hasStartedInitialDiscovery && autoDiscover) {
 		hasStartedInitialDiscovery = true;
 		void refreshBootstrapMultiaddrs();
 	}
+
+	// Nothing has been discovered and nothing is being discovered — say so
+	// instead of leaving the spinner up forever when auto-discovery is off.
+	$: if (!autoDiscover && !hasStartedInitialDiscovery) isDiscovering = false;
 
 	async function refreshBootstrapMultiaddrs() {
 		isDiscovering = true;

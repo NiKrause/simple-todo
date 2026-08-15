@@ -1,5 +1,18 @@
+import { writable } from 'svelte/store';
 import { QRSession, webRTCQR } from '@le-space/libp2p-webrtc-qr';
 import { rtcConfiguration } from './ice-mode.js';
+
+/**
+ * True while a code is on screen waiting to be scanned.
+ *
+ * Read by the page to get the floating Relay Button out of the way. That button
+ * is `position: fixed` with `z-index: 10000`, so it cannot be moved by putting
+ * a container around it — and it was sitting on top of the QR code someone is
+ * holding up to a camera, which is the one interaction this chapter exists for.
+ * Overriding its positioning with `!important` would fight the component; not
+ * drawing it for those few seconds is smaller and says what it means.
+ */
+export const qrCodeOnScreen = writable(false);
 
 /**
  * Meeting a peer with nothing but a scanned code.
