@@ -114,14 +114,22 @@ export async function restorePasskey(page, { timeout = 90_000 } = {}) {
  * cleared it, and the list was created under the default name. Every assertion
  * about the typed name failed while the app itself was working correctly.
  *
- * The identity panel's own state is the honest signal. Its create/recover
- * buttons live behind `{#if !usingPasskey}`, so their disappearance means the
- * new identity is live — which only happens once the restart has finished.
+ * The signal has to be *positive*. Waiting for the identity panel's buttons to
+ * disappear looked reasonable and was not: those buttons sit inside
+ * `{#if $initializationStore.isInitialized}` too, so they are momentarily
+ * absent during any re-render, and `toBeHidden` fires on the first such moment
+ * — before the restart has even begun. Measured: with that wait, the passkey
+ * restart still landed *after* the next click, and the panels remounted
+ * underneath it exactly as before.
+ *
+ * The DID badge is the honest signal, because `ownDidStore` is only set from
+ * inside `createOrbitDBInstance` — deep in the rebuild. A `did:` value there
+ * cannot exist until the new identity is genuinely live.
  *
  * @param {import('@playwright/test').Page} page
  * @param {number} [timeout]
  */
 export async function waitForPasskeyAdopted(page, timeout = 90_000) {
-	await expect(page.getByTestId('identity-create-toggle')).toBeHidden({ timeout });
+	await expect(page.getByTestId('own-did-value')).toHaveAttribute('data-did', /^did:/, { timeout });
 	await expectAppReady(page, timeout);
 }
