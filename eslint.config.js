@@ -8,6 +8,17 @@ import svelteConfig from './svelte.config.js';
 
 const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
+// Substituted by Vite's `define` (see vite.config.js), so they exist at build
+// time without ever being declared in source.
+const buildTimeGlobals = {
+	__APP_VERSION__: 'readonly',
+	__BUILD_DATE__: 'readonly',
+	__APP_BRANCH__: 'readonly',
+	__ORBITDB_VERSION__: 'readonly',
+	__HELIA_VERSION__: 'readonly',
+	__LIBP2P_VERSION__: 'readonly'
+};
+
 /** @type {import('eslint').Linter.Config[]} */
 export default [
 	includeIgnoreFile(gitignorePath),
@@ -17,13 +28,13 @@ export default [
 	...svelte.configs.prettier,
 	{
 		languageOptions: {
-			globals: { ...globals.browser, ...globals.node }
+			globals: { ...globals.browser, ...globals.node, ...buildTimeGlobals }
 		}
 	},
 	{
 		files: ['**/*.svelte', '**/*.svelte.js'],
 		languageOptions: {
-			globals: { ...globals.browser, ...globals.node, __APP_VERSION__: 'readonly' },
+			globals: { ...globals.browser, ...globals.node, ...buildTimeGlobals },
 			parserOptions: { svelteConfig }
 		}
 	}
