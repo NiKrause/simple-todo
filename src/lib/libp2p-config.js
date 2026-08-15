@@ -18,6 +18,7 @@ import {
 	parseBootstrapMultiaddrs,
 	selectValidBrowserBootstrapMultiaddrs
 } from './bootstrap-multiaddrs.js';
+import { createStaleAutoTlsGate } from './stale-autotls-gate.js';
 import { qrTransports, webRTCQRTransport } from './qr-transport.js';
 import { isRelayNetworkMode } from './network-mode.js';
 
@@ -108,6 +109,18 @@ export async function createLibp2pConfig(privateKey = null) {
 		throw new Error('No valid browser-dialable relay bootstrap multiaddresses are configured.');
 	}
 	const alephBootstrap = bootstrap({ list: relayBootstrapAddrs });
+	// The build-time resolver already probed every discovered address and shipped
+	// only what answered, so `relayBootstrapAddrs` is a verified set. The gate
+	// below carries that verdict into runtime, where the relay itself hands the
+	// browser its other announced addresses over identify — including AutoTLS
+	// names whose IP it no longer holds (issue #154).
+	const denyStaleAutoTls = createStaleAutoTlsGate(relayBootstrapAddrs, {
+		onDeny: ({ address, host }) =>
+			console.warn(
+				`Refusing a stale AutoTLS relay address (host ${host} is no longer this relay):`,
+				address
+			)
+	});
 	const webRTCEnabled = getWebRTCEnabled();
 
 	/** @type {any} */
@@ -161,7 +174,15 @@ export async function createLibp2pConfig(privateKey = null) {
 			// Gate on the page protocol instead of banning /ws outright: local dev and
 			// the E2E suite serve the app over http://localhost and dial a plain-ws
 			// relay, where mixed content does not apply.
-			denyDialMultiaddr: (multiaddr) => isInsecureWebSocketDial(multiaddr),
+			//
+			// The second check refuses an IP-derived AutoTLS address for a relay we
+			// already hold verified addresses for. Those names bake the host's IP in
+			// and cannot age: when the VM moves, the record points at whoever holds
+			// that IP now, and every connect pays a dial timeout against a stranger.
+			// Narrow on purpose — an unknown relay is not ours to judge, and a relay
+			// that genuinely moved re-registers, so the next build picks it up.
+			denyDialMultiaddr: (/** @type {{ toString: () => string }} */ multiaddr) =>
+				isInsecureWebSocketDial(multiaddr) || denyStaleAutoTls(multiaddr),
 			denyDialPeer: () => false,
 			denyInboundConnection: () => false,
 			denyOutboundConnection: () => false,
