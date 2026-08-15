@@ -22,12 +22,6 @@ test.describe('Consent Screen', () => {
 			.locator('label')
 			.filter({ hasText: /I understand relay or peer nodes may cache/ })
 			.locator('input[type="checkbox"]');
-		const globalDatabaseCheckbox = page
-			.locator('label')
-			.filter({
-				hasText: /I understand todos are stored in a shared, unencrypted OrbitDB database/
-			})
-			.locator('input[type="checkbox"]');
 		const replicationTestingCheckbox = page
 			.locator('label')
 			.filter({ hasText: /I understand collaboration requires another browser or device/ })
@@ -36,8 +30,15 @@ test.describe('Consent Screen', () => {
 		// Verify all checkboxes are unchecked initially
 		await expect(relayConnectionCheckbox).not.toBeChecked();
 		await expect(dataVisibilityCheckbox).not.toBeChecked();
-		await expect(globalDatabaseCheckbox).not.toBeChecked();
 		await expect(replicationTestingCheckbox).not.toBeChecked();
+
+		// The storage choice replaced the fourth acknowledgement. It is a choice,
+		// not a confirmation: it starts on the safe side and must never gate the
+		// proceed button, so ticking nothing here still lets a user continue.
+		const memoryOption = page.getByTestId('consent-storage-memory');
+		const indexedDbOption = page.getByTestId('consent-storage-indexeddb');
+		await expect(memoryOption).toBeChecked();
+		await expect(indexedDbOption).not.toBeChecked();
 
 		// Check that the proceed button is disabled initially
 		const proceedButton = page
@@ -48,13 +49,11 @@ test.describe('Consent Screen', () => {
 		// Check each required checkbox
 		await relayConnectionCheckbox.check();
 		await dataVisibilityCheckbox.check();
-		await globalDatabaseCheckbox.check();
 		await replicationTestingCheckbox.check();
 
 		// Verify all checkboxes are now checked
 		await expect(relayConnectionCheckbox).toBeChecked();
 		await expect(dataVisibilityCheckbox).toBeChecked();
-		await expect(globalDatabaseCheckbox).toBeChecked();
 		await expect(replicationTestingCheckbox).toBeChecked();
 
 		// Check that the proceed button is now enabled and text changed
@@ -99,12 +98,6 @@ test.describe('Consent Screen', () => {
 			.locator('label')
 			.filter({ hasText: /I understand relay or peer nodes may cache/ })
 			.locator('input[type="checkbox"]');
-		const globalDatabaseCheckbox = page
-			.locator('label')
-			.filter({
-				hasText: /I understand todos are stored in a shared, unencrypted OrbitDB database/
-			})
-			.locator('input[type="checkbox"]');
 		const replicationTestingCheckbox = page
 			.locator('label')
 			.filter({ hasText: /I understand collaboration requires another browser or device/ })
@@ -112,7 +105,6 @@ test.describe('Consent Screen', () => {
 
 		await relayConnectionCheckbox.check();
 		await dataVisibilityCheckbox.check();
-		await globalDatabaseCheckbox.check();
 		await replicationTestingCheckbox.check();
 
 		// Click proceed

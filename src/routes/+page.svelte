@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js';
 	import { getRelayNetworkEnabled, setRelayNetworkEnabled } from '$lib/network-mode.js';
+	import { getPersistentStorageEnabled, setPersistentStorageEnabled } from '$lib/storage-mode.js';
 	import { formatBuildDate, formatVersions } from '$lib/build-info.js';
 	import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/ConsentModal.svelte';
@@ -42,12 +43,18 @@
 	// Seeded from storage so the box reflects this browser's existing choice
 	// rather than resetting to the default on every visit.
 	let relayNetworkEnabled = getRelayNetworkEnabled();
+	// Same reason as above: seeded from storage so the switch reflects this
+	// browser's existing choice rather than resetting to the default on every visit.
+	let persistentStorageEnabled = getPersistentStorageEnabled();
 
 	const handleModalClose = async () => {
 		showModal = false;
 		// Written before initializeP2P: createLibp2pConfig reads the choice while
 		// building the node, so persisting it afterwards would start the wrong one.
 		setRelayNetworkEnabled(relayNetworkEnabled);
+		// Also before initializeP2P: this one decides which stores Helia and OrbitDB
+		// are built with, and those cannot be swapped after the node exists.
+		setPersistentStorageEnabled(persistentStorageEnabled);
 		try {
 			if (rememberDecision) {
 				localStorage.setItem(CONSENT_KEY, 'true');
@@ -158,6 +165,7 @@
 	<ConsentModal
 		bind:show={showModal}
 		title="Simple-Todo"
+		bind:persistentStorageEnabled
 		bind:relayNetworkEnabled
 		bind:rememberDecision
 		rememberLabel="Don't show this again on this device"
