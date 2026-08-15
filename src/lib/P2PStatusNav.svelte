@@ -302,6 +302,16 @@
 		</div>
 	{/if}
 
+	<!--
+		Identity first, above the network and the shared list.
+
+		It is the one thing a person has to settle before anything else means
+		much: who the lists they make belong to. Sitting below the transfer panel
+		it read as an afterthought, and the DID it produces was announced way up
+		in the page header, far from the control that created it.
+	-->
+	<slot name="identity" />
+
 	{#if $$slots.default}
 		<details class="group mt-3 border-t border-border pt-2" data-testid="network-details">
 			<summary

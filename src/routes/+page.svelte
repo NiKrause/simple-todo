@@ -1,13 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
-	import {
-		peerIdStore,
-		ownDidStore,
-		initializeP2P,
-		initializationStore,
-		restartP2P
-	} from '$lib/p2p.js';
-	import DidBadge from '$lib/DidBadge.svelte';
+	import { peerIdStore, initializeP2P, initializationStore, restartP2P } from '$lib/p2p.js';
 	import IdentityPanel from '$lib/IdentityPanel.svelte';
 	import QrTransfer from '$lib/QrTransfer.svelte';
 	import { qrCodeOnScreen } from '$lib/qr-transport.js';
@@ -203,6 +196,8 @@
 
 	let connectedPeersRef;
 	let showMnemonicEditor = false;
+	/** @type {'create' | 'open'} */
+	let listTab = 'create';
 </script>
 
 <ToastNotification message={toastMessage} type={toastType} />
@@ -234,14 +229,19 @@
 				</p>
 			</div>
 		</div>
+		<!-- The DID moved into the status panel, next to the control that
+		     produces it. Announcing it up here left the identity split across
+		     two ends of the page. -->
 		<div class="flex flex-shrink-0 items-center gap-2 self-start sm:self-auto">
-			<DidBadge did={$ownDidStore ?? ''} />
 			<ThemeToggle />
 			<SocialIcons size="w-5 h-5" className="" />
 		</div>
 	</header>
 
 	<P2PStatusNav initialization={$initializationStore} libp2p={$libp2pStore} peerId={myPeerId}>
+		<svelte:fragment slot="identity">
+			<IdentityPanel />
+		</svelte:fragment>
 		<ManualConnectForm
 			compact
 			disabled={!$initializationStore.isInitialized}
@@ -283,10 +283,49 @@
 
 	{#if $initializationStore.isInitialized}
 		<QrTransfer />
-		<IdentityPanel />
-		<NewPrivateListButton />
-		<ListSwitcher />
-		<OpenDatabaseForm />
+
+		<!--
+			Two ways to end up with a list, as two tabs rather than two stacked
+			panels. They are alternatives — you either make one or you open
+			somebody else's — and stacking them made the page read as a checklist
+			of things to do rather than a choice between two.
+
+			"Create" is the default, and your existing lists live inside it: that
+			is where you look for a list you already have, right under the control
+			that makes new ones.
+		-->
+		<section
+			class="mt-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700"
+			data-testid="list-tabs"
+		>
+			<div class="flex gap-1 border-b border-border" role="tablist">
+				{#each [{ id: 'create', label: 'Create a private list' }, { id: 'open', label: 'Open a shared list' }] as tab (tab.id)}
+					<button
+						type="button"
+						role="tab"
+						aria-selected={listTab === tab.id}
+						on:click={() => (listTab = tab.id)}
+						data-testid="list-tab-{tab.id}"
+						class="-mb-px border-b-2 px-3 py-1.5 text-xs font-medium
+							{listTab === tab.id
+							? 'border-cyan-600 text-heading'
+							: 'border-transparent text-faint hover:text-text'}"
+					>
+						{tab.label}
+					</button>
+				{/each}
+			</div>
+
+			<div class="mt-3">
+				{#if listTab === 'create'}
+					<NewPrivateListButton />
+					<ListSwitcher />
+				{:else}
+					<OpenDatabaseForm />
+				{/if}
+			</div>
+		</section>
+
 		<PermissionsPanel />
 	{/if}
 

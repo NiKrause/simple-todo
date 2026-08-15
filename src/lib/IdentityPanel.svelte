@@ -8,8 +8,13 @@
 	// removed the only way to ever create or recover a passkey, on the very
 	// chapter whose unguessable list addresses depend on having an identity.
 	//
-	// So the app now starts anonymously with no interaction at all, and every
+	// So the app starts anonymously with no interaction at all, and every
 	// WebAuthn call below sits behind a button, which is the gesture.
+	//
+	// It lives at the top of the status panel rather than further down the page:
+	// who a list belongs to is the first thing to settle, and the DID it
+	// produces belongs next to the control that made it rather than in the page
+	// header, far away from it.
 	import {
 		createPasskeyCredential,
 		recoverPasskeyCredential,
@@ -24,10 +29,27 @@
 	let userId = '';
 	let displayName = '';
 	let showCreateForm = false;
+	let copied = false;
 
 	const hasStoredPasskey = hasStoredPasskeyCredential();
 
 	$: usingPasskey = Boolean($ownDidStore) && $ownDidStore.startsWith('did:');
+
+	/** @param {string} value */
+	function shortDid(value) {
+		if (value.length <= 24) return value;
+		return `${value.slice(0, 14)}…${value.slice(-6)}`;
+	}
+
+	async function copyDid() {
+		try {
+			await navigator.clipboard.writeText($ownDidStore ?? '');
+			copied = true;
+			setTimeout(() => (copied = false), 1500);
+		} catch (err) {
+			console.warn('Clipboard unavailable:', err);
+		}
+	}
 
 	/** @param {() => Promise<any>} obtain */
 	async function adopt(obtain) {
@@ -59,74 +81,100 @@
 	const recover = () => adopt(() => recoverPasskeyCredential());
 </script>
 
-<section
-	class="mt-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700"
-	data-testid="identity-panel"
->
-	<h2 class="text-sm font-semibold text-heading">Identity</h2>
-	<p class="mt-1 text-xs text-faint">
-		{#if usingPasskey}
-			This session uses a passkey-backed DID. Lists you create can only be written by it.
-		{:else if hasStoredPasskey}
-			<!-- Every reload lands here, and silently: WebAuthn cannot be prompted
-			     from `onMount`, so a passkey session always restarts anonymous. The
-			     registry is keyed to a signing identity, so the lists made with the
-			     passkey are not gone but not visible either — say so, because an
-			     empty list switcher otherwise reads as data loss. -->
-			This session started anonymously. A passkey exists on this device, and
-			<strong>lists you created with it stay hidden until you restore it.</strong>
-		{:else}
-			This session uses an anonymous identity. It works, but it is gone when this browser's storage
-			is cleared — a passkey survives and identifies you to the people you hand lists to.
-		{/if}
-	</p>
-
-	{#if error}
-		<p class="mt-2 text-xs text-red-600 dark:text-red-400" data-testid="identity-error">{error}</p>
-	{/if}
-
-	{#if !usingPasskey}
-		<div class="mt-3 flex flex-wrap gap-2">
-			<button
-				type="button"
-				class="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
-				disabled={state === 'busy'}
-				on:click={() => (showCreateForm = !showCreateForm)}
-				data-testid="identity-create-toggle">Create a passkey</button
+<section class="mt-3 border-t border-border pt-2" data-testid="identity-panel">
+	{#if usingPasskey}
+		<!-- Settled: the DID and nothing else, in the colour it carried in the
+		     header, now beside the control that produced it. -->
+		<div
+			class="flex items-center gap-2 px-1 py-1 text-xs"
+			data-testid="own-did-badge"
+			title={$ownDidStore}
+		>
+			<span class="font-semibold text-emerald-700 dark:text-emerald-300">Passkey DID</span>
+			<code
+				class="min-w-0 truncate font-mono text-faint"
+				data-testid="own-did-value"
+				data-did={$ownDidStore}>{shortDid($ownDidStore ?? '')}</code
 			>
 			<button
 				type="button"
-				class="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
-				disabled={state === 'busy'}
-				on:click={recover}
-				data-testid="identity-recover"
+				on:click={copyDid}
+				class="shrink-0 rounded border border-emerald-300 px-1.5 py-0.5 hover:bg-emerald-100 dark:border-emerald-700 dark:hover:bg-emerald-900"
+				data-testid="own-did-copy">{copied ? 'Copied ✓' : 'Copy'}</button
 			>
-				{hasStoredPasskey ? 'Use the passkey on this device' : 'Use an existing passkey'}
-			</button>
 		</div>
+	{:else}
+		<!-- Unsettled: open, not folded away. Anything a person has to decide
+		     before the rest of the page makes sense should not need a click to
+		     be discovered. -->
+		<div class="px-1 py-1">
+			<div class="flex items-center gap-2 text-xs font-medium text-text">
+				<span>Identity</span>
+				<span class="font-normal text-faint">· anonymous</span>
+			</div>
+			<p class="mt-1 text-xs text-faint">
+				{#if hasStoredPasskey}
+					<!-- Every reload lands here, and silently: WebAuthn cannot be
+					     prompted from `onMount`, so a passkey session always restarts
+					     anonymous. The registry is keyed to a signing identity, so
+					     lists made with the passkey are not gone but not visible
+					     either — say so, because an empty switcher reads as data loss. -->
+					A passkey exists on this device.
+					<strong>Lists you created with it stay hidden until you restore it.</strong>
+				{:else}
+					Works as it is, but it is gone when this browser's storage is cleared — a passkey survives
+					and identifies you to the people you hand lists to.
+				{/if}
+			</p>
 
-		{#if showCreateForm}
-			<div class="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-				<input
-					class="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
-					placeholder="User id"
-					bind:value={userId}
-					data-testid="identity-user-id"
-				/>
-				<input
-					class="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
-					placeholder="Display name"
-					bind:value={displayName}
-					data-testid="identity-display-name"
-				/>
+			{#if error}
+				<p class="mt-2 text-xs text-red-600 dark:text-red-400" data-testid="identity-error">
+					{error}
+				</p>
+			{/if}
+
+			<div class="mt-2 flex flex-wrap gap-2">
 				<button
 					type="button"
-					class="rounded bg-cyan-600 px-2 py-1 text-xs text-white hover:bg-cyan-700 disabled:opacity-50"
+					class="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
 					disabled={state === 'busy'}
-					on:click={create}
-					data-testid="identity-create">{state === 'busy' ? 'Working…' : 'Create'}</button
+					on:click={() => (showCreateForm = !showCreateForm)}
+					data-testid="identity-create-toggle">Create a passkey</button
 				>
+				<button
+					type="button"
+					class="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
+					disabled={state === 'busy'}
+					on:click={recover}
+					data-testid="identity-recover"
+				>
+					{hasStoredPasskey ? 'Use the passkey on this device' : 'Use an existing passkey'}
+				</button>
 			</div>
-		{/if}
+
+			{#if showCreateForm}
+				<div class="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+					<input
+						class="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
+						placeholder="User id"
+						bind:value={userId}
+						data-testid="identity-user-id"
+					/>
+					<input
+						class="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
+						placeholder="Display name"
+						bind:value={displayName}
+						data-testid="identity-display-name"
+					/>
+					<button
+						type="button"
+						class="rounded bg-cyan-600 px-2 py-1 text-xs text-white hover:bg-cyan-700 disabled:opacity-50"
+						disabled={state === 'busy'}
+						on:click={create}
+						data-testid="identity-create">{state === 'busy' ? 'Working…' : 'Create'}</button
+					>
+				</div>
+			{/if}
+		</div>
 	{/if}
 </section>
