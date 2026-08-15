@@ -5,10 +5,20 @@ import { createHeliaLight } from 'helia';
 import { withBitswap } from '@helia/bitswap';
 import { withHTTP } from '@helia/http';
 import { withLibp2p } from '@helia/libp2p';
-import { createOrbitDB, IPFSAccessController } from '@orbitdb/core';
+import {
+	createOrbitDB,
+	IPFSAccessController,
+	Identities,
+	KeyStore,
+	MemoryStorage
+} from '@orbitdb/core';
 import { attachQrSession } from './qr-transport.js';
 import { isRelayNetworkMode } from './network-mode.js';
-import { getPersistentStorageEnabled, PERSISTENT_STORAGE_PATHS } from './storage-mode.js';
+import {
+	createLogStorages,
+	getPersistentStorageEnabled,
+	PERSISTENT_STORAGE_PATHS
+} from './storage-mode.js';
 import * as dagCbor from '@ipld/dag-cbor';
 import * as dagJson from '@ipld/dag-json';
 import * as json from 'multiformats/codecs/json';
@@ -163,6 +173,25 @@ async function createPersistentStores() {
 }
 
 /**
+ * Identities whose key material never leaves this session.
+ *
+ * Without this, "In Memory Only" was not true. `createOrbitDB` falls back to
+ * `KeyStore({ path: pathJoin(directory, './keystore') })` with `directory`
+ * defaulting to `./orbitdb`, and `browser-level` puts that in IndexedDB — so a
+ * user who asked for nothing on disk still left behind the key identifying this
+ * peer. That was a quiet omission before the storage choice existed; the label
+ * turned it into a broken promise.
+ *
+ * `MemoryStorage` is what @orbitdb/core's own KeyStore example reaches for.
+ *
+ * @param {any} ipfs
+ */
+async function createMemoryIdentities(ipfs) {
+	const keystore = await KeyStore({ storage: await MemoryStorage() });
+	return Identities({ ipfs, keystore });
+}
+
+/**
  * Initialize the P2P network after user consent
  * This function should be called only after the user has accepted the consent modal
  */
@@ -209,8 +238,10 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 		// see #144, where heads outliving their blocks is exactly that mismatch.
 		orbitdb = await createOrbitDB({
 			ipfs: helia,
-			id: getOrCreateOrbitDBIdentityId(),
-			...(persistent ? { directory: PERSISTENT_STORAGE_PATHS.orbitdb } : {})
+			id: getOrCreateOrbitDBIdentityId(persistent),
+			...(persistent
+				? { directory: PERSISTENT_STORAGE_PATHS.orbitdb }
+				: { identities: await createMemoryIdentities(helia) })
 		});
 		setInitializationProgress(4);
 		todoDB = await openInitialTodoDatabase(options.todoDbAddress);
@@ -288,7 +319,8 @@ async function openInitialTodoDatabase(address) {
 	if (normalizedAddress.startsWith('/orbitdb/')) {
 		return orbitdb.open(normalizedAddress, {
 			type: 'keyvalue',
-			sync: true
+			sync: true,
+			...(await createLogStorages())
 		});
 	}
 
@@ -296,6 +328,7 @@ async function openInitialTodoDatabase(address) {
 		type: 'keyvalue', //Stores data as key-value pairs supports basic operations: put(), get(), delete()
 		create: true, // Allows the database to be created if it doesn't exist
 		sync: true, // Enables automatic synchronization with other peers
+		...(await createLogStorages()),
 		AccessController: IPFSAccessController({ write: ['*'] }) //defines who can write to the database, ["*"] is a wildcard that allows all peers to write to the database, This creates a fully collaborative environment where any peer can add/edit TODOs
 	});
 
@@ -307,7 +340,15 @@ async function openInitialTodoDatabase(address) {
  * Keep a browser-profile identity id so entries from separate peers retain
  * distinct authors, while every peer opens the shared default database.
  */
-function getOrCreateOrbitDBIdentityId() {
+function getOrCreateOrbitDBIdentityId(persistent = true) {
+	// The other half of the same promise: remembering the id would leave a
+	// stable author label on the device for a session that claims to be
+	// forgotten. A fresh one per load costs nothing here, because the entries it
+	// signs are forgotten with it.
+	if (!persistent) {
+		return createOrbitDBIdentityId();
+	}
+
 	if (typeof localStorage === 'undefined') {
 		return createOrbitDBIdentityId();
 	}

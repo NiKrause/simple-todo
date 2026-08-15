@@ -1,6 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { peerIdStore } from './p2p.js';
 import { relayHttpStatusStore } from './relay-status.js';
+import { createLogStorages } from './storage-mode.js';
 import {
 	decideProofOutcome,
 	nextProofDelayMs,
@@ -158,7 +159,8 @@ export async function loadTodoDatabase(address) {
 	try {
 		const loadedTodoDB = await orbitdb.open(normalizedAddress, {
 			type: 'keyvalue',
-			sync: true
+			sync: true,
+			...(await createLogStorages())
 		});
 
 		setActiveTodoDatabase(loadedTodoDB);
