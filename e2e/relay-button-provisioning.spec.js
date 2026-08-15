@@ -100,6 +100,28 @@ function progress(message) {
 	console.log(`[relay-e2e ${new Date().toISOString()}] ${message}`);
 }
 
+/**
+ * Flatten an `AggregateError` into a message that names what actually failed.
+ *
+ * `cleanupAll` throws `AggregateError`, whose own `.message` is the useless
+ * constant "One or more Relay Button cleanups failed" — the individual causes
+ * live in `.errors` and were being dropped on the floor. Every red run and the
+ * evidence JSON therefore said only that *something* in cleanup broke, which is
+ * why identifying the real cause (a 120 s wait for a bootstrap registration the
+ * test's wallet is not the sender of, and so can never forget) took a second
+ * 12-minute provisioning run instead of being legible in the first.
+ *
+ * @param {unknown} error
+ * @returns {string}
+ */
+function describeError(error) {
+	if (error instanceof AggregateError) {
+		const causes = error.errors.map((inner) => describeError(inner)).join('; ');
+		return causes ? `${error.message}: ${causes}` : error.message;
+	}
+	return error instanceof Error ? error.message : String(error);
+}
+
 // Dial BOTH browsers at each relay address concurrently and keep retrying
 // until both hold a connection to the relay peer, or the readiness window
 // elapses. Freshly provisioned relays can take minutes to become
@@ -459,7 +481,55 @@ relayTest.describe('Sponsor Relay button', () => {
 					agentB.screenshot(`${OUTPUT_DIR}/browser-b-error.png`)
 				]);
 			} finally {
-				await Promise.allSettled([agentA.close(), agentB.close()]);
+				// Close the deployment page BEFORE erasing the VM, not after.
+				//
+				// `provision()` returns as soon as the relay is usable — its
+				// browser-reachable multiaddr is published and dialable, which is
+				// everything this test asserts. The deploy controller behind the
+				// page is not finished at that point: it keeps polling for the
+				// slower 2n6 HTTPS route ("2n6 activation N/120") and, if that
+				// probe fails, treats the CRN as bad and fails over to another one.
+				//
+				// Leaving the page open through cleanup made the test its own
+				// saboteur. `cleanupAll()` erased the VM out from under the still
+				// running controller, which ~2 minutes later concluded "NtS9
+				// failed: The relay VM did not confirm that it [is running].
+				// Cleaning up this attempt before retrying another CRN", FORGOT the
+				// instance (racing our own FORGET, which is what made `cleanupAll`
+				// throw its AggregateError) and then provisioned a *brand new*
+				// INSTANCE on a different CRN. Nothing tracked that one, so the
+				// orphan sweep below caught it and — correctly, by its own rules —
+				// failed the run for an untracked instance.
+				//
+				// That is what kept this workflow red on every run since the sweep
+				// landed in #157, while every functional assertion passed —
+				// including both replication directions. 31875248033
+				// (464fd753… → aa99bf80…) and 31873229839 (d4e32d01… → dc177395…)
+				// are the same sequence twice, and the Aleph INSTANCE listing for
+				// the E2E wallet shows neither orphan survived. Closing the
+				// context here removes the controller before it can observe the
+				// erase, so there is no failover and no orphan to sweep.
+				//
+				// Consequence, by design: `cleanupRelay` opens with a UI delete
+				// (`driver.requestDelete`) and silently falls through to the signed
+				// API path — CRN erase + Aleph FORGET — when that throws. With the
+				// page gone the UI attempt always throws, so cleanup now always
+				// takes the API path. That is the path that actually works here
+				// (the UI attempt was already failing its 20 s verification in the
+				// runs above), it needs no page, and it is the one whose erase and
+				// forget summaries the evidence records. Asserting the UI delete
+				// button itself is a separate test, not this one's job.
+				//
+				// Settled, never thrown: a rejection here would abort the `finally`
+				// before `cleanupAll()` and the orphan sweep ever ran, turning a
+				// closed page into a VM that bills forever — the exact leak #157
+				// exists to prevent.
+				// Last flush, immediately before the page that produces the noise goes
+				// away. #173 put this at the end of `finally`, where the page used to
+				// close; this branch closes it here instead, so the flush follows it
+				// rather than staying behind and dropping the tail.
+				summarizeDialFailures();
+				await Promise.allSettled([deploymentContext.close(), agentA.close(), agentB.close()]);
 				// Drive the shared cleanup explicitly (CRN erase + Aleph FORGET) so
 				// its result lands in the evidence written below; the fixture's
 				// automatic teardown then finds nothing tracked and is a no-op.
@@ -472,7 +542,7 @@ relayTest.describe('Sponsor Relay button', () => {
 						pass('cleanup', results[0]?.verificationSummary ?? '');
 					}
 				} catch (error) {
-					const detail = error instanceof Error ? error.message : String(error);
+					const detail = describeError(error);
 					updateRelayEvidenceStep(evidence, 'cleanup', 'failed', detail);
 					progress(`cleanup FAILED: ${detail}`);
 					cleanupError = new Error(`Relay Button cleanup failed for ${instanceName}: ${detail}`, {
@@ -525,11 +595,6 @@ relayTest.describe('Sponsor Relay button', () => {
 				}
 				evidence.finishedAt = new Date().toISOString();
 				await writeRelayEvidence(`${OUTPUT_DIR}/result.json`, evidence);
-				// Last flush, immediately before the page that produces the noise
-				// goes away: the deployment page keeps dialling right through
-				// cleanup, so flushing any earlier would drop that tail.
-				summarizeDialFailures();
-				await deploymentContext.close();
 			}
 
 			// The provisioning failure is the more informative one, so it wins.
