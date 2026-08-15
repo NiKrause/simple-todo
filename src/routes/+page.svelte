@@ -11,6 +11,7 @@
 	import IdentityPanel from '$lib/IdentityPanel.svelte';
 	import QrTransfer from '$lib/QrTransfer.svelte';
 	import { qrCodeOnScreen } from '$lib/qr-transport.js';
+	import ListOfferDialog from '$lib/ListOfferDialog.svelte';
 	import {
 		todosStore,
 		todoDBAddressStore,
@@ -205,6 +206,7 @@
 </script>
 
 <ToastNotification message={toastMessage} type={toastType} />
+<ListOfferDialog />
 
 <svelte:head>
 	<title>Simple-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title>

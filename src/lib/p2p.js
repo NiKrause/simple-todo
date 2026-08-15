@@ -19,6 +19,7 @@ import { sha512 } from 'multiformats/hashes/sha2';
 import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { attachQrSession, resetQrSession } from './qr-transport.js';
+import { registerHandoverProtocol } from './handover-protocol.js';
 import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
 import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
 import { getTodoDatabaseName } from './default-todo-database.js';
@@ -176,6 +177,10 @@ export async function initializeP2P(
 		// session is what builds one. Without this the node has the transport
 		// and no way to produce an offer, which is the entire chapter.
 		attachQrSession(libp2p);
+		// Registered here rather than from a component: an offer can arrive as
+		// soon as the connection exists, before anyone on this side has opened
+		// any particular screen.
+		registerHandoverProtocol(libp2p);
 		console.log(`✅ libp2p node created`);
 
 		// Get and set peer ID

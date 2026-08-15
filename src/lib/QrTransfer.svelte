@@ -13,6 +13,9 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { parsePayload, QR_TYPE_OFFER, QR_TYPE_ANSWER } from '@le-space/libp2p-webrtc-qr';
 	import { getQrSession, qrCodeOnScreen } from './qr-transport.js';
+	import { sendListOffer } from './handover-protocol.js';
+	import { todoDBAddressStore, activeListStore } from './db-actions.js';
+	import { ownDidStore } from './p2p.js';
 
 	/** @type {'idle' | 'offering' | 'answering' | 'connected'} */
 	let phase = 'idle';
@@ -23,6 +26,8 @@
 	let busy = false;
 	let shortCode = false;
 	let elementsReady = false;
+	/** @type {import('./handover-protocol.js').ListOffer | null} */
+	let sentList = null;
 
 	/** @type {any} */
 	let inviteEl;
@@ -104,19 +109,51 @@
 				payload = await session().acceptOffer(text);
 				phase = 'answering';
 			} else {
-				// Alice: the roundtrip closes here.
-				await session().acceptAnswer(text);
+				// Alice: the roundtrip closes here, and the list follows immediately.
+				const { peerId } = await session().acceptAnswer(text);
 				phase = 'connected';
 				payload = '';
+				await offerActiveList(peerId);
 			}
 		} catch (err) {
 			fail(err);
 		}
 	}
 
+	/**
+	 * Hand the peer the address of the list currently open.
+	 *
+	 * Sent by the side that *scanned the answer*, which is the side that started
+	 * the transfer — Alice on the site. The other end only ever receives an
+	 * offer, and decides.
+	 *
+	 * A failure here is reported without unwinding the connection: the handshake
+	 * genuinely succeeded, and telling someone their scan failed because a
+	 * follow-up message did not land would be a lie about what happened.
+	 *
+	 * @param {string} peerId
+	 */
+	async function offerActiveList(peerId) {
+		const address = $todoDBAddressStore;
+		if (!address) {
+			error = 'Connected, but no list is open to send.';
+			return;
+		}
+		try {
+			sentList = await sendListOffer(session(), peerId, {
+				address,
+				name: $activeListStore?.name ?? '',
+				ownerDid: $ownDidStore ?? ''
+			});
+		} catch (err) {
+			error = `Connected, but the list could not be sent: ${err instanceof Error ? err.message : String(err)}`;
+		}
+	}
+
 	function reset() {
 		payload = '';
 		error = null;
+		sentList = null;
 		phase = 'idle';
 	}
 
@@ -204,7 +241,14 @@
 	{/if}
 
 	{#if phase === 'connected'}
-		<p class="mt-3 text-xs text-faint" data-testid="qr-transfer-connected">Connected.</p>
+		<p class="mt-3 text-xs text-faint" data-testid="qr-transfer-connected">
+			{#if sentList}
+				Connected. Sent <strong>{sentList.name || 'the open list'}</strong> — they decide whether to
+				import it.
+			{:else}
+				Connected.
+			{/if}
+		</p>
 		<qr-peers></qr-peers>
 	{/if}
 
