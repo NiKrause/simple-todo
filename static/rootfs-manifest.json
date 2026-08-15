@@ -1,6 +1,6 @@
 {
   "profile": "orbitdb-relay",
-  "version": "orbitdb-relay-v0.10.1",
+  "version": "orbitdb-relay-v0.10.4",
   "rootfsInstallStrategy": "prebaked",
   "requiresBootstrapNetwork": false,
   "bootstrapSummary": "Dependencies are preinstalled in the image.",
@@ -30,6 +30,12 @@
       "purpose": "libp2p TCP"
     },
     {
+      "port": 9092,
+      "tcp": true,
+      "udp": false,
+      "purpose": "libp2p WebSocket and AutoTLS"
+    },
+    {
       "port": 443,
       "tcp": true,
       "udp": false,
@@ -49,10 +55,10 @@
     }
   ],
   "rootfsSizeMiB": 20480,
-  "createdAt": "2026-07-26T13:09:20.320Z",
+  "createdAt": "2026-08-15T07:49:05.772Z",
   "notes": "The OrbitDB relay image prebakes Node.js, production dependencies, and Caddy into the qcow2, delays first relay start until Aleph host port mappings are known, exposes a temporary setup endpoint on port 80, and uses Caddy on port 443 to front both HTTPS helper routes and secure libp2p WSS transport for the configured proxy hostname.",
   "supportsBootstrapConfigAggregate": true,
-  "rootfsSourceSizeBytes": 663881728,
-  "rootfsCid": "QmdJjWcr3GxgWeMvxqSWQdZHZR4hy2pBvAXuyDi5iivEUn",
-  "rootfsItemHash": "ef7055381bd9e4fe279c2cd20dea08ede6045ac90d12d812bf397be9d3a2e86a"
+  "rootfsSourceSizeBytes": 661344768,
+  "rootfsCid": "QmZi6EQfM3pMGzcbLEfKZCmFxQ3XH4RwBzz4mKWFcfi2JH",
+  "rootfsItemHash": "2335ea8a0702f3f174eed2f90b7abd5391a208d04a51824cc11fdaeb37789f26"
 }
