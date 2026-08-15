@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { SPANISH_MNEMONIC_STORAGE_KEY } from '../src/lib/spanish-mnemonic.js';
 
 // Chapter (passkey01): Alice and Bob each register a WebAuthn passkey in
 // their own browser context (CDP virtual authenticator), write todos into
@@ -91,37 +92,48 @@ async function addVirtualAuthenticator(page) {
  * @param {{ userId: string, displayName: string }} identity
  */
 async function openReadyAppWithNewPasskey(page, { userId, displayName }) {
+	await seedSharedList(page);
 	await page.goto(testUrl);
-	const modal = await fillConsentModal(page);
+	// qr01 opens anonymously with no gate, then upgrades on a real click.
+	await expectAppReady(page);
 
-	await page.getByTestId('identity-mode-create').check();
-	await page.getByTestId('passkey-user-id').fill(userId);
-	await page.getByTestId('passkey-display-name').fill(displayName);
+	await page.getByTestId('identity-create-toggle').click();
+	await page.getByTestId('identity-user-id').fill(userId);
+	await page.getByTestId('identity-display-name').fill(displayName);
+	await page.getByTestId('identity-create').click();
 
-	await page.getByRole('button', { name: 'Open shared list' }).click();
-	await expect(modal).not.toBeVisible({ timeout: collaborationTimeout });
 	await expectAppReady(page);
 }
 
 /** @param {import('@playwright/test').Page} page */
 async function proceedWithExistingPasskey(page) {
-	const modal = await fillConsentModal(page);
-	// A remembered passkey session preselects "Use an existing passkey".
-	await expect(page.getByTestId('identity-mode-existing')).toBeChecked();
-	await page.getByRole('button', { name: 'Open shared list' }).click();
-	await expect(modal).not.toBeVisible({ timeout: collaborationTimeout });
+	// Nothing is preselected any more: a reloaded session is anonymous until
+	// the passkey is restored, which is what this click does.
+	await expectAppReady(page);
+	await page.getByTestId('identity-recover').click();
 	await expectAppReady(page);
 }
 
-/** @param {import('@playwright/test').Page} page */
-async function fillConsentModal(page) {
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
-	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-		await checkbox.check();
-	}
-	await modal.getByTestId('shared-list-mnemonic-input').fill(sharedMnemonic);
-	return modal;
+/**
+ * Pin the shared list before the page runs.
+ *
+ * The mnemonic used to be typed into the consent modal. With no modal, the app
+ * reads it from storage on mount, so the test writes it there instead of
+ * opening one list and restarting onto another.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+async function seedSharedList(page) {
+	await page.addInitScript(
+		([key, value]) => {
+			try {
+				localStorage.setItem(key, value);
+			} catch {
+				// Storage blocked; the assertion that needs this list will say so.
+			}
+		},
+		[SPANISH_MNEMONIC_STORAGE_KEY, sharedMnemonic]
+	);
 }
 
 /** @param {import('@playwright/test').Page} page */
@@ -159,9 +171,7 @@ async function addTodo(page, text) {
  * @param {string} expectedDid
  */
 async function expectTodoWithAuthor(page, text, expectedDid) {
-	const row = page
-		.locator('div.flex-1')
-		.filter({ has: page.getByText(text, { exact: true }) });
+	const row = page.locator('div.flex-1').filter({ has: page.getByText(text, { exact: true }) });
 	await expect(row.getByTestId('todo-author')).toHaveAttribute('data-author', expectedDid, {
 		timeout: collaborationTimeout
 	});

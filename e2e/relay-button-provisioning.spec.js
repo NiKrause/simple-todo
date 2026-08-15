@@ -10,7 +10,10 @@ import {
 } from '@le-space/playwright';
 import { TodoBrowserAgent } from './remote/agent.mjs';
 import { selectPeerDialAddress } from './remote/main-scenario.mjs';
-import { generateSpanishMnemonic } from '../src/lib/spanish-mnemonic.js';
+import {
+	generateSpanishMnemonic,
+	SPANISH_MNEMONIC_STORAGE_KEY
+} from '../src/lib/spanish-mnemonic.js';
 
 // Chapter (collab01): provisions a real relay through the Relay Button UI and
 // replicates a Spanish-mnemonic-named shared OrbitDB list between two browsers.
@@ -219,16 +222,24 @@ relayTest.describe('Relay Button', () => {
 					`starting relay provisioning E2E as ${account.address} (instance ${instanceName})`
 				);
 
-				// Chapter: pass the consent modal by opening the shared list named by
-				// the mnemonic — this gate must clear before the Relay Button appears.
+				// qr01 has no consent gate — the app initialises on mount — so the
+				// shared list is pinned in storage before the page runs, instead of
+				// being typed into a modal that no longer exists.
+				await deploymentPage.addInitScript(
+					([key, value]) => {
+						try {
+							localStorage.setItem(key, value);
+						} catch {
+							// Storage blocked: the app generates its own mnemonic, which
+							// the relay assertions below do not depend on.
+						}
+					},
+					[SPANISH_MNEMONIC_STORAGE_KEY, sharedMnemonic]
+				);
 				await deploymentPage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
-				const consentModal = deploymentPage.locator('div.fixed.inset-0.z-50');
-				await consentModal.waitFor({ state: 'visible', timeout: 15_000 });
-				for (const checkbox of await consentModal.locator('input[type="checkbox"]').all()) {
-					await checkbox.check();
-				}
-				await consentModal.getByTestId('shared-list-mnemonic-input').fill(sharedMnemonic);
-				await consentModal.getByRole('button', { name: 'Open shared list' }).click();
+				await deploymentPage
+					.getByPlaceholder('What needs to be done?')
+					.waitFor({ state: 'visible', timeout: 60_000 });
 
 				// Phase 1: Wallet + manifest + provision (deploy → instance → bootstrap).
 				const relay = await relayLifecycle.provision(deploymentPage, {

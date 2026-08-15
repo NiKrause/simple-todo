@@ -1,3 +1,5 @@
+import { SPANISH_MNEMONIC_STORAGE_KEY } from '../../src/lib/spanish-mnemonic.js';
+
 const DEFAULT_TIMEOUT = 120_000;
 
 /** Timestamped live progress line so CI logs show what remote runs are doing. */
@@ -41,21 +43,28 @@ export class TodoBrowserAgent {
 		this.page.on('pageerror', (error) => {
 			remoteProgress(`[${this.name} pageerror] ${error.message}`);
 		});
+		// qr01 has no consent modal: the app initialises itself on mount, so
+		// there is no dialog to fill and no "Open shared list" button to click.
+		//
+		// The shared list is therefore chosen the way the app itself remembers
+		// it — by seeding the mnemonic into localStorage *before* the page runs,
+		// so `onMount` picks it up on the first pass. Driving the in-app editor
+		// instead would mean opening one list only to restart the whole P2P
+		// stack onto another, on every agent, in every test.
+		await this.page.addInitScript(
+			([key, value]) => {
+				try {
+					localStorage.setItem(key, value);
+				} catch {
+					// Storage blocked: the app falls back to a generated mnemonic,
+					// and the test that needs a specific one will fail loudly there.
+				}
+			},
+			[SPANISH_MNEMONIC_STORAGE_KEY, mnemonic]
+		);
+
 		remoteProgress(`[${this.name}] opening ${this.appUrl}...`);
 		await this.page.goto(this.appUrl, { waitUntil: 'domcontentloaded', timeout: this.timeout });
-
-		const modal = this.page.locator('div.fixed.inset-0.z-50');
-		await modal.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
-		if (await modal.isVisible()) {
-			for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-				await checkbox.check();
-			}
-			// Chapter-specific: collab01 replicates a Spanish-mnemonic-named shared
-			// OrbitDB list, so open that list by its mnemonic instead of the plain
-			// "Proceed to Test the App" flow.
-			await modal.getByTestId('shared-list-mnemonic-input').fill(mnemonic);
-			await this.page.getByRole('button', { name: 'Open shared list' }).click();
-		}
 
 		await this.todoInput().waitFor({ state: 'visible', timeout: this.timeout });
 		await this.page.waitForFunction(

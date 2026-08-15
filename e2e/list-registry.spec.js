@@ -56,7 +56,7 @@ test.describe('list registry (#114)', () => {
 		await page.waitForTimeout(20000);
 
 		await page.reload();
-		await dismissConsent(page);
+		await restorePasskey(page);
 		await expect(page.getByTestId('list-switcher')).toBeVisible({ timeout });
 		await expect(page.getByTestId('list-switcher')).toContainText(name);
 	});
@@ -161,19 +161,18 @@ async function addVirtualAuthenticator(page) {
 }
 
 /**
- * After a reload the consent modal comes back with the identity preselected for
- * recovery; clear it without creating a second passkey.
+ * Restore the passkey identity after a reload.
+ *
+ * qr01 always starts anonymously — `onMount` cannot prompt for WebAuthn — so a
+ * reloaded session comes back as a different identity and the registry, which
+ * is keyed to a signature, looks empty. Recovering the passkey is what brings
+ * the lists back, and it is a click for the same reason it was a click before.
+ *
  * @param {import('@playwright/test').Page} page
  */
-async function dismissConsent(page) {
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	if (!(await modal.isVisible().catch(() => false))) return;
-	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-		await checkbox.check();
-	}
-	await page.getByTestId('identity-mode-existing').check();
-	await page.getByRole('button', { name: 'Open shared list' }).click();
-	await expect(modal).not.toBeVisible({ timeout });
+async function restorePasskey(page) {
+	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
+	await page.getByTestId('identity-recover').click();
 	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
 }
 
@@ -181,15 +180,14 @@ async function dismissConsent(page) {
 async function openReadyApp(page) {
 	const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 	await page.goto(testUrl);
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
-	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-		await checkbox.check();
-	}
-	await page.getByTestId('identity-mode-create').check();
-	await page.getByTestId('passkey-user-id').fill(`${runId}@example.com`);
-	await page.getByTestId('passkey-display-name').fill(`User ${runId}`);
-	await page.getByRole('button', { name: 'Open shared list' }).click();
-	await expect(modal).not.toBeVisible({ timeout });
+	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
+
+	// qr01 starts anonymously with no gate; the registry is keyed to a signing
+	// identity, so this test still needs a passkey — created from a real click,
+	// because WebAuthn will not run without a user gesture.
+	await page.getByTestId('identity-create-toggle').click();
+	await page.getByTestId('identity-user-id').fill(`${runId}@example.com`);
+	await page.getByTestId('identity-display-name').fill(`User ${runId}`);
+	await page.getByTestId('identity-create').click();
 	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
 }

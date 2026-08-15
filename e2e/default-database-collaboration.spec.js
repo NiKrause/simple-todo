@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openReadyApp as openApp } from './open-app.mjs';
 
 const testUrl = '/';
 const collaborationTimeout = 90000;
@@ -59,20 +60,11 @@ test.describe('Default todo database collaboration', () => {
  * @param {import('@playwright/test').Page} page
  */
 async function openReadyApp(page) {
-	await page.goto(testUrl);
-
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
-
-	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-		await checkbox.check();
-	}
-	await modal.getByTestId('shared-list-mnemonic-input').fill(sharedMnemonic);
-
-	await page.getByRole('button', { name: 'Open shared list' }).click();
-	await expect(modal).not.toBeVisible();
-	await expect(getTodoInput(page)).toBeVisible();
-	await expect(getTodoInput(page)).toBeEnabled({ timeout: collaborationTimeout });
+	await openApp(page, {
+		url: testUrl,
+		mnemonic: sharedMnemonic,
+		timeout: collaborationTimeout
+	});
 }
 
 /**

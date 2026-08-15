@@ -5,7 +5,12 @@ import { createHeliaLight } from 'helia';
 import { withBitswap } from '@helia/bitswap';
 import { withHTTP } from '@helia/http';
 import { withLibp2p } from '@helia/libp2p';
-import { createOrbitDB, IPFSAccessController, Identities, useIdentityProvider } from '@orbitdb/core';
+import {
+	createOrbitDB,
+	IPFSAccessController,
+	Identities,
+	useIdentityProvider
+} from '@orbitdb/core';
 import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-identity-provider-webauthn-did';
 import * as dagCbor from '@ipld/dag-cbor';
 import * as dagJson from '@ipld/dag-json';
@@ -223,8 +228,17 @@ export async function initializeP2P(
 /**
  * Restart libp2p, Helia and OrbitDB with the current transport settings.
  * The active Todo DB address is preserved when one is available.
+ *
+ * `passkeyCredential` is forwarded only when the caller actually passes it.
+ * The distinction matters: `initializeP2P` treats an *absent* key as "keep the
+ * identity you already have" and a present one as "use this", so forwarding
+ * `undefined` unconditionally would silently drop the session's passkey on
+ * every ordinary restart. This chapter needs the explicit form because
+ * identity is now chosen inside the running app rather than before it starts.
+ *
+ * @param {{ todoDbName?: string, passkeyCredential?: any }} [options]
  */
-export async function restartP2P(options = /** @type {{ todoDbName?: string }} */ ({})) {
+export async function restartP2P(options = {}) {
 	const activeTodoDbAddress = get(todoDBAddressStore);
 	const currentDatabaseName = activeTodoDatabaseName;
 	const shouldPreserveActiveTodoDb =
@@ -235,7 +249,10 @@ export async function restartP2P(options = /** @type {{ todoDbName?: string }} *
 	await stopP2P();
 	await initializeP2P({
 		todoDbAddress: shouldPreserveActiveTodoDb ? activeTodoDbAddress : '',
-		todoDbName: options.todoDbName || currentDatabaseName
+		todoDbName: options.todoDbName || currentDatabaseName,
+		...(Object.prototype.hasOwnProperty.call(options, 'passkeyCredential')
+			? { passkeyCredential: options.passkeyCredential }
+			: {})
 	});
 }
 

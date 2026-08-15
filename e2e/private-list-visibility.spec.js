@@ -129,22 +129,27 @@ async function addVirtualAuthenticator(page) {
 }
 
 /**
- * Clear the consent gate with a fresh passkey identity and wait until the app
- * can actually be written to.
+ * Open the app and give it a fresh passkey identity.
+ *
+ * qr01 has no consent gate: the app starts on mount with an anonymous
+ * identity, so this waits for it to be usable and *then* upgrades through the
+ * identity panel. The passkey has to be created from a real click — WebAuthn
+ * refuses to run outside a user gesture, which is exactly why the panel exists
+ * rather than an automatic prompt.
+ *
  * @param {import('@playwright/test').Page} page
  */
 async function openReadyApp(page) {
 	const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 	await page.goto(testUrl);
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
-	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-		await checkbox.check();
-	}
-	await page.getByTestId('identity-mode-create').check();
-	await page.getByTestId('passkey-user-id').fill(`${runId}@example.com`);
-	await page.getByTestId('passkey-display-name').fill(`User ${runId}`);
-	await page.getByRole('button', { name: 'Open shared list' }).click();
-	await expect(modal).not.toBeVisible({ timeout });
+	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
+
+	await page.getByTestId('identity-create-toggle').click();
+	await page.getByTestId('identity-user-id').fill(`${runId}@example.com`);
+	await page.getByTestId('identity-display-name').fill(`User ${runId}`);
+	await page.getByTestId('identity-create').click();
+
+	// The passkey restarts the P2P stack, so wait for the app to come back up
+	// rather than racing the teardown.
 	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
 }

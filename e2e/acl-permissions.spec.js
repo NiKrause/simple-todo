@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openReadyApp, createPasskey } from './open-app.mjs';
 
 // Chapter (acl01): a list is owner-only until the owner grants another DID
 // write access. Both directions are exercised — Alice-owner and Bob-owner —
@@ -108,18 +109,8 @@ async function addVirtualAuthenticator(page) {
  * @param {{ userId: string, displayName: string }} identity
  */
 async function openReadyAppWithNewPasskey(page, { userId, displayName }) {
-	await page.goto(testUrl);
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
-	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-		await checkbox.check();
-	}
-	await page.getByTestId('identity-mode-create').check();
-	await page.getByTestId('passkey-user-id').fill(userId);
-	await page.getByTestId('passkey-display-name').fill(displayName);
-	await page.getByRole('button', { name: 'Open shared list' }).click();
-	await expect(modal).not.toBeVisible({ timeout });
-	await expect(todoInput(page)).toBeEnabled({ timeout });
+	await openReadyApp(page, { url: testUrl, timeout });
+	await createPasskey(page, { userId, displayName, timeout });
 }
 
 /** @param {import('@playwright/test').Page} page */

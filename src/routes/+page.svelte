@@ -1,9 +1,14 @@
 <script>
 	import { onMount } from 'svelte';
-	import { peerIdStore, ownDidStore, initializeP2P, initializationStore, restartP2P } from '$lib/p2p.js';
-	import PasskeyOnboarding from '$lib/PasskeyOnboarding.svelte';
+	import {
+		peerIdStore,
+		ownDidStore,
+		initializeP2P,
+		initializationStore,
+		restartP2P
+	} from '$lib/p2p.js';
 	import DidBadge from '$lib/DidBadge.svelte';
-	import { createPasskeyCredential, recoverPasskeyCredential } from '$lib/passkey-identity.js';
+	import IdentityPanel from '$lib/IdentityPanel.svelte';
 	import {
 		todosStore,
 		todoDBAddressStore,
@@ -13,7 +18,6 @@
 		toggleTodoComplete
 	} from '$lib/db-actions.js';
 	import { formatVersions } from '$lib/build-info.js';
-	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
 	import ThemeToggle from '$lib/ThemeToggle.svelte';
 	import LeSpaceLogo from '$lib/LeSpaceLogo.svelte';
@@ -45,14 +49,6 @@
 	/** @typedef {{ detail: { text: string } }} AddTodoEvent */
 	/** @typedef {{ detail: { key: string } }} TodoActionEvent */
 
-	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
-	const IDENTITY_MODE_KEY = 'simpleTodo.identityMode';
-
-	/** @type {'create' | 'existing' | 'anonymous'} */
-	let identityMode = 'anonymous';
-	let passkeyUserId = '';
-	let passkeyDisplayName = '';
-
 	/** @type {string | null} */
 	let toastMessage = null;
 	/** @type {ToastType} */
@@ -65,75 +61,59 @@
 	let activeMnemonic = '';
 	$: mnemonicValid = isValidSpanishMnemonic(selectedMnemonic);
 
-	// Modal state
-	let showModal = true;
-	let rememberDecision = false;
-
-	const handleModalClose = async () => {
+	/**
+	 * Switch the shared list without a modal in the way.
+	 *
+	 * The mnemonic used to be chosen on the consent screen, which meant changing
+	 * it required bringing that screen back. It is an in-app action now, like
+	 * every other list operation in this chapter.
+	 */
+	const applyMnemonic = async () => {
+		if (!mnemonicValid) return;
 		const canonicalMnemonic = normalizeSpanishMnemonic(selectedMnemonic);
 		selectedMnemonic = canonicalMnemonic;
 		try {
 			localStorage.setItem(SPANISH_MNEMONIC_STORAGE_KEY, canonicalMnemonic);
-			if (rememberDecision) {
-				localStorage.setItem(CONSENT_KEY, 'true');
-			}
 		} catch {
 			// ignore storage errors
 		}
 		try {
-			// Resolve the identity choice first — WebAuthn calls must run inside
-			// the user gesture of the proceed click.
-			let passkeyCredential = null;
-			if (identityMode === 'create') {
-				if (!passkeyUserId.trim() || !passkeyDisplayName.trim()) {
-					throw new Error('Please enter a user id and display name for the new passkey.');
-				}
-				passkeyCredential = await createPasskeyCredential({
-					userId: passkeyUserId.trim(),
-					displayName: passkeyDisplayName.trim()
-				});
-			} else if (identityMode === 'existing') {
-				passkeyCredential = await recoverPasskeyCredential();
-				if (!passkeyCredential) {
-					throw new Error(
-						'No passkey found for this origin. Create a new one or continue without a passkey.'
-					);
-				}
-			}
-			try {
-				localStorage.setItem(IDENTITY_MODE_KEY, passkeyCredential ? 'passkey' : 'anon');
-			} catch {
-				// ignore storage errors
-			}
-
-			if ($initializationStore.isInitialized) {
-				await restartP2P({ todoDbName: canonicalMnemonic });
-			} else {
-				await initializeP2P({ todoDbName: canonicalMnemonic, passkeyCredential });
-			}
+			await restartP2P({ todoDbName: canonicalMnemonic });
 			activeMnemonic = canonicalMnemonic;
 		} catch (err) {
-			showModal = true;
-			error = `Failed to initialize P2P: ${err instanceof Error ? err.message : String(err)}`;
-			console.error('P2P initialization failed:', err);
+			error = `Failed to switch list: ${err instanceof Error ? err.message : String(err)}`;
+			console.error('Shared list switch failed:', err);
 		}
 	};
 
 	onMount(async () => {
+		// Straight into the app: no consent screen, nothing to dismiss, no
+		// decision required before anything works. This chapter is used on a
+		// construction site with a phone in one hand, and the previous chapters'
+		// modal was three interactions in front of a list.
+		//
+		// Anonymous, because an unattended start cannot do anything else:
+		// WebAuthn refuses to run outside a user gesture, and `onMount` is not
+		// one. An anonymous OrbitDB identity is still an identity — it owns the
+		// private lists it creates and gives them their unguessable address —
+		// so upgrading to a passkey is an offer in `IdentityPanel`, not a toll
+		// gate here.
+		let mnemonic = '';
 		try {
-			selectedMnemonic = loadOrGenerateMnemonic();
-			const rememberedIdentityMode = localStorage.getItem(IDENTITY_MODE_KEY);
-			if (rememberedIdentityMode === 'passkey') {
-				// A WebAuthn prompt needs a user gesture, so a remembered passkey
-				// session cannot auto-start: preselect recovery and show the modal.
-				identityMode = 'existing';
-			} else if (localStorage.getItem(CONSENT_KEY) === 'true') {
-				showModal = false;
-				activeMnemonic = normalizeSpanishMnemonic(selectedMnemonic);
-				await initializeP2P({ todoDbName: activeMnemonic, passkeyCredential: null });
-			}
+			mnemonic = loadOrGenerateMnemonic();
+			selectedMnemonic = mnemonic;
 		} catch {
-			// ignore storage errors
+			// Storage unavailable: fall through with a session-only mnemonic.
+			mnemonic = normalizeSpanishMnemonic(generateSpanishMnemonic());
+			selectedMnemonic = mnemonic;
+		}
+
+		try {
+			activeMnemonic = normalizeSpanishMnemonic(mnemonic);
+			await initializeP2P({ todoDbName: activeMnemonic, passkeyCredential: null });
+		} catch (err) {
+			error = `Failed to initialize P2P: ${err instanceof Error ? err.message : String(err)}`;
+			console.error('P2P initialization failed:', err);
 		}
 	});
 
@@ -219,43 +199,19 @@
 	$: myPeerId = $peerIdStore;
 
 	let connectedPeersRef;
+	let showMnemonicEditor = false;
 </script>
 
 <ToastNotification message={toastMessage} type={toastType} />
 
 <svelte:head>
-	<title
-		>Simple-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title
-	>
+	<title>Simple-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<meta
 		name="description"
 		content="A simple local-first peer-to-peer TODO list app using OrbitDB, IPFS and libp2p"
 	/>
 </svelte:head>
-
-<!-- Only render the modal when needed -->
-{#if showModal}
-	<ConsentModal
-		bind:show={showModal}
-		title="Simple-Todo"
-		bind:rememberDecision
-		rememberLabel="Don't show this again on this device"
-		proceedButtonText="Open shared list"
-		disabledButtonText="Please check all boxes to continue"
-		canProceed={mnemonicValid}
-		on:proceed={handleModalClose}
-	>
-		<svelte:fragment slot="before-confirmation">
-			<SharedListSelector bind:value={selectedMnemonic} />
-			<PasskeyOnboarding
-				bind:mode={identityMode}
-				bind:userId={passkeyUserId}
-				bind:displayName={passkeyDisplayName}
-			/>
-		</svelte:fragment>
-	</ConsentModal>
-{/if}
 
 <main class="container mx-auto max-w-4xl p-6">
 	<!-- Header with title and social icons -->
@@ -299,11 +255,20 @@
 					mnemonic={activeMnemonic}
 					databaseAddress={$todoDBAddressStore}
 					activeList={$activeListStore}
-					on:change={() => {
-						selectedMnemonic = activeMnemonic;
-						showModal = true;
-					}}
+					on:change={() => (showMnemonicEditor = !showMnemonicEditor)}
 				/>
+				{#if showMnemonicEditor}
+					<div class="mt-2 space-y-2" data-testid="shared-list-editor">
+						<SharedListSelector bind:value={selectedMnemonic} />
+						<button
+							type="button"
+							class="rounded bg-cyan-600 px-2 py-1 text-xs text-white hover:bg-cyan-700 disabled:opacity-50"
+							disabled={!mnemonicValid}
+							on:click={applyMnemonic}
+							data-testid="shared-list-apply">Open this list</button
+						>
+					</div>
+				{/if}
 			{/if}
 		</svelte:fragment>
 	</P2PStatusNav>
@@ -313,6 +278,7 @@
 	{/if}
 
 	{#if $initializationStore.isInitialized}
+		<IdentityPanel />
 		<NewPrivateListButton />
 		<ListSwitcher />
 		<OpenDatabaseForm />
