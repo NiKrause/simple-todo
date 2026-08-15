@@ -3,6 +3,7 @@
 	// list stays available; this opens a fresh owner-only list and switches to
 	// it, after which the permissions panel appears for granting DIDs.
 	import { createPrivateTodoList } from './db-actions.js';
+	import { createSiteList, SITE_TODOS } from './site-list.js';
 
 	let name = '';
 	let busy = false;
@@ -21,6 +22,26 @@
 			// the box promises "share its address" and then never showed one (#114).
 			created = await createPrivateTodoList(name);
 			name = '';
+		} catch (error) {
+			errorMessage = error instanceof Error ? error.message : String(error);
+		} finally {
+			busy = false;
+		}
+	}
+
+	async function seedSite() {
+		busy = true;
+		errorMessage = null;
+		created = null;
+		try {
+			const result = await createSiteList();
+			created = result;
+			// Say what actually landed rather than claiming ten: `addTodo` reports
+			// failure by return value, and a partly-filled list is worth noticing
+			// before it is handed to somebody.
+			if (result.count < SITE_TODOS.length) {
+				errorMessage = `Created the list, but only ${result.count} of ${SITE_TODOS.length} items were added.`;
+			}
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : String(error);
 		} finally {
@@ -60,6 +81,24 @@
 			class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
 		>
 			{busy ? 'Creating…' : 'Create private list'}
+		</button>
+	</div>
+
+	<!--
+		The chapter's worked example, in one tap.
+
+		Alice prepares this list in the office; reaching the part being taught
+		should not require typing ten lines on a phone at a building site.
+	-->
+	<div class="mt-2">
+		<button
+			type="button"
+			on:click={seedSite}
+			disabled={busy}
+			data-testid="new-list-seed-site"
+			class="text-xs font-medium text-cyan-700 underline disabled:opacity-50 dark:text-cyan-400"
+		>
+			{busy ? 'Working…' : 'Or create the example site list (10 items)'}
 		</button>
 	</div>
 	{#if errorMessage}
