@@ -13,6 +13,8 @@
 	import { onMount, onDestroy } from 'svelte';
 	import { parsePayload, QR_TYPE_OFFER, QR_TYPE_ANSWER } from '@le-space/libp2p-webrtc-qr';
 	import { getQrSession, qrCodeOnScreen } from './qr-transport.js';
+	import { syncWakeLock, releaseWakeLock } from './wake-lock.js';
+	import { rtcConfiguration } from './ice-mode.js';
 	import { sendListOffer } from './handover-protocol.js';
 	import { todoDBAddressStore, activeListStore } from './db-actions.js';
 	import { ownDidStore } from './p2p.js';
@@ -26,6 +28,7 @@
 	let busy = false;
 	let shortCode = false;
 	let elementsReady = false;
+	let scanning = false;
 	/** @type {import('./handover-protocol.js').ListOffer | null} */
 	let sentList = null;
 
@@ -33,6 +36,8 @@
 	let inviteEl;
 	/** @type {any} */
 	let scannerEl;
+	/** @type {any} */
+	let statusEl;
 
 	onMount(async () => {
 		// Custom elements touch `document` and `navigator.mediaDevices` at import
@@ -40,6 +45,9 @@
 		// prerenders, and a static build must not need a camera to exist.
 		await import('@le-space/libp2p-webrtc-qr/elements');
 		elementsReady = true;
+		// Set before the element upgrades, so its `auto` probe uses this
+		// chapter's ICE settings rather than the package default.
+		if (statusEl) statusEl.rtcConfiguration = rtcConfiguration();
 
 		// The camera is the one thing a headless browser cannot supply, so under
 		// VITE_E2E the payload can be handed in directly. Everything after that
@@ -112,6 +120,46 @@
 	}
 
 	/**
+	 * Run the camera once and return what it read.
+	 *
+	 * `open()` does not resolve with the scanned text — it resolves once the
+	 * camera is running. A successful read is announced as a `scan` event
+	 * instead. Awaiting `open()` therefore yielded `undefined`, and the code
+	 * that produces the answer never ran: the scan visibly succeeded, the
+	 * dialog closed, and nothing happened.
+	 *
+	 * The ordering matters too. On success the element calls `close()` *before*
+	 * dispatching `scan`, so treating `close` as "cancelled" swallows the hit.
+	 * Cancellation is therefore deferred by a turn, which lets a `scan`
+	 * arriving immediately afterwards win.
+	 *
+	 * @returns {Promise<string | null>} the payload, or null if the user closed it
+	 */
+	function scanOnce() {
+		scanning = true;
+		return new Promise((resolve, reject) => {
+			/** @param {any} event */
+			const onScan = (event) => {
+				cleanup();
+				resolve(event.detail?.text ?? null);
+			};
+			const onClose = () => setTimeout(() => (cleanup(), resolve(null)), 0);
+			const cleanup = () => {
+				scanning = false;
+				scannerEl.removeEventListener('scan', onScan);
+				scannerEl.removeEventListener('close', onClose);
+			};
+
+			scannerEl.addEventListener('scan', onScan);
+			scannerEl.addEventListener('close', onClose);
+			scannerEl.open().catch((/** @type {unknown} */ err) => {
+				cleanup();
+				reject(err);
+			});
+		});
+	}
+
+	/**
 	 * Open the camera and decide whether what it read is the code this screen is
 	 * waiting for.
 	 *
@@ -143,7 +191,7 @@
 		};
 
 		try {
-			const text = await scannerEl.open();
+			const text = await scanOnce();
 			if (!text) return;
 			await useScannedPayload(text, expected);
 		} catch (err) {
@@ -189,14 +237,45 @@
 	}
 
 	$: qrCodeOnScreen.set(phase === 'offering' || phase === 'answering');
-	onDestroy(() => qrCodeOnScreen.set(false));
+
+	// Awake while a code is up *or* the camera is open — both are a person
+	// holding a phone still and not touching it, which is precisely when it
+	// decides to sleep. An animated code needs several frames; a screen dimming
+	// halfway through is worse than one that never lit up.
+	$: void syncWakeLock(phase === 'offering' || phase === 'answering' || scanning);
+
+	onDestroy(() => {
+		qrCodeOnScreen.set(false);
+		void releaseWakeLock();
+	});
 </script>
 
 <section
 	class="mt-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700"
 	data-testid="qr-transfer"
 >
-	<div class="flex flex-wrap items-center gap-2">
+	<!--
+		Step 1: what this device's network can actually do.
+
+		The package's own status element — browser, IPv4, IPv6, camera and an
+		overall verdict — with its progress bar while the checks run. `auto` makes
+		it probe as soon as it is on screen, which is the point: someone standing
+		on a site wants to know whether this will work *before* holding up a code,
+		not after a failed scan.
+
+		It gets this chapter's ICE configuration rather than the element's STUN
+		default. A diagnostic that measured a transport the app does not use would
+		be worse than none — and on a hotspot with no uplink, STUN would make the
+		probe sit through its timeouts for nothing.
+	-->
+	<qr-status
+		bind:this={statusEl}
+		auto
+		rows="browser ipv4 ipv6 camera overall"
+		data-testid="qr-network-status"
+	></qr-status>
+
+	<div class="mt-3 flex flex-wrap items-center gap-2">
 		<h2 class="mr-auto text-sm font-semibold text-heading">Transfer a list</h2>
 
 		{#if phase === 'idle'}
