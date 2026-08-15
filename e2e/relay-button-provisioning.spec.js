@@ -100,6 +100,28 @@ function progress(message) {
 	console.log(`[relay-e2e ${new Date().toISOString()}] ${message}`);
 }
 
+/**
+ * Flatten an `AggregateError` into a message that names what actually failed.
+ *
+ * `cleanupAll` throws `AggregateError`, whose own `.message` is the useless
+ * constant "One or more Relay Button cleanups failed" — the individual causes
+ * live in `.errors` and were being dropped on the floor. Every red run and the
+ * evidence JSON therefore said only that *something* in cleanup broke, which is
+ * why identifying the real cause (a 120 s wait for a bootstrap registration the
+ * test's wallet is not the sender of, and so can never forget) took a second
+ * 12-minute provisioning run instead of being legible in the first.
+ *
+ * @param {unknown} error
+ * @returns {string}
+ */
+function describeError(error) {
+	if (error instanceof AggregateError) {
+		const causes = error.errors.map((inner) => describeError(inner)).join('; ');
+		return causes ? `${error.message}: ${causes}` : error.message;
+	}
+	return error instanceof Error ? error.message : String(error);
+}
+
 // Dial BOTH browsers at each relay address concurrently and keep retrying
 // until both hold a connection to the relay peer, or the readiness window
 // elapses. Freshly provisioned relays can take minutes to become
@@ -441,7 +463,7 @@ relayTest.describe('Sponsor Relay button', () => {
 						pass('cleanup', results[0]?.verificationSummary ?? '');
 					}
 				} catch (error) {
-					const detail = error instanceof Error ? error.message : String(error);
+					const detail = describeError(error);
 					updateRelayEvidenceStep(evidence, 'cleanup', 'failed', detail);
 					progress(`cleanup FAILED: ${detail}`);
 					cleanupError = new Error(`Relay Button cleanup failed for ${instanceName}: ${detail}`, {
