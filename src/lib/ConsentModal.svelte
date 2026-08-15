@@ -1,14 +1,18 @@
 <script>
-	/* eslint-disable no-undef */
 	import { createEventDispatcher } from 'svelte';
+	import { formatVersions } from './build-info.js';
 
 	const dispatch = createEventDispatcher();
-	const fallbackVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
+	// No app name in front of the version here: `title` already renders it
+	// directly above this line. The stack versions follow the app's own, the
+	// same way the page header states them, so the dependencies this screen
+	// asks the reader to consent to are named with the numbers that shipped.
+	const fallbackVersions = formatVersions();
 	const fallbackBuildDate = typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev';
 
 	export let show = true;
 	export let title = 'Simple-Todo';
-	export let version = `v${fallbackVersion} [${fallbackBuildDate}]`;
+	export let version = `${fallbackVersions} [${fallbackBuildDate}]`;
 	export let description = 'Before joining this local-first P2P demo, please note:';
 	export let features = [
 		'No tracking cookies are used. If you choose "remember this device", only that consent choice is saved locally.',
