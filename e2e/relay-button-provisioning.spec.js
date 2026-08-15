@@ -6,10 +6,12 @@ import {
 	createRelayEvidence,
 	updateRelayEvidenceStep,
 	writeRelayEvidence,
-	installEip1193WalletMock
+	installEip1193WalletMock,
+	SUPPORTED_ALEPH_API_HOSTS
 } from '@le-space/playwright';
 import { TodoBrowserAgent } from './remote/agent.mjs';
 import { selectPeerDialAddress } from './remote/main-scenario.mjs';
+import { sweepOrphanInstances } from './aleph-orphan-sweep.mjs';
 
 // This spec provisions a real relay through the Relay Button UI and replicates
 // the default OrbitDB between two browsers. All relay-lifecycle plumbing
@@ -399,9 +401,53 @@ relayTest.describe('Sponsor Relay button', () => {
 					const detail = error instanceof Error ? error.message : String(error);
 					updateRelayEvidenceStep(evidence, 'cleanup', 'failed', detail);
 					progress(`cleanup FAILED: ${detail}`);
-					cleanupError = new Error(`Aleph VM ${instanceName} was left running: ${detail}`, {
+					cleanupError = new Error(`Relay Button cleanup failed for ${instanceName}: ${detail}`, {
 						cause: error instanceof Error ? error : undefined
 					});
+				}
+
+				// Always sweep, including after a clean run. `cleanupAll` can only
+				// clean what `provision()` handed it, and run 31620282999 proved that
+				// is not the whole story: the tracked INSTANCE was forgotten
+				// correctly while a second one carrying the same `metadata.name`
+				// appeared *during* cleanup and stayed alive, costing credits nobody
+				// was watching. Sweeping by owner + name catches it whichever code
+				// path created it.
+				//
+				// Nothing is passed as `ignoreHashes` on purpose: if `cleanupAll`
+				// failed to forget the tracked instance, that instance is exactly
+				// what still needs forgetting.
+				const sweep = await sweepOrphanInstances({
+					account,
+					instanceName,
+					apiHosts: SUPPORTED_ALEPH_API_HOSTS
+				});
+				progress(`orphan sweep: ${sweep.detail}`);
+				evidence.orphanSweep = sweep;
+
+				if (sweep.survived.length > 0) {
+					// Still running and still billable — the only case that is about money.
+					cleanupError = new Error(
+						`Aleph VM ${instanceName} was left running: could not forget ${sweep.survived.join(', ')}`,
+						{ cause: cleanupError ?? undefined }
+					);
+				} else if (sweep.swept.length > 0) {
+					// Money is safe, but something created an INSTANCE the lifecycle
+					// never knew about. Worth a red run: that is a real defect, and
+					// staying green is how it went unnoticed in the first place.
+					updateRelayEvidenceStep(evidence, 'cleanup', 'failed', sweep.detail);
+					cleanupError = new Error(
+						`Relay Button cleanup left an untracked INSTANCE for ${instanceName}; the sweep forgot ${sweep.swept.join(', ')}`,
+						{ cause: cleanupError ?? undefined }
+					);
+				} else if (cleanupError && sweep.checked) {
+					// The old message asserted "was left running" from a cleanup error
+					// alone. That was wrong on 31620282999 — the named VM was gone.
+					// Keep the run red, but say what is actually true.
+					cleanupError = new Error(
+						`${cleanupError.message} (no INSTANCE for ${instanceName} survived — nothing is billing)`,
+						{ cause: cleanupError }
+					);
 				}
 				evidence.finishedAt = new Date().toISOString();
 				await writeRelayEvidence(`${OUTPUT_DIR}/result.json`, evidence);
