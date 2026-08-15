@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@le-space/orbitdb-identity-provider-webauthn-did': 0.3.1
+  '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.0
   orbitdb-relay>@orbitdb/core: 4.0.0
   react: 19.2.6
   react-dom: 19.2.6
@@ -44,8 +44,8 @@ importers:
         specifier: ^0.7.0
         version: 0.7.0(@multiformats/multiaddr@13.0.3)(libp2p@3.3.6)
       '@le-space/orbitdb-identity-provider-webauthn-did':
-        specifier: 0.3.1
-        version: 0.3.1(@orbitdb/core@4.0.0)(rollup@4.46.2)(vite@7.0.6(@types/node@26.1.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.49.0)(yaml@2.9.0))
+        specifier: 0.5.0
+        version: 0.5.0(@orbitdb/core@4.0.0)
       '@le-space/ui':
         specifier: 0.8.0
         version: 0.8.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(svelte@5.37.2)(typescript@5.9.2)
@@ -181,7 +181,7 @@ importers:
         version: 3.3.2
       orbitdb-relay:
         specifier: ^0.10.4
-        version: 0.10.4(react-native@0.80.2(@babel/core@7.29.7)(react@19.2.6))(rollup@4.46.2)(vite@7.0.6(@types/node@26.1.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.49.0)(yaml@2.9.0))
+        version: 0.10.4(react-native@0.80.2(@babel/core@7.29.7)(react@19.2.6))
       playwright:
         specifier: 1.61.1
         version: 1.61.1
@@ -876,10 +876,6 @@ packages:
   '@ipld/dag-cbor@9.2.7':
     resolution: {integrity: sha512-ZmfXmElRWATr+hoUTSAOr6HUcjVhOcNHDqgczc76qte2DHHFEK0ZhNzUcdTDQhF/VSIvf2ioaRTRLWwLc83sNw==}
 
-  '@ipld/dag-json@10.2.5':
-    resolution: {integrity: sha512-Q4Fr3IBDEN8gkpgNefynJ4U/ZO5Kwr7WSUMBDbZx0c37t0+IwQCTM9yJh8l5L4SRFjm31MuHwniZ/kM+P7GQ3Q==}
-    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
-
   '@ipld/dag-json@10.2.9':
     resolution: {integrity: sha512-opNPQQsTuCFZkaJCAqXrB/n9OqUD6W2Boz/Au5HjhLQyczmT8lxoOZObqQ5S5hhnV8p6sgKAimNhUB2W6y0Mzg==}
 
@@ -1003,11 +999,11 @@ packages:
   '@le-space/orbitdb-access-controller-delegated-todo@0.1.0':
     resolution: {integrity: sha512-IYqHNFWlwKWRXYXsxbw2pIdwRVe//YP1Y6VWmMkkl/BulOyDAkiV3Xz+CZRVAbyVscVPm5tQtjxb7fdqaLznKg==}
     peerDependencies:
-      '@le-space/orbitdb-identity-provider-webauthn-did': 0.3.1
+      '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.0
       '@orbitdb/core': ^3.0.0
 
-  '@le-space/orbitdb-identity-provider-webauthn-did@0.3.1':
-    resolution: {integrity: sha512-44AwU7rKcgLvS9tdkQb7Iz7nUPAhEE9g8LuAGCgZQXd3zBAClLRicKIz/JHs9V/8XVp7Tlypo8coQ0xZNnb0Cg==}
+  '@le-space/orbitdb-identity-provider-webauthn-did@0.5.0':
+    resolution: {integrity: sha512-bPsdwuknemuq97FwaqT16tgj2FMlCm2kh0EuIU19V4qb7X2BUP3kxVZBrDjQFk+gFuVYty5gTlM+J5Uowi3WIQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@orbitdb/core': ^4.0.0
@@ -1124,9 +1120,6 @@ packages:
 
   '@libp2p/logger@6.2.11':
     resolution: {integrity: sha512-zZ4m2EKyyRY2G8GAzmG/ZJm4CIqmaJucl5X7zTmGs1SXlb4Ayj4aP1vsaP/cVWadf/RuPWjgmIJP+Y/sZoE7Rg==}
-
-  '@libp2p/logger@6.2.9':
-    resolution: {integrity: sha512-hjuF81KSt9dWNPJZcdJ4SHEuygMLHrPZVTGNzCWu+2jxpJqOHWy9CJS8llLH7pgbDtlq4jJ4uuqihCR5Gjo4gA==}
 
   '@libp2p/mdns@12.0.27':
     resolution: {integrity: sha512-ng3BwwEJWLaqEr2IrXMlPftEtD4yMrEyveOfXoqd0eOOk0No7MYSPHb3ZNUQHavDd40ZK8q6JVJJ5gZuQiB65Q==}
@@ -2224,10 +2217,6 @@ packages:
     resolution: {integrity: sha512-b3tFPA9pUr2zCUiCfRd2+wok2/LBSNUMKOuRRok+WlvvAgEt/PlbgPTsZUcwCOs53IJvLgTp0eotwtosE6njug==}
     hasBin: true
 
-  cborg@4.5.8:
-    resolution: {integrity: sha512-6/viltD51JklRhq4L7jC3zgy6gryuG5xfZ3kzpE+PravtyeQLeQmCYLREhQH7pWENg5pY4Yu/XCd6a7dKScVlw==}
-    hasBin: true
-
   cborg@5.1.6:
     resolution: {integrity: sha512-apu/mOSODJ98JXBz3cbiv/gAFX4oaCZQQ53+8b4IPjc1wylYxd8eJis87QP7ic4AOE4O02j02jjfUgVZUJIIvA==}
     hasBin: true
@@ -3185,6 +3174,9 @@ packages:
 
   iso-web@2.3.0:
     resolution: {integrity: sha512-/WH8IwL/2ptX/HzjwnZaA6uJoj4Yar8TTdpPBRBuCU3UbF51X8/xdqf4yApAyPoogs22Rvlozh2wvvgMHbH7vg==}
+
+  iso-web@3.1.2:
+    resolution: {integrity: sha512-OpWz+KNH4vYNVvpc6T1z/zkZtT6iTQXYjc0sIbkPDwYEM5Qurg0LYESrEHloxb6xj5T/2rrnsTtaYlUSIzgicg==}
 
   isomorphic-timers-promises@1.0.1:
     resolution: {integrity: sha512-u4sej9B1LPSxTGKB/HiuzvEQnXH0ECYkSVQU39koSwmFAxhlEAFl9RdTvLv4TOTQUgBS5O3O5fwUxk6byBZ+IQ==}
@@ -6116,11 +6108,6 @@ snapshots:
       cborg: 5.1.6
       multiformats: 13.4.2
 
-  '@ipld/dag-json@10.2.5':
-    dependencies:
-      cborg: 4.5.8
-      multiformats: 13.4.2
-
   '@ipld/dag-json@10.2.9':
     dependencies:
       cborg: 5.1.7
@@ -6138,7 +6125,7 @@ snapshots:
   '@ipld/dag-ucan@3.4.5':
     dependencies:
       '@ipld/dag-cbor': 9.2.7
-      '@ipld/dag-json': 10.2.5
+      '@ipld/dag-json': 10.2.9
       multiformats: 13.4.2
 
   '@ipshipyard/crypto@1.1.0':
@@ -6400,31 +6387,27 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@le-space/orbitdb-access-controller-delegated-todo@0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.3.1(@orbitdb/core@4.0.0)(rollup@4.46.2)(vite@7.0.6(@types/node@26.1.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.49.0)(yaml@2.9.0)))(@orbitdb/core@4.0.0)':
+  '@le-space/orbitdb-access-controller-delegated-todo@0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.5.0(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)':
     dependencies:
-      '@le-space/orbitdb-identity-provider-webauthn-did': 0.3.1(@orbitdb/core@4.0.0)(rollup@4.46.2)(vite@7.0.6(@types/node@26.1.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.49.0)(yaml@2.9.0))
+      '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.0(@orbitdb/core@4.0.0)
       '@orbitdb/core': 4.0.0
 
-  '@le-space/orbitdb-identity-provider-webauthn-did@0.3.1(@orbitdb/core@4.0.0)(rollup@4.46.2)(vite@7.0.6(@types/node@26.1.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.49.0)(yaml@2.9.0))':
+  '@le-space/orbitdb-identity-provider-webauthn-did@0.5.0(@orbitdb/core@4.0.0)':
     dependencies:
       '@ipld/dag-cbor': 10.0.1
       '@ipld/dag-ucan': 3.4.5
       '@le-space/ucanto-principal': 9.1.2
       '@libp2p/crypto': 5.1.21
-      '@libp2p/logger': 6.2.9
+      '@libp2p/logger': 6.2.11
       '@orbitdb/core': 4.0.0
       '@simplewebauthn/browser': 13.3.0
       cbor-web: 9.0.2
       iso-base: '@le-space/iso-base@4.3.0'
       iso-did: '@le-space/iso-did@2.1.2'
       iso-passkeys: '@le-space/iso-passkeys@0.3.1'
-      iso-web: 2.3.0
+      iso-web: 3.1.2
       iso-webauthn-varsig: '@le-space/iso-webauthn-varsig@0.3.0'
-      multiformats: 14.0.3
-      vite-plugin-node-polyfills: 0.24.0(rollup@4.46.2)(vite@7.0.6(@types/node@26.1.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.49.0)(yaml@2.9.0))
-    transitivePeerDependencies:
-      - rollup
-      - vite
+      multiformats: 14.0.5
 
   '@le-space/playwright@0.8.0(@playwright/test@1.61.1)(typescript@5.9.2)':
     dependencies:
@@ -6808,14 +6791,6 @@ snapshots:
       weald: 1.1.3
 
   '@libp2p/logger@6.2.11':
-    dependencies:
-      '@libp2p/interface': 3.2.5
-      '@multiformats/multiaddr': 13.0.3
-      interface-datastore: 10.0.1
-      multiformats: 14.0.4
-      weald: 1.1.3
-
-  '@libp2p/logger@6.2.9':
     dependencies:
       '@libp2p/interface': 3.2.5
       '@multiformats/multiaddr': 13.0.3
@@ -8443,8 +8418,6 @@ snapshots:
 
   cborg@1.10.2: {}
 
-  cborg@4.5.8: {}
-
   cborg@5.1.6: {}
 
   cborg@5.1.7: {}
@@ -9615,6 +9588,14 @@ snapshots:
       iso-kv: 3.2.0
       p-retry: 8.0.0
 
+  iso-web@3.1.2:
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      delay: 7.0.0
+      is-network-error: 1.3.2
+      iso-kv: 3.2.0
+      p-retry: 8.0.0
+
   isomorphic-timers-promises@1.0.1: {}
 
   isows@1.0.7(ws@8.20.1):
@@ -10551,7 +10532,7 @@ snapshots:
       type-check: 0.4.0
       word-wrap: 1.2.5
 
-  orbitdb-relay@0.10.4(react-native@0.80.2(@babel/core@7.29.7)(react@19.2.6))(rollup@4.46.2)(vite@7.0.6(@types/node@26.1.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.49.0)(yaml@2.9.0)):
+  orbitdb-relay@0.10.4(react-native@0.80.2(@babel/core@7.29.7)(react@19.2.6)):
     dependencies:
       '@chainsafe/libp2p-noise': 17.0.0
       '@chainsafe/libp2p-quic': 2.1.3
@@ -10563,8 +10544,8 @@ snapshots:
       '@ipld/dag-cbor': 10.0.1
       '@ipld/dag-json': 11.0.0
       '@ipshipyard/libp2p-auto-tls': 2.0.2
-      '@le-space/orbitdb-access-controller-delegated-todo': 0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.3.1(@orbitdb/core@4.0.0)(rollup@4.46.2)(vite@7.0.6(@types/node@26.1.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.49.0)(yaml@2.9.0)))(@orbitdb/core@4.0.0)
-      '@le-space/orbitdb-identity-provider-webauthn-did': 0.3.1(@orbitdb/core@4.0.0)(rollup@4.46.2)(vite@7.0.6(@types/node@26.1.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.49.0)(yaml@2.9.0))
+      '@le-space/orbitdb-access-controller-delegated-todo': 0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.5.0(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)
+      '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.0(@orbitdb/core@4.0.0)
       '@libp2p/autonat': 3.0.24
       '@libp2p/bootstrap': 12.0.27
       '@libp2p/circuit-relay-v2': 4.2.9
@@ -10604,10 +10585,8 @@ snapshots:
       - bufferutil
       - encoding
       - react-native
-      - rollup
       - supports-color
       - utf-8-validate
-      - vite
 
   os-browserify@0.3.0: {}
 
