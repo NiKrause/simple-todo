@@ -27,7 +27,6 @@
 	/** @type {{
 	 *   relayConnection: { label: string, checked: boolean },
 	 *   dataVisibility: { label: string, checked: boolean },
-	 *   globalDatabase: { label: string, checked: boolean },
 	 *   replicationTesting: { label: string, checked: boolean }
 	 * }} */
 	export let checkboxes = {
@@ -38,11 +37,6 @@
 		},
 		dataVisibility: {
 			label: 'I understand relay or peer nodes may cache, pin, or replicate demo todo data.',
-			checked: false
-		},
-		globalDatabase: {
-			label:
-				'I understand todos are stored in a shared, unencrypted OrbitDB database and should not contain private data.',
 			checked: false
 		},
 		replicationTesting: {
@@ -63,6 +57,23 @@
 	 * `checkboxes` and never blocks the proceed button. Unticking it is a valid
 	 * way to continue, not a refusal to consent.
 	 */
+	/**
+	 * Where the todos live. A choice, like `relayNetworkEnabled`, so it sits
+	 * outside `checkboxes` and never blocks the proceed button.
+	 *
+	 * It replaces the old "shared, unencrypted OrbitDB database" acknowledgement
+	 * rather than sitting next to it: both sides of the switch state that fact,
+	 * so picking either one is the acknowledgement. Nobody can choose without
+	 * reading it.
+	 */
+	export let persistentStorageEnabled = false;
+	export let storageMemoryLabel = 'In Memory Only';
+	export let storageMemoryHint =
+		'Todos are stored in a shared, unencrypted OrbitDB database in memory and will be deleted on app reload or on exit.';
+	export let storagePersistentLabel = 'IndexedDB';
+	export let storagePersistentHint =
+		"I understand todos are stored in a shared, unencrypted OrbitDB database in the browser's IndexedDB and will persist between app restarts or after app exit.";
+
 	export let relayNetworkEnabled = true;
 	export let relayNetworkLabel = 'Connect to the public libp2p relay network';
 	export let relayNetworkHint =
@@ -78,7 +89,7 @@
 	};
 
 	/**
-	 * @param {'relayConnection' | 'dataVisibility' | 'globalDatabase' | 'replicationTesting'} key
+	 * @param {'relayConnection' | 'dataVisibility' | 'replicationTesting'} key
 	 * @param {boolean} checked
 	 */
 	const handleCheckboxChange = (key, checked) => {
@@ -107,6 +118,47 @@
 					</ul>
 				</div>
 
+				<!--
+					First, because it is the only decision here that changes what the app
+					does rather than what the user has read — and because the option a
+					person lands on should be the one they actively picked.
+
+					Two radios rather than a single on/off: both sides carry a consequence
+					worth stating ("deleted on reload" against "persists after exit"), and
+					a lone checkbox can only ever spell out one of them.
+				-->
+				<fieldset class="mb-6 rounded-lg border border-border p-4">
+					<legend class="px-1 text-sm font-medium text-text">Where your todos are stored</legend>
+					<div class="grid gap-3 sm:grid-cols-2">
+						<label class="flex cursor-pointer items-start space-x-3">
+							<input
+								type="radio"
+								value={false}
+								bind:group={persistentStorageEnabled}
+								data-testid="consent-storage-memory"
+								class="mt-1 h-4 w-4 shrink-0 text-cyan-600 focus:ring-cyan-500"
+							/>
+							<span>
+								<span class="text-text">{storageMemoryLabel}</span>
+								<span class="mt-1 block text-sm text-faint">{storageMemoryHint}</span>
+							</span>
+						</label>
+						<label class="flex cursor-pointer items-start space-x-3">
+							<input
+								type="radio"
+								value={true}
+								bind:group={persistentStorageEnabled}
+								data-testid="consent-storage-indexeddb"
+								class="mt-1 h-4 w-4 shrink-0 text-cyan-600 focus:ring-cyan-500"
+							/>
+							<span>
+								<span class="text-text">{storagePersistentLabel}</span>
+								<span class="mt-1 block text-sm text-faint">{storagePersistentHint}</span>
+							</span>
+						</label>
+					</div>
+				</fieldset>
+
 				<div class="mb-6 space-y-4">
 					<p class="font-medium text-text">{confirmationLabel}</p>
 
@@ -119,7 +171,7 @@
 									const target = e.target;
 									if (target && target instanceof HTMLInputElement) {
 										handleCheckboxChange(
-											/** @type {'relayConnection' | 'dataVisibility' | 'globalDatabase' | 'replicationTesting'} */ (
+											/** @type {'relayConnection' | 'dataVisibility' | 'replicationTesting'} */ (
 												key
 											),
 											target.checked

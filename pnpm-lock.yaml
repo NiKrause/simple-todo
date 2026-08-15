@@ -91,9 +91,15 @@ importers:
       '@orbitdb/core':
         specifier: ^4.0.0
         version: 4.0.0
+      blockstore-level:
+        specifier: ^4.0.1
+        version: 4.0.1
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
+      datastore-level:
+        specifier: ^13.0.1
+        version: 13.0.1
       helia:
         specifier: ^7.1.0
         version: 7.1.0(react-native@0.80.2(@babel/core@7.29.7)(react@19.2.6))

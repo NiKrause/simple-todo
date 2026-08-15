@@ -8,6 +8,7 @@ import { withLibp2p } from '@helia/libp2p';
 import { createOrbitDB, IPFSAccessController } from '@orbitdb/core';
 import { attachQrSession } from './qr-transport.js';
 import { isRelayNetworkMode } from './network-mode.js';
+import { getPersistentStorageEnabled, PERSISTENT_STORAGE_PATHS } from './storage-mode.js';
 import * as dagCbor from '@ipld/dag-cbor';
 import * as dagJson from '@ipld/dag-json';
 import * as json from 'multiformats/codecs/json';
@@ -119,18 +120,46 @@ let discoveryDialRetryInterval = null;
  * @param {any} libp2pNode
  * @returns {any}
  */
-function createHeliaWithLibp2p(libp2pNode) {
+function createHeliaWithLibp2p(libp2pNode, stores = {}) {
 	return withBitswap(
 		withLibp2p(
 			withHTTP(
 				createHeliaLight({
 					codecs: [dagCbor, dagJson, json],
-					hashers: [sha512]
+					hashers: [sha512],
+					// Omitted when the user chose in-memory: helia then falls back to
+					// MemoryBlockstore/MemoryDatastore, which is the behaviour this app
+					// has always had. Passing `undefined` explicitly would be the same
+					// thing, but spreading keeps the call honest about what was decided.
+					...stores
 				})
 			),
 			libp2pNode
 		)
 	);
+}
+
+/**
+ * Level-backed stores for the persistent choice, or nothing for in-memory.
+ *
+ * Imported lazily so a browser that stays in memory never downloads the Level
+ * bundle — the choice is made before this runs, and the in-memory path is the
+ * default.
+ *
+ * @returns {Promise<{ blockstore?: any, datastore?: any }>}
+ */
+async function createPersistentStores() {
+	if (!getPersistentStorageEnabled()) return {};
+
+	const [{ LevelBlockstore }, { LevelDatastore }] = await Promise.all([
+		import('blockstore-level'),
+		import('datastore-level')
+	]);
+
+	return {
+		blockstore: new LevelBlockstore(PERSISTENT_STORAGE_PATHS.blockstore),
+		datastore: new LevelDatastore(PERSISTENT_STORAGE_PATHS.datastore)
+	};
 }
 
 /**
@@ -166,13 +195,23 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 
 		// Create Helia (IPFS) instance
 		setInitializationProgress(2);
-		helia = await createHeliaWithLibp2p(libp2p).start();
-		console.log(`✅ Helia created`);
+		const persistent = getPersistentStorageEnabled();
+		helia = await createHeliaWithLibp2p(libp2p, await createPersistentStores()).start();
+		console.log(`✅ Helia created (${persistent ? 'IndexedDB via Level' : 'in memory'})`);
 
 		// Create OrbitDB instance
 		setInitializationProgress(3);
 		console.log('🛬 Creating OrbitDB instance...');
-		orbitdb = await createOrbitDB({ ipfs: helia, id: getOrCreateOrbitDBIdentityId() });
+		// OrbitDB already writes its log through ComposedStorage(LRU, LevelStorage)
+		// under `directory`, so naming the directory is all the persistent choice
+		// needs here. Left unset for in-memory, where OrbitDB's default `./orbitdb`
+		// still lands in IndexedDB but under a path this app does not advertise —
+		// see #144, where heads outliving their blocks is exactly that mismatch.
+		orbitdb = await createOrbitDB({
+			ipfs: helia,
+			id: getOrCreateOrbitDBIdentityId(),
+			...(persistent ? { directory: PERSISTENT_STORAGE_PATHS.orbitdb } : {})
+		});
 		setInitializationProgress(4);
 		todoDB = await openInitialTodoDatabase(options.todoDbAddress);
 
