@@ -1,7 +1,7 @@
 {
-  "name": "Simple-Todo",
-  "short_name": "Simple-Todo",
-  "description": "A local-first peer-to-peer todo list using OrbitDB, IPFS and libp2p. No servers, no accounts, no passwords.",
+  "name": "Simple-Todo QR",
+  "short_name": "Todo QR",
+  "description": "Hand a todo list to another device by scanning a QR code. No relay, no signalling server, no internet — the scanned code is the only introduction.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0B0E15",

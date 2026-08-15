@@ -5,11 +5,12 @@
 
 A basic decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
-> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `passkey01`, `acl01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `acl01` chapter (per-DID write permissions, built on `passkey01`).
+> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `passkey01`, `acl01`, `qr01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `qr01` chapter (handing a list to another device over a scanned QR code, with no relay and no internet, built on `acl01`).
 
 ## 🚀 Live Demo
 
-- **This chapter (acl01)**: https://acl01.le-space.de
+- **This chapter (qr01)**: https://qr01.le-space.de
+- **Previous chapter (acl01)**: https://acl01.le-space.de
 - **Main app**: https://simple-todo.le-space.de
 - **IPFS snapshot (Aleph gateway)**: https://ipfs.aleph.im/ipfs/bafybeigo5dip5jl5q6tzyp7xqtnzml25lbbw4y34kvkukgsa7au6qie37y/
 - **IPFS snapshot (dweb.link)**: https://dweb.link/ipfs/bafybeigo5dip5jl5q6tzyp7xqtnzml25lbbw4y34kvkukgsa7au6qie37y/
@@ -17,7 +18,65 @@ A basic decentralized, local-first, peer-to-peer todo application built with **l
 The custom-domain link tracks the current deployment. The immutable CID links above are a snapshot
 of the deployment published on July 11, 2026.
 
-## 🔑 This Chapter: Per-DID Write Permissions (`acl01`)
+## 📷 This Chapter: A List Handed Over by QR Code (`qr01`)
+
+Built on `acl01`. Every chapter so far assumed a libp2p relay was reachable.
+This one assumes the opposite: **no relay, no bootstrap list, no signalling
+server, no internet at all.** Two devices meet because a person holds up a
+code and another person scans it.
+
+### The scenario
+
+Alice is a site manager. In the office she prepares a list for her crew — ten
+items covering the excavation pit and basement of a new house. Then she drives
+to the site, where **there is no internet**, and turns on her hotspot. Bob
+joins it with his phone.
+
+1. Alice taps **Übertragen** (Transfer). Her offer appears as an **animated QR
+   code** or a **short code**, depending on a checkbox.
+2. Bob scans it, and his device shows an **answer code**.
+3. Alice taps **Scan answer** and scans it. The WebRTC connection is up.
+4. Over that connection Bob receives the **OrbitDB address of Alice's list**
+   and is asked whether to import it.
+5. On *yes*, Bob replicates the list and sees the ten todos.
+
+No packet in this flow leaves the hotspot.
+
+### Why this chapter needs `acl01` underneath it
+
+On `main` every peer opens `simple-todos` with `write: ['*']`, and that
+manifest is content addressed — the same name and access controller produce
+**the same address for everyone**. Sending Bob an address he could have
+derived himself would prove nothing, and the import dialog would be
+decoration.
+
+`acl01`'s private lists are different. `createPrivateTodoList()` names the
+database `<name>-<timestamp>-<random>` and opens it with
+`write: [your identity]`. Two consequences make the chapter work:
+
+- **The address cannot be guessed.** Being told it over the connection is the
+  only way Bob can reach the list — which is exactly the point on a site with
+  no internet.
+- **Only Alice can write.** Bob replicates and reads; he cannot append. That
+  is why the acknowledgement in milestone 2 travels as a *message* Alice
+  stores herself, rather than as an entry Bob writes into her list.
+
+### What this chapter does not do
+
+Being honest about the edges matters more here than in the other chapters:
+
+- **Bob must already have the app installed.** Alice's hotspot has no uplink
+  and does not serve the PWA. The chapter ships a service worker so an
+  installed app opens with no network — but the first install needs one.
+- **The connection is one-shot.** It lives with the page. Nothing re-syncs
+  later without another scan.
+- **"Forget" is not "erase".** Dropping a received list removes the local data
+  and clears it from the switcher, but the registry is an append-only log:
+  the address stays recoverable from its history.
+
+---
+
+## 🔑 Inherited: Per-DID Write Permissions (`acl01`)
 
 Built on `passkey01`. Passkey identities become *meaningful*: you can grant
 specific DIDs write access to a list of yours.
