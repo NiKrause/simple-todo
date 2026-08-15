@@ -80,6 +80,19 @@ test.describe('Storage mode', () => {
 
 			await lostPage.reload();
 			await acceptConsent(lostPage, 'memory');
+			// The promise the label makes is "nothing is kept", not "the list looks
+			// empty". Asserted against IndexedDB itself: before #182 the choice did
+			// not exist, and OrbitDB still wrote a keystore under ./orbitdb whatever
+			// the user picked, so a UI-only check would have passed while the key
+			// identifying this peer sat on disk.
+			const databasesAfterMemoryRun = await lostPage.evaluate(async () => {
+				if (typeof indexedDB.databases !== 'function') return null;
+				return (await indexedDB.databases()).map((db) => db.name);
+			});
+			if (databasesAfterMemoryRun !== null) {
+				expect(databasesAfterMemoryRun).toEqual([]);
+			}
+
 			// Asserted as an absence with a real wait: a hasty check would pass
 			// simply because the app had not finished loading its history yet.
 			await keptPage.waitForTimeout(5_000);

@@ -1,3 +1,5 @@
+import { MemoryStorage } from '@orbitdb/core';
+
 /**
  * Where this browser keeps the todo data it holds.
  *
@@ -75,3 +77,29 @@ export const PERSISTENT_STORAGE_PATHS = Object.freeze({
 	datastore: 'simple-todo/helia-data',
 	orbitdb: 'simple-todo/orbitdb'
 });
+
+/**
+ * Log storages for one database, memory-only when the user asked for that.
+ *
+ * `Database` defaults `headsStorage` and `indexStorage` to
+ * `ComposedStorage(LRUStorage, LevelStorage)` under `directory`, which
+ * `browser-level` puts in IndexedDB — so without this, an in-memory session
+ * still left `orbitdb/<address>/log/_heads/` and `.../log/_index/` behind. That
+ * is the half of #144 the storage choice has to answer for, and the test
+ * asserting IndexedDB is empty is what caught it.
+ *
+ * `entryStorage` is left alone: it defaults through Helia's blockstore, which
+ * already follows the same choice.
+ *
+ * Lives here rather than in p2p.js because db-actions.js opens databases too,
+ * and p2p.js already imports from db-actions.js — putting it there closed an
+ * import cycle that broke both modules at load time.
+ *
+ * @returns {Promise<{ headsStorage?: any, indexStorage?: any }>}
+ */
+export async function createLogStorages() {
+	if (getPersistentStorageEnabled()) return {};
+
+	const [headsStorage, indexStorage] = await Promise.all([MemoryStorage(), MemoryStorage()]);
+	return { headsStorage, indexStorage };
+}
