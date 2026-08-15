@@ -18,6 +18,7 @@ import * as json from 'multiformats/codecs/json';
 import { sha512 } from 'multiformats/hashes/sha2';
 import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2pConfig } from './libp2p-config.js';
+import { attachQrSession, resetQrSession } from './qr-transport.js';
 import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
 import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
 import { getTodoDatabaseName } from './default-todo-database.js';
@@ -171,6 +172,10 @@ export async function initializeP2P(
 		setInitializationProgress(1);
 		libp2p = await createLibp2p(config);
 		libp2pStore.set(libp2p); // Make available to plugins
+		// The transport can carry a connection the QR handshake built; the
+		// session is what builds one. Without this the node has the transport
+		// and no way to produce an offer, which is the entire chapter.
+		attachQrSession(libp2p);
 		console.log(`✅ libp2p node created`);
 
 		// Get and set peer ID
@@ -258,6 +263,10 @@ export async function restartP2P(options = {}) {
 
 async function stopP2P() {
 	setInitializationProgress(0);
+	// Close the QR session before the node goes: it holds a peer connection and
+	// its own outbound contexts, and leaving them attached to a dead node makes
+	// the next handshake negotiate against a corpse.
+	resetQrSession();
 	libp2pStore.set(null);
 	peerIdStore.set(null);
 	ownDidStore.set(null);

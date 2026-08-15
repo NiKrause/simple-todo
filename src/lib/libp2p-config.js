@@ -18,21 +18,22 @@ import {
 	parseBootstrapMultiaddrs,
 	selectValidBrowserBootstrapMultiaddrs
 } from './bootstrap-multiaddrs.js';
+import { webRTCQRTransport } from './qr-transport.js';
+import { rtcConfiguration } from './ice-mode.js';
 
 // Environment variables
-const RELAY_BOOTSTRAP_ADDR_DEV =
-	import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV ||
-	'/ip4/127.0.0.1/tcp/4001/ws/p2p/12D3KooWAJjbRkp8FPF5MKgMU53aUTxWkqvDrs4zc1VMbwRwfsbE';
+// Both default to empty, in dev as well as production.
+//
+// The other chapters bake in a local relay for development, which would quietly
+// defeat this one: a configured relay switches on pubsub discovery and circuit
+// reservations, so a test could pass *through a relay* while claiming to prove
+// two devices met by nothing but a scanned code. Set the variable explicitly
+// when you want a relay — milestone 3 does exactly that.
+const RELAY_BOOTSTRAP_ADDR_DEV = import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV || '';
 const RELAY_BOOTSTRAP_ADDR_PROD = import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_PROD || '';
 const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discovery._p2p._pubsub')
 	.split(',')
 	.map((/** @type {string} */ t) => t.trim());
-const WEBRTC_ICE_SERVERS = [
-	{
-		urls: ['stun:stun.l.google.com:19302', 'stun:global.stun.twilio.com:3478']
-	}
-];
-
 // Determine which relay address to use based on environment
 const isDevelopment =
 	import.meta.env.DEV ||
@@ -87,34 +88,36 @@ export async function createLibp2pConfig(privateKey = null) {
 		}
 	}
 
+	// No relay is an ordinary state here, not an error.
+	//
+	// Every earlier chapter treats a missing bootstrap address as fatal, because
+	// without a relay those chapters cannot meet anyone. This one meets people by
+	// having a code scanned, so it starts with nothing configured and stays
+	// perfectly usable. What it must *not* do is become incapable of a relay:
+	// milestone 3 adds one, and the two paths coexist rather than replace each
+	// other. So the transports stay, and only the configuration is empty.
 	const relayBootstrapAddrs = selectValidBrowserBootstrapMultiaddrs(
 		parseBootstrapMultiaddrs(RELAY_BOOTSTRAP_ADDR.join(','))
 	);
-	if (relayBootstrapAddrs.length === 0) {
-		throw new Error('No valid browser-dialable relay bootstrap multiaddresses are configured.');
-	}
-	const alephBootstrap = bootstrap({ list: relayBootstrapAddrs });
+	const hasRelay = relayBootstrapAddrs.length > 0;
 	const webRTCEnabled = getWebRTCEnabled();
 
 	/** @type {any} */
 	const config = {
 		addresses: {
-			listen: webRTCEnabled ? ['/p2p-circuit', '/webrtc'] : ['/p2p-circuit']
+			// `/p2p-circuit` only means something with a relay to reserve on, so it
+			// is announced only when one is configured. `/webrtc` stays either way.
+			listen: [...(hasRelay ? ['/p2p-circuit'] : []), ...(webRTCEnabled ? ['/webrtc'] : [])]
 		},
 		transports: [
+			// The chapter's own transport, always present: it is how two devices
+			// meet here, not a fallback for when something else failed.
+			webRTCQRTransport(),
 			webSockets(),
 			...(webRTCEnabled
 				? [
-						webRTCDirect({
-							rtcConfiguration: {
-								iceServers: WEBRTC_ICE_SERVERS
-							}
-						}),
-						webRTC({
-							rtcConfiguration: {
-								iceServers: WEBRTC_ICE_SERVERS
-							}
-						})
+						webRTCDirect({ rtcConfiguration: rtcConfiguration() }),
+						webRTC({ rtcConfiguration: rtcConfiguration() })
 					]
 				: []),
 			circuitRelayTransport(
@@ -151,21 +154,26 @@ export async function createLibp2pConfig(privateKey = null) {
 			denyOutboundUpgradedConnection: () => false
 		},
 		streamMuxers: [yamux()],
-		peerDiscovery: [
-			pubsubPeerDiscovery(
-				/** @type {any} */ ({
-					interval: 5000, // More frequent broadcasting
-					topics: PUBSUB_TOPICS, // Configurable topics
-					listenOnly: false,
-					emitSelf: true // Enable even when no peers are present initially
-				})
-			)
-		],
+		// Discovery needs somewhere to discover *from*. With no relay there is no
+		// shared pubsub network to announce on, so this is configured only when a
+		// relay is — and comes back on its own in milestone 3.
+		peerDiscovery: hasRelay
+			? [
+					pubsubPeerDiscovery(
+						/** @type {any} */ ({
+							interval: 5000,
+							topics: PUBSUB_TOPICS,
+							listenOnly: false,
+							emitSelf: true
+						})
+					)
+				]
+			: [],
 		services: {
 			identify: identify(),
 			identifyPush: identifyPush(),
 			ping: ping({ timeout: 10_000 }),
-			bootstrap: alephBootstrap,
+			...(hasRelay ? { bootstrap: bootstrap({ list: relayBootstrapAddrs }) } : {}),
 			autonat: autoNAT(),
 			...(webRTCEnabled ? { dcutr: dcutr() } : {}),
 			pubsub: gossipsub({
