@@ -2,7 +2,11 @@
 	import { onMount } from 'svelte';
 	import { peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js';
 	import { getRelayNetworkEnabled, setRelayNetworkEnabled } from '$lib/network-mode.js';
-	import { getPersistentStorageEnabled, setPersistentStorageEnabled } from '$lib/storage-mode.js';
+	import {
+		getPersistentStorageEnabled,
+		setPersistentStorageEnabled,
+		wipePersistentStorage
+	} from '$lib/storage-mode.js';
 	import { formatBuildDate, formatVersions } from '$lib/build-info.js';
 	import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/ConsentModal.svelte';
@@ -54,6 +58,21 @@
 		setRelayNetworkEnabled(relayNetworkEnabled);
 		// Also before initializeP2P: this one decides which stores Helia and OrbitDB
 		// are built with, and those cannot be swapped after the node exists.
+		// Turning it off has to delete what being on wrote, or the label is a lie
+		// for anyone who used the switch in that order. Before persisting the new
+		// value, so a wipe that fails leaves the old choice intact rather than
+		// claiming a clean slate it did not achieve.
+		if (!persistentStorageEnabled && getPersistentStorageEnabled()) {
+			const { deleted } = await wipePersistentStorage();
+			console.info('Cleared persistent storage on switching to in-memory:', deleted);
+			try {
+				// The author id belongs to the same promise; a stale one would outlive
+				// the data it signed.
+				localStorage.removeItem('simpleTodo.orbitdbIdentityId');
+			} catch {
+				// ignore storage errors
+			}
+		}
 		setPersistentStorageEnabled(persistentStorageEnabled);
 		try {
 			if (rememberDecision) {

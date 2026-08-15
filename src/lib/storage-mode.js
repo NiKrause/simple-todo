@@ -103,3 +103,75 @@ export async function createLogStorages() {
 	const [headsStorage, indexStorage] = await Promise.all([MemoryStorage(), MemoryStorage()]);
 	return { headsStorage, indexStorage };
 }
+
+/**
+ * Every IndexedDB database this app can have written, by name prefix.
+ *
+ * `browser-level` prefixes each Level path with `level-js-`, so
+ * `simple-todo/helia-blocks` surfaces as `level-js-simple-todo/helia-blocks`.
+ * The second prefix is OrbitDB's own default `./orbitdb`, which earlier builds
+ * wrote to whatever the user had picked — a browser that ran this app before
+ * the storage choice existed still has those, and "delete what was written"
+ * has to mean them too.
+ */
+const OWNED_DATABASE_PREFIXES = ['level-js-simple-todo/', 'level-js-orbitdb/'];
+
+/**
+ * Delete what a persistent session wrote.
+ *
+ * Without this the switch is only half honest: #183 stopped an in-memory
+ * session from writing, but a browser that ran persistent first still had its
+ * blocks, log and keystore sitting in IndexedDB afterwards. Someone choosing
+ * "nothing on this device" in that order was told one thing and got another.
+ *
+ * Prefix-matched rather than deleting by known path: the OrbitDB log opens one
+ * database per address (`…/orbitdb/<address>/log/_heads/`), so the exact set is
+ * not knowable up front. Other origins are unreachable from here, and nothing
+ * outside these two prefixes belongs to this app.
+ *
+ * Never throws — a browser that cannot enumerate (Firefox has no
+ * `indexedDB.databases()`) or refuses a delete must not block the user from
+ * proceeding. It returns what it managed to remove so a caller can say so.
+ *
+ * @returns {Promise<{ deleted: string[], enumerable: boolean }>}
+ */
+export async function wipePersistentStorage() {
+	if (typeof indexedDB === 'undefined' || typeof indexedDB.databases !== 'function') {
+		return { deleted: [], enumerable: false };
+	}
+
+	/** @type {string[]} */
+	const deleted = [];
+	try {
+		const databases = await indexedDB.databases();
+		const owned = databases
+			.map((database) => database.name)
+			.filter(
+				/** @returns {name is string} */
+				(name) =>
+					typeof name === 'string' && OWNED_DATABASE_PREFIXES.some((p) => name.startsWith(p))
+			);
+
+		await Promise.all(
+			owned.map(
+				(name) =>
+					new Promise((resolve) => {
+						const request = indexedDB.deleteDatabase(name);
+						// `blocked` fires when another tab still holds the database open.
+						// Resolving rather than hanging keeps the consent screen usable;
+						// the caller reports what actually went.
+						request.onsuccess = () => {
+							deleted.push(name);
+							resolve(undefined);
+						};
+						request.onerror = () => resolve(undefined);
+						request.onblocked = () => resolve(undefined);
+					})
+			)
+		);
+	} catch {
+		// Enumeration itself can fail in private modes.
+	}
+
+	return { deleted, enumerable: true };
+}
