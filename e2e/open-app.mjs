@@ -80,9 +80,7 @@ export async function createPasskey(page, { userId, displayName, timeout = 90_00
 	await page.getByTestId('identity-user-id').fill(userId);
 	await page.getByTestId('identity-display-name').fill(displayName);
 	await page.getByTestId('identity-create').click();
-	// Adopting an identity restarts the P2P stack; wait for it to come back
-	// rather than racing its teardown.
-	await expectAppReady(page, timeout);
+	await waitForPasskeyAdopted(page, timeout);
 }
 
 /**
@@ -98,5 +96,32 @@ export async function createPasskey(page, { userId, displayName, timeout = 90_00
 export async function restorePasskey(page, { timeout = 90_000 } = {}) {
 	await expectAppReady(page, timeout);
 	await page.getByTestId('identity-recover').click();
+	await waitForPasskeyAdopted(page, timeout);
+}
+
+/**
+ * Wait until the passkey identity is actually in effect.
+ *
+ * Not `expectAppReady`, and this distinction cost an afternoon. Adopting an
+ * identity restarts the P2P stack, and a restart is asynchronous: for a moment
+ * after the click the app is *still ready from before it*, so waiting for
+ * "ready" succeeds immediately, against a stack that is about to be torn down.
+ * `{#if $initializationStore.isInitialized}` then unmounts and remounts the
+ * panels behind it — and anything typed into them in that window is silently
+ * gone.
+ *
+ * That is exactly what happened: the list-name field was filled, the remount
+ * cleared it, and the list was created under the default name. Every assertion
+ * about the typed name failed while the app itself was working correctly.
+ *
+ * The identity panel's own state is the honest signal. Its create/recover
+ * buttons live behind `{#if !usingPasskey}`, so their disappearance means the
+ * new identity is live — which only happens once the restart has finished.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {number} [timeout]
+ */
+export async function waitForPasskeyAdopted(page, timeout = 90_000) {
+	await expect(page.getByTestId('identity-create-toggle')).toBeHidden({ timeout });
 	await expectAppReady(page, timeout);
 }

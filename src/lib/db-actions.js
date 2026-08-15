@@ -1,7 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { OrbitDBAccessController } from '@orbitdb/core';
 import { peerIdStore } from './p2p.js';
-import { rememberList, listRegistryStore, openListRegistry } from './list-registry.js';
+import { rememberList, forgetList, listRegistryStore, openListRegistry } from './list-registry.js';
 import { relayHttpStatusStore } from './relay-status.js';
 
 /**
@@ -756,6 +756,53 @@ export function getTodosByCreator(creatorId) {
 }
 
 // Delete the current database
+/**
+ * Drop a list from this device: its data and its registry entry.
+ *
+ * The two halves already existed and did not meet. `forgetList` removed the
+ * registry entry and left the replicated data behind; `deleteCurrentDatabase`
+ * dropped the data of whichever list happened to be active and left the
+ * registry pointing at something that was gone. Either one alone leaves the
+ * device in a state nobody asked for.
+ *
+ * It matters more now than it did: with blocks in IndexedDB rather than memory,
+ * data left behind by a half-drop stays on the device indefinitely instead of
+ * evaporating on the next reload.
+ *
+ * What this does *not* touch is the registry's log. `forgetList` appends a
+ * tombstone, so the switcher stops showing the entry while the address remains
+ * recoverable from the log's history — "forget" is not "erase", and the chapter
+ * README says so rather than letting a user assume otherwise.
+ *
+ * @param {string} address
+ * @returns {Promise<void>}
+ */
+export async function dropList(address) {
+	const orbitdb = get(orbitdbStore);
+	if (!orbitdb) throw new Error('OrbitDB is not initialized yet.');
+
+	const normalizedAddress = String(address ?? '').trim();
+	if (!normalizedAddress.startsWith('/orbitdb/')) {
+		throw new Error('The database address must start with "/orbitdb/".');
+	}
+
+	const wasActive = get(todoDBAddressStore) === normalizedAddress;
+
+	// Any list in the switcher, not only the active one — dropping a list you
+	// are not looking at is the ordinary case for a list somebody handed you.
+	const db = wasActive ? get(todoDBStore) : await orbitdb.open(normalizedAddress);
+	await db.drop();
+
+	if (wasActive) {
+		setActiveTodoDatabase(null);
+		todosStore.set([]);
+	}
+
+	// Registry last: if the drop throws, the entry is still there to try again
+	// rather than pointing at data that is already gone.
+	await forgetList(orbitdb, normalizedAddress);
+}
+
 export async function deleteCurrentDatabase() {
 	const todoDB = get(todoDBStore);
 	const orbitdb = get(orbitdbStore);

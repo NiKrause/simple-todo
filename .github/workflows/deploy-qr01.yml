@@ -40,7 +40,14 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: QR handover two-browser test
-        run: pnpm exec playwright test e2e/qr01-transfer.spec.js --project=chromium
+        # isolated, not the default `local`: that mode starts a relay and hands
+        # the app its address, and every assertion in this spec could then pass
+        # *through* the relay while claiming two devices met by nothing but a
+        # scanned code. isolated starts no relay and configures no bootstrap
+        # address, which is the condition the chapter is actually about.
+        env:
+          E2E_RELAY_MODE: isolated
+        run: pnpm exec playwright test e2e/qr01-transfer.spec.js --project=chromium --workers=1
 
   build-and-deploy:
     needs: e2e

@@ -98,40 +98,26 @@ export async function openListRegistry(orbitdb) {
 		});
 		await refreshRegistry();
 		listRegistryReadyStore.set(true);
-		// Nothing persists locally in this chapter — Helia runs in memory — so
-		// after a reload the entries have to come back from the relay. The first
-		// heads exchange is routinely lost when a peer opens a database it has no
-		// entries for, which shows up as a database that is connected but empty.
-		// A bounded sync restart re-triggers it; this is the same workaround the
-		// todo lists need.
-		void recoverEntriesFromPeers(db);
+		// The peer-recovery workaround the earlier chapters need is gone here,
+		// and both halves of its premise are why.
+		//
+		// It existed because "nothing persists locally — Helia runs in memory —
+		// so after a reload the entries have to come back from the relay". In
+		// this chapter the entries persist in IndexedDB, and there is no relay to
+		// ask. So it could never recover anything, while still costing three
+		// four-second waits and three sync restarts on every registry open.
+		//
+		// That was not merely wasted time. The restarts contend with the same
+		// IndexedDB the open is using: creating a list went from immediate to
+		// over twenty seconds and the switcher never appeared, which is how this
+		// was found — four inherited list-registry tests began failing the moment
+		// storage became persistent.
 		return db;
 	})().finally(() => {
 		opening = null;
 	});
 
 	return opening;
-}
-
-/**
- * Re-ask peers for the registry's history when the local copy came up empty.
- * Gives up quietly: an empty registry is a legitimate state for a new identity.
- *
- * @param {any} db
- */
-async function recoverEntriesFromPeers(db) {
-	for (let attempt = 0; attempt < 3; attempt++) {
-		await new Promise((resolve) => setTimeout(resolve, 4000));
-		if (get(listRegistryStore).length) return;
-		try {
-			await db.sync?.stop?.();
-			await db.sync?.start?.();
-		} catch (error) {
-			console.warn('registry sync restart failed:', error);
-			return;
-		}
-		await refreshRegistry();
-	}
 }
 
 /** Re-read the registry into the store. */

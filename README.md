@@ -38,7 +38,7 @@ joins it with his phone.
 3. Alice taps **Scan answer** and scans it. The WebRTC connection is up.
 4. Over that connection Bob receives the **OrbitDB address of Alice's list**
    and is asked whether to import it.
-5. On *yes*, Bob replicates the list and sees the ten todos.
+5. On _yes_, Bob replicates the list and sees the ten todos.
 
 No packet in this flow leaves the hotspot.
 
@@ -58,8 +58,24 @@ database `<name>-<timestamp>-<random>` and opens it with
   only way Bob can reach the list — which is exactly the point on a site with
   no internet.
 - **Only Alice can write.** Bob replicates and reads; he cannot append. That
-  is why the acknowledgement in milestone 2 travels as a *message* Alice
+  is why the acknowledgement in milestone 2 travels as a _message_ Alice
   stores herself, rather than as an entry Bob writes into her list.
+
+### The data stays on the device
+
+Every earlier chapter keeps blocks in memory and leans on a relay to send them
+back after a reload — `list-registry.js` says so outright. With no relay there
+is nothing to send them back, so this chapter puts Helia's blocks and datastore
+in IndexedDB instead. A list handed over on a building site is still there the
+next morning, with the connection long gone.
+
+That is also what makes the two buttons in the list switcher mean different
+things:
+
+- **Forget** stops tracking a list. Its data stays, and reopening it by address
+  works.
+- **Drop** deletes the data from this device as well. Worth having only because
+  the data now outlives the page.
 
 ### What this chapter does not do
 
@@ -69,16 +85,17 @@ Being honest about the edges matters more here than in the other chapters:
   and does not serve the PWA. The chapter ships a service worker so an
   installed app opens with no network — but the first install needs one.
 - **The connection is one-shot.** It lives with the page. Nothing re-syncs
-  later without another scan.
-- **"Forget" is not "erase".** Dropping a received list removes the local data
-  and clears it from the switcher, but the registry is an append-only log:
-  the address stays recoverable from its history.
+  later without another scan: the todos survive, the peer does not.
+- **"Forget" is not "erase".** Both buttons clear the switcher, but the
+  registry is an append-only log — a `del` is a tombstone, so the address of a
+  forgotten or dropped list stays recoverable from its history. Since the
+  address is the only thing protecting a private list, that is worth knowing.
 
 ---
 
 ## 🔑 Inherited: Per-DID Write Permissions (`acl01`)
 
-Built on `passkey01`. Passkey identities become *meaningful*: you can grant
+Built on `passkey01`. Passkey identities become _meaningful_: you can grant
 specific DIDs write access to a list of yours.
 
 - **Public list stays public.** The mnemonic shared list from `collab01`
@@ -94,7 +111,7 @@ specific DIDs write access to a list of yours.
   `/orbitdb/…` address (the "Open a shared list by address" form). Readers
   can replicate immediately; writing needs a grant.
 - **Denied writes fail loudly.** A write from an unauthorized identity is
-  rejected inside OrbitDB's `canAppend` gate *before* anything is appended,
+  rejected inside OrbitDB's `canAppend` gate _before_ anything is appended,
   so nothing ever looks saved — the UI shows a clear "no write permission,
   ask the owner to add your DID" message instead of crashing.
 
@@ -123,17 +140,17 @@ controller's own store will fail.
 ## 🔐 Passkey Identities (from `passkey01`)
 
 The previous chapter (`collab01`) gave every browser a random throwaway
-OrbitDB identity: entries were attributable to *a* peer, but not to *you*.
+OrbitDB identity: entries were attributable to _a_ peer, but not to _you_.
 This chapter replaces that with an opt-in **passkey-backed identity**:
 
-- **Onboarding choice** before the P2P stack starts: *create a passkey*
-  (user id + display name), *use an existing passkey* (recovery), or
-  *continue without one* (exactly the previous chapter's behaviour).
+- **Onboarding choice** before the P2P stack starts: _create a passkey_
+  (user id + display name), _use an existing passkey_ (recovery), or
+  _continue without one_ (exactly the previous chapter's behaviour).
 - **Keystore-based DID provider** from
   [`@le-space/orbitdb-identity-provider-webauthn-did`](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did)
   with `encryptKeystore`: an Ed25519 OrbitDB signing key is encrypted at
   rest and unlocked with **one WebAuthn prompt per session**. (The stricter
-  *varsig* variant — a passkey prompt for every single write — exists in the
+  _varsig_ variant — a passkey prompt for every single write — exists in the
   same package and is a good follow-up exercise, but is not used here.)
 - **Create-or-recover flow** (`src/lib/passkey-identity.js`): identity
   metadata is written to the authenticator's `largeBlob` when supported and
@@ -145,7 +162,7 @@ This chapter replaces that with an opt-in **passkey-backed identity**:
   `entry.identity` — the field OrbitDB signs itself, so it cannot be faked
   by writing a different name into the todo payload.
 - **Access control is unchanged** (`write: ['*']`): this chapter is only
-  about *who you are*, not yet about *who may write*. That is the next
+  about _who you are_, not yet about _who may write_. That is the next
   chapter (`acl01`).
 
 ### ⚠️ Passkeys are bound to the origin (rpId)
@@ -193,7 +210,7 @@ The mnemonic list above stays public. To exercise access control, create a
 1. In browser A (owner), pick **Create a passkey** during onboarding, then
    click **Create private list**. Add a todo and copy the shown
    `/orbitdb/…` address.
-2. In browser B (guest), create a *different* passkey, paste the address into
+2. In browser B (guest), create a _different_ passkey, paste the address into
    **Open a shared list by address**, and open it. You see the owner's todo,
    but adding one is **denied** with a visible error.
 3. In browser A, copy browser B's **Passkey DID** (its header badge) into the

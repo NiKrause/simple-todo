@@ -2,6 +2,8 @@ import { get, writable } from 'svelte/store';
 
 import { createLibp2p } from 'libp2p';
 import { createHeliaLight } from 'helia';
+import { IDBBlockstore } from 'blockstore-idb';
+import { IDBDatastore } from 'datastore-idb';
 import { withBitswap } from '@helia/bitswap';
 import { withHTTP } from '@helia/http';
 import { withLibp2p } from '@helia/libp2p';
@@ -20,6 +22,9 @@ import { multiaddr } from '@multiformats/multiaddr';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { attachQrSession, resetQrSession } from './qr-transport.js';
 import { registerHandoverProtocol } from './handover-protocol.js';
+// Safe to import here: list-registry pulls in no app modules of its own, so
+// this does not close a cycle with db-actions.
+import { resetListRegistry } from './list-registry.js';
 import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
 import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
 import { getTodoDatabaseName } from './default-todo-database.js';
@@ -135,14 +140,38 @@ let discoveryDialRetryInterval = null;
 /** @type {ReturnType<typeof setInterval> | null} */
 
 /**
+ * Helia, with its blocks and datastore in IndexedDB rather than memory.
+ *
+ * This chapter needs it more than the others do. Everywhere else, a reload can
+ * refetch what the browser forgot, because a relay is holding it —
+ * `list-registry.js` says so outright: after a reload "the entries have to come
+ * back from the relay". qr01 has no relay. In memory, that made an imported
+ * list vanish on reload with nothing anywhere to restore it from, which the
+ * handover E2E caught by failing on exactly that assertion.
+ *
+ * "LevelDB" in a browser is IndexedDB anyway — `blockstore-level` reaches it
+ * through `level` → `browser-level` — so these go to IndexedDB directly, one
+ * abstraction layer fewer, and this is the pairing already validated against
+ * this codebase in spike 2a20549.
+ *
+ * Both stores must be opened before Helia touches them. Helia does not do it,
+ * and the failure surfaces late and misleadingly as "Datastore needs to be
+ * opened" thrown from inside libp2p's start.
+ *
  * @param {any} libp2pNode
- * @returns {any}
+ * @returns {Promise<any>}
  */
-function createHeliaWithLibp2p(libp2pNode) {
+async function createHeliaWithLibp2p(libp2pNode) {
+	const blockstore = new IDBBlockstore('qr01/blocks');
+	const datastore = new IDBDatastore('qr01/data');
+	await Promise.all([blockstore.open(), datastore.open()]);
+
 	return withBitswap(
 		withLibp2p(
 			withHTTP(
 				createHeliaLight({
+					blockstore,
+					datastore,
 					codecs: [dagCbor, dagJson, json],
 					hashers: [sha512]
 				})
@@ -193,7 +222,7 @@ export async function initializeP2P(
 
 		// Create Helia (IPFS) instance
 		setInitializationProgress(2);
-		helia = await createHeliaWithLibp2p(libp2p).start();
+		helia = await (await createHeliaWithLibp2p(libp2p)).start();
 		console.log(`✅ Helia created`);
 
 		// Create OrbitDB instance
@@ -272,6 +301,17 @@ async function stopP2P() {
 	// its own outbound contexts, and leaving them attached to a dead node makes
 	// the next handshake negotiate against a corpse.
 	resetQrSession();
+	// Drop the registry handle for the same reason. `resetListRegistry` was
+	// written for exactly this — "used when the OrbitDB instance goes away" —
+	// and was never called from anywhere, which stayed harmless only because
+	// restarting was rare.
+	//
+	// This chapter restarts routinely: adopting a passkey rebuilds the stack,
+	// and that now happens *before* anything touches the registry. `registryDB`
+	// then still pointed at a database belonging to the destroyed OrbitDB, and
+	// `openListRegistry` hands that corpse straight back on its first line —
+	// so `rememberList` wrote into nothing and creating a list simply hung.
+	resetListRegistry();
 	libp2pStore.set(null);
 	peerIdStore.set(null);
 	ownDidStore.set(null);

@@ -5,12 +5,13 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@libp2p/gossipsub': 16.1.0
   '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.0
   orbitdb-relay>@orbitdb/core: 4.0.0
   react: 19.2.6
   react-dom: 19.2.6
   '@ipshipyard/node-datachannel': npm:node-datachannel@0.29.0
+  '@libp2p/gossipsub': 16.1.0
+  '@libp2p/keychain>@noble/hashes': 1.8.0
 
 importers:
 
@@ -91,9 +92,15 @@ importers:
       '@orbitdb/core':
         specifier: ^4.0.0
         version: 4.0.0
+      blockstore-idb:
+        specifier: ^4.0.1
+        version: 4.0.1
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
+      datastore-idb:
+        specifier: ^5.0.1
+        version: 5.0.1
       helia:
         specifier: ^7.1.0
         version: 7.1.0(react-native@0.80.2(@babel/core@7.29.7)(react@19.2.6))
@@ -1300,6 +1307,10 @@ packages:
     resolution: {integrity: sha512-IYqDGiTXab6FniAgnSdZwgWbomxpy9FtYvLKs7wCUs2a8RkITG+DFGO1DM9cr+E3/RgADRpFjrKVaJ1z6sjtEg==}
     engines: {node: '>= 20.19.0'}
 
+  '@noble/hashes@2.3.0':
+    resolution: {integrity: sha512-oN+QwyX7VSHotibwubG3kpzbwKrfnyR6OOO+3Nk/53ADL7FmgHHz4TgrbaYKvvOw09u6QTx0oiH1cNCIOuN0CQ==}
+    engines: {node: '>= 20.19.0'}
+
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
     engines: {node: '>= 8'}
@@ -2081,6 +2092,9 @@ packages:
   blockstore-core@7.0.1:
     resolution: {integrity: sha512-HgLzdH8oL6DrMC6J7snxmV0TXzJ/BMPSbskH4v7BBuUO9foDBOMEKUfoMX9yoBpxbH+r3Z9afXHDgXlTifMxHQ==}
 
+  blockstore-idb@4.0.1:
+    resolution: {integrity: sha512-ZfqKiJZ7wCokOrWsKtGULypIEYH+58mS/jvLk43wDMMjvNxAUPobzblzGtf+uDEE3qpYELTqjeBbS+5YCGUwFA==}
+
   blockstore-level@4.0.1:
     resolution: {integrity: sha512-C7LPH0vW3ei24lzG/li4dgDi+bWlWviUBhLZQyM1nL2JFm5iowKikn0+6fK1PZ/grrbVFAsdOA8wObCWW6N3uQ==}
 
@@ -2389,6 +2403,9 @@ packages:
 
   datastore-core@12.0.1:
     resolution: {integrity: sha512-pfgIE5LG0Z5oyc6TxiLaF/0j4Gh1Yrs2+Ck/qssf9Oxw4s4YKC3zpqifuzThnKakAFWONr/vRv+66Koc0yJvyA==}
+
+  datastore-idb@5.0.1:
+    resolution: {integrity: sha512-HyipOcFzltZVhdGRmihsmhflQn0uHb46RgnzB5rB9MHfn5PiyBZTJvvucClHFVaMRClvw6HlYcwQ21fz3duoug==}
 
   datastore-level@13.0.1:
     resolution: {integrity: sha512-QDXcCj3Hc4zorCMTqCWtHl0KcfFkygGX3gVxAcFKNbA3kPGXeImOgFbJT+lLavg0C2C4gkgSZ/QlvoCD2mrObQ==}
@@ -2986,6 +3003,9 @@ packages:
 
   idb-keyval@6.2.5:
     resolution: {integrity: sha512-eKQkTnS0relYsSOYomx8ozIbmdsQCKUdhyuIaQ2DZgKuaxtyQQMkyD/wlnQN32pO3yutN1b1L8uqwcDKaJd7/Q==}
+
+  idb@8.0.3:
+    resolution: {integrity: sha512-LtwtVyVYO5BqRvcsKuB2iUMnHwPVByPCXFXOpuU96IZPPoPN6xjOGxZQ74pgSVVLQWtUOYgyeL4GE98BY5D3wg==}
 
   ieee754@1.2.1:
     resolution: {integrity: sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA==}
@@ -5501,7 +5521,7 @@ snapshots:
       '@libp2p/utils': 7.3.0
       '@noble/ciphers': 2.2.0
       '@noble/curves': 2.2.0
-      '@noble/hashes': 2.2.0
+      '@noble/hashes': 2.3.0
       protons-runtime: 5.6.0
       uint8arraylist: 2.4.9
       uint8arrays: 5.1.0
@@ -6111,7 +6131,7 @@ snapshots:
     dependencies:
       '@ipld/dag-cbor': 10.0.1
       cborg: 5.1.7
-      multiformats: 14.0.4
+      multiformats: 14.0.5
       varint: 6.0.0
 
   '@ipld/dag-cbor@10.0.1':
@@ -6593,7 +6613,7 @@ snapshots:
     dependencies:
       '@libp2p/interface': 3.2.5
       '@noble/curves': 2.2.0
-      '@noble/hashes': 2.2.0
+      '@noble/hashes': 2.3.0
       multiformats: 14.0.3
       protons-runtime: 7.0.0
       uint8arraylist: 3.0.2
@@ -6826,7 +6846,7 @@ snapshots:
     dependencies:
       '@libp2p/crypto': 5.1.21
       '@libp2p/interface': 3.2.5
-      '@noble/hashes': 2.2.0
+      '@noble/hashes': 1.8.0
       asn1js: 3.0.10
       interface-datastore: 10.0.1
       multiformats: 14.0.4
@@ -7395,6 +7415,8 @@ snapshots:
   '@noble/hashes@1.8.0': {}
 
   '@noble/hashes@2.2.0': {}
+
+  '@noble/hashes@2.3.0': {}
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -8296,6 +8318,18 @@ snapshots:
       it-merge: 3.0.14
       multiformats: 14.0.4
 
+  blockstore-idb@4.0.1:
+    dependencies:
+      abort-error: 1.0.2
+      blockstore-core: 7.0.1
+      idb: 8.0.3
+      interface-blockstore: 7.0.1
+      interface-store: 8.0.0
+      it-all: 3.0.11
+      it-to-buffer: 5.0.0
+      multiformats: 14.0.5
+      race-signal: 2.0.0
+
   blockstore-level@4.0.1:
     dependencies:
       abort-error: 1.0.2
@@ -8708,6 +8742,17 @@ snapshots:
       it-pipe: 3.0.1
       it-sort: 3.0.11
       it-take: 3.0.11
+
+  datastore-idb@5.0.1:
+    dependencies:
+      abort-error: 1.0.2
+      datastore-core: 12.0.1
+      idb: 8.0.3
+      interface-datastore: 10.0.1
+      interface-store: 8.0.0
+      it-filter: 3.1.6
+      it-sort: 3.0.11
+      race-signal: 2.0.0
 
   datastore-level@13.0.1:
     dependencies:
@@ -9372,6 +9417,8 @@ snapshots:
       - supports-color
 
   idb-keyval@6.2.5: {}
+
+  idb@8.0.3: {}
 
   ieee754@1.2.1: {}
 

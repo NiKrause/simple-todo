@@ -40,6 +40,22 @@
 		// prerenders, and a static build must not need a camera to exist.
 		await import('@le-space/libp2p-webrtc-qr/elements');
 		elementsReady = true;
+
+		// The camera is the one thing a headless browser cannot supply, so under
+		// VITE_E2E the payload can be handed in directly. Everything after that
+		// is the same code the scanner drives.
+		if (import.meta.env.VITE_E2E === 'true') {
+			/** @type {any} */ (window).__simpleTodoQr = {
+				transfer,
+				offerPayload: () => (phase === 'offering' || phase === 'answering' ? payload : ''),
+				phase: () => phase,
+				useScannedPayload
+			};
+		}
+	});
+
+	onDestroy(() => {
+		if (typeof window !== 'undefined') delete (/** @type {any} */ (window).__simpleTodoQr);
 	});
 
 	function session() {
@@ -67,6 +83,31 @@
 			fail(err);
 		} finally {
 			busy = false;
+		}
+	}
+
+	/**
+	 * Act on a payload, however it arrived.
+	 *
+	 * Split out from the camera so a test can exercise the roundtrip: Playwright
+	 * has no camera, and a test that stubbed the whole handshake would prove only
+	 * that the stub works. This way the scan path and the test path differ in
+	 * exactly one step — where the text came from.
+	 *
+	 * @param {string} text
+	 * @param {typeof QR_TYPE_OFFER | typeof QR_TYPE_ANSWER} expected
+	 */
+	async function useScannedPayload(text, expected) {
+		if (expected === QR_TYPE_OFFER) {
+			// Bob: answer, and show the answer for Alice to scan back.
+			payload = await session().acceptOffer(text);
+			phase = 'answering';
+		} else {
+			// Alice: the roundtrip closes here, and the list follows immediately.
+			const { peerId } = await session().acceptAnswer(text);
+			phase = 'connected';
+			payload = '';
+			await offerActiveList(peerId);
 		}
 	}
 
@@ -104,17 +145,7 @@
 		try {
 			const text = await scannerEl.open();
 			if (!text) return;
-			if (expected === QR_TYPE_OFFER) {
-				// Bob: answer, and show the answer for Alice to scan back.
-				payload = await session().acceptOffer(text);
-				phase = 'answering';
-			} else {
-				// Alice: the roundtrip closes here, and the list follows immediately.
-				const { peerId } = await session().acceptAnswer(text);
-				phase = 'connected';
-				payload = '';
-				await offerActiveList(peerId);
-			}
+			await useScannedPayload(text, expected);
 		} catch (err) {
 			fail(err);
 		}
