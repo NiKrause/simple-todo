@@ -64,21 +64,16 @@ function ownedDatabases(page) {
 }
 
 test.describe('Storage mode', () => {
-	test('a todo written with IndexedDB is read back with no network and no relay', async ({
+	test('a todo written with IndexedDB survives a reload with the network cut', async ({
 		browser
 	}) => {
-		// As close to the issue's "reload offline" as this app can currently get.
+		// #144 called this test the feature itself, and until the service worker
+		// landed it was impossible: the app shell was fetched over HTTP on every
+		// load, so going offline first failed at ERR_INTERNET_DISCONNECTED on the
+		// document and never reached the code under test.
 		//
-		// The reload itself has to happen online: there is no service worker in
-		// this project, so the app shell is fetched over HTTP every time and
-		// `setOffline(true)` before a reload fails at `ERR_INTERNET_DISCONNECTED`
-		// on the document, never reaching the code under test. Serving the shell
-		// offline is a separate piece of work.
-		//
-		// What is asserted is the substance: the network is cut *before* the app
-		// initialises, and the relay is switched off, so libp2p has neither a
-		// bootstrap list nor a route to anyone. A todo that appears under those
-		// conditions can only have come from IndexedDB.
+		// Now the shell comes from the cache and the todo from IndexedDB, with the
+		// relay switched off as well — nothing here can have come over a wire.
 		const context = await browser.newContext();
 		try {
 			const page = await context.newPage();
@@ -88,8 +83,14 @@ test.describe('Storage mode', () => {
 			const todo = `offline-${Date.now()}`;
 			await addTodo(page, todo);
 
-			await page.reload();
+			// The worker controls the page only once it has activated; reloading
+			// before that would fetch from the network and prove nothing.
+			await page.waitForFunction(() => navigator.serviceWorker.controller !== null, null, {
+				timeout: 30_000
+			});
+
 			await context.setOffline(true);
+			await page.reload();
 			await acceptConsent(page, { mode: 'indexeddb', relay: false });
 			await expect(page.getByText(todo, { exact: true })).toBeVisible({ timeout: 60_000 });
 		} finally {
