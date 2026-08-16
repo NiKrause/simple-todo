@@ -91,9 +91,14 @@ async function startPreview({ env, relayInfo }) {
 			(relayInfo.httpOrigin ? ` (${relayInfo.httpOrigin})` : '')
 	);
 	await runCommand('pnpm', ['run', 'build'], { env });
+	// `pnpm exec vite preview`, not `pnpm run preview -- --port …`: pnpm does not
+	// forward those arguments, so vite fell back to its own default of 4173 and
+	// `E2E_PREVIEW_PORT` did nothing. Two checkouts then fought over one port —
+	// and when one already had a preview there, Playwright happily browsed to
+	// *that* app instead, so a suite could report on a build it never made.
 	previewProcess = spawn(
 		'pnpm',
-		['run', 'preview', '--', '--host', '127.0.0.1', '--port', previewPort],
+		['exec', 'vite', 'preview', '--host', '127.0.0.1', '--port', previewPort],
 		{
 			cwd: rootDir,
 			env,
