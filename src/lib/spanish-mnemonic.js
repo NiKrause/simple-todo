@@ -70,7 +70,6 @@ export const SPANISH_WORDS_V1 = Object.freeze([
 ]);
 
 const WORD_SET = new Set(SPANISH_WORDS_V1);
-const NON_SPACE_SEPARATOR = /[_\-‐-―]/u;
 const REPEATED_NON_SPACE_SEPARATOR = /[_\-‐-―]{2,}/u;
 
 /**
