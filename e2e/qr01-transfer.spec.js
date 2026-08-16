@@ -66,7 +66,7 @@ test.describe('QR handover', () => {
 			const dialog = bob.getByTestId('list-offer-dialog');
 			await expect(dialog).toBeVisible({ timeout });
 			await expect(bob.getByTestId('list-offer-address')).toContainText(aliceAddress);
-			await expect(bob.getByTestId('list-offer-name')).toContainText('Baugrube');
+			await expect(bob.getByTestId('list-offer-name')).toContainText('Excavation and basement');
 
 			await bob.getByTestId('list-offer-accept').click();
 			await expect(dialog).toBeHidden({ timeout });
@@ -79,7 +79,9 @@ test.describe('QR handover', () => {
 
 			// Held, not owned. acl01's registry already draws this distinction and
 			// the write is refused by the access controller rather than by the UI.
-			await expect(bob.getByTestId('list-switcher')).toContainText('Baugrube', { timeout });
+			await expect(bob.getByTestId('list-switcher')).toContainText('Excavation and basement', {
+				timeout
+			});
 			await todoInput(bob).fill(`bob-cannot-write-${runId}`);
 			await bob.getByRole('button', { name: 'Add TODO' }).click();
 			await expect(bob.getByText(/no write permission|write access/i)).toBeVisible({ timeout });
@@ -116,7 +118,9 @@ test.describe('QR handover', () => {
 			// mount, so Bob reopens the received one the way a person would —
 			// which is also what proves the *blocks* survived and not merely the
 			// entry naming them.
-			await expect(bob.getByTestId('list-switcher')).toContainText('Baugrube', { timeout });
+			await expect(bob.getByTestId('list-switcher')).toContainText('Excavation and basement', {
+				timeout
+			});
 			await bob
 				.locator(`[data-testid="list-switcher-open"][data-address="${aliceAddress}"]`)
 				.click();

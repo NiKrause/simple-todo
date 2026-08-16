@@ -32,7 +32,7 @@ items covering the excavation pit and basement of a new house. Then she drives
 to the site, where **there is no internet**, and turns on her hotspot. Bob
 joins it with his phone.
 
-1. Alice taps **Übertragen** (Transfer). Her offer appears as an **animated QR
+1. Alice taps **Transfer**. Her offer appears as an **animated QR
    code** or a **short code**, depending on a checkbox.
 2. Bob scans it, and his device shows an **answer code**.
 3. Alice taps **Scan answer** and scans it. The WebRTC connection is up.
