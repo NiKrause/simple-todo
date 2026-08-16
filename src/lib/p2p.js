@@ -3,7 +3,6 @@ import { get, writable } from 'svelte/store';
 import { createLibp2p } from 'libp2p';
 import { createHeliaLight } from 'helia';
 import { withBitswap } from '@helia/bitswap';
-import { withHTTP } from '@helia/http';
 import { withLibp2p } from '@helia/libp2p';
 import {
 	createOrbitDB,
@@ -131,19 +130,34 @@ let discoveryDialRetryInterval = null;
  * @returns {any}
  */
 function createHeliaWithLibp2p(libp2pNode, stores = {}) {
+	// Bitswap only, deliberately. `withHTTP` used to wrap this and looked free,
+	// but it ships three public gateways — trustless-gateway.link, 4everland.io
+	// and delegated-ipfs.dev — and Helia asks them for any block bitswap does
+	// not produce.
+	//
+	// Nothing here can be there. Todos are OrbitDB entries written in a browser
+	// and replicated to peers and the relay; nobody pushes those blocks to a
+	// public gateway, so the request can only fail. What it does do is announce
+	// the CID being looked for to three strangers — which is exactly the leak
+	// `invite-link.js` refuses to accept for connection offers, arrived at from
+	// the other side.
+	//
+	// Do not try to verify this by grepping the build for those hostnames. They
+	// are still in it either way: `helia` itself, `@helia/routers` and
+	// `@helia/delegated-routing-client` all carry the same list, so the strings
+	// survive as unreferenced bytes. What this line changes is whether the
+	// gateway block broker is wired into the node, not what the bundler emits.
 	return withBitswap(
 		withLibp2p(
-			withHTTP(
-				createHeliaLight({
-					codecs: [dagCbor, dagJson, json],
-					hashers: [sha512],
-					// Omitted when the user chose in-memory: helia then falls back to
-					// MemoryBlockstore/MemoryDatastore, which is the behaviour this app
-					// has always had. Passing `undefined` explicitly would be the same
-					// thing, but spreading keeps the call honest about what was decided.
-					...stores
-				})
-			),
+			createHeliaLight({
+				codecs: [dagCbor, dagJson, json],
+				hashers: [sha512],
+				// Omitted when the user chose in-memory: helia then falls back to
+				// MemoryBlockstore/MemoryDatastore, which is the behaviour this app
+				// has always had. Passing `undefined` explicitly would be the same
+				// thing, but spreading keeps the call honest about what was decided.
+				...stores
+			}),
 			libp2pNode
 		)
 	);
