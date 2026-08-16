@@ -41,7 +41,8 @@
 		"addPlaceholder": "Was ist zu tun?",
 		"add": "Hinzufügen",
 		"count": "{count, plural, =0 {Keine Einträge} one {1 Eintrag} other {# Einträge}}",
-		"onlyYouCanWrite": "Nur Sie können hier etwas eintragen. Andere können mitlesen."
+		"onlyYouCanWrite": "Nur Sie können hier etwas eintragen. Andere können mitlesen.",
+		"itemsHeading": "Einträge"
 	},
 	"transfer": {
 		"heading": "Diese Liste weitergeben",
@@ -76,5 +77,84 @@
 	"tabs": {
 		"create": "Liste anlegen",
 		"open": "Geteilte Liste öffnen"
+	},
+	"theme": {
+		"toLight": "Zur hellen Ansicht wechseln",
+		"toDark": "Zur dunklen Ansicht wechseln",
+		"light": "Helle Ansicht",
+		"dark": "Dunkle Ansicht"
+	},
+	"todo": {
+		"relayStatus": "Relay-Replikation:",
+		"unassigned": "Nicht zugewiesen",
+		"relayPending": "Wartet darauf, dass der Relay diesen Eintrag übernimmt.",
+		"relayUnknown": "Für diesen Eintrag liegt noch kein Nachweis der Relay-Replikation vor.",
+		"relayNotObserved": "Für diesen bestehenden Eintrag wurde die Relay-Replikation nicht beobachtet.",
+		"relayPinned": "Der Relay hat bestätigt, dass genau dieser Eintrag übernommen und gespeichert wurde."
+	},
+	"tech": {
+		"relayConnected": "Relay verbunden",
+		"peerConnected": "Peer verbunden",
+		"relayPeerMismatch": "Relay-Peer-ID stimmt nicht überein",
+		"relayConnecting": "Verbinde mit Relay",
+		"webrtcConnected": "WebRTC verbunden",
+		"enterMultiaddr": "Multiadresse eingeben, um sich mit einem Peer zu verbinden.",
+		"dialing": "Wähle Peer an",
+		"handshake": "Öffnet den WebSocket und schließt den libp2p-Handschlag ab…",
+		"connectionStable": "Verbindung stabil",
+		"connectionDropped": "Verbindung abgebrochen",
+		"myPeerId": "Meine Peer-ID",
+		"sharePeerId": "Teilen Sie diese ID, damit andere Ihnen TODOs zuweisen können.",
+		"loading": "Wird geladen…",
+		"copied": "Kopiert!",
+		"copyToClipboard": "In die Zwischenablage kopieren",
+		"myMultiaddrs": "Meine Multiadressen",
+		"copyAddressHint": "Eine Adresse kopieren, um einen anderen Browser direkt zu verbinden.",
+		"multiaddrCopied": "Multiadresse in die Zwischenablage kopiert.",
+		"writePermissions": "Schreibrechte",
+		"didPlaceholder": "did:key:… der Identität, die zugelassen wird",
+		"openByAddress": "Geteilte Liste über Adresse öffnen",
+		"opening": "Wird geöffnet…",
+		"openList": "Liste öffnen"
+	},
+	"steps": {
+		"failed": "{step} konnte nicht gestartet werden",
+		"initializing": "{step} wird gestartet",
+		"networkConfig": {
+			"label": "Netzwerk-Konfiguration",
+			"description": "Prüft die konfigurierten, vom Browser erreichbaren Relay-Adressen und bereitet die libp2p-Transporte und -Dienste vor."
+		},
+		"libp2p": {
+			"label": "libp2p",
+			"description": "Erzeugt und startet den libp2p-Knoten samt Peer-Identität, Discovery, Relay-, WebSocket- und WebRTC-Unterstützung."
+		},
+		"helia": {
+			"label": "Helia",
+			"description": "Startet den Helia-IPFS-Knoten auf libp2p und aktiviert den Blockaustausch."
+		},
+		"orbitdb": {
+			"label": "OrbitDB",
+			"description": "Lädt oder erzeugt die OrbitDB-Identität und initialisiert OrbitDB mit dem Helia-Knoten."
+		},
+		"databaseSync": {
+			"label": "Datenbank + Sync",
+			"description": "Öffnet die Todo-Datenbank, lädt ihr lokales Änderungsprotokoll und startet die OrbitDB-Pubsub-Synchronisierung."
+		},
+		"localTodos": {
+			"label": "Lokale Todos",
+			"description": "Verbindet den lokalen Todo-Speicher und füllt ihn im Hintergrund aus OrbitDB."
+		},
+		"relayConnected": {
+			"label": "Relay verbunden",
+			"description": "Eine bestehende Verbindung zu einem Relay."
+		},
+		"peerConnected": {
+			"label": "Peer verbunden",
+			"description": "Eine bestehende libp2p-Verbindung zu einem anderen Browser."
+		},
+		"webrtcConnected": {
+			"label": "WebRTC verbunden",
+			"description": "Eine direkte WebRTC-Verbindung zu einem anderen Browser."
+		}
 	}
 }

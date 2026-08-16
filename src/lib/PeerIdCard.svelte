@@ -1,11 +1,12 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	import { formatPeerId } from './utils.js';
 
 	/** @type {string | null | undefined} */
 	export let peerId = null;
-	export let title = 'My Peer ID';
-	export let description = 'Share this ID with others to assign TODOs to you.';
-	export let loadingMessage = 'Loading...';
+	export let title = $_('tech.myPeerId');
+	export let description = $_('tech.sharePeerId');
+	export let loadingMessage = $_('tech.loading');
 	export let copyable = true;
 	export let compact = false;
 
@@ -78,7 +79,7 @@
 				<button
 					on:click={copyToClipboard}
 					class="absolute top-2 right-2 rounded p-1 transition-colors hover:bg-cyan-200"
-					title={copied ? 'Copied!' : 'Copy to clipboard'}
+					title={copied ? $_('tech.copied') : 'Copy to clipboard'}
 				>
 					{#if copied}
 						<svg

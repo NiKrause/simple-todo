@@ -1,13 +1,15 @@
 <script context="module">
+	// Returns a translation *key*, not a sentence. This lives in
+	// `<script module>`, where a store cannot be read at all — and even if it
+	// could, a function that bakes in the current language would hand back a
+	// German string to an English page after a switch. The caller translates,
+	// where the subscription exists and re-runs.
 	/** @param {'unknown' | 'pending' | 'pinned' | 'unavailable'} status */
-	export function getReplicationDescription(status) {
-		if (status === 'pending')
-			return 'Waiting for this OrbitDB entry to be replicated by the relay.';
-		if (status === 'pinned')
-			return 'The relay confirmed that this exact OrbitDB entry was replicated and stored locally.';
-		if (status === 'unavailable')
-			return 'No exact relay replication proof is currently available for this entry.';
-		return 'Relay replication status was not observed for this existing entry.';
+	export function getReplicationDescriptionKey(status) {
+		if (status === 'pending') return 'todo.relayPending';
+		if (status === 'pinned') return 'todo.relayPinned';
+		if (status === 'unavailable') return 'todo.relayUnknown';
+		return 'todo.relayNotObserved';
 	}
 	/** @param {string} did */
 	function formatDid(did) {
@@ -16,6 +18,7 @@
 </script>
 
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	import { createEventDispatcher } from 'svelte';
 	import { formatPeerId } from './utils.js';
 
@@ -55,7 +58,7 @@
 			class:bg-data-400={replicationStatus === 'unavailable'}
 			class:bg-surface-2={replicationStatus === 'unknown'}
 			class="relative inline-flex h-2 w-2 shrink-0 cursor-help rounded-full p-0 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
-			aria-label={getReplicationDescription(replicationStatus)}
+			aria-label={$_(getReplicationDescriptionKey(replicationStatus))}
 			data-testid="todo-relay-status"
 			data-status={replicationStatus}
 			on:mouseenter={() => (showReplicationTooltip = true)}
@@ -69,8 +72,8 @@
 					role="tooltip"
 					data-testid="todo-relay-tooltip"
 				>
-					<span class="font-semibold">Relay replication:</span>
-					{getReplicationDescription(replicationStatus)}
+					<span class="font-semibold">{$_('todo.relayStatus')}</span>
+					{$_(getReplicationDescriptionKey(replicationStatus))}
 				</span>
 			{/if}
 		</button>
@@ -88,7 +91,7 @@
 				{#if assignee}
 					Assigned to: <code class="rounded bg-surface-2 px-1">{formatPeerId(assignee)}</code>
 				{:else}
-					<span class="text-data-600">Unassigned</span>
+					<span class="text-data-600">{$_('todo.unassigned')}</span>
 				{/if}
 				• Created by:
 				<code class="rounded bg-surface-2 px-1" data-testid="todo-author" data-author={author || ''}

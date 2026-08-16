@@ -41,7 +41,8 @@
 		"addPlaceholder": "What needs doing?",
 		"add": "Add",
 		"count": "{count, plural, =0 {No entries} one {1 entry} other {# entries}}",
-		"onlyYouCanWrite": "Only you can add to this list. Others can read it."
+		"onlyYouCanWrite": "Only you can add to this list. Others can read it.",
+		"itemsHeading": "Entries"
 	},
 	"transfer": {
 		"heading": "Give this list to someone",
@@ -76,5 +77,84 @@
 	"tabs": {
 		"create": "Make a list",
 		"open": "Open a shared list"
+	},
+	"theme": {
+		"toLight": "Switch to light mode",
+		"toDark": "Switch to dark mode",
+		"light": "Light mode",
+		"dark": "Dark mode"
+	},
+	"todo": {
+		"relayStatus": "Relay replication:",
+		"unassigned": "Unassigned",
+		"relayPending": "Waiting for this entry to be copied by the relay.",
+		"relayUnknown": "No proof of relay replication is available for this entry yet.",
+		"relayNotObserved": "Relay replication was not observed for this existing entry.",
+		"relayPinned": "The relay confirmed that this exact entry was copied and stored."
+	},
+	"tech": {
+		"relayConnected": "Relay connected",
+		"peerConnected": "Peer connected",
+		"relayPeerMismatch": "Relay peer ID does not match",
+		"relayConnecting": "Connecting to relay",
+		"webrtcConnected": "WebRTC connected",
+		"enterMultiaddr": "Enter a multiaddress to connect to a peer.",
+		"dialing": "Dialing peer",
+		"handshake": "Opening the websocket and completing the libp2p handshake…",
+		"connectionStable": "Connection stable",
+		"connectionDropped": "Connection dropped",
+		"myPeerId": "My Peer ID",
+		"sharePeerId": "Share this ID with others to assign TODOs to you.",
+		"loading": "Loading…",
+		"copied": "Copied!",
+		"copyToClipboard": "Copy to clipboard",
+		"myMultiaddrs": "My Multiaddresses",
+		"copyAddressHint": "Copy an address to connect another browser directly.",
+		"multiaddrCopied": "Multiaddress copied to clipboard.",
+		"writePermissions": "Write permissions",
+		"didPlaceholder": "did:key:… of the identity to allow",
+		"openByAddress": "Open a shared list by address",
+		"opening": "Opening…",
+		"openList": "Open list"
+	},
+	"steps": {
+		"failed": "Failed to initialise {step}",
+		"initializing": "Initialising {step}",
+		"networkConfig": {
+			"label": "Network config",
+			"description": "Validates the configured browser-reachable relay addresses and prepares the libp2p transports and services."
+		},
+		"libp2p": {
+			"label": "libp2p",
+			"description": "Creates and starts the libp2p node, including its peer identity, discovery, relay, WebSocket and WebRTC support."
+		},
+		"helia": {
+			"label": "Helia",
+			"description": "Starts the Helia IPFS node on top of libp2p and enables block exchange."
+		},
+		"orbitdb": {
+			"label": "OrbitDB",
+			"description": "Loads or creates the OrbitDB identity and initialises OrbitDB using the Helia node."
+		},
+		"databaseSync": {
+			"label": "Database + sync",
+			"description": "Opens the todo database, loads its local operation log and starts OrbitDB pubsub synchronisation."
+		},
+		"localTodos": {
+			"label": "Local todos",
+			"description": "Connects the local todo store and starts filling it from OrbitDB in the background."
+		},
+		"relayConnected": {
+			"label": "Relay connected",
+			"description": "A live connection to a relay."
+		},
+		"peerConnected": {
+			"label": "Peer connected",
+			"description": "A live libp2p connection to another browser."
+		},
+		"webrtcConnected": {
+			"label": "WebRTC connected",
+			"description": "A direct WebRTC connection to another browser."
+		}
 	}
 }

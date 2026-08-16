@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	// Somebody just handed you a list. Yes or no.
 	//
 	// The address arriving is not consent to open it: replicating a database
@@ -51,7 +52,9 @@
 		<div class="w-full max-w-md rounded-lg bg-white p-5 shadow-xl dark:bg-gray-900">
 			<h2 class="text-base font-semibold text-heading">A list was sent to you</h2>
 			<p class="mt-2 text-sm text-faint">
-				<strong data-testid="list-offer-name">{$incomingListOffer.name || 'Unnamed list'}</strong>
+				<strong data-testid="list-offer-name"
+					>{$incomingListOffer.name || $_('offer.unnamed')}</strong
+				>
 			</p>
 			<p class="mt-1 text-xs break-all text-faint" data-testid="list-offer-owner">
 				from {$incomingListOffer.ownerDid}
@@ -82,7 +85,8 @@
 					class="rounded bg-cyan-600 px-3 py-1 text-xs text-white hover:bg-cyan-700 disabled:opacity-50"
 					disabled={busy}
 					on:click={accept}
-					data-testid="list-offer-accept">{busy ? 'Replicating…' : 'Yes, import it'}</button
+					data-testid="list-offer-accept"
+					>{busy ? $_('offer.importing') : $_('offer.accept')}</button
 				>
 			</div>
 		</div>

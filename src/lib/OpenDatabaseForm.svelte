@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	// Open a shared todo list by its full OrbitDB address (acl01 chapter).
 	// With per-creator access controllers the same mnemonic no longer yields
 	// the same address for everyone, so lists are shared as addresses again.
@@ -27,7 +28,7 @@
 	class="mt-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700"
 	data-testid="open-database-form"
 >
-	<h2 class="text-lg font-semibold text-heading">Open a shared list by address</h2>
+	<h2 class="text-lg font-semibold text-heading">{$_('tech.openByAddress')}</h2>
 	<p class="mt-1 text-xs text-faint">
 		Paste the full OrbitDB address someone shared with you. You can read it right away — writing
 		needs a permission grant from the owner.
@@ -47,7 +48,7 @@
 			data-testid="open-db-button"
 			class="rounded-md bg-cyan-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-cyan-700 disabled:opacity-50"
 		>
-			{busy ? 'Opening…' : 'Open list'}
+			{busy ? $_('tech.opening') : $_('tech.openList')}
 		</button>
 	</div>
 	{#if errorMessage}
