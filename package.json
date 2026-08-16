@@ -21,7 +21,8 @@
 		"test:e2e:local-relay-src": "E2E_RELAY_CLI_PATH=/Users/nandi/orbitdb-relay/dist/cli.js E2E_RELAY_PINNING_PROOF=true playwright test e2e/collaboration.spec.js --project=chromium -g \"Relay-pinned\"",
 		"test:e2e:public-relay": "E2E_RELAY_MODE=public E2E_RELAY_PINNING_PROOF=true playwright test e2e/collaboration.spec.js --project=chromium",
 		"test:e2e:remote:main": "node e2e/remote/run-main.mjs",
-		"test:consent": "playwright test e2e/consent-screen.spec.js"
+		"test:consent": "playwright test e2e/consent-screen.spec.js",
+		"test:e2e:remote:qr01": "node e2e/remote/run-qr01.mjs"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.2.5",

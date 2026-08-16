@@ -12,6 +12,19 @@ on:
         required: false
         type: string
         default: aleph
+      scenario:
+        # `main` introduces its two browsers through a public relay and needs a
+        # bootstrap address baked into the build. `qr01` introduces them with
+        # the scanned payload and needs none — see e2e/remote/qr01-scenario.mjs.
+        description: Which remote scenario to run (main or qr01)
+        required: false
+        type: string
+        default: main
+      require_public_relay:
+        description: Gate on both browsers holding a public relay connection
+        required: false
+        type: boolean
+        default: true
   workflow_dispatch:
     inputs:
       app_url:
@@ -40,7 +53,7 @@ jobs:
     env:
       REMOTE_APP_URL: ${{ inputs.app_url }}
       REMOTE_PROVIDER: ${{ inputs.provider }}
-      REQUIRE_PUBLIC_RELAY: 'true'
+      REQUIRE_PUBLIC_RELAY: ${{ inputs.require_public_relay == false && 'false' || 'true' }}
       ALEPH_VM_PRIVATE_KEY: ${{ secrets.ALEPH_PLAYWRIGHT_PRIVATE_KEY || secrets.RELAY_BUTTON_E2E_PRIVATE_KEY }}
       # Display label for the evidence summary only — it does not steer CRN
       # selection. Kept truthful: placement is unpinned so the ranker can
@@ -193,8 +206,8 @@ jobs:
           echo "ALEPH_PLAYWRIGHT_CRN_NAME=${{ steps.aleph-deploy.outputs.crn_name }}" >> "$GITHUB_ENV"
           echo "NODE_EXTRA_CA_CERTS=${{ steps.runtime.outputs.ca_cert_path }}" >> "$GITHUB_ENV"
 
-      - name: Run cross-network main replication
-        run: pnpm run test:e2e:remote:main
+      - name: Run cross-network replication
+        run: pnpm run "test:e2e:remote:${{ inputs.scenario || 'main' }}"
 
       - name: Collect Aleph guest logs on failure
         if: failure() && inputs.provider == 'aleph'
