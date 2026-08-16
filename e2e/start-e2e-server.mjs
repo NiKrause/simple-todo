@@ -93,7 +93,7 @@ async function startPreview({ env, relayInfo }) {
 	await runCommand('pnpm', ['run', 'build'], { env });
 	previewProcess = spawn(
 		'pnpm',
-		['run', 'preview', '--', '--host', '127.0.0.1', '--port', previewPort],
+		['exec', 'vite', 'preview', '--host', '127.0.0.1', '--port', previewPort],
 		{
 			cwd: rootDir,
 			env,
