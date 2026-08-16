@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	// The handover, as two people actually perform it.
 	//
 	// Alice taps "Transfer" and holds up her code. Bob scans it, and his phone
@@ -16,6 +17,7 @@
 	import { syncWakeLock, releaseWakeLock } from './wake-lock.js';
 	import { rtcConfiguration } from './ice-mode.js';
 	import { sendListOffer } from './handover-protocol.js';
+	import { simpleView } from './view-mode.js';
 	import { buildInviteLink, readInviteLink, clearInviteLink } from './invite-link.js';
 	import { todoDBAddressStore, activeListStore } from './db-actions.js';
 	import { ownDidStore } from './p2p.js';
@@ -247,7 +249,7 @@
 	 */
 	async function scan(expected) {
 		error = null;
-		scannerEl.label = expected === QR_TYPE_OFFER ? 'Scan their code' : 'Scan their reply';
+		scannerEl.label = expected === QR_TYPE_OFFER ? $_('transfer.scan') : $_('transfer.scanReply');
 		scannerEl.validate = async (/** @type {string} */ text) => {
 			try {
 				const parsed = await parsePayload(unwrapScanned(text));
@@ -347,15 +349,17 @@
 		be worse than none — and on a hotspot with no uplink, STUN would make the
 		probe sit through its timeouts for nothing.
 	-->
-	<qr-status
-		bind:this={statusEl}
-		auto
-		rows="browser ipv4 ipv6 camera overall"
-		data-testid="qr-network-status"
-	></qr-status>
+	{#if !$simpleView}
+		<qr-status
+			bind:this={statusEl}
+			auto
+			rows="browser ipv4 ipv6 camera overall"
+			data-testid="qr-network-status"
+		></qr-status>
+	{/if}
 
 	<div class="mt-3 flex flex-wrap items-center gap-2">
-		<h2 class="mr-auto text-sm font-semibold text-heading">Transfer a list</h2>
+		<h2 class="mr-auto text-sm font-semibold text-heading">{$_('transfer.heading')}</h2>
 
 		{#if phase === 'idle'}
 			<button
@@ -363,34 +367,35 @@
 				class="rounded bg-cyan-600 px-3 py-1 text-xs text-white hover:bg-cyan-700 disabled:opacity-50"
 				disabled={busy || !elementsReady}
 				on:click={transfer}
-				data-testid="qr-transfer-start">{busy ? 'Working…' : 'Transfer'}</button
+				data-testid="qr-transfer-start"
+				>{busy ? $_('transfer.working') : $_('transfer.start')}</button
 			>
 			<button
 				type="button"
 				class="rounded border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
 				disabled={!elementsReady}
 				on:click={() => scan(QR_TYPE_OFFER)}
-				data-testid="qr-transfer-scan">Scan their code</button
+				data-testid="qr-transfer-scan">{$_('transfer.scan')}</button
 			>
 		{:else if phase === 'offering'}
 			<button
 				type="button"
 				class="rounded bg-cyan-600 px-3 py-1 text-xs text-white hover:bg-cyan-700"
 				on:click={() => scan(QR_TYPE_ANSWER)}
-				data-testid="qr-transfer-scan-answer">Scan their reply</button
+				data-testid="qr-transfer-scan-answer">{$_('transfer.scanReply')}</button
 			>
 			<button
 				type="button"
 				class="rounded border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
 				on:click={reset}
-				data-testid="qr-transfer-cancel">Cancel</button
+				data-testid="qr-transfer-cancel">{$_('transfer.cancel')}</button
 			>
 		{:else}
 			<button
 				type="button"
 				class="rounded border border-gray-300 px-3 py-1 text-xs hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800"
 				on:click={reset}
-				data-testid="qr-transfer-done">Done</button
+				data-testid="qr-transfer-done">{$_('transfer.done')}</button
 			>
 		{/if}
 	</div>
@@ -405,7 +410,7 @@
 		<label class="mt-3 flex items-start gap-2 text-xs text-faint">
 			<input type="checkbox" bind:checked={shortCode} data-testid="qr-transfer-short-code" />
 			<span>
-				Short code instead of an animated one — scannable with a phone camera
+				{$_('transfer.staticCode')}
 				<!-- Off by default, following the package's own demo: a connection
 				     rebuilt from a reconstructed SDP goes quiet under load often
 				     enough that the smaller code is not worth it (webrtc-qr #6). This
@@ -419,20 +424,14 @@
 				     without having had it open. That does not make the reliability
 				     question go away, it gives the choice a second side — which is
 				     why this stays a checkbox rather than becoming the default. -->
-				<small class="block text-faint"
-					>Experimental. One static code instead of an animated sequence, so the other phone can
-					just point its camera and open the link — but the connection it builds is less reliable
-					under load.</small
-				>
+				<small class="block text-faint">{$_('transfer.staticCodeHint')}</small>
 			</span>
 		</label>
 	{/if}
 
 	{#if phase === 'offering' || phase === 'answering'}
 		<p class="mt-3 text-xs text-faint">
-			{phase === 'offering'
-				? 'Hold this up to be scanned, then tap "Scan their reply".'
-				: 'Show this back to them — they scan it to finish the connection.'}
+			{phase === 'offering' ? $_('transfer.holdUp') : $_('transfer.showBack')}
 		</p>
 		<!--
 			The code carries the *link*, not the bare payload. It costs about 32
@@ -458,7 +457,7 @@
 			offer rides in the fragment and the receiving page reads it locally.
 		-->
 		<details class="mt-2 text-xs">
-			<summary class="cursor-pointer text-faint">Or send it as a link</summary>
+			<summary class="cursor-pointer text-faint">{$_('transfer.linkSummary')}</summary>
 			<div class="mt-1 flex gap-1">
 				<input
 					readonly
@@ -471,7 +470,8 @@
 					type="button"
 					data-testid="qr-transfer-link-copy"
 					class="rounded-md border border-border px-2 py-1 font-medium whitespace-nowrap text-text hover:bg-surface"
-					on:click={copyInviteLink}>{linkCopied ? 'Copied' : 'Copy'}</button
+					on:click={copyInviteLink}
+					>{linkCopied ? $_('transfer.copied') : $_('transfer.copy')}</button
 				>
 			</div>
 			<!-- The field stays next to the button because clipboard access is

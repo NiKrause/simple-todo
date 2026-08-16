@@ -162,7 +162,7 @@ async function grantWriteAccess(page, did) {
  */
 async function addTodoOk(page, text) {
 	await todoInput(page).fill(text);
-	await page.getByRole('button', { name: 'Add TODO' }).click();
+	await page.getByTestId('todo-add').click();
 	await expect(page.getByText(text, { exact: true })).toBeVisible({ timeout });
 }
 
@@ -173,7 +173,7 @@ async function addTodoOk(page, text) {
  */
 async function addTodoExpectDenied(page, text) {
 	await todoInput(page).fill(text);
-	await page.getByRole('button', { name: 'Add TODO' }).click();
+	await page.getByTestId('todo-add').click();
 	await expect(page.getByText(/no write permission|write access/i)).toBeVisible({ timeout });
 }
 
@@ -197,5 +197,5 @@ async function expectNoTodo(page, text) {
 
 /** @param {import('@playwright/test').Page} page */
 function todoInput(page) {
-	return page.getByPlaceholder('What needs to be done?');
+	return page.getByTestId('todo-input');
 }

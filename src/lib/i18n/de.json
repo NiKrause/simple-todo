@@ -1,0 +1,80 @@
+{
+	"app": {
+		"title": "Simple-Todo",
+		"tagline": "Eine Liste an jemanden weitergeben, der neben Ihnen steht — ganz ohne Internet."
+	},
+	"lang": {
+		"de": "Deutsch",
+		"en": "English"
+	},
+	"view": {
+		"simple": "Einfach",
+		"technical": "Technisch",
+		"switchToTechnical": "Technische Details anzeigen",
+		"switchToSimple": "Technische Details ausblenden",
+		"detailsHeading": "Technische Details"
+	},
+	"status": {
+		"starting": "Wird gestartet…",
+		"ready": "Bereit",
+		"failed": "Beim Starten ist etwas schiefgegangen",
+		"connectedToOne": "Mit einem anderen Gerät verbunden"
+	},
+	"identity": {
+		"heading": "Wer Sie sind",
+		"anonymous": "Nicht angemeldet",
+		"explain": "So funktioniert die App auch. Wenn Sie diesen Browser aber leeren, sind Ihre Listen weg. Ein Passkey bewahrt sie und zeigt anderen, von wem eine Liste kommt.",
+		"create": "Passkey einrichten",
+		"use": "Meinen Passkey benutzen",
+		"signedInAs": "Angemeldet als",
+		"passkeyHidden": "Auf diesem Gerät gibt es einen Passkey. Listen, die Sie damit angelegt haben, bleiben verborgen, bis Sie ihn wiederherstellen.",
+		"useOnDevice": "Passkey auf diesem Gerät benutzen"
+	},
+	"list": {
+		"heading": "Ihre Liste",
+		"createHeading": "Neue Liste anlegen",
+		"namePlaceholder": "Wie soll die Liste heißen?",
+		"create": "Liste anlegen",
+		"creating": "Wird angelegt…",
+		"example": "Oder die Beispiel-Liste nehmen (10 Arbeiten)",
+		"empty": "Auf dieser Liste steht noch nichts.",
+		"addPlaceholder": "Was ist zu tun?",
+		"add": "Hinzufügen",
+		"count": "{count, plural, =0 {Keine Einträge} one {1 Eintrag} other {# Einträge}}",
+		"onlyYouCanWrite": "Nur Sie können hier etwas eintragen. Andere können mitlesen."
+	},
+	"transfer": {
+		"heading": "Diese Liste weitergeben",
+		"start": "Meinen Code zeigen",
+		"working": "Einen Moment…",
+		"scan": "Code des anderen scannen",
+		"scanReply": "Antwort scannen",
+		"cancel": "Abbrechen",
+		"done": "Fertig",
+		"holdUp": "Halten Sie das hoch, damit das andere Telefon es scannen kann. Tippen Sie danach auf „Antwort scannen“.",
+		"showBack": "Zeigen Sie das zurück, damit die andere Seite fertig werden kann.",
+		"connected": "Verbunden.",
+		"sent": "„{name}“ gesendet. Die andere Seite entscheidet, ob sie die Liste behält.",
+		"linkSummary": "Oder als Link senden",
+		"copy": "Kopieren",
+		"copied": "Kopiert",
+		"staticCode": "Fester Code — das andere Telefon kann ihn mit der Kamera scannen",
+		"staticCodeHint": "Ein festes Bild statt eines bewegten, damit eine normale Kamera es lesen und den Link öffnen kann. Die Verbindung ist dafür etwas weniger zuverlässig."
+	},
+	"offer": {
+		"heading": "Jemand hat Ihnen eine Liste geschickt",
+		"from": "Von",
+		"unnamed": "Liste ohne Namen",
+		"accept": "Ja, behalten",
+		"decline": "Nein danke",
+		"importing": "Liste wird geholt…"
+	},
+	"errors": {
+		"notReady": "Die App startet noch. Bitte gleich noch einmal versuchen.",
+		"noWritePermission": "Sie können auf dieser Liste nichts eintragen — sie gehört jemand anderem."
+	},
+	"tabs": {
+		"create": "Liste anlegen",
+		"open": "Geteilte Liste öffnen"
+	}
+}

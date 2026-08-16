@@ -1,5 +1,9 @@
 <script>
 	import { onMount } from 'svelte';
+	import { _ } from '$lib/i18n/index.js';
+	import LanguageSwitcher from '$lib/LanguageSwitcher.svelte';
+	import ViewModeToggle from '$lib/ViewModeToggle.svelte';
+	import { simpleView, hydrateViewMode } from '$lib/view-mode.js';
 	import { peerIdStore, initializeP2P, initializationStore, restartP2P } from '$lib/p2p.js';
 	import IdentityPanel from '$lib/IdentityPanel.svelte';
 	import QrTransfer from '$lib/QrTransfer.svelte';
@@ -83,6 +87,7 @@
 	};
 
 	onMount(async () => {
+		hydrateViewMode();
 		// Straight into the app: no consent screen, nothing to dismiss, no
 		// decision required before anything works. This chapter is used on a
 		// construction site with a phone in one hand, and the previous chapters'
@@ -218,14 +223,24 @@
 		<div class="flex flex-1 items-center gap-3">
 			<LeSpaceLogo size={52} />
 			<div>
-				<h1 class="text-2xl font-bold text-heading sm:text-3xl">Simple-Todo</h1>
+				<h1 class="text-2xl font-bold text-heading sm:text-3xl">{$_('app.title')}</h1>
+				<!--
+					What this is *for*, in the simple view; what it is *built from* in
+					the technical one. The version string is the first thing on the
+					page, and to anyone who is not going to file a bug report it is a
+					wall of words that mean nothing — a poor way to be greeted.
+				-->
 				<p class="mt-1 text-sm text-faint">
-					A local-first peer-to-peer PWA · {formatVersions({
-						appName: 'Simple-Todo'
-					})} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{typeof __BUILD_DATE__ !==
-					'undefined'
-						? __BUILD_DATE__
-						: 'dev'}]
+					{#if $simpleView}
+						{$_('app.tagline')}
+					{:else}
+						A local-first peer-to-peer PWA · {formatVersions({
+							appName: 'Simple-Todo'
+						})} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{typeof __BUILD_DATE__ !==
+						'undefined'
+							? __BUILD_DATE__
+							: 'dev'}]
+					{/if}
 				</p>
 			</div>
 		</div>
@@ -233,49 +248,79 @@
 		     produces it. Announcing it up here left the identity split across
 		     two ends of the page. -->
 		<div class="flex flex-shrink-0 items-center gap-2 self-start sm:self-auto">
+			<LanguageSwitcher />
+			<ViewModeToggle />
 			<ThemeToggle />
-			<SocialIcons size="w-5 h-5" className="" />
+			{#if !$simpleView}
+				<SocialIcons size="w-5 h-5" className="" />
+			{/if}
 		</div>
 	</header>
 
-	<P2PStatusNav initialization={$initializationStore} libp2p={$libp2pStore} peerId={myPeerId}>
-		<svelte:fragment slot="identity">
-			<IdentityPanel />
-		</svelte:fragment>
-		<ManualConnectForm
-			compact
-			disabled={!$initializationStore.isInitialized}
-			on:connected={handleManualConnect}
-		/>
-		<ConnectedPeers compact bind:this={connectedPeersRef} libp2p={$libp2pStore} />
-		<div class="max-w-full min-w-0 space-y-3 overflow-hidden">
-			<PeerIdCard compact peerId={myPeerId} />
-			<OwnMultiaddrs libp2p={$libp2pStore} />
-		</div>
-		<svelte:fragment slot="shared-list">
-			{#if $initializationStore.isInitialized && activeMnemonic}
-				<SharedListDetails
-					embedded
-					mnemonic={activeMnemonic}
-					databaseAddress={$todoDBAddressStore}
-					activeList={$activeListStore}
-					on:change={() => (showMnemonicEditor = !showMnemonicEditor)}
-				/>
-				{#if showMnemonicEditor}
-					<div class="mt-2 space-y-2" data-testid="shared-list-editor">
-						<SharedListSelector bind:value={selectedMnemonic} />
-						<button
-							type="button"
-							class="rounded bg-cyan-600 px-2 py-1 text-xs text-white hover:bg-cyan-700 disabled:opacity-50"
-							disabled={!mnemonicValid}
-							on:click={applyMnemonic}
-							data-testid="shared-list-apply">Open this list</button
-						>
-					</div>
+	<!--
+		Simple view: one line saying whether the app is ready, and the identity
+		panel — the only part of this box a first-time user has any use for.
+		Everything else here answers "did libp2p come up", which is a question
+		only someone debugging asks, and it answered it with seven dots labelled
+		`Helia`, `OrbitDB` and `12D3KooW…`.
+
+		Nothing is removed; `P2PStatusNav` returns intact in the technical view.
+	-->
+	{#if $simpleView}
+		<div class="mb-4 rounded-lg border border-border bg-surface p-4" data-testid="simple-status">
+			<p class="text-sm font-medium text-text" data-testid="simple-status-line">
+				{#if $initializationStore.error}
+					{$_('status.failed')}
+				{:else if $initializationStore.isInitialized}
+					{$_('status.ready')}
+				{:else}
+					{$_('status.starting')}
 				{/if}
-			{/if}
-		</svelte:fragment>
-	</P2PStatusNav>
+			</p>
+			<div class="mt-3">
+				<IdentityPanel />
+			</div>
+		</div>
+	{:else}
+		<P2PStatusNav initialization={$initializationStore} libp2p={$libp2pStore} peerId={myPeerId}>
+			<svelte:fragment slot="identity">
+				<IdentityPanel />
+			</svelte:fragment>
+			<ManualConnectForm
+				compact
+				disabled={!$initializationStore.isInitialized}
+				on:connected={handleManualConnect}
+			/>
+			<ConnectedPeers compact bind:this={connectedPeersRef} libp2p={$libp2pStore} />
+			<div class="max-w-full min-w-0 space-y-3 overflow-hidden">
+				<PeerIdCard compact peerId={myPeerId} />
+				<OwnMultiaddrs libp2p={$libp2pStore} />
+			</div>
+			<svelte:fragment slot="shared-list">
+				{#if $initializationStore.isInitialized && activeMnemonic}
+					<SharedListDetails
+						embedded
+						mnemonic={activeMnemonic}
+						databaseAddress={$todoDBAddressStore}
+						activeList={$activeListStore}
+						on:change={() => (showMnemonicEditor = !showMnemonicEditor)}
+					/>
+					{#if showMnemonicEditor}
+						<div class="mt-2 space-y-2" data-testid="shared-list-editor">
+							<SharedListSelector bind:value={selectedMnemonic} />
+							<button
+								type="button"
+								class="rounded bg-cyan-600 px-2 py-1 text-xs text-white hover:bg-cyan-700 disabled:opacity-50"
+								disabled={!mnemonicValid}
+								on:click={applyMnemonic}
+								data-testid="shared-list-apply">Open this list</button
+							>
+						</div>
+					{/if}
+				{/if}
+			</svelte:fragment>
+		</P2PStatusNav>
+	{/if}
 
 	{#if error || $initializationStore.error}
 		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
@@ -299,7 +344,7 @@
 			data-testid="list-tabs"
 		>
 			<div class="flex gap-1 border-b border-border" role="tablist">
-				{#each [{ id: 'create', label: 'Create a private list' }, { id: 'open', label: 'Open a shared list' }] as tab (tab.id)}
+				{#each [{ id: 'create', label: $_('tabs.create') }, { id: 'open', label: $_('tabs.open') }] as tab (tab.id)}
 					<button
 						type="button"
 						role="tab"
@@ -349,7 +394,7 @@
 	It is also the least relevant control here until milestone 3 adds a relay,
 	which is the other half of "less intrusive than in the earlier chapters".
 -->
-{#if !$qrCodeOnScreen}
+{#if !$qrCodeOnScreen && !$simpleView}
 	<div data-testid="relay-button-slot">
 		<SponsorRelayFab manifestUrl="./rootfs-manifest.json" showInstances={true} />
 	</div>

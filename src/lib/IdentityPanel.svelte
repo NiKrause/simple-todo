@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	// Identity, chosen inside the running app instead of in front of it.
 	//
 	// The other chapters put this in the consent modal, which had one property
@@ -109,8 +110,8 @@
 		     be discovered. -->
 		<div class="px-1 py-1">
 			<div class="flex items-center gap-2 text-xs font-medium text-text">
-				<span>Identity</span>
-				<span class="font-normal text-faint">· anonymous</span>
+				<span>{$_('identity.heading')}</span>
+				<span class="font-normal text-faint">· {$_('identity.anonymous')}</span>
 			</div>
 			<p class="mt-1 text-xs text-faint">
 				{#if hasStoredPasskey}
@@ -119,11 +120,9 @@
 					     anonymous. The registry is keyed to a signing identity, so
 					     lists made with the passkey are not gone but not visible
 					     either — say so, because an empty switcher reads as data loss. -->
-					A passkey exists on this device.
-					<strong>Lists you created with it stay hidden until you restore it.</strong>
+					{$_('identity.passkeyHidden')}
 				{:else}
-					Works as it is, but it is gone when this browser's storage is cleared — a passkey survives
-					and identifies you to the people you hand lists to.
+					{$_('identity.explain')}
 				{/if}
 			</p>
 
@@ -139,7 +138,7 @@
 					class="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
 					disabled={state === 'busy'}
 					on:click={() => (showCreateForm = !showCreateForm)}
-					data-testid="identity-create-toggle">Create a passkey</button
+					data-testid="identity-create-toggle">{$_('identity.create')}</button
 				>
 				<button
 					type="button"
@@ -148,7 +147,7 @@
 					on:click={recover}
 					data-testid="identity-recover"
 				>
-					{hasStoredPasskey ? 'Use the passkey on this device' : 'Use an existing passkey'}
+					{hasStoredPasskey ? $_('identity.useOnDevice') : $_('identity.use')}
 				</button>
 			</div>
 

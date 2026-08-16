@@ -238,7 +238,7 @@ relayTest.describe('Relay Button', () => {
 				);
 				await deploymentPage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
 				await deploymentPage
-					.getByPlaceholder('What needs to be done?')
+					.getByTestId('todo-input')
 					.waitFor({ state: 'visible', timeout: 60_000 });
 
 				// Phase 1: Wallet + manifest + provision (deploy → instance → bootstrap).

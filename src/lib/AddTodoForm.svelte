@@ -1,9 +1,18 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	import { createEventDispatcher } from 'svelte';
 
-	export let placeholder = 'What needs to be done?';
-	export let buttonText = 'Add TODO';
+	// `undefined` rather than a translated default: a default is evaluated once,
+	// when the component is created, so the language switch would leave these two
+	// strings standing in the old language while everything around them changed.
+	/** @type {string | undefined} */
+	export let placeholder = undefined;
+	/** @type {string | undefined} */
+	export let buttonText = undefined;
 	export let disabled = false;
+
+	$: placeholderText = placeholder ?? $_('list.addPlaceholder');
+	$: buttonLabel = buttonText ?? $_('list.add');
 
 	let inputText = '';
 	const dispatch = createEventDispatcher();
@@ -29,12 +38,13 @@
 </script>
 
 <div class="mb-6 rounded-lg bg-surface p-6 shadow-md">
-	<h2 class="mb-4 text-xl font-semibold">Add New TODO</h2>
+	<h2 class="mb-4 text-xl font-semibold">{$_('list.heading')}</h2>
 	<div class="space-y-4">
 		<input
 			type="text"
 			bind:value={inputText}
-			{placeholder}
+			placeholder={placeholderText}
+			data-testid="todo-input"
 			{disabled}
 			class="w-full rounded-md border border-border px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:bg-surface-2"
 			on:keydown={handleKeydown}
@@ -44,8 +54,9 @@
 				on:click={handleSubmit}
 				{disabled}
 				class="rounded-md bg-coral-500 px-6 py-2 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-faint"
+				data-testid="todo-add"
 			>
-				{buttonText}
+				{buttonLabel}
 			</button>
 		</div>
 	</div>

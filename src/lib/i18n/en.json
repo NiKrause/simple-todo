@@ -1,0 +1,80 @@
+{
+	"app": {
+		"title": "Simple-Todo",
+		"tagline": "Hand a list to someone standing next to you — no internet needed."
+	},
+	"lang": {
+		"de": "Deutsch",
+		"en": "English"
+	},
+	"view": {
+		"simple": "Simple",
+		"technical": "Technical",
+		"switchToTechnical": "Show technical details",
+		"switchToSimple": "Hide technical details",
+		"detailsHeading": "Technical details"
+	},
+	"status": {
+		"starting": "Starting…",
+		"ready": "Ready",
+		"failed": "Something went wrong while starting",
+		"connectedToOne": "Connected to one other device"
+	},
+	"identity": {
+		"heading": "Who you are",
+		"anonymous": "Not signed in",
+		"explain": "You can use the app like this. But if you clear this browser, your lists are gone. A passkey keeps them and shows people who they got a list from.",
+		"create": "Set up a passkey",
+		"use": "Use my passkey",
+		"signedInAs": "Signed in as",
+		"passkeyHidden": "A passkey exists on this device. Lists you made with it stay hidden until you restore it.",
+		"useOnDevice": "Use the passkey on this device"
+	},
+	"list": {
+		"heading": "Your list",
+		"createHeading": "Make a new list",
+		"namePlaceholder": "What is the list called?",
+		"create": "Make the list",
+		"creating": "Making it…",
+		"example": "Or use the example list (10 jobs)",
+		"empty": "Nothing on this list yet.",
+		"addPlaceholder": "What needs doing?",
+		"add": "Add",
+		"count": "{count, plural, =0 {No entries} one {1 entry} other {# entries}}",
+		"onlyYouCanWrite": "Only you can add to this list. Others can read it."
+	},
+	"transfer": {
+		"heading": "Give this list to someone",
+		"start": "Show my code",
+		"working": "One moment…",
+		"scan": "Scan their code",
+		"scanReply": "Scan their reply",
+		"cancel": "Cancel",
+		"done": "Done",
+		"holdUp": "Hold this up so the other phone can scan it. Then tap “Scan their reply”.",
+		"showBack": "Show this back to them so they can finish.",
+		"connected": "Connected.",
+		"sent": "Sent “{name}”. They decide whether to keep it.",
+		"linkSummary": "Or send it as a link",
+		"copy": "Copy",
+		"copied": "Copied",
+		"staticCode": "Static code — the other phone can scan it with its camera",
+		"staticCodeHint": "One picture instead of a moving one, so a normal camera can read it and open the link. The connection is a little less reliable."
+	},
+	"offer": {
+		"heading": "Someone sent you a list",
+		"from": "From",
+		"unnamed": "Unnamed list",
+		"accept": "Yes, keep it",
+		"decline": "No thanks",
+		"importing": "Getting the list…"
+	},
+	"errors": {
+		"notReady": "The app is still starting. Please try again in a moment.",
+		"noWritePermission": "You cannot add to this list — it belongs to someone else."
+	},
+	"tabs": {
+		"create": "Make a list",
+		"open": "Open a shared list"
+	}
+}
