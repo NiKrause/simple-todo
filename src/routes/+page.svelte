@@ -349,7 +349,7 @@
 						type="button"
 						role="tab"
 						aria-selected={listTab === tab.id}
-						on:click={() => (listTab = tab.id)}
+						on:click={() => (listTab = /** @type {'create' | 'open'} */ (tab.id))}
 						data-testid="list-tab-{tab.id}"
 						class="-mb-px border-b-2 px-3 py-1.5 text-xs font-medium
 							{listTab === tab.id

@@ -115,7 +115,8 @@
 		"didPlaceholder": "did:key:… of the identity to allow",
 		"openByAddress": "Open a shared list by address",
 		"opening": "Opening…",
-		"openList": "Open list"
+		"openList": "Open list",
+		"webrtcWaiting": "Waiting for a WebRTC connection"
 	},
 	"steps": {
 		"failed": "Failed to initialise {step}",

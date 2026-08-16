@@ -115,7 +115,8 @@
 		"didPlaceholder": "did:key:… der Identität, die zugelassen wird",
 		"openByAddress": "Geteilte Liste über Adresse öffnen",
 		"opening": "Wird geöffnet…",
-		"openList": "Liste öffnen"
+		"openList": "Liste öffnen",
+		"webrtcWaiting": "Wartet auf eine WebRTC-Verbindung"
 	},
 	"steps": {
 		"failed": "{step} konnte nicht gestartet werden",

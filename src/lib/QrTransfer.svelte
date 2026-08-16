@@ -181,7 +181,7 @@
 	 * exactly one step — where the text came from.
 	 *
 	 * @param {string} text
-	 * @param {typeof QR_TYPE_OFFER | typeof QR_TYPE_ANSWER} expected
+	 * @param {'offer' | 'answer'} expected
 	 */
 	async function useScannedPayload(text, expected) {
 		if (expected === QR_TYPE_OFFER) {

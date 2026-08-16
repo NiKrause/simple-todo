@@ -144,7 +144,7 @@ export async function createLibp2pConfig(privateKey = null) {
 			// Gate on the page protocol instead of banning /ws outright: local dev and
 			// the E2E suite serve the app over http://localhost and dial a plain-ws
 			// relay, where mixed content does not apply.
-			denyDialMultiaddr: (multiaddr) => isInsecureWebSocketDial(multiaddr),
+			denyDialMultiaddr: (/** @type {any} */ multiaddr) => isInsecureWebSocketDial(multiaddr),
 			denyDialPeer: () => false,
 			denyInboundConnection: () => false,
 			denyOutboundConnection: () => false,

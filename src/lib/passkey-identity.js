@@ -45,7 +45,26 @@ export async function createPasskeyCredential({ userId, displayName }) {
 	// identity survives a cleared browser profile. Costs one extra WebAuthn
 	// prompt right after registration; not every authenticator supports it.
 	try {
+		// The package's own `types/index.d.ts` is wrong for these three, checked
+		// against `src/webauthn/large-blob-metadata.js` in 0.5.0: it declares
+		// `createDidLargeBlobPayload(credentialInfo)` and
+		// `writeLargeBlobMetadata(credentialId, payload, options?)`, while the
+		// implementations take `(credential, did)` and a single destructured object.
+		// `readLargeBlobMetadata` is declared as returning `unknown`, so reading
+		// `.blob` off it fails too.
+		//
+		// The calls below match the *implementation*. Changing them to satisfy the
+		// declarations would break working code — `writeLargeBlobMetadata` would
+		// receive the whole options object as `credentialId` and `undefined` as the
+		// payload, and fail silently into the catch below, looking like an
+		// authenticator that does not support largeBlob.
+		//
+		// `@ts-expect-error` rather than a cast, deliberately: it turns into an
+		// error of its own once the package ships correct types, which is the
+		// signal to delete these lines.
+		// @ts-expect-error package types disagree with its implementation (0.5.0)
 		const payload = createDidLargeBlobPayload(credential, credential.did);
+		// @ts-expect-error package types disagree with its implementation (0.5.0)
 		await writeLargeBlobMetadata({
 			credentialId: credential.rawCredentialId,
 			payload
@@ -64,10 +83,11 @@ export async function createPasskeyCredential({ userId, displayName }) {
  */
 export async function recoverPasskeyCredential() {
 	try {
+		// @ts-expect-error declared as returning `unknown`; it resolves to { blob }
 		const { blob } = await readLargeBlobMetadata({ discoverableCredentials: true });
 		if (blob?.length) {
 			const payload = parseDidLargeBlobPayload(blob);
-			const credential = payload?.credential ?? payload;
+			const credential = /** @type {any} */ (payload)?.credential ?? payload;
 			if (credential?.did) {
 				// Refresh the local fallback so the next recovery works offline of largeBlob.
 				storeWebAuthnCredential(credential, CREDENTIAL_STORAGE_KEY);

@@ -104,6 +104,7 @@ export function registerHandoverProtocol(node) {
  * @param {any} session a QRSession
  * @param {string} peerId
  * @param {{ address: string, name: string, ownerDid: string }} list
+ * @returns {Promise<ListOffer>}
  */
 export async function sendListOffer(session, peerId, { address, name, ownerDid }) {
 	const stream = await session.dialProtocol(peerId, HANDOVER_PROTOCOL);
