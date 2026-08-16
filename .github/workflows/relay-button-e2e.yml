@@ -1,8 +1,16 @@
 name: Relay button E2E
 
+# `qr01` is here despite that chapter configuring no relay, and the two are not
+# in conflict. This spec never relies on a baked bootstrap address: it
+# provisions a relay and then dials it explicitly from both browsers via
+# `connectToMultiaddr`. That is precisely the chapter's M3 — the QR handover
+# works with nothing, and a relay is used once someone launches one.
+#
+# `deploy-qr01.yml` still bakes no address and still runs its own e2e with
+# `E2E_RELAY_MODE: isolated`, so the offline test keeps proving what it claims.
 on:
   push:
-    branches: [main, collab01]
+    branches: [main, collab01, qr01]
   workflow_dispatch:
 
 permissions:
