@@ -23,7 +23,7 @@
 	"identity": {
 		"heading": "Wer Sie sind",
 		"anonymous": "Nicht angemeldet",
-		"explain": "So funktioniert die App auch. Wenn Sie diesen Browser aber leeren, sind Ihre Listen weg. Ein Passkey bewahrt sie und zeigt anderen, von wem eine Liste kommt.",
+		"explain": "So funktioniert die App auch. Wenn Sie diesen Browser aber leeren, sind Ihre Listen und Passkeys weg. Ein Passkey unterzeichnet Ihre Einträge und zeigt anderen, von wem sie kommen.",
 		"create": "Passkey einrichten",
 		"use": "Meinen Passkey benutzen",
 		"signedInAs": "Angemeldet als",
