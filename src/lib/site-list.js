@@ -24,7 +24,7 @@ export { SITE_TODOS };
  * @param {string} [name]
  * @returns {Promise<{ address: string, name: string, count: number }>}
  */
-export async function createSiteList(name = 'Baugrube und Keller') {
+export async function createSiteList(name = 'Excavation and basement') {
 	const list = await createPrivateTodoList(name);
 
 	let count = 0;

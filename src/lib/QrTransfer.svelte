@@ -1,8 +1,8 @@
 <script>
 	// The handover, as two people actually perform it.
 	//
-	// Alice taps "Übertragen" and holds up her code. Bob scans it, and his phone
-	// answers with a code of its own. Alice taps "Antwort scannen" and scans
+	// Alice taps "Transfer" and holds up her code. Bob scans it, and his phone
+	// answers with a code of its own. Alice taps "Scan their reply" and scans
 	// that. Three actions, two devices, no network in between.
 	//
 	// The QR rendering, the camera and the scan loop all come from the package's
@@ -29,7 +29,7 @@
 	// link — the receiver needs the same transport settings the sender chose.
 	//
 	// `linkCopied` resets with the payload: the offer and the answer are two
-	// different links, and leaving "Kopiert" standing after the payload changed
+	// different links, and leaving "Copied" standing after the payload changed
 	// would tell someone they had already sent the one now on screen.
 	$: inviteLink = payload ? buildInviteLink(payload) : '';
 	$: if (payload) linkCopied = false;
@@ -94,15 +94,6 @@
 	});
 
 	/**
-	 * Apply an invite carried by the URL, whichever leg of the roundtrip it is.
-	 *
-	 * The payload says what it is, so the link does not have to: `parsePayload`
-	 * tells an offer from an answer, and the same code the scanner drives takes
-	 * it from there. The fragment is cleared first — a reload must not replay a
-	 * spent offer, and a consumed payload has no business sitting in the address
-	 * bar or the browser's history.
-	 */
-	/**
 	 * What a scanner read, reduced to a payload.
 	 *
 	 * A code may now carry a link rather than a bare payload, and the two have
@@ -129,6 +120,15 @@
 		}
 	}
 
+	/**
+	 * Apply an invite carried by the URL, whichever leg of the roundtrip it is.
+	 *
+	 * The payload says what it is, so the link does not have to: `parsePayload`
+	 * tells an offer from an answer, and the same code the scanner drives takes
+	 * it from there. The fragment is cleared first — a reload must not replay a
+	 * spent offer, and a consumed payload has no business sitting in the address
+	 * bar or the browser's history.
+	 */
 	async function consumeInviteLink() {
 		const invited = readInviteLink();
 		if (!invited) return;
@@ -363,7 +363,7 @@
 				class="rounded bg-cyan-600 px-3 py-1 text-xs text-white hover:bg-cyan-700 disabled:opacity-50"
 				disabled={busy || !elementsReady}
 				on:click={transfer}
-				data-testid="qr-transfer-start">{busy ? 'Working…' : 'Übertragen'}</button
+				data-testid="qr-transfer-start">{busy ? 'Working…' : 'Transfer'}</button
 			>
 			<button
 				type="button"
@@ -377,7 +377,7 @@
 				type="button"
 				class="rounded bg-cyan-600 px-3 py-1 text-xs text-white hover:bg-cyan-700"
 				on:click={() => scan(QR_TYPE_ANSWER)}
-				data-testid="qr-transfer-scan-answer">Antwort scannen</button
+				data-testid="qr-transfer-scan-answer">Scan their reply</button
 			>
 			<button
 				type="button"
@@ -431,7 +431,7 @@
 	{#if phase === 'offering' || phase === 'answering'}
 		<p class="mt-3 text-xs text-faint">
 			{phase === 'offering'
-				? 'Hold this up to be scanned, then tap "Antwort scannen".'
+				? 'Hold this up to be scanned, then tap "Scan their reply".'
 				: 'Show this back to them — they scan it to finish the connection.'}
 		</p>
 		<!--
@@ -458,7 +458,7 @@
 			offer rides in the fragment and the receiving page reads it locally.
 		-->
 		<details class="mt-2 text-xs">
-			<summary class="cursor-pointer text-faint">Oder als Link senden</summary>
+			<summary class="cursor-pointer text-faint">Or send it as a link</summary>
 			<div class="mt-1 flex gap-1">
 				<input
 					readonly
@@ -471,7 +471,7 @@
 					type="button"
 					data-testid="qr-transfer-link-copy"
 					class="rounded-md border border-border px-2 py-1 font-medium whitespace-nowrap text-text hover:bg-surface"
-					on:click={copyInviteLink}>{linkCopied ? 'Kopiert' : 'Kopieren'}</button
+					on:click={copyInviteLink}>{linkCopied ? 'Copied' : 'Copy'}</button
 				>
 			</div>
 			<!-- The field stays next to the button because clipboard access is
