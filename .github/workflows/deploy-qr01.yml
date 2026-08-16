@@ -117,3 +117,24 @@ jobs:
           ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
           ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
         run: node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"
+
+  # The chapter's claim, stretched across two networks.
+  #
+  # `main` runs this scenario through a public relay, which needs a bootstrap
+  # address baked into the build. qr01 bakes none, so it runs the `qr01`
+  # scenario instead: one browser draws the code, the other scans it, and the
+  # harness carries the string between them the way a camera would. No relay,
+  # no bootstrap list, no discovery — the same introduction the chapter is
+  # about, with the one thing a single machine cannot fake: real distance.
+  #
+  # `require_public_relay: false` because there is no relay to hold a
+  # connection to, and asserting one would fail on purpose.
+  remote-qr-handover:
+    needs: link-domain
+    uses: ./.github/workflows/remote-replication.yml
+    secrets: inherit
+    with:
+      app_url: https://${{ inputs.domain || 'qr01.le-space.de' }}
+      provider: aleph
+      scenario: qr01
+      require_public_relay: false

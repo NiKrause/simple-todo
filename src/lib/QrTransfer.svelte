@@ -16,6 +16,7 @@
 	import { syncWakeLock, releaseWakeLock } from './wake-lock.js';
 	import { rtcConfiguration } from './ice-mode.js';
 	import { sendListOffer } from './handover-protocol.js';
+	import { buildInviteLink, readInviteLink, clearInviteLink } from './invite-link.js';
 	import { todoDBAddressStore, activeListStore } from './db-actions.js';
 	import { ownDidStore } from './p2p.js';
 
@@ -23,6 +24,15 @@
 	let phase = 'idle';
 	/** @type {string} */
 	let payload = '';
+	let linkCopied = false;
+	// Built from the current URL, so `?ice=stun` and friends survive into the
+	// link — the receiver needs the same transport settings the sender chose.
+	//
+	// `linkCopied` resets with the payload: the offer and the answer are two
+	// different links, and leaving "Kopiert" standing after the payload changed
+	// would tell someone they had already sent the one now on screen.
+	$: inviteLink = payload ? buildInviteLink(payload) : '';
+	$: if (payload) linkCopied = false;
 	/** @type {string | null} */
 	let error = null;
 	let busy = false;
@@ -60,11 +70,77 @@
 				useScannedPayload
 			};
 		}
+
+		// Someone opened a link that carries an invite.
+		await consumeInviteLink();
+
+		// Opening an invite link while this page is already loaded only changes
+		// the fragment, which is a same-document navigation: no reload, no
+		// onMount. That is exactly what the return leg needs — Alice must read
+		// Bob's answer without losing the node and the list she is holding — so
+		// without this listener the roundtrip could only ever close by camera.
+		window.addEventListener('hashchange', hashListener);
 	});
 
+	const hashListener = () => {
+		void consumeInviteLink();
+	};
+
 	onDestroy(() => {
-		if (typeof window !== 'undefined') delete (/** @type {any} */ (window).__simpleTodoQr);
+		if (typeof window !== 'undefined') {
+			delete (/** @type {any} */ (window).__simpleTodoQr);
+			window.removeEventListener('hashchange', hashListener);
+		}
 	});
+
+	/**
+	 * Apply an invite carried by the URL, whichever leg of the roundtrip it is.
+	 *
+	 * The payload says what it is, so the link does not have to: `parsePayload`
+	 * tells an offer from an answer, and the same code the scanner drives takes
+	 * it from there. The fragment is cleared first — a reload must not replay a
+	 * spent offer, and a consumed payload has no business sitting in the address
+	 * bar or the browser's history.
+	 */
+	/**
+	 * What a scanner read, reduced to a payload.
+	 *
+	 * A code may now carry a link rather than a bare payload, and the two have
+	 * to be interchangeable: someone can be handed either, and a scanner that
+	 * only understood one of them would reject a perfectly good code with a
+	 * parse error while the camera kept running.
+	 *
+	 * @param {string} text
+	 * @returns {string}
+	 */
+	function unwrapScanned(text) {
+		return readInviteLink(text) ?? text;
+	}
+
+	async function copyInviteLink() {
+		try {
+			await navigator.clipboard.writeText(inviteLink);
+			linkCopied = true;
+		} catch {
+			// Denied on insecure origins and under some permission policies. The
+			// field beside the button is the fallback, so this needs no error —
+			// saying "copied" when nothing was would be the worse outcome.
+			linkCopied = false;
+		}
+	}
+
+	async function consumeInviteLink() {
+		const invited = readInviteLink();
+		if (!invited) return;
+
+		clearInviteLink();
+		try {
+			const parsed = await parsePayload(invited);
+			await useScannedPayload(invited, parsed.type);
+		} catch (err) {
+			fail(err);
+		}
+	}
 
 	function session() {
 		const active = getQrSession();
@@ -174,7 +250,7 @@
 		scannerEl.label = expected === QR_TYPE_OFFER ? 'Scan their code' : 'Scan their reply';
 		scannerEl.validate = async (/** @type {string} */ text) => {
 			try {
-				const parsed = await parsePayload(text);
+				const parsed = await parsePayload(unwrapScanned(text));
 				if (parsed.type !== expected) {
 					return {
 						ok: false,
@@ -193,7 +269,10 @@
 		try {
 			const text = await scanOnce();
 			if (!text) return;
-			await useScannedPayload(text, expected);
+			// Unwrapped here too, not only in `validate`: validation and use are
+			// separate calls, and accepting a link then feeding the raw URL to the
+			// session would fail *after* telling the user the scan was good.
+			await useScannedPayload(unwrapScanned(text), expected);
 		} catch (err) {
 			fail(err);
 		}
@@ -326,16 +405,24 @@
 		<label class="mt-3 flex items-start gap-2 text-xs text-faint">
 			<input type="checkbox" bind:checked={shortCode} data-testid="qr-transfer-short-code" />
 			<span>
-				Short code instead of an animated one
+				Short code instead of an animated one — scannable with a phone camera
 				<!-- Off by default, following the package's own demo: a connection
 				     rebuilt from a reconstructed SDP goes quiet under load often
 				     enough that the smaller code is not worth it (webrtc-qr #6). This
 				     chapter then replicates a database over that connection, which is
 				     exactly the load in question — so the animated code is the safe
-				     default and this stays an informed choice. -->
+				     default and this stays an informed choice.
+
+				     Since the code carries an invite *link*, ticking this now buys a
+				     second thing: a static code is one an ordinary phone camera can
+				     read, so the other side opens the link and lands in the app
+				     without having had it open. That does not make the reliability
+				     question go away, it gives the choice a second side — which is
+				     why this stays a checkbox rather than becoming the default. -->
 				<small class="block text-faint"
-					>Experimental. One static code instead of an animated sequence, but the connection it
-					builds is less reliable under load.</small
+					>Experimental. One static code instead of an animated sequence, so the other phone can
+					just point its camera and open the link — but the connection it builds is less reliable
+					under load.</small
 				>
 			</span>
 		</label>
@@ -347,7 +434,51 @@
 				? 'Hold this up to be scanned, then tap "Antwort scannen".'
 				: 'Show this back to them — they scan it to finish the connection.'}
 		</p>
-		<qr-invite bind:this={inviteEl} value={payload} data-testid="qr-transfer-code"></qr-invite>
+		<!--
+			The code carries the *link*, not the bare payload. It costs about 32
+			bytes — measured: 962 → 996 without `compact`, 257 → 289 with — and it
+			is what lets an ordinary phone camera do something with the code at
+			all. A camera app that reads a payload sees an unusable string; one
+			that reads this URL offers to open it, and the receiver lands in the
+			app with the offer already in the fragment, without having had qr01
+			open beforehand.
+
+			That only pays off on a *static* code, which is the short-code option
+			below: an animated fountain sequence gives a camera one frame, and a
+			frame is not a URL. The in-app scanner reads either, because it
+			unwraps links before parsing.
+		-->
+		<qr-invite bind:this={inviteEl} value={inviteLink} data-testid="qr-transfer-code"></qr-invite>
+
+		<!--
+			The same payload as a link, for when a camera is not an option: no
+			second device to point, a cracked screen in the sun, or two people who
+			turned out not to be in the same room. The code stays the headline —
+			this is below it, small, and does not need the network either: the
+			offer rides in the fragment and the receiving page reads it locally.
+		-->
+		<details class="mt-2 text-xs">
+			<summary class="cursor-pointer text-faint">Oder als Link senden</summary>
+			<div class="mt-1 flex gap-1">
+				<input
+					readonly
+					value={inviteLink}
+					data-testid="qr-transfer-link"
+					class="min-w-0 flex-1 rounded-md border border-border bg-surface-2 px-2 py-1 font-mono text-[11px]"
+					on:focus={(event) => event.currentTarget.select()}
+				/>
+				<button
+					type="button"
+					data-testid="qr-transfer-link-copy"
+					class="rounded-md border border-border px-2 py-1 font-medium whitespace-nowrap text-text hover:bg-surface"
+					on:click={copyInviteLink}>{linkCopied ? 'Kopiert' : 'Kopieren'}</button
+				>
+			</div>
+			<!-- The field stays next to the button because clipboard access is
+			     denied often enough — insecure origins, permission policies, some
+			     mobile browsers — that leaving no way to select the text by hand
+			     would strand exactly the people on phones this is meant for. -->
+		</details>
 	{/if}
 
 	{#if phase === 'connected'}
