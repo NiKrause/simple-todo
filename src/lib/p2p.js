@@ -234,6 +234,7 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 		console.log(`✅ peerId is ${peerId}`);
 		peerIdStore.set(peerId);
 		discoveredPeers.clear();
+		recordConnectionLifecycle(libp2p);
 		setupPubsubDiscoveryAutoDial();
 
 		// Create Helia (IPFS) instance
@@ -385,8 +386,44 @@ function createOrbitDBIdentityId() {
 	return `simple-todo-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+// Diagnostic only, for the remote-replication measurement: record when
+// connections open and close so a failing run can show the *lifetime* of the
+// relay link rather than only its absence afterwards.
+//
+// Every explanation tried so far was inferred from a connection count that was
+// already zero — the #167 gate, public IPFS gateways, the heads-protocol
+// rejection — and each was wrong. This records the transition itself.
+/** @type {Array<{ at: number, event: string, peer: string, direction?: string, detail?: string }>} */
+const connectionEvents = [];
+const MAX_CONNECTION_EVENTS = 200;
+
+/** @param {any} node */
+function recordConnectionLifecycle(node) {
+	if (!node?.addEventListener) return;
+
+	/** @param {string} event @param {any} detail */
+	const push = (event, detail) => {
+		if (connectionEvents.length >= MAX_CONNECTION_EVENTS) connectionEvents.shift();
+		connectionEvents.push({
+			at: Date.now(),
+			event,
+			peer: detail?.remotePeer?.toString?.() ?? '',
+			direction: detail?.direction,
+			// `limits` marks a circuit-relayed connection, which is the kind that
+			// gets dropped when a reservation lapses — worth telling apart from a
+			// direct one.
+			detail: detail?.limits ? 'limited' : 'direct'
+		});
+	};
+
+	node.addEventListener('connection:open', (/** @type {any} */ e) => push('open', e.detail));
+	node.addEventListener('connection:close', (/** @type {any} */ e) => push('close', e.detail));
+	node.addEventListener('connection:prune', (/** @type {any} */ e) => push('prune', e.detail));
+}
+
 function getReadOnlyDiagnostics() {
 	return {
+		getConnectionEvents: () => connectionEvents.slice(),
 		getPeerId: () => peerId,
 		getDatabaseAddress: () => get(todoDBAddressStore),
 		getDatabasePeers: () => Array.from(todoDB?.peers ?? [], String),

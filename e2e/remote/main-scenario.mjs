@@ -7,6 +7,44 @@ function hasPublicRelayConnection(diagnostics) {
 	);
 }
 
+/**
+ * Gate on "this browser can reach a public relay" — as a property that has to
+ * hold, not as a value read once.
+ *
+ * The old check tested the snapshot taken at `verifying-relays`, several
+ * seconds after `waitForPublicRelayConnection()` had already polled the same
+ * condition true. Instrumenting `connection:open`/`close` showed what happens
+ * in between: right after the two browsers upgrade to a direct WebRTC
+ * connection, the circuit connection closes and the relay connection closes
+ * with it — and reopens ~200 ms later.
+ *
+ *   10:40:54.092 open  direct  <peer>    WebRTC upgrade
+ *   10:40:54.680 close limited <peer>    circuit no longer needed
+ *   10:40:54.730 close direct  <relay>   relay link dropped
+ *   10:40:54.933 open  direct  <relay>   and back
+ *
+ * A snapshot landing in that ~200 ms hole reported zero connections and failed
+ * the run, which is exactly the recurring CI shape (`verifying-relays` at
+ * 10:19:53, `(0 connections)` and FAILED at 10:19:55). Nothing was actually
+ * wrong: the link is re-established on its own and stays up — after the
+ * reopen above there was not one further connection event in two minutes.
+ *
+ * So re-poll instead of trusting the sample, and keep the specific error for
+ * the case where the connection really is gone for good.
+ */
+async function confirmPublicRelayConnection(agent, snapshot) {
+	if (hasPublicRelayConnection(snapshot)) return snapshot;
+
+	remoteProgress(
+		`${agent.name}: no public relay connection in this sample — re-polling before failing.`
+	);
+	try {
+		return await agent.waitForPublicRelayConnection();
+	} catch {
+		throw new Error('At least one browser has no observable public relay connection.');
+	}
+}
+
 export function selectPeerDialAddress(
 	diagnostics,
 	expectedPeerId,
@@ -89,6 +127,21 @@ export async function runMainRemoteScenario({
 		remoteProgress(
 			`peers: agentA=${result.agents.a.peerId} (${result.agents.a.connections.length} connections), agentB=${result.agents.b.peerId} (${result.agents.b.connections.length} connections)`
 		);
+		// The measurement: how long did the relay link actually live? Printed
+		// before the assertions below so it survives a failure at any of them.
+		for (const [name, agent] of [
+			['agentA', result.agents.a],
+			['agentB', result.agents.b]
+		]) {
+			const events = agent.connectionEvents ?? [];
+			remoteProgress(`${name} connection events (${events.length}):`);
+			for (const e of events.slice(-12)) {
+				remoteProgress(
+					`   ${new Date(e.at).toISOString().slice(11, 23)} ${e.event} ${e.detail ?? ''} ${(e.peer || '').slice(-6)}`
+				);
+			}
+		}
+
 		setStage('validating-shared-database');
 
 		if (
@@ -101,12 +154,8 @@ export async function runMainRemoteScenario({
 		}
 
 		if (requirePublicRelay) {
-			if (
-				!hasPublicRelayConnection(result.agents.a) ||
-				!hasPublicRelayConnection(result.agents.b)
-			) {
-				throw new Error('At least one browser has no observable public relay connection.');
-			}
+			result.agents.a = await confirmPublicRelayConnection(agentA, result.agents.a);
+			result.agents.b = await confirmPublicRelayConnection(agentB, result.agents.b);
 		}
 
 		// A direct browser-to-browser WebRTC connection is welcome but NOT
@@ -220,6 +269,18 @@ export async function runMainRemoteScenario({
 		if (diagnosticsB.status === 'fulfilled') result.agents.b = diagnosticsB.value;
 		result.error = error instanceof Error ? error.message : String(error);
 		remoteProgress(`FAILED at stage "${result.evidence.stage}": ${result.error}`);
+		for (const [name, agent] of [
+			['agentA', result.agents.a],
+			['agentB', result.agents.b]
+		]) {
+			const events = agent?.connectionEvents ?? [];
+			remoteProgress(`${name} connection events at failure (${events.length}):`);
+			for (const e of events.slice(-12)) {
+				remoteProgress(
+					`   ${new Date(e.at).toISOString().slice(11, 23)} ${e.event} ${e.detail ?? ''} ${(e.peer || '').slice(-6)}`
+				);
+			}
+		}
 		await Promise.allSettled([
 			agentA.screenshot(`${outputDir}/agent-a-failure.png`),
 			agentB.screenshot(`${outputDir}/agent-b-failure.png`)
