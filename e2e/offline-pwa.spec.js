@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { todoInput } from './open-app.mjs';
+import { SITE_TODOS } from '../src/lib/site-todos.js';
 
 // The chapter's premise, tested rather than asserted in a README.
 //
@@ -77,6 +78,42 @@ test.describe('offline PWA', () => {
 		// The app is genuinely running, not a cached shell that renders and then
 		// dies: the transfer panel only exists once the client has booted.
 		await expect(page.getByTestId('qr-transfer')).toBeVisible({ timeout });
+
+		await context.setOffline(false);
+	});
+
+	test('todos survive an offline reload', async ({ page, context }) => {
+		test.setTimeout(timeout * 2);
+
+		// The question the other two tests only answer separately. One shows the
+		// shell opening with no network; the other shows OrbitDB data surviving a
+		// reload while a (peerless) network is still up. Neither shows both at
+		// once, and "obviously it follows" is how tonight's other bugs got in.
+		await page.goto('/');
+		await expect(todoInput(page)).toBeVisible({ timeout });
+		await page.waitForFunction(() => navigator.serviceWorker?.controller !== null, undefined, {
+			timeout
+		});
+
+		await page.getByTestId('new-list-seed-site').click();
+		await expect(page.getByTestId('new-list-created')).toBeVisible({ timeout });
+		await expect(page.getByText(SITE_TODOS[0], { exact: true })).toBeVisible({ timeout });
+		const address = await page.evaluate(() => window.__simpleTodoE2E.getDatabaseAddress());
+
+		await context.setOffline(true);
+		await page.reload();
+		await expect(todoInput(page)).toBeVisible({ timeout });
+
+		// The app opens its default list on mount, so reopen the one just made —
+		// the way a person would, and the only way that proves the blocks came
+		// off this device rather than the shell merely rendering.
+		await expect(page.getByTestId('list-switcher')).toBeVisible({ timeout });
+		await page.locator(`[data-testid="list-switcher-open"][data-address="${address}"]`).click();
+
+		for (const todo of SITE_TODOS) {
+			await expect(page.getByText(todo, { exact: true })).toBeVisible({ timeout });
+		}
+		expect(await page.evaluate(() => window.__simpleTodoE2E.getConnectedPeerIds())).toEqual([]);
 
 		await context.setOffline(false);
 	});
