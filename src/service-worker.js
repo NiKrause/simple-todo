@@ -16,13 +16,18 @@
  * is the point of the app anyway.
  */
 
-import { build, files, version } from '$service-worker';
+import { build, files, prerendered, version } from '$service-worker';
 
 const CACHE = `qr01-${version}`;
 
-// `build` is content-hashed, `files` is everything in static/. Both are known
-// at build time, so the install can precache the entire app in one go.
-const PRECACHE = [...build, ...files];
+// `build` is content-hashed, `files` is everything in static/, and
+// `prerendered` is the documents themselves.
+//
+// `prerendered` was missing at first, and the omission hid behind the fetch
+// handler: the page still worked offline, because the first online visit
+// cached it on the way past. That made the install look complete while the one
+// file the app cannot start without was the only one arriving by luck.
+const PRECACHE = [...build, ...files, ...prerendered];
 
 self.addEventListener('install', (event) => {
 	event.waitUntil(
@@ -74,7 +79,14 @@ self.addEventListener('fetch', (event) => {
 			// exactly the delay this chapter cannot afford. Stale-while-revalidate
 			// gives an instant offline launch and still picks up a new deployment
 			// the next time the app is opened with a connection.
-			const cached = await cache.match(request);
+			//
+			// `ignoreSearch` is not a nicety here. A cache lookup compares the
+			// whole URL, and this chapter documents `?ice=host` and `?ice=stun` as
+			// supported — so the one URL a person is told to use offline is
+			// precisely the one that would miss every entry and fall through to a
+			// network that is not there. The query never selects a different
+			// document; there is no server to make that decision.
+			const cached = await cache.match(request, { ignoreSearch: true });
 			const network = fetch(request)
 				.then((response) => {
 					if (response.ok) cache.put(request, response.clone());
@@ -91,9 +103,15 @@ self.addEventListener('fetch', (event) => {
 			if (response) return response;
 
 			// Offline and never cached. For a navigation the prerendered entry is
-			// still the right answer — the app routes on the client anyway.
+			// still the right answer — this chapter is one route, and the app
+			// routes on the client anyway.
+			//
+			// A multi-route chapter must not copy this: answering every navigation
+			// with the start page is right for a SPA and wrong for adapter-static,
+			// where each route has its own document and a reload would silently
+			// land on the wrong one — online as well as off.
 			if (request.mode === 'navigate') {
-				const shell = await cache.match('/');
+				const shell = (await cache.match('/')) ?? (await cache.match('/index.html'));
 				if (shell) return shell;
 			}
 
