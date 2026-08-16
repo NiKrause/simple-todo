@@ -1,6 +1,7 @@
 <script>
 	import { onDestroy } from 'svelte';
 	import { relayHttpStatusStore } from './relay-status.js';
+	import { relayHttpOriginFromMultiaddr } from './multiaddr-utils.js';
 
 	/** @typedef {'pending' | 'active' | 'complete' | 'error'} StepStatus */
 	/** @typedef {{ label: string, description: string, status: StepStatus }} StatusStep */
@@ -125,8 +126,8 @@
 			startRelayHealthCheck(configuredRelayHttpOrigin, connection);
 			return;
 		}
-		const match = address.match(/\/dns[46]\/([^/]+)\/tcp\/(\d+)\/(?:tls\/)?(?:ws|wss)(?:\/|$)/i);
-		if (!match) {
+		const origin = relayHttpOriginFromMultiaddr(address);
+		if (!origin) {
 			if (relayHealthKey !== address) {
 				resetRelayHealth();
 				relayHealthKey = address;
@@ -134,7 +135,6 @@
 			return;
 		}
 
-		const origin = `https://${match[1]}${match[2] === '443' ? '' : `:${match[2]}`}`;
 		startRelayHealthCheck(origin, connection);
 	}
 
