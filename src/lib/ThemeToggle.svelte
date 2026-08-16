@@ -13,6 +13,7 @@
 		dark = document.documentElement.classList.contains('dark');
 	});
 
+	/** @param {boolean} next */
 	function apply(next) {
 		dark = next;
 		document.documentElement.classList.toggle('dark', next);

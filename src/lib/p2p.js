@@ -381,6 +381,10 @@ async function createOrbitDBInstance(heliaNode) {
 	});
 	ownDidStore.set(identity.id);
 	console.log(`✅ Passkey identity ready: ${identity.id}`);
+	// `identities` is a documented OrbitDB option — see its own
+	// `@param {module:Identities} [params.identities]` and the destructuring in
+	// `@orbitdb/core/src/orbitdb.js`. Only the bundled declaration omits it.
+	// @ts-expect-error incomplete upstream types, not a wrong call
 	return createOrbitDB({ ipfs: heliaNode, identities, identity });
 }
 

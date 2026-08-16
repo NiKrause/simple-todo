@@ -13,7 +13,10 @@ import { writable } from 'svelte/store';
  * knows to go looking, and the person who does not would never have known what
  * `Helia` or `12D3KooW…` meant.
  */
-const STORAGE_KEY = 'qr01.simpleView';
+// Exported so tests pin the mode through storage rather than repeating the
+// string — a literal in a spec drifts silently when this one changes.
+export const VIEW_MODE_STORAGE_KEY = 'qr01.simpleView';
+const STORAGE_KEY = VIEW_MODE_STORAGE_KEY;
 
 function readStored() {
 	try {

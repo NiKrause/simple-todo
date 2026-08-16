@@ -14,6 +14,7 @@ import {
 	generateSpanishMnemonic,
 	SPANISH_MNEMONIC_STORAGE_KEY
 } from '../src/lib/spanish-mnemonic.js';
+import { VIEW_MODE_STORAGE_KEY } from '../src/lib/view-mode.js';
 
 // Chapter (collab01): provisions a real relay through the Relay Button UI and
 // replicates a Spanish-mnemonic-named shared OrbitDB list between two browsers.
@@ -225,16 +226,30 @@ relayTest.describe('Relay Button', () => {
 				// qr01 has no consent gate — the app initialises on mount — so the
 				// shared list is pinned in storage before the page runs, instead of
 				// being typed into a modal that no longer exists.
+				//
+				// The view mode is pinned for a harder reason: the Relay Button is
+				// only drawn in the technical view, and the app now starts in the
+				// simple one. The locator for it lives inside `@le-space/playwright`,
+				// so the spec cannot ask for it differently — the button has to be
+				// on the page. Setting the flag beats clicking the toggle: it is in
+				// place before the first render, with no window in which the test
+				// could look for a control that has not appeared yet.
 				await deploymentPage.addInitScript(
-					([key, value]) => {
+					([[mnemonicKey, mnemonicValue], [viewKey, viewValue]]) => {
 						try {
-							localStorage.setItem(key, value);
+							localStorage.setItem(mnemonicKey, mnemonicValue);
+							localStorage.setItem(viewKey, viewValue);
 						} catch {
 							// Storage blocked: the app generates its own mnemonic, which
-							// the relay assertions below do not depend on.
+							// the relay assertions below do not depend on — but it would
+							// also stay in the simple view, and this test would fail on a
+							// missing Relay Button rather than on anything about relays.
 						}
 					},
-					[SPANISH_MNEMONIC_STORAGE_KEY, sharedMnemonic]
+					[
+						[SPANISH_MNEMONIC_STORAGE_KEY, sharedMnemonic],
+						[VIEW_MODE_STORAGE_KEY, 'false']
+					]
 				);
 				await deploymentPage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
 				await deploymentPage

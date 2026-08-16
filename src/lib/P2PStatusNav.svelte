@@ -53,7 +53,9 @@
 					{
 						key: 'relayConnected',
 						description: getRelayDescription(),
-						status: relayConnected ? 'complete' : initializationComplete ? 'active' : 'pending'
+						status: /** @type {StepStatus} */ (
+							relayConnected ? 'complete' : initializationComplete ? 'active' : 'pending'
+						)
 					}
 				]
 			: []),
@@ -235,8 +237,8 @@
 	 */
 	function getStatusLabel(complete, step) {
 		if (complete) return 'P2P network ready';
-		if (step?.label === $_('tech.relayConnected')) return $_('tech.relayConnecting');
-		if (step?.label === $_('tech.webrtcConnected')) return 'Waiting for WebRTC connection';
+		if (step?.key === 'relayConnected') return $_('tech.relayConnecting');
+		if (step?.key === 'webrtcConnected') return $_('tech.webrtcWaiting');
 		if (step?.status === 'error')
 			return $_('steps.failed', { values: { step: $_(`steps.${step.key}.label`) } });
 		if (step) return $_('steps.initializing', { values: { step: $_(`steps.${step.key}.label`) } });

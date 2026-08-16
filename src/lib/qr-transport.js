@@ -45,7 +45,9 @@ export function getQrSession() {
  * that has no address anybody could dial.
  */
 export function webRTCQRTransport() {
-	return webRTCQR({ getOutboundSession: (peerId) => session?.getOutboundSession(peerId) ?? null });
+	return webRTCQR({
+		getOutboundSession: (/** @type {any} */ peerId) => session?.getOutboundSession(peerId) ?? null
+	});
 }
 
 /**

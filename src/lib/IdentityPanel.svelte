@@ -34,7 +34,7 @@
 
 	const hasStoredPasskey = hasStoredPasskeyCredential();
 
-	$: usingPasskey = Boolean($ownDidStore) && $ownDidStore.startsWith('did:');
+	$: usingPasskey = $ownDidStore?.startsWith('did:') ?? false;
 
 	/** @param {string} value */
 	function shortDid(value) {
