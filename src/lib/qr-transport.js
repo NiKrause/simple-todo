@@ -42,7 +42,13 @@ export function getQrSession() {
  * for the relay.
  */
 export function webRTCQRTransport() {
-	return webRTCQR({ getOutboundSession: (peerId) => session?.getOutboundSession(peerId) ?? null });
+	// `any` rather than the real `PeerId`: the transport package ships no type
+	// declarations, so there is nothing to infer from, and `@libp2p/interface`
+	// is only a transitive dependency here — importing a type out of it would
+	// break `pnpm run check` the first time the dependency tree shifts.
+	return webRTCQR({
+		getOutboundSession: (/** @type {any} */ peerId) => session?.getOutboundSession(peerId) ?? null
+	});
 }
 
 /**

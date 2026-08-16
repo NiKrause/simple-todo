@@ -133,7 +133,7 @@
 
 	{#if addresses.length > 0}
 		<ul class="max-h-28 space-y-1 overflow-y-auto pr-1" data-testid="own-multiaddr-list">
-			{#each addresses as address, index}
+			{#each addresses as address, index (address)}
 				<li class="flex items-center gap-1 rounded-md bg-cyan-50 p-1.5">
 					<code class="min-w-0 flex-1 truncate font-mono text-[11px]" title={address}
 						>{address}</code

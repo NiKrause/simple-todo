@@ -213,7 +213,7 @@
 							: 'No relay addresses discovered'}</option
 					>
 				{:else}
-					{#each discoveredMultiaddrs as address}
+					{#each discoveredMultiaddrs as address (address)}
 						<option
 							value={address}
 							data-ping-verified={pingVerifiedAddresses.has(address) ? 'true' : undefined}
