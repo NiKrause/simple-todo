@@ -194,6 +194,15 @@ export class TodoBrowserAgent {
 	async createTodo(text, { attempts = 3, attemptTimeout = 40_000 } = {}) {
 		let lastError;
 		for (let attempt = 1; attempt <= attempts; attempt += 1) {
+			// Never submit the same text twice. A previous attempt that timed out
+			// has not necessarily failed — creation against the production relay
+			// has been measured at 85 s, far past `attemptTimeout`, so the todo
+			// lands moments after we gave up on it. Re-submitting then produced a
+			// second identical entry, and every later `getByText(text)` died of a
+			// strict-mode violation: a working app failing the run because the
+			// retry, not the app, duplicated the todo.
+			if ((await this.page.getByText(text, { exact: true }).count()) > 0) return;
+
 			await this.todoInput().waitFor({ state: 'visible', timeout: attemptTimeout });
 			await this.todoInput().fill(text);
 			await this.page.getByRole('button', { name: 'Add TODO' }).click();
@@ -214,7 +223,11 @@ export class TodoBrowserAgent {
 	}
 
 	async waitForTodo(text, timeout = this.timeout) {
-		await this.page.getByText(text, { exact: true }).waitFor({ state: 'visible', timeout });
+		// `.first()`: the question here is "did this todo arrive", and a second
+		// copy is still a yes. Without it, a duplicate makes the locator throw a
+		// strict-mode violation instead of resolving — turning "arrived twice"
+		// into an error that reads like "never arrived".
+		await this.page.getByText(text, { exact: true }).first().waitFor({ state: 'visible', timeout });
 	}
 
 	async screenshot(path) {
