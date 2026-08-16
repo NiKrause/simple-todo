@@ -57,7 +57,9 @@
 		placeholder="luna-camino-verde"
 	/>
 	{#if validation.error && touched}
-		<p id="shared-list-error" role="alert" class="mt-1 text-xs text-danger-700">{validation.error}</p>
+		<p id="shared-list-error" role="alert" class="mt-1 text-xs text-danger-700">
+			{validation.error}
+		</p>
 	{:else}
 		<p id="shared-list-error" class="sr-only">Enter exactly three valid Spanish words.</p>
 	{/if}

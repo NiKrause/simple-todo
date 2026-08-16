@@ -34,7 +34,9 @@ export async function discoverScopedBootstrapMultiaddrs({
 	const addresses = scoped.flatMap((post) => {
 		const content = post.content;
 		if (!content) return [];
-		return content.browserMultiaddrs?.length ? content.browserMultiaddrs : (content.multiaddrs ?? []);
+		return content.browserMultiaddrs?.length
+			? content.browserMultiaddrs
+			: (content.multiaddrs ?? []);
 	});
 	return [...new Set(addresses)];
 }

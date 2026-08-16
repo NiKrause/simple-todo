@@ -136,7 +136,7 @@
 			class="max-h-28 max-w-full min-w-0 space-y-1 overflow-x-hidden overflow-y-auto pr-1"
 			data-testid="own-multiaddr-list"
 		>
-			{#each addresses as address, index}
+			{#each addresses as address, index (address)}
 				<li
 					class="flex max-w-full min-w-0 items-center gap-1 overflow-hidden rounded-md bg-cyan-50 p-1.5"
 				>

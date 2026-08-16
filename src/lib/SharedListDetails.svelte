@@ -67,8 +67,8 @@
 	<div class="mt-3 border-t border-border pt-3">
 		{#if activeList?.kind !== 'shared'}
 			<p class="mb-2 text-xs text-data-700" data-testid="active-list-note">
-				You are writing to <strong>{activeList.name}</strong>. The mnemonic below still refers to the
-				public shared list.
+				You are writing to <strong>{activeList.name}</strong>. The mnemonic below still refers to
+				the public shared list.
 			</p>
 		{/if}
 		<p class="text-xs text-faint">Public mnemonic / OrbitDB database name</p>
@@ -95,8 +95,8 @@
 			Anyone who knows this share code can open the same public database and edit it once connected.
 		</p>
 		<p class="mt-1 text-xs text-faint">
-			The mnemonic selects the same database. Live replication also requires a connection to
-			another browser peer.
+			The mnemonic selects the same database. Live replication also requires a connection to another
+			browser peer.
 		</p>
 		<button
 			type="button"
