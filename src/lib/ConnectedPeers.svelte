@@ -34,8 +34,11 @@
 	const discoveredPeersInfo = new Map();
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const peerConnectionTransports = new Map();
-	/** @type {Map<string, FailedPeerDialState>} */
-	const failedPeerDialState = new Map();
+	// Same reason as the two above: read and written only from script, never
+	// from markup, so reactivity buys nothing here. The type moves inline
+	// because the disable comment has to sit directly on the reported line.
+	// eslint-disable-next-line svelte/prefer-svelte-reactivity
+	const failedPeerDialState = /** @type {Map<string, FailedPeerDialState>} */ (new Map());
 	/** @type {EventListenerEntry[]} */
 	let eventListeners = [];
 

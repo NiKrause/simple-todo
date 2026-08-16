@@ -54,11 +54,26 @@
 	}
 </script>
 
-<div class:rounded-lg={!compact} class:bg-surface={!compact} class:p-6={!compact} class:shadow-md={!compact}>
-	<h2 class:mb-4={!compact} class:mb-2={compact} class:text-xl={!compact} class:text-sm={compact} class="font-semibold">{title}</h2>
+<div
+	class:rounded-lg={!compact}
+	class:bg-surface={!compact}
+	class:p-6={!compact}
+	class:shadow-md={!compact}
+>
+	<h2
+		class:mb-4={!compact}
+		class:mb-2={compact}
+		class:text-xl={!compact}
+		class:text-sm={compact}
+		class="font-semibold"
+	>
+		{title}
+	</h2>
 	{#if peerId}
 		<div class="relative rounded-md bg-cyan-50" class:p-3={!compact} class:p-2={compact}>
-			<code class="block truncate pr-7 font-mono text-xs select-all" title={peerId}>{formatPeerId(peerId)}</code>
+			<code class="block truncate pr-7 font-mono text-xs select-all" title={peerId}
+				>{formatPeerId(peerId)}</code
+			>
 			{#if copyable}
 				<button
 					on:click={copyToClipboard}
@@ -80,12 +95,7 @@
 							></path>
 						</svg>
 					{:else}
-						<svg
-							class="h-4 w-4 text-text"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
+						<svg class="h-4 w-4 text-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path
 								stroke-linecap="round"
 								stroke-linejoin="round"

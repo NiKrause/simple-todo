@@ -47,18 +47,25 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Run default database collaboration E2E
-        id: default-database-e2e
+      # The storage-mode specs are here because their absence is how the
+      # offline service worker got lost: it was reviewed, merged and then
+      # missing from main for a day without a single job going red. Nothing
+      # else in CI opens the app without a network or reloads it to see whether
+      # the todos are still there.
+      - name: Run main E2E
+        id: main-e2e
         run: >-
           pnpm exec playwright test
           e2e/default-database-collaboration.spec.js
           e2e/manual-multiaddr-connection.spec.js
+          e2e/storage-mode-persistence.spec.js
+          e2e/storage-mode-offline-and-wipe.spec.js
           --project=chromium
 
       - name: Summarize main E2E
         if: always()
         env:
-          E2E_OUTCOME: ${{ steps.default-database-e2e.outcome }}
+          E2E_OUTCOME: ${{ steps.main-e2e.outcome }}
         run: |
           {
             echo '## main end-to-end test'
@@ -69,7 +76,7 @@ jobs:
               echo "**Result:** ❌ ${E2E_OUTCOME}"
             fi
             echo
-            echo 'The Chromium test starts a local OrbitDB relay and two isolated browser peers using the shared default todo database.'
+            echo 'The Chromium tests start a local OrbitDB relay and two isolated browser peers using the shared default todo database, then check what this browser keeps on its own: whether the storage choice is honoured, and whether the app opens and finds its todos with no network and no relay.'
             echo
             echo '| Verified behavior | Result |'
             echo '| --- | --- |'
@@ -78,6 +85,9 @@ jobs:
             echo "| Both browsers display all six replicated todos | ${E2E_OUTCOME} |"
             echo "| Relay discovery and browser-to-browser OrbitDB synchronization | ${E2E_OUTCOME} |"
             echo "| Copy a browser-dialable own multiaddress and connect a second browser with it | ${E2E_OUTCOME} |"
+            echo "| IndexedDB keeps a todo across a reload and in-memory does not | ${E2E_OUTCOME} |"
+            echo "| A todo written to IndexedDB is read back with the network cut and the relay off | ${E2E_OUTCOME} |"
+            echo "| Switching back to in-memory deletes what persistence wrote | ${E2E_OUTCOME} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   build-and-deploy:
