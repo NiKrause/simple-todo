@@ -6,7 +6,7 @@
 chapters**, not a trunk plus feature branches:
 
 - `main` — base chapter (migrated to the shared `@le-space/playwright` testkit
-  + relay-mediated remote-replication E2E).
+  - relay-mediated remote-replication E2E).
 - `collab01` — multi-database collaboration chapter (mnemonic shared lists,
   entry-protocol-v2, active-orbitdb switching, …).
 - `collab02` — follow-on collaboration chapter.

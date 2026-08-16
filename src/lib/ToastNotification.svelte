@@ -20,7 +20,7 @@
 	$: {
 		// Only act on new messages (not null -> message transitions)
 		if (message && message !== lastSeenMessage) {
-				if (timeoutId) clearTimeout(timeoutId);
+			if (timeoutId) clearTimeout(timeoutId);
 			lastSeenMessage = message;
 
 			if (duration > 0) {
@@ -38,16 +38,16 @@
 	}
 
 	onDestroy(() => {
-			if (timeoutId) clearTimeout(timeoutId);
-		});
+		if (timeoutId) clearTimeout(timeoutId);
+	});
 
 	// Different styles based on type
 	$: toastClasses = getToastClasses(type);
 
-		/**
-		 * @param {ToastType} type
-		 */
-		function getToastClasses(type) {
+	/**
+	 * @param {ToastType} type
+	 */
+	function getToastClasses(type) {
 		const baseClasses =
 			'fixed top-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded shadow-lg z-50 transition-opacity duration-300';
 

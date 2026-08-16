@@ -32,7 +32,9 @@ describe('isInsecureWebSocketDial', () => {
 	});
 
 	it('leaves non-websocket transports untouched', () => {
-		expect(isInsecureWebSocketDial(`/ip4/1.2.3.4/udp/4001/webrtc-direct${PEER}`, HTTPS)).toBe(false);
+		expect(isInsecureWebSocketDial(`/ip4/1.2.3.4/udp/4001/webrtc-direct${PEER}`, HTTPS)).toBe(
+			false
+		);
 		expect(isInsecureWebSocketDial(`/ip4/1.2.3.4/tcp/4001${PEER}`, HTTPS)).toBe(false);
 		expect(isInsecureWebSocketDial(`/p2p-circuit${PEER}`, HTTPS)).toBe(false);
 	});
