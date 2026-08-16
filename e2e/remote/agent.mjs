@@ -41,6 +41,11 @@ export class TodoBrowserAgent {
 		this.page.on('pageerror', (error) => {
 			remoteProgress(`[${this.name} pageerror] ${error.message}`);
 		});
+		this.page.on('requestfailed', (request) => {
+			remoteProgress(
+				`[${this.name} requestfailed] ${request.url().slice(0, 160)} :: ${request.failure()?.errorText}`
+			);
+		});
 		remoteProgress(`[${this.name}] opening ${this.appUrl}...`);
 		await this.page.goto(this.appUrl, { waitUntil: 'domcontentloaded', timeout: this.timeout });
 
@@ -78,6 +83,7 @@ export class TodoBrowserAgent {
 				databasePeers: diagnostics?.getDatabasePeers?.() ?? [],
 				multiaddrs: diagnostics?.getMultiaddrs?.() ?? [],
 				connections: diagnostics?.getConnections?.() ?? [],
+				connectionEvents: diagnostics?.getConnectionEvents?.() ?? [],
 				pubsub: diagnostics?.getPubsubState?.() ?? null,
 				appStamp: document.querySelector('header p')?.textContent?.trim() ?? null,
 				userAgent: navigator.userAgent
