@@ -141,8 +141,8 @@ importers:
         specifier: 0.8.0
         version: 0.8.0(react-native@0.80.2(@babel/core@7.29.7)(react@19.2.6))(typescript@5.9.2)
       '@le-space/playwright':
-        specifier: 0.8.0
-        version: 0.8.0(@playwright/test@1.61.1)(typescript@5.9.2)
+        specifier: 0.9.1
+        version: 0.9.1(@playwright/test@1.61.1)(typescript@5.9.2)
       '@playwright/test':
         specifier: 1.61.1
         version: 1.61.1
@@ -972,11 +972,17 @@ packages:
   '@le-space/aleph-bootstrap@0.8.0':
     resolution: {integrity: sha512-+SVU1JLfu6uBe4gfsyUiPI25PUlo+kOmHlXTziBzBpnfmgLQz4uXBrT5P0J3BQWJbSaPKRXhA5Gm3QrektTp1g==}
 
+  '@le-space/aleph-bootstrap@0.9.1':
+    resolution: {integrity: sha512-xZckknaVlYlUgNO+6CYd4QpoK06MdB6/XfggFdknkvhorRRowoCLyO+fTuawu38rKSgWsTPykwoWq1n+8P+5gA==}
+
   '@le-space/browser@0.8.0':
     resolution: {integrity: sha512-BCea5i9vuYQ4SqgTfUgvzuTO2q7lw3UhAiDl+3huDRFe9MLnB9bysu7UXPRWoS+LxoP4FY+5DDpQymL2sy2SCA==}
 
   '@le-space/core@0.8.0':
     resolution: {integrity: sha512-wN7IVEeSH53kCMpezB/RCyNko3W4mbF9fnUAdGWVZG2+cPr7RcZZUb7d35D5ob2RjNRb1Bzzh1+WF2c7fiHbPw==}
+
+  '@le-space/core@0.9.1':
+    resolution: {integrity: sha512-7F9XJmdMROjKBvWLS+Of9G3JRInC7Y3mnHn1jw/sOddwGlNc+/Hz4TmljC+JYVqK/FnlE4wg3SCB0HW6hSo0Rw==}
 
   '@le-space/iso-base@4.3.0':
     resolution: {integrity: sha512-aZerTomLgkGAAh6zAa8PWQu2rfMzrA5tiBIe4PWI8LDBJHwlgFwRsiDpdM/3eRjE7ocHi4rrPXdVfy+FH7knFA==}
@@ -1011,8 +1017,8 @@ packages:
     peerDependencies:
       '@orbitdb/core': ^4.0.0
 
-  '@le-space/playwright@0.8.0':
-    resolution: {integrity: sha512-8pXD6CJVMy2yYFlrcTnAa7cBCObuaMkDabC9EOfB5mKv5jKvvrauJF1Ov+rAm59goP8EMN8XJoKYIDYQLWp0vg==}
+  '@le-space/playwright@0.9.1':
+    resolution: {integrity: sha512-YhgBfj10EPwC/ViIwqqBEHc07CRfZQPdaBv35x/a/leFP0SSZMPRfSgj6BwmGXfdYMjRBxlQTK7l5xsI25xLrQ==}
     hasBin: true
     peerDependencies:
       '@playwright/test': '>=1.61.1 <1.62.0'
@@ -1022,6 +1028,9 @@ packages:
 
   '@le-space/shared-types@0.8.0':
     resolution: {integrity: sha512-HNbehz5lkwzJIUlbwUeNlIbwhEL+qHc6TCtUHx6xCtJtqI0Q2eR9NjEcek8wJdB0y8VXpP24aIvuuW1P1Zu+IA==}
+
+  '@le-space/shared-types@0.9.1':
+    resolution: {integrity: sha512-tQVOys1SAx2CxriV7iSIMboYioxNBNLNdO/3Tb+gap5HSi5SqmOsrQNiBGydl6tdWxHNj5khS4XgoqDZ0m8wCg==}
 
   '@le-space/ucanto-core@10.5.1':
     resolution: {integrity: sha512-DY6og7R9lm/2vmXGBGuRwR3ltcg0w/PHdNQRLEq3xxnvx4AoWQGJ6sJtjSVfIO0fctls+BB930W9/9aRwc7RpA==}
@@ -6285,12 +6294,32 @@ snapshots:
       - utf-8-validate
       - zod
 
+  '@le-space/aleph-bootstrap@0.9.1(typescript@5.9.2)':
+    dependencies:
+      '@libp2p/bootstrap': 11.0.47
+      viem: 2.53.1(typescript@5.9.2)
+    transitivePeerDependencies:
+      - bufferutil
+      - typescript
+      - utf-8-validate
+      - zod
+
   '@le-space/browser@0.8.0': {}
 
   '@le-space/core@0.8.0(typescript@5.9.2)':
     dependencies:
       '@le-space/aleph-bootstrap': 0.8.0(typescript@5.9.2)
       '@le-space/shared-types': 0.8.0
+    transitivePeerDependencies:
+      - bufferutil
+      - typescript
+      - utf-8-validate
+      - zod
+
+  '@le-space/core@0.9.1(typescript@5.9.2)':
+    dependencies:
+      '@le-space/aleph-bootstrap': 0.9.1(typescript@5.9.2)
+      '@le-space/shared-types': 0.9.1
     transitivePeerDependencies:
       - bufferutil
       - typescript
@@ -6412,10 +6441,10 @@ snapshots:
       iso-webauthn-varsig: '@le-space/iso-webauthn-varsig@0.3.0'
       multiformats: 14.0.5
 
-  '@le-space/playwright@0.8.0(@playwright/test@1.61.1)(typescript@5.9.2)':
+  '@le-space/playwright@0.9.1(@playwright/test@1.61.1)(typescript@5.9.2)':
     dependencies:
-      '@le-space/aleph-bootstrap': 0.8.0(typescript@5.9.2)
-      '@le-space/core': 0.8.0(typescript@5.9.2)
+      '@le-space/aleph-bootstrap': 0.9.1(typescript@5.9.2)
+      '@le-space/core': 0.9.1(typescript@5.9.2)
       '@playwright/test': 1.61.1
     transitivePeerDependencies:
       - bufferutil
@@ -6426,6 +6455,8 @@ snapshots:
   '@le-space/rootfs@0.8.0': {}
 
   '@le-space/shared-types@0.8.0': {}
+
+  '@le-space/shared-types@0.9.1': {}
 
   '@le-space/ucanto-core@10.5.1':
     dependencies:
