@@ -50,8 +50,7 @@
 
 	/** @type {'create' | 'existing' | 'anonymous'} */
 	let identityMode = 'anonymous';
-	let passkeyUserId = '';
-	let passkeyDisplayName = '';
+	let passkeyLabel = '';
 
 	/** @type {string | null} */
 	let toastMessage = null;
@@ -85,12 +84,15 @@
 			// the user gesture of the proceed click.
 			let passkeyCredential = null;
 			if (identityMode === 'create') {
-				if (!passkeyUserId.trim() || !passkeyDisplayName.trim()) {
-					throw new Error('Please enter a user id and display name for the new passkey.');
+				if (!passkeyLabel.trim()) {
+					throw new Error('Please enter a name for the new passkey.');
 				}
+				// The same label goes into both WebAuthn fields on purpose: they are
+				// the account name and the display name of one credential, and the
+				// picker shows them together. Neither identifies the passkey.
 				passkeyCredential = await createPasskeyCredential({
-					userId: passkeyUserId.trim(),
-					displayName: passkeyDisplayName.trim()
+					userId: passkeyLabel.trim(),
+					displayName: passkeyLabel.trim()
 				});
 			} else if (identityMode === 'existing') {
 				passkeyCredential = await recoverPasskeyCredential();
@@ -248,11 +250,7 @@
 	>
 		<svelte:fragment slot="before-confirmation">
 			<SharedListSelector bind:value={selectedMnemonic} />
-			<PasskeyOnboarding
-				bind:mode={identityMode}
-				bind:userId={passkeyUserId}
-				bind:displayName={passkeyDisplayName}
-			/>
+			<PasskeyOnboarding bind:mode={identityMode} bind:label={passkeyLabel} />
 		</svelte:fragment>
 	</ConsentModal>
 {/if}
