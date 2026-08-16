@@ -41,47 +41,34 @@ export const ownDidStore = writable(/** @type {string | null} */ (null));
 
 const INITIALIZATION_STEP_DEFINITIONS = [
 	{
-		label: 'Network config',
-		description:
-			'Validates the configured browser-reachable relay addresses and prepares the libp2p transports and services.'
+		key: 'networkConfig'
 	},
 	{
-		label: 'libp2p',
-		description:
-			'Creates and starts the libp2p node, including its peer identity, discovery, relay, WebSocket and WebRTC support.'
+		key: 'libp2p'
 	},
 	{
-		label: 'Helia',
-		description:
-			'Starts the Helia IPFS node on top of libp2p and enables block exchange and HTTP retrieval.'
+		key: 'helia'
 	},
 	{
-		label: 'OrbitDB',
-		description:
-			'Loads or creates the persistent OrbitDB identity and initializes OrbitDB using the Helia node.'
+		key: 'orbitdb'
 	},
 	{
-		label: 'Database + sync',
-		description:
-			'Opens the shared todo database, loads its local operation log and starts OrbitDB pubsub synchronization.'
+		key: 'databaseSync'
 	},
 	{
-		label: 'Local todos',
-		description:
-			'Connects the local todo store and starts hydrating it from OrbitDB in the background without blocking the application.'
+		key: 'localTodos'
 	}
 ];
 
 /**
  * @typedef {'pending' | 'active' | 'complete' | 'error'} InitializationStepStatus
- * @typedef {{ label: string, description: string, status: InitializationStepStatus }} InitializationStep
+ * @typedef {{ key: string, status: InitializationStepStatus }} InitializationStep
  */
 
 /** @param {number} [activeIndex=-1] */
 function createInitializationSteps(activeIndex = -1) {
-	return INITIALIZATION_STEP_DEFINITIONS.map(({ label, description }, index) => ({
-		label,
-		description,
+	return INITIALIZATION_STEP_DEFINITIONS.map(({ key }, index) => ({
+		key,
 		status: /** @type {InitializationStepStatus} */ (
 			index < activeIndex ? 'complete' : index === activeIndex ? 'active' : 'pending'
 		)

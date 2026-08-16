@@ -155,7 +155,7 @@ async function getOwnDid(page) {
  */
 async function addTodo(page, text) {
 	await getTodoInput(page).fill(text);
-	await page.getByRole('button', { name: 'Add TODO' }).click();
+	await page.getByTestId('todo-add').click();
 	await expect(page.getByText(text, { exact: true })).toBeVisible({
 		timeout: collaborationTimeout
 	});
@@ -177,5 +177,5 @@ async function expectTodoWithAuthor(page, text, expectedDid) {
 
 /** @param {import('@playwright/test').Page} page */
 function getTodoInput(page) {
-	return page.getByPlaceholder('What needs to be done?');
+	return page.getByTestId('todo-input');
 }

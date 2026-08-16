@@ -69,7 +69,7 @@ export class TodoBrowserAgent {
 		await this.todoInput().waitFor({ state: 'visible', timeout: this.timeout });
 		await this.page.waitForFunction(
 			() => {
-				const input = document.querySelector('input[placeholder="What needs to be done?"]');
+				const input = document.querySelector('[data-testid="todo-input"]');
 				return input instanceof HTMLInputElement && !input.disabled;
 			},
 			undefined,
@@ -204,7 +204,7 @@ export class TodoBrowserAgent {
 		for (let attempt = 1; attempt <= attempts; attempt += 1) {
 			await this.todoInput().waitFor({ state: 'visible', timeout: attemptTimeout });
 			await this.todoInput().fill(text);
-			await this.page.getByRole('button', { name: 'Add TODO' }).click();
+			await this.page.getByTestId('todo-add').click();
 			try {
 				await this.waitForTodo(text, attemptTimeout);
 				return;
@@ -230,7 +230,7 @@ export class TodoBrowserAgent {
 	}
 
 	todoInput() {
-		return this.page.getByRole('textbox', { name: 'What needs to be done?' });
+		return this.page.getByTestId('todo-input');
 	}
 
 	async close() {

@@ -19,11 +19,9 @@ import { SPANISH_MNEMONIC_STORAGE_KEY } from '../src/lib/spanish-mnemonic.js';
  * `restorePasskey` — each of which is a real click, which is the gesture.
  */
 
-const TODO_INPUT = 'What needs to be done?';
-
 /** @param {import('@playwright/test').Page} page */
 export function todoInput(page) {
-	return page.getByPlaceholder(TODO_INPUT);
+	return page.getByTestId('todo-input');
 }
 
 /**

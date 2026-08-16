@@ -83,7 +83,7 @@ test.describe('QR handover', () => {
 				timeout
 			});
 			await todoInput(bob).fill(`bob-cannot-write-${runId}`);
-			await bob.getByRole('button', { name: 'Add TODO' }).click();
+			await bob.getByTestId('todo-add').click();
 			await expect(bob.getByText(/no write permission|write access/i)).toBeVisible({ timeout });
 			await expect(bob.getByText(`bob-cannot-write-${runId}`, { exact: true })).toHaveCount(0);
 

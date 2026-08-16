@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	import { createEventDispatcher } from 'svelte';
 	import ErrorAlert from './ErrorAlert.svelte';
 	import { connectToMultiaddr, pingMultiaddr } from './p2p.js';
@@ -121,7 +122,7 @@
 		const address = (useCustomMultiaddr ? customMultiaddr : selectedMultiaddr).trim();
 
 		if (!address) {
-			errorMessage = 'Enter a multiaddress to connect to a peer.';
+			errorMessage = $_('tech.enterMultiaddr');
 			statusMessage = null;
 			return;
 		}
@@ -135,8 +136,8 @@
 		errorMessage = null;
 		statusMessage = {
 			tone: 'info',
-			title: 'Dialing peer',
-			detail: 'Opening the websocket and completing the libp2p handshake...'
+			title: $_('tech.dialing'),
+			detail: $_('tech.handshake')
 		};
 		isConnecting = true;
 
@@ -147,12 +148,12 @@
 				result.status === 'stable'
 					? {
 							tone: 'success',
-							title: 'Connection stable',
+							title: $_('tech.connectionStable'),
 							detail: result.detail
 						}
 					: {
 							tone: 'warning',
-							title: 'Connection dropped',
+							title: $_('tech.connectionDropped'),
 							detail: result.detail
 						};
 			dispatch('connected', result);

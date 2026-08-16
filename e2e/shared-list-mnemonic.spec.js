@@ -121,7 +121,7 @@ async function openSelection(page) {
 async function openSelectedList(page) {
 	await page.getByRole('button', { name: 'Open shared list' }).click();
 	await expect(page.locator('div.fixed.inset-0.z-50')).not.toBeVisible();
-	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
+	await expect(page.getByTestId('todo-input')).toBeEnabled({ timeout });
 }
 
 /** @param {import('@playwright/test').Page} page */
@@ -144,8 +144,8 @@ async function getDatabaseDiagnostics(page) {
 
 /** @param {import('@playwright/test').Page} page @param {string} text */
 async function addTodo(page, text) {
-	await page.getByPlaceholder('What needs to be done?').fill(text);
-	await page.getByRole('button', { name: 'Add TODO' }).click();
+	await page.getByTestId('todo-input').fill(text);
+	await page.getByTestId('todo-add').click();
 	await expectTodo(page, text);
 }
 

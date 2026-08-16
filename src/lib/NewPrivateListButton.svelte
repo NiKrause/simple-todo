@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	// Create a new access-controlled private list (acl01). The public mnemonic
 	// list stays available; this opens a fresh owner-only list and switches to
 	// it, after which the permissions panel appears for granting DIDs.
@@ -61,15 +62,15 @@
 	class="mt-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700"
 	data-testid="new-private-list"
 >
-	<h2 class="text-lg font-semibold text-heading">Create a private list</h2>
+	<h2 class="text-lg font-semibold text-heading">{$_('list.createHeading')}</h2>
 	<p class="mt-1 text-xs text-faint">
-		Only your identity can write to it. Share its address and grant other DIDs below.
+		{$_('list.onlyYouCanWrite')}
 	</p>
 	<div class="mt-3 flex gap-2">
 		<input
 			type="text"
 			bind:value={name}
-			placeholder="list name (optional)"
+			placeholder={$_('list.namePlaceholder')}
 			data-testid="new-list-name"
 			class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs"
 		/>
@@ -80,7 +81,7 @@
 			data-testid="new-list-create"
 			class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
 		>
-			{busy ? 'Creating…' : 'Create private list'}
+			{busy ? $_('list.creating') : $_('list.create')}
 		</button>
 	</div>
 
@@ -98,7 +99,7 @@
 			data-testid="new-list-seed-site"
 			class="text-xs font-medium text-cyan-700 underline disabled:opacity-50 dark:text-cyan-400"
 		>
-			{busy ? 'Working…' : 'Or create the example site list (10 items)'}
+			{busy ? 'Working…' : $_('list.example')}
 		</button>
 	</div>
 	{#if errorMessage}
@@ -129,7 +130,7 @@
 					data-testid="new-list-copy-address"
 					class="shrink-0 rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-800"
 				>
-					{copied ? 'Copied' : 'Copy'}
+					{copied ? $_('transfer.copied') : $_('transfer.copy')}
 				</button>
 			</div>
 		</div>

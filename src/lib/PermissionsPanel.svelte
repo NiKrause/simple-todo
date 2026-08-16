@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	// Write-permission management for the active todo list (acl01 chapter).
 	// Backed by OrbitDBAccessController: grants/revokes mutate the controller's
 	// own replicated keyvalue store, so the DB address never changes and peers
@@ -92,7 +93,7 @@
 		class="mt-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700"
 		data-testid="permissions-panel"
 	>
-		<h2 class="text-lg font-semibold text-heading">Write permissions</h2>
+		<h2 class="text-lg font-semibold text-heading">{$_('tech.writePermissions')}</h2>
 		<p class="mt-1 text-xs text-faint">
 			DIDs allowed to write to this list. Only list admins (the creator) can grant or revoke.
 		</p>
@@ -125,7 +126,7 @@
 			<input
 				type="text"
 				bind:value={newDid}
-				placeholder="did:key:… of the identity to allow"
+				placeholder={$_('tech.didPlaceholder')}
 				data-testid="permission-did-input"
 				class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 font-mono text-xs"
 			/>

@@ -1,9 +1,10 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	import { onDestroy } from 'svelte';
 	import { relayHttpStatusStore } from './relay-status.js';
 
 	/** @typedef {'pending' | 'active' | 'complete' | 'error'} StepStatus */
-	/** @typedef {{ label: string, description: string, status: StepStatus }} StatusStep */
+	/** @typedef {{ key: string, description?: string, status: StepStatus }} StatusStep */
 
 	/** @type {{ isInitializing: boolean, isInitialized: boolean, error: string | null, steps: StatusStep[] }} */
 	export let initialization;
@@ -50,14 +51,14 @@
 		...(relayConnected || $relayHttpStatusStore.origin
 			? [
 					{
-						label: 'Relay connected',
+						key: 'relayConnected',
 						description: getRelayDescription(),
 						status: relayConnected ? 'complete' : initializationComplete ? 'active' : 'pending'
 					}
 				]
 			: []),
 		{
-			label: 'Peer connected',
+			key: 'peerConnected',
 			description:
 				'A live libp2p connection to another browser. In this chapter that connection is built by scanning a QR code — there is nothing to discover until someone does.',
 			status: webRTCConnected ? 'complete' : initializationComplete ? 'active' : 'pending'
@@ -170,7 +171,7 @@
 			const response = await fetch(`${origin}/health`, { signal: controller.signal });
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 			const health = await response.json();
-			if (peerId && health.peerId !== peerId) throw new Error('Relay peer ID does not match');
+			if (peerId && health.peerId !== peerId) throw new Error($_('tech.relayPeerMismatch'));
 			if (relayHealthKey !== key) return;
 			relayVersion = getHealthVersion(health);
 			relayHealthStatus = 'verified';
@@ -234,10 +235,11 @@
 	 */
 	function getStatusLabel(complete, step) {
 		if (complete) return 'P2P network ready';
-		if (step?.label === 'Relay connected') return 'Connecting to relay';
-		if (step?.label === 'WebRTC connected') return 'Waiting for WebRTC connection';
-		if (step?.status === 'error') return `Failed to initialize ${step.label}`;
-		if (step) return `Initializing ${step.label}`;
+		if (step?.label === $_('tech.relayConnected')) return $_('tech.relayConnecting');
+		if (step?.label === $_('tech.webrtcConnected')) return 'Waiting for WebRTC connection';
+		if (step?.status === 'error')
+			return $_('steps.failed', { values: { step: $_(`steps.${step.key}.label`) } });
+		if (step) return $_('steps.initializing', { values: { step: $_(`steps.${step.key}.label`) } });
 		return 'Preparing P2P network';
 	}
 
@@ -264,10 +266,10 @@
 	</div>
 
 	<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
-		{#each allSteps as step (step.label)}
+		{#each allSteps as step (step.key)}
 			<div
 				class="flex cursor-help items-center gap-2 text-xs whitespace-nowrap text-faint outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
-				aria-label={`${step.label}: ${step.description}`}
+				aria-label={`${$_(`steps.${step.key}.label`)}: ${step.description ?? $_(`steps.${step.key}.description`)}`}
 				data-testid="p2p-status-step"
 				data-status={step.status}
 				role="button"
@@ -286,7 +288,7 @@
 					class="h-2 w-2 rounded-full shadow-sm"
 					aria-hidden="true"
 				></span>
-				<span class:text-text={step.status === 'active'}>{step.label}</span>
+				<span class:text-text={step.status === 'active'}>{$_(`steps.${step.key}.label`)}</span>
 			</div>
 		{/each}
 	</div>
@@ -297,8 +299,8 @@
 			role="tooltip"
 			data-testid="p2p-status-tooltip"
 		>
-			<span class="font-semibold">{tooltipStep.label}:</span>
-			{tooltipStep.description}
+			<span class="font-semibold">{$_(`steps.${tooltipStep.key}.label`)}:</span>
+			{tooltipStep.description ?? $_(`steps.${tooltipStep.key}.description`)}
 		</div>
 	{/if}
 
