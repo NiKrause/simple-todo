@@ -186,6 +186,22 @@ export async function forgetList(orbitdb, address) {
 	await refreshRegistry();
 }
 
+/**
+ * Delete this identity's registry database, not just an entry in it.
+ *
+ * Only callable while that identity is still live: the database name comes from
+ * a signature it makes, so once the identity is gone the database cannot even
+ * be named, let alone opened. That is why the migration drops it *before* the
+ * restart rather than cleaning up afterwards.
+ *
+ * @param {any} orbitdb
+ */
+export async function dropListRegistry(orbitdb) {
+	const db = await openListRegistry(orbitdb);
+	await db.drop();
+	resetListRegistry();
+}
+
 /** Drop the cached handle; used when the OrbitDB instance goes away. */
 export function resetListRegistry() {
 	registryDB = null;
