@@ -24,7 +24,17 @@ import { attachQrSession, resetQrSession } from './qr-transport.js';
 import { registerHandoverProtocol } from './handover-protocol.js';
 // Safe to import here: list-registry pulls in no app modules of its own, so
 // this does not close a cycle with db-actions.
-import { resetListRegistry, rememberList } from './list-registry.js';
+import {
+	resetListRegistry,
+	rememberList,
+	dropListRegistry,
+	listRegistryStore
+} from './list-registry.js';
+import {
+	stageRegistryHandoff,
+	readRegistryHandoff,
+	clearRegistryHandoff
+} from './registry-handoff.js';
 import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
 import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
 import { getTodoDatabaseName } from './default-todo-database.js';
@@ -236,6 +246,15 @@ export async function initializeP2P(
 		// already landing in it. Registered only when we opened it by name: an
 		// address passed in from outside belongs to someone else's list, and
 		// `openInitialTodoDatabase` blanks the name in that case.
+		// Finish any migration a previous session staged. Runs on every start,
+		// not just after adopting a passkey: that is what makes an interrupted
+		// migration recoverable rather than a hole. `rememberList` reads the
+		// database before writing, so re-applying entries that are already there
+		// costs one read and appends nothing.
+		void applyRegistryHandoff(orbitdb).catch((error) => {
+			console.warn('Could not carry the registry across:', error);
+		});
+
 		if (activeTodoDatabaseName && defaultTodoDbAddress) {
 			void rememberList(orbitdb, {
 				address: defaultTodoDbAddress,
@@ -269,6 +288,32 @@ export async function initializeP2P(
 }
 
 /**
+ * Write a staged registry into whichever registry is current, then let the
+ * buffer go.
+ *
+ * The clear is deliberately last and deliberately conditional: if a single
+ * entry fails to write, the buffer stays and the next start tries again. A
+ * buffer cleared on a partial success would lose exactly the entries that had
+ * the most trouble.
+ *
+ * @param {any} orbitdb
+ */
+async function applyRegistryHandoff(orbitdb) {
+	const carried = readRegistryHandoff();
+	if (carried.length === 0) return;
+
+	for (const entry of carried) {
+		await rememberList(orbitdb, {
+			address: entry.address,
+			name: entry.name || '',
+			role: entry.role === 'owner' || entry.role === 'shared' ? entry.role : 'guest'
+		});
+	}
+	clearRegistryHandoff();
+	console.log(`📇 carried ${carried.length} list(s) across the identity change`);
+}
+
+/**
  * Restart libp2p, Helia and OrbitDB with the current transport settings.
  * The active Todo DB address is preserved when one is available.
  *
@@ -288,6 +333,30 @@ export async function restartP2P(options = {}) {
 		!options.todoDbName &&
 		Boolean(activeTodoDbAddress) &&
 		activeTodoDbAddress !== defaultTodoDbAddress;
+
+	// Take the registry with us. The new identity addresses a *different*
+	// registry database — the name is derived from a signature — so without this
+	// a list received before setting up a passkey simply stops being listed, and
+	// nothing in the UI points at it any more (#214).
+	//
+	// The order is the whole design. Staging writes the entries to storage while
+	// the old identity is still alive to read them; the drop then happens while
+	// it is still alive to name its database; and only after the entries land in
+	// the new registry is the buffer cleared. An interruption anywhere in the
+	// middle leaves the buffer on disk, and the next start finishes the job.
+	if (Object.prototype.hasOwnProperty.call(options, 'passkeyCredential') && orbitdb) {
+		const carried = get(listRegistryStore);
+		if (carried.length > 0) {
+			stageRegistryHandoff(carried);
+			try {
+				await dropListRegistry(orbitdb);
+			} catch (error) {
+				// The old registry stays behind — untidy, but the entries are staged,
+				// so the migration still completes and nothing is lost.
+				console.warn('Could not drop the previous registry:', error);
+			}
+		}
+	}
 
 	await stopP2P();
 	await initializeP2P({

@@ -10,8 +10,9 @@ import { SITE_TODOS } from '../src/lib/site-todos.js';
 // The registry that remembers which lists you hold is keyed to a *signing
 // identity*: `deriveRegistryName` hashes a signature over a fixed string, so a
 // different identity means a different database, not a different row. Adopting
-// a passkey therefore does not extend Bob's registry — it swaps it for an empty
-// one belonging to somebody who has never seen Alice's list.
+// a passkey therefore does not extend Bob's registry — it addresses a new one,
+// and the entries are carried across explicitly (`registry-handoff.js`). This
+// test is what says that carrying still happens.
 //
 // Run with E2E_RELAY_MODE=isolated: no relay, no bootstrap. The only
 // introduction between the two browsers is the code.
@@ -22,12 +23,6 @@ const timeout = Number(process.env.E2E_STEP_TIMEOUT || 90_000);
 test.describe('a passkey adopted after a handover', () => {
 	test('keeps the list that arrived while anonymous', async ({ browser }) => {
 		test.setTimeout(timeout * 4);
-
-		// Known defect, encoded rather than described. `test.fail()` keeps CI
-		// honest in both directions: the suite stays green while the bug exists,
-		// and this goes *red* the moment someone fixes it, which is the signal to
-		// delete this marker. A skipped test would rot silently instead.
-		test.fail();
 
 		const aliceContext = await browser.newContext();
 		const bobContext = await browser.newContext();
