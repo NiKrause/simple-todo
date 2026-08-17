@@ -55,6 +55,36 @@ export function iceMode() {
 /**
  * @returns {{ iceServers: Array<{ urls: string[] }> }}
  */
+/**
+ * A configuration for *diagnosing* the network, which is not the same job as
+ * carrying traffic.
+ *
+ * The transport defaults to host candidates only, and that is right: this
+ * chapter hands a list to somebody standing next to you. But a diagnosis built
+ * on host candidates can only ever report "I have a LAN address", which every
+ * device always has — it cannot tell a working network from a hopeless one.
+ * Only a reflexive candidate, bounced off a STUN server, is evidence that
+ * anything outside this network can be reached.
+ *
+ * So the probe always uses STUN, whatever the transport is set to, and the
+ * verdict is phrased as a statement about the *network* rather than about what
+ * the app will do with it.
+ *
+ * @returns {{ iceServers: Array<{ urls: string[] }> }}
+ */
+export function diagnosticRtcConfiguration() {
+	const configured = import.meta.env?.VITE_STUN_SERVERS;
+	const urls = (configured || DEFAULT_STUN_SERVERS.join(','))
+		.split(',')
+		.map((/** @type {string} */ url) => url.trim())
+		.filter(Boolean);
+
+	return { iceServers: [{ urls }] };
+}
+
+/**
+ * @returns {{ iceServers: Array<{ urls: string[] }> }}
+ */
 export function rtcConfiguration() {
 	if (iceMode() !== 'stun') return { iceServers: [] };
 
