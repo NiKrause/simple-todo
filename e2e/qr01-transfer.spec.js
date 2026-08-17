@@ -6,6 +6,7 @@ import {
 	todoInput,
 	openListTab
 } from './open-app.mjs';
+import { handshake, addVirtualAuthenticator } from './qr-handover.mjs';
 // The strings only — `site-list.js` imports the app, and pulling
 // `import.meta.env` into the Node test runner makes collection fail for the
 // whole suite, not just this file.
@@ -22,12 +23,6 @@ import { SITE_TODOS } from '../src/lib/site-todos.js';
 
 const testUrl = '/';
 const timeout = 90_000;
-
-// The camera is the one thing a headless browser cannot supply. Everything
-// after the payload arrives is the same code the scanner drives — the two paths
-// differ in where the text came from and nowhere else.
-const QR_TYPE_OFFER = 'offer';
-const QR_TYPE_ANSWER = 'answer';
 
 test.describe('QR handover', () => {
 	test('a scanned code is the only introduction, and the list follows it', async ({ browser }) => {
@@ -66,7 +61,7 @@ test.describe('QR handover', () => {
 			);
 			const aliceAddress = await databaseAddress(alice);
 
-			await handshake(alice, bob);
+			await handshake(alice, bob, { timeout });
 
 			// Bob is asked, not told: the address arriving is not consent to
 			// replicate somebody else's database.
@@ -165,7 +160,7 @@ test.describe('QR handover', () => {
 			await expect(alice.getByTestId('new-list-created')).toBeVisible({ timeout });
 			const bobAddressBefore = await databaseAddress(bob);
 
-			await handshake(alice, bob);
+			await handshake(alice, bob, { timeout });
 
 			const dialog = bob.getByTestId('list-offer-dialog');
 			await expect(dialog).toBeVisible({ timeout });
@@ -181,65 +176,6 @@ test.describe('QR handover', () => {
 		}
 	});
 });
-
-/**
- * The roundtrip: Alice offers, Bob answers, Alice accepts the answer.
- *
- * @param {import('@playwright/test').Page} alice
- * @param {import('@playwright/test').Page} bob
- */
-async function handshake(alice, bob) {
-	// Seeding a list left both of them on the "make a list" tab, and the transfer
-	// controls are hidden while another tab is showing. Put them back where the
-	// app itself opens before driving the handover.
-	await openListTab(alice, 'transfer');
-	await openListTab(bob, 'transfer');
-	await alice.getByTestId('qr-transfer-start').click();
-
-	const offer = await alice.waitForFunction(
-		() => window.__simpleTodoQr?.offerPayload?.() || null,
-		undefined,
-		{ timeout }
-	);
-	const offerText = await offer.jsonValue();
-
-	const answerText = await bob.evaluate(
-		async ([text, type]) => {
-			await window.__simpleTodoQr.useScannedPayload(text, type);
-			return window.__simpleTodoQr.offerPayload();
-		},
-		[offerText, QR_TYPE_OFFER]
-	);
-	expect(answerText).toBeTruthy();
-
-	await alice.evaluate(
-		async ([text, type]) => window.__simpleTodoQr.useScannedPayload(text, type),
-		[answerText, QR_TYPE_ANSWER]
-	);
-
-	await expect(alice.getByTestId('qr-transfer-connected')).toBeVisible({ timeout });
-}
-
-/**
- * Attach a virtual authenticator so WebAuthn runs without an OS dialog.
- * @param {import('@playwright/test').Page} page
- */
-async function addVirtualAuthenticator(page) {
-	const cdp = await page.context().newCDPSession(page);
-	await cdp.send('WebAuthn.enable');
-	await cdp.send('WebAuthn.addVirtualAuthenticator', {
-		options: {
-			protocol: 'ctap2',
-			ctap2Version: 'ctap2_1',
-			transport: 'internal',
-			hasResidentKey: true,
-			hasUserVerification: true,
-			isUserVerified: true,
-			hasLargeBlob: true,
-			automaticPresenceSimulation: true
-		}
-	});
-}
 
 /** @param {import('@playwright/test').Page} page */
 function databaseAddress(page) {
