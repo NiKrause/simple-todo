@@ -75,20 +75,28 @@ test.describe('the first-launch introduction', () => {
 		}
 	});
 
-	test('reaches a verdict about this network', async ({ browser }) => {
+	test('reaches a verdict about this network, and shows it is working meanwhile', async ({
+		browser
+	}) => {
 		const context = await browser.newContext();
 		const page = await context.newPage();
 
 		try {
 			await openReadyApp(page, { intro: true, timeout });
-			// Which verdict depends on the machine running this, so the assertion is
-			// that it *settles* — a probe stuck on "checking" is the failure mode
-			// worth catching, because it would leave the advice unsaid.
-			await expect(page.getByTestId('intro-network-verdict')).not.toHaveAttribute(
-				'data-state',
-				'checking',
-				{ timeout }
-			);
+
+			// The probe runs for up to six seconds, so "checking" has to be visible
+			// and has to look like work rather than like a stall.
+			const verdict = page.getByTestId('intro-network-verdict');
+			await expect(verdict).toBeVisible({ timeout });
+
+			// Which verdict depends on the network running this, so the assertion is
+			// that it *settles* — and that it settles on one of the states the
+			// package actually reports. `local only` on a mobile network is a
+			// correct answer; the bug this replaced was reporting `open` there,
+			// because it counted host candidates every device always has.
+			await expect(verdict).toHaveAttribute('data-state', /^(open|relay|symmetric|blocked)$/, {
+				timeout
+			});
 		} finally {
 			await context.close();
 		}

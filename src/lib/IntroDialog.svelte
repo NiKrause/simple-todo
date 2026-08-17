@@ -11,60 +11,56 @@
 	import { introOpen, closeIntro } from './intro-dialog.js';
 	import LanguageSwitcher from './LanguageSwitcher.svelte';
 	import ViewModeToggle from './ViewModeToggle.svelte';
-	import { rtcConfiguration } from './ice-mode.js';
+	import { diagnosticRtcConfiguration } from './ice-mode.js';
 
 	let dontShowAgain = false;
 	let probeStarted = false;
-	/** @type {'checking' | 'ok' | 'none'} */
-	let candidates = 'checking';
+	/** @type {any} */
+	let statusEl;
+	/** `null` while the probe is still running. */
+	/** @type {'open' | 'relay' | 'symmetric' | 'blocked' | null} */
+	let verdict = null;
 
-	// Measured, not asserted. The advice below is only worth giving when this
-	// device actually has no usable path — telling two phones already sharing a
-	// hotspot to install a VPN would be wrong, so `sameNetwork` sits next to the
-	// verdict rather than being folded into it.
-	//
-	// This runs its own gathering rather than reusing `qr-status`, because that
-	// element renders only in the technical view and this verdict is needed most
-	// by the person who never leaves the simple one.
-	async function probeCandidates() {
-		if (typeof RTCPeerConnection === 'undefined') {
-			candidates = 'none';
-			return;
-		}
-		const pc = new RTCPeerConnection(rtcConfiguration());
-		let found = false;
+	/**
+	 * The verdict comes from `qr-status`, not from a second probe of my own.
+	 *
+	 * The first version of this counted *any* ICE candidate and therefore always
+	 * said "usable": every device has host candidates, its own LAN addresses.
+	 * On a mobile network it cheerfully reported "good to go" while the chips
+	 * two panels above said `local only` — the app contradicting itself, in
+	 * front of the person least able to tell which half to believe.
+	 *
+	 * `probeNetwork` counts reflexive candidates only, which are the sole
+	 * evidence that anything beyond this network answers. It is not exported
+	 * from the package entry, so the element — which has a `result` getter and
+	 * emits `probe` — is both the correct source and the only stable one.
+	 */
+	async function startProbe() {
+		await import('@le-space/libp2p-webrtc-qr/elements');
+		if (!statusEl) return;
+		// Assigned before asking it to probe, so the measurement uses STUN rather
+		// than the element's own default.
+		statusEl.rtcConfiguration = diagnosticRtcConfiguration();
+		statusEl.addEventListener('probe', (/** @type {any} */ event) => {
+			verdict = event.detail?.overall?.state ?? 'blocked';
+		});
 		try {
-			pc.createDataChannel('probe');
-			pc.onicecandidate = (event) => {
-				// An empty candidate is the end-of-gathering marker, not a path.
-				if (event.candidate?.candidate) found = true;
-			};
-			await pc.setLocalDescription(await pc.createOffer());
-			await new Promise((resolve) => {
-				const done = () => resolve(undefined);
-				pc.onicegatheringstatechange = () => pc.iceGatheringState === 'complete' && done();
-				// Gathering can stall behind a timeout on a network with no uplink,
-				// which is exactly the case this dialog exists to describe — so the
-				// verdict must not wait for it indefinitely.
-				setTimeout(done, 4000);
-			});
+			await statusEl.probe();
 		} catch {
-			// Treated as "no path": a probe that cannot run tells us nothing better.
-		} finally {
-			pc.close();
+			// A probe that cannot run tells us nothing better than "no path found".
+			verdict = 'blocked';
 		}
-		candidates = found ? 'ok' : 'none';
 	}
 
 	// Subscribed rather than done with `$:`. A reactive block that reads
-	// `candidates` and calls something that writes it is a loop as far as the
+	// `verdict` and calls something that writes it is a loop as far as the
 	// linter is concerned, and it is right to be suspicious — the guard that
 	// makes it terminate lives inside the function it cannot see.
 	onMount(() =>
 		introOpen.subscribe((open) => {
 			if (!open || probeStarted) return;
 			probeStarted = true;
-			void probeCandidates();
+			void startProbe();
 		})
 	);
 </script>
@@ -93,21 +89,40 @@
 			<div class="mt-4 rounded-md border border-border p-3" data-testid="intro-network-check">
 				<p class="text-xs font-medium text-heading">{$_('intro.check.heading')}</p>
 				<p
-					class="mt-1 text-xs text-faint"
+					class="mt-1 flex items-center gap-2 text-xs text-faint"
 					data-testid="intro-network-verdict"
-					data-state={candidates}
+					data-state={verdict ?? 'checking'}
 				>
-					{#if candidates === 'checking'}
+					{#if verdict === null}
+						<!-- The probe takes up to six seconds. A bare line of text for that
+						     long reads as stuck, and if the answer turns out to be bad news,
+						     the silence makes it look like a fault rather than a finding. -->
+						<span
+							class="inline-block h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent"
+							aria-hidden="true"
+						></span>
 						{$_('intro.check.checking')}
-					{:else if candidates === 'ok'}
-						{$_('intro.check.ok')}
+					{:else if verdict === 'open' || verdict === 'relay'}
+						{$_('intro.check.routable')}
+					{:else if verdict === 'symmetric'}
+						{$_('intro.check.localOnly')}
 					{:else}
 						{$_('intro.check.none')}
 					{/if}
 				</p>
-				{#if candidates === 'none'}
+				{#if verdict !== null && verdict !== 'open' && verdict !== 'relay'}
 					<p class="mt-1 text-xs text-faint">{$_('intro.check.sameNetwork')}</p>
 				{/if}
+				<!-- The chips themselves, for anyone who wants the detail rather than
+				     the sentence. Hidden rather than unmounted in the simple view: the
+				     element is what performs the measurement. -->
+				<div class="mt-2" class:hidden={$simpleView}>
+					<qr-status
+						bind:this={statusEl}
+						rows="browser ipv4 ipv6 camera overall"
+						data-testid="intro-network-chips"
+					></qr-status>
+				</div>
 			</div>
 
 			{#if !$simpleView}
