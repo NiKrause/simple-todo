@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { todoInput, openListTab } from './open-app.mjs';
+import { todoInput, openListTab, seedIntroDismissed } from './open-app.mjs';
 import { SITE_TODOS } from '../src/lib/site-todos.js';
 
 // The chapter's premise, tested rather than asserted in a README.
@@ -21,6 +21,13 @@ import { SITE_TODOS } from '../src/lib/site-todos.js';
 const timeout = 90_000;
 
 test.describe('offline PWA', () => {
+	// This spec navigates itself, so it never passes through `openReadyApp`.
+	// The first-launch dialog covers the page, and a click into it lands on
+	// the overlay rather than on what the test meant to press.
+	test.beforeEach(async ({ page }) => {
+		await seedIntroDismissed(page);
+	});
+
 	test('the app opens with the network gone, with and without a query string', async ({
 		page,
 		context

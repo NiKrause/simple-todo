@@ -1,5 +1,6 @@
 import { SPANISH_MNEMONIC_STORAGE_KEY } from '../../src/lib/spanish-mnemonic.js';
 import { VIEW_MODE_STORAGE_KEY } from '../../src/lib/view-mode.js';
+import { INTRO_DIALOG_STORAGE_KEY } from '../../src/lib/intro-dialog.js';
 
 const DEFAULT_TIMEOUT = 120_000;
 
@@ -68,10 +69,11 @@ export class TodoBrowserAgent {
 		// handover scenario is meant to run through the view an actual user
 		// gets. Pinning it there would quietly stop testing that.
 		await this.page.addInitScript(
-			([[mnemonicKey, mnemonicValue], [viewKey, viewValue]]) => {
+			([[mnemonicKey, mnemonicValue], [viewKey, viewValue], [introKey, introValue]]) => {
 				try {
 					localStorage.setItem(mnemonicKey, mnemonicValue);
 					if (viewValue !== null) localStorage.setItem(viewKey, viewValue);
+					localStorage.setItem(introKey, introValue);
 				} catch {
 					// Storage blocked: the app falls back to a generated mnemonic and
 					// the simple view, and whichever assertion needed the specific list
@@ -80,7 +82,10 @@ export class TodoBrowserAgent {
 			},
 			[
 				[SPANISH_MNEMONIC_STORAGE_KEY, mnemonic],
-				[VIEW_MODE_STORAGE_KEY, technicalView ? 'false' : null]
+				[VIEW_MODE_STORAGE_KEY, technicalView ? 'false' : null],
+				// The first-launch dialog covers the page; a harness driving the UI
+				// would be clicking into an overlay.
+				[INTRO_DIALOG_STORAGE_KEY, 'true']
 			]
 		);
 

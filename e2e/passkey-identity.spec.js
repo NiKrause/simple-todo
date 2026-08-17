@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test';
 import { SPANISH_MNEMONIC_STORAGE_KEY } from '../src/lib/spanish-mnemonic.js';
-import { createPasskey, restorePasskey as restoreSharedPasskey } from './open-app.mjs';
+import {
+	createPasskey,
+	restorePasskey as restoreSharedPasskey,
+	seedIntroDismissed
+} from './open-app.mjs';
 
 // Chapter (passkey01): Alice and Bob each register a WebAuthn passkey in
 // their own browser context (CDP virtual authenticator), write todos into
@@ -94,6 +98,10 @@ async function addVirtualAuthenticator(page) {
  */
 async function openReadyAppWithNewPasskey(page, { userId, displayName }) {
 	await seedSharedList(page);
+	// Seeded here rather than in a `beforeEach`: this spec builds its own
+	// contexts and pages, so a hook on the `page` fixture would dismiss the
+	// dialog for a page nobody uses and leave the real ones covered by it.
+	await seedIntroDismissed(page);
 	await page.goto(testUrl);
 	// qr01 opens anonymously with no gate, then upgrades on a real click.
 	await expectAppReady(page);
