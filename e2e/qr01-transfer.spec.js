@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { openReadyApp, createPasskey, expectAppReady, todoInput } from './open-app.mjs';
+import {
+	openReadyApp,
+	createPasskey,
+	expectAppReady,
+	todoInput,
+	openListTab
+} from './open-app.mjs';
 // The strings only — `site-list.js` imports the app, and pulling
 // `import.meta.env` into the Node test runner makes collection fail for the
 // whole suite, not just this file.
@@ -51,6 +57,7 @@ test.describe('QR handover', () => {
 			});
 
 			// Alice prepares the ten items in the office.
+			await openListTab(alice, 'create');
 			await alice.getByTestId('new-list-seed-site').click();
 			await expect(alice.getByTestId('new-list-created')).toBeVisible({ timeout });
 			await expect(alice.getByText(SITE_TODOS[0], { exact: true })).toBeVisible({ timeout });
@@ -79,6 +86,7 @@ test.describe('QR handover', () => {
 
 			// Held, not owned. acl01's registry already draws this distinction and
 			// the write is refused by the access controller rather than by the UI.
+			await openListTab(bob, 'create');
 			await expect(bob.getByTestId('list-switcher')).toContainText('Excavation and basement', {
 				timeout
 			});
@@ -118,6 +126,7 @@ test.describe('QR handover', () => {
 			// mount, so Bob reopens the received one the way a person would —
 			// which is also what proves the *blocks* survived and not merely the
 			// entry naming them.
+			await openListTab(bob, 'create');
 			await expect(bob.getByTestId('list-switcher')).toContainText('Excavation and basement', {
 				timeout
 			});
@@ -151,6 +160,7 @@ test.describe('QR handover', () => {
 				openReadyApp(bob, { url: testUrl, timeout })
 			]);
 
+			await openListTab(alice, 'create');
 			await alice.getByTestId('new-list-seed-site').click();
 			await expect(alice.getByTestId('new-list-created')).toBeVisible({ timeout });
 			const bobAddressBefore = await databaseAddress(bob);
@@ -179,6 +189,11 @@ test.describe('QR handover', () => {
  * @param {import('@playwright/test').Page} bob
  */
 async function handshake(alice, bob) {
+	// Seeding a list left both of them on the "make a list" tab, and the transfer
+	// controls are hidden while another tab is showing. Put them back where the
+	// app itself opens before driving the handover.
+	await openListTab(alice, 'transfer');
+	await openListTab(bob, 'transfer');
 	await alice.getByTestId('qr-transfer-start').click();
 
 	const offer = await alice.waitForFunction(
