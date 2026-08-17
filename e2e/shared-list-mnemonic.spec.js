@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { seedIntroDismissed } from './open-app.mjs';
 
 const testUrl = '/';
 const timeout = 90000;
@@ -107,6 +108,10 @@ test.describe('Spanish mnemonic shared todo lists', () => {
 
 /** @param {import('@playwright/test').Page} page */
 async function openSelection(page) {
+	// Seeded here rather than in a `beforeEach`: this spec builds its own
+	// contexts and pages, so a hook on the `page` fixture would dismiss the
+	// dialog for a page nobody uses and leave the real ones covered by it.
+	await seedIntroDismissed(page);
 	await page.goto(testUrl);
 	const modal = page.locator('div.fixed.inset-0.z-50');
 	await expect(modal).toBeVisible();

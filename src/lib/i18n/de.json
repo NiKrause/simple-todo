@@ -208,5 +208,32 @@
 		"anyoneHint": "Wer diesen Code kennt, kann dieselbe öffentliche Datenbank öffnen und darin schreiben, sobald eine Verbindung besteht.",
 		"replicationHint": "Das Mnemonic wählt dieselbe Datenbank aus. Für die Live-Übertragung braucht es zusätzlich eine Verbindung zu einem anderen Browser.",
 		"openAnother": "Andere geteilte Liste öffnen"
+	},
+	"intro": {
+		"title": "Wie das hier funktioniert",
+		"simple": {
+			"lead": "Sie haben eine Liste, und jemand neben Ihnen braucht sie. Sie halten einen Code hoch, das andere Telefon liest ihn mit der Kamera — fertig.",
+			"offline": "Dafür braucht es kein Internet. Die Liste geht direkt von einem Gerät zum anderen.",
+			"hotspot": "Die zwei Geräte müssen aber im selben Netz sein. Sind sie es nicht, macht eines einen WLAN-Hotspot auf und das andere verbindet sich damit.",
+			"passkey": "Ein Passkey ist Ihre Unterschrift. Er zeigt der anderen Seite, dass die Einträge von Ihnen kommen. Sie können die App auch ohne benutzen."
+		},
+		"tech": {
+			"heading": "Warum es im Mobilfunknetz manchmal scheitert",
+			"nat": "Mobilfunknetze arbeiten meist mit symmetrischem NAT. Das verhindert genau die direkte Verbindung, die der Code aufbaut.",
+			"chromeIpv6": "Chrome gibt keine IPv6-WebRTC-Kandidaten heraus — also fällt der Weg weg, der im Mobilfunknetz sonst funktionieren würde.",
+			"browsers": "DuckDuckGo und Safari geben IPv6-Kandidaten zuverlässig weiter. Aber Achtung: DuckDuckGo beherrscht auf Android und GrapheneOS unter Umständen keine Passkeys.",
+			"graphene": "Vanadium auf GrapheneOS funktioniert gut, wenn WebRTC in den Sicherheitseinstellungen freigeschaltet ist — und bei Passkeys zusätzlich Passchain von Accrescent installiert ist.",
+			"vpn": "Hängen beide Geräte am Mobilfunknetz, hilft ein VPN wie NymVPN über das NAT hinweg."
+		},
+		"check": {
+			"heading": "Dieses Gerät gerade",
+			"checking": "Wird geprüft…",
+			"ok": "Ihr Netz gibt brauchbare Verbindungswege her. Sie können loslegen.",
+			"none": "Ihr Netz liefert weder über IPv4 noch über IPv6 einen brauchbaren Verbindungsweg. Nehmen Sie ein Netz mit funktionierendem WebRTC — oder ein VPN wie NymVPN.",
+			"sameNetwork": "Sind Sie mit dem anderen Gerät im selben WLAN oder Hotspot, ist das gleichgültig und es funktioniert trotzdem."
+		},
+		"dontShow": "Nicht mehr zeigen",
+		"close": "Los geht's",
+		"reopen": "Erklärung noch einmal zeigen"
 	}
 }

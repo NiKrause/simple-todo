@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import { SPANISH_MNEMONIC_STORAGE_KEY } from '../src/lib/spanish-mnemonic.js';
 import { VIEW_MODE_STORAGE_KEY } from '../src/lib/view-mode.js';
+import { INTRO_DIALOG_STORAGE_KEY } from '../src/lib/intro-dialog.js';
 
 /**
  * Opening the app, for a chapter that has no consent screen.
@@ -40,6 +41,30 @@ export async function openListTab(page, tab) {
 	const control = page.getByTestId(`list-tab-${tab}`);
 	await control.waitFor({ state: 'visible' });
 	await control.click();
+}
+
+/**
+ * Mark the first-launch introduction as already seen.
+ *
+ * Called by `openReadyApp` for every spec by default. The dialog covers the
+ * page, so without this each existing spec would be clicking into an overlay
+ * and failing on something that has nothing to do with what it tests. The spec
+ * that is *about* the introduction opts out with `{ intro: true }`.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+export async function seedIntroDismissed(page) {
+	await page.addInitScript(
+		([key, value]) => {
+			try {
+				localStorage.setItem(key, value);
+			} catch {
+				// Storage blocked: the dialog appears and whichever click it swallows
+				// fails there, which names the dialog rather than this helper.
+			}
+		},
+		[INTRO_DIALOG_STORAGE_KEY, 'true']
+	);
 }
 
 /**
@@ -93,10 +118,13 @@ export async function seedSharedList(page, mnemonic) {
  * Navigate and wait until the app can actually be written to.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ url?: string, mnemonic?: string, timeout?: number }} [options]
+ * @param {{ url?: string, mnemonic?: string, timeout?: number, intro?: boolean }} [options]
+ *   `intro: true` leaves the first-launch dialog in place; everything else gets
+ *   it dismissed, because it covers the page.
  */
 export async function openReadyApp(page, options = {}) {
-	const { url = '/', mnemonic, timeout = 90_000 } = options;
+	const { url = '/', mnemonic, timeout = 90_000, intro = false } = options;
+	if (!intro) await seedIntroDismissed(page);
 	if (mnemonic) await seedSharedList(page, mnemonic);
 	await page.goto(url);
 	await expectAppReady(page, timeout);
