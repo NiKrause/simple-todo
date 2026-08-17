@@ -208,5 +208,32 @@
 		"anyoneHint": "Anyone who knows this share code can open the same public database and edit it once connected.",
 		"replicationHint": "The mnemonic selects the same database. Live replication also requires a connection to another browser peer.",
 		"openAnother": "Open another shared list"
+	},
+	"intro": {
+		"title": "How this works",
+		"simple": {
+			"lead": "You have a list, and somebody next to you needs it. You hold up a code, their phone reads it with its camera — done.",
+			"offline": "No internet needed. The list goes straight from one device to the other.",
+			"hotspot": "The two devices do have to be on the same network. If they are not, one of them opens a Wi-Fi hotspot and the other joins it.",
+			"passkey": "A passkey is your signature. It shows the other side that the entries came from you. You can use the app without one."
+		},
+		"tech": {
+			"heading": "Why it sometimes fails on a mobile network",
+			"nat": "Mobile networks commonly use symmetric NAT, which defeats exactly the direct connection the code sets up.",
+			"chromeIpv6": "Chrome does not surface IPv6 WebRTC candidates, so the path that would otherwise work on a mobile network is not offered at all.",
+			"browsers": "DuckDuckGo and Safari pass IPv6 candidates reliably. One caveat: DuckDuckGo may not support passkeys on Android or GrapheneOS.",
+			"graphene": "Vanadium on GrapheneOS works well with WebRTC enabled in the security settings — and, if you use passkeys, Passchain from Accrescent installed.",
+			"vpn": "If both devices are on mobile data, a VPN such as NymVPN gets you past the NAT."
+		},
+		"check": {
+			"heading": "This device, right now",
+			"checking": "Checking…",
+			"ok": "Your network offers usable connection paths. You are good to go.",
+			"none": "Your network offers no usable path over IPv4 or IPv6. Use a network with working WebRTC — or a VPN such as NymVPN.",
+			"sameNetwork": "If you are on the same Wi-Fi or hotspot as the other device, none of this matters and it works anyway."
+		},
+		"dontShow": "Don't show this again",
+		"close": "Get started",
+		"reopen": "Show the explanation again"
 	}
 }

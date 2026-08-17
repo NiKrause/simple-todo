@@ -3,6 +3,9 @@
 	import { _ } from '$lib/i18n/index.js';
 	import LanguageSwitcher from '$lib/LanguageSwitcher.svelte';
 	import ViewModeToggle from '$lib/ViewModeToggle.svelte';
+	import IntroDialog from '$lib/IntroDialog.svelte';
+	import { hydrateIntro, openIntro } from '$lib/intro-dialog.js';
+	import { readInviteLink } from '$lib/invite-link.js';
 	import { simpleView, hydrateViewMode } from '$lib/view-mode.js';
 	import { peerIdStore, initializeP2P, initializationStore, restartP2P } from '$lib/p2p.js';
 	import IdentityPanel from '$lib/IdentityPanel.svelte';
@@ -88,6 +91,10 @@
 
 	onMount(async () => {
 		hydrateViewMode();
+		// Not in front of somebody who followed a shared link: they came to accept
+		// a list, and an introduction would stand between them and the one thing
+		// they arrived to do. They get it on their next plain visit.
+		hydrateIntro({ arrivedViaInvite: Boolean(readInviteLink()) });
 		// Straight into the app: no consent screen, nothing to dismiss, no
 		// decision required before anything works. This chapter is used on a
 		// construction site with a phone in one hand, and the previous chapters'
@@ -252,6 +259,17 @@
 		<div class="flex flex-shrink-0 items-center gap-2 self-start sm:self-auto">
 			<LanguageSwitcher />
 			<ViewModeToggle />
+			<!-- Dismissing the introduction must not be a one-way door. -->
+			<button
+				type="button"
+				on:click={openIntro}
+				data-testid="intro-reopen"
+				title={$_('intro.reopen')}
+				aria-label={$_('intro.reopen')}
+				class="rounded-md border border-border px-2 py-1 text-xs text-faint hover:text-text"
+			>
+				?
+			</button>
 			<ThemeToggle />
 			{#if !$simpleView}
 				<SocialIcons size="w-5 h-5" className="" />
@@ -407,3 +425,5 @@
 		<SponsorRelayFab manifestUrl="./rootfs-manifest.json" showInstances={true} />
 	</div>
 {/if}
+
+<IntroDialog />
