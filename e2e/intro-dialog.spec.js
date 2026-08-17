@@ -97,6 +97,21 @@ test.describe('the first-launch introduction', () => {
 			await expect(verdict).toHaveAttribute('data-state', /^(open|relay|symmetric|blocked)$/, {
 				timeout
 			});
+
+			// The advice has to follow the verdict, not sit there regardless.
+			// Telling somebody on a working network to install a VPN is the kind of
+			// boilerplate that teaches people to skip the dialog.
+			const state = await verdict.getAttribute('data-state');
+			const advice = page.getByTestId('intro-vpn-advice');
+			if (state === 'open' || state === 'relay') {
+				await expect(advice).toBeHidden();
+			} else {
+				await expect(advice).toBeVisible();
+				await expect(advice.getByRole('link', { name: 'NymVPN' })).toHaveAttribute(
+					'href',
+					'https://nymvpn.com/'
+				);
+			}
 		} finally {
 			await context.close();
 		}

@@ -231,7 +231,10 @@
 			"none": "Ihr Netz gibt weder über IPv4 noch über IPv6 einen Weg nach außen her.",
 			"sameNetwork": "Sind Sie mit dem anderen Gerät im selben WLAN oder Hotspot, ist das gleichgültig und es funktioniert trotzdem.",
 			"routable": "Ihr Netz lässt eine direkte Verbindung auch zu Geräten in anderen Netzen zu.",
-			"localOnly": "Ihr Netz vergibt pro Ziel einen neuen Port (symmetrisches NAT). Zu einem Gerät in einem anderen Netz kommen Sie damit nicht durch."
+			"localOnly": "Ihr Netz vergibt pro Ziel einen neuen Port (symmetrisches NAT). Zu einem Gerät in einem anderen Netz kommen Sie damit nicht durch.",
+			"vpnBefore": "Wollen Sie Daten mit einem Gerät über das Internet austauschen, hilft ein VPN wie ",
+			"vpnLink": "NymVPN",
+			"vpnAfter": " über dieses Hindernis hinweg."
 		},
 		"dontShow": "Nicht mehr zeigen",
 		"close": "Los geht's",

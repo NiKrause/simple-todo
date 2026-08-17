@@ -231,7 +231,10 @@
 			"none": "Your network offers no path out over IPv4 or IPv6.",
 			"sameNetwork": "If you are on the same Wi-Fi or hotspot as the other device, none of this matters and it works anyway.",
 			"routable": "Your network allows a direct connection even to devices on other networks.",
-			"localOnly": "Your network assigns a new port per destination (symmetric NAT). That will not reach a device on another network."
+			"localOnly": "Your network assigns a new port per destination (symmetric NAT). That will not reach a device on another network.",
+			"vpnBefore": "If you want to exchange data with a device over the internet, a VPN such as ",
+			"vpnLink": "NymVPN",
+			"vpnAfter": " gets you past this."
 		},
 		"dontShow": "Don't show this again",
 		"close": "Get started",
