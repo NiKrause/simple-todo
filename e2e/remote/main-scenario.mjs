@@ -71,7 +71,10 @@ export async function runMainRemoteScenario({
 	await mkdir(outputDir, { recursive: true });
 
 	try {
-		await Promise.all([agentA.open(sharedMnemonic), agentB.open(sharedMnemonic)]);
+		await Promise.all([
+			agentA.open(sharedMnemonic, { technicalView: true }),
+			agentB.open(sharedMnemonic, { technicalView: true })
+		]);
 		setStage('verifying-relays');
 		if (requirePublicRelay) {
 			const [relayOptionsA, relayOptionsB] = await Promise.all([

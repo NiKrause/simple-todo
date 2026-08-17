@@ -1,4 +1,5 @@
 import { SPANISH_MNEMONIC_STORAGE_KEY } from '../../src/lib/spanish-mnemonic.js';
+import { VIEW_MODE_STORAGE_KEY } from '../../src/lib/view-mode.js';
 
 const DEFAULT_TIMEOUT = 120_000;
 
@@ -18,7 +19,12 @@ export class TodoBrowserAgent {
 		this.log = [];
 	}
 
-	async open(mnemonic) {
+	/**
+	 * @param {string} mnemonic
+	 * @param {{ technicalView?: boolean }} [options] `technicalView` is required
+	 *   by any caller that drives the network panel or the relay select.
+	 */
+	async open(mnemonic, { technicalView = false } = {}) {
 		this.context = await this.browser.newContext();
 		this.page = await this.context.newPage();
 		this.page.on('console', (message) => {
@@ -51,16 +57,31 @@ export class TodoBrowserAgent {
 		// so `onMount` picks it up on the first pass. Driving the in-app editor
 		// instead would mean opening one list only to restart the whole P2P
 		// stack onto another, on every agent, in every test.
+		// `technicalView` is not cosmetic: `networkDetails()` and the relay
+		// select live inside `P2PStatusNav`, which renders only in the technical
+		// view, and the app opens in the simple one. A caller that dials a relay
+		// and does not ask for the technical view waits for controls that are
+		// not in the DOM — measured as a 50-minute timeout with nothing logged
+		// after "opening ...".
+		//
+		// It stays opt-in rather than becoming the default, because the qr01
+		// handover scenario is meant to run through the view an actual user
+		// gets. Pinning it there would quietly stop testing that.
 		await this.page.addInitScript(
-			([key, value]) => {
+			([[mnemonicKey, mnemonicValue], [viewKey, viewValue]]) => {
 				try {
-					localStorage.setItem(key, value);
+					localStorage.setItem(mnemonicKey, mnemonicValue);
+					if (viewValue !== null) localStorage.setItem(viewKey, viewValue);
 				} catch {
-					// Storage blocked: the app falls back to a generated mnemonic,
-					// and the test that needs a specific one will fail loudly there.
+					// Storage blocked: the app falls back to a generated mnemonic and
+					// the simple view, and whichever assertion needed the specific list
+					// or a technical-view control fails there, naming that, not storage.
 				}
 			},
-			[SPANISH_MNEMONIC_STORAGE_KEY, mnemonic]
+			[
+				[SPANISH_MNEMONIC_STORAGE_KEY, mnemonic],
+				[VIEW_MODE_STORAGE_KEY, technicalView ? 'false' : null]
+			]
 		);
 
 		remoteProgress(`[${this.name}] opening ${this.appUrl}...`);

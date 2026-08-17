@@ -15,6 +15,7 @@ import {
 	SPANISH_MNEMONIC_STORAGE_KEY
 } from '../src/lib/spanish-mnemonic.js';
 import { VIEW_MODE_STORAGE_KEY } from '../src/lib/view-mode.js';
+import { PREVIEW_ORIGIN } from './preview-origin.mjs';
 
 // Chapter (collab01): provisions a real relay through the Relay Button UI and
 // replicates a Spanish-mnemonic-named shared OrbitDB list between two browsers.
@@ -25,7 +26,7 @@ import { VIEW_MODE_STORAGE_KEY } from '../src/lib/view-mode.js';
 
 const PRIVATE_KEY = process.env.RELAY_BUTTON_E2E_PRIVATE_KEY?.trim();
 const SSH_PUBLIC_KEY = process.env.RELAY_BUTTON_E2E_SSH_PUBLIC_KEY?.trim();
-const APP_URL = process.env.RELAY_BUTTON_E2E_APP_URL ?? 'http://localhost:4173';
+const APP_URL = process.env.RELAY_BUTTON_E2E_APP_URL ?? PREVIEW_ORIGIN;
 const OUTPUT_DIR = 'test-results/relay-button';
 // Must fit several CRN failover attempts: a single failed attempt costs
 // 7-13 min (VM boot + config-ack wait + HTTPS activation wait) before the
@@ -290,7 +291,10 @@ relayTest.describe('Relay Button', () => {
 					: Promise.resolve({ error: new Error('No 2n6 health address was published.') });
 
 				// Phase 2: Browser A + B open the shared mnemonic list and connect.
-				await Promise.all([agentA.open(sharedMnemonic), agentB.open(sharedMnemonic)]);
+				await Promise.all([
+					agentA.open(sharedMnemonic, { technicalView: true }),
+					agentB.open(sharedMnemonic, { technicalView: true })
+				]);
 				const relayConnection = await connectBrowsersToRelay(
 					[agentA, agentB],
 					relayAddresses,
