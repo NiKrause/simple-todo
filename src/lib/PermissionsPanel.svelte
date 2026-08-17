@@ -95,7 +95,7 @@
 	>
 		<h2 class="text-lg font-semibold text-heading">{$_('tech.writePermissions')}</h2>
 		<p class="mt-1 text-xs text-faint">
-			DIDs allowed to write to this list. Only list admins (the creator) can grant or revoke.
+			{$_('lists.permissionsHint')}
 		</p>
 
 		<ul class="mt-3 space-y-1">
@@ -137,7 +137,7 @@
 				data-testid="permission-add"
 				class="rounded-md bg-cyan-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-cyan-700 disabled:opacity-50"
 			>
-				Add DID
+				{$_('lists.addDid')}
 			</button>
 		</div>
 

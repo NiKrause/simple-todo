@@ -333,9 +333,9 @@
 						clip-rule="evenodd"
 					/>
 				</svg>
-				<span>Network details</span>
+				<span>{$_('net.details')}</span>
 				<span class="font-normal text-faint"
-					>· {connectedPeerCount} {connectedPeerCount === 1 ? 'peer' : 'peers'}</span
+					>· {$_('net.peers', { values: { count: connectedPeerCount } })}</span
 				>
 				{#if peerId}
 					<code class="hidden font-mono font-normal text-faint sm:inline"

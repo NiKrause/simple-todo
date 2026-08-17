@@ -112,12 +112,15 @@
 			data-testid="new-list-created"
 		>
 			<p class="text-xs text-heading">
-				Created <strong data-testid="new-list-created-name">{created.name}</strong> — you are now writing
-				to it.
+				<!-- Split rather than `{@html}` with the name interpolated: the name is
+				     whatever the user typed, and putting that through `@html` would
+				     execute a list called `<script>…`. Svelte escapes it here. -->
+				{$_('lists.createdBefore')}<strong data-testid="new-list-created-name"
+					>{created.name}</strong
+				>{$_('lists.createdAfter')}
 			</p>
 			<p class="mt-2 text-xs text-faint">
-				Share this address so others can open the list. They can read it right away; writing needs a
-				grant below.
+				{$_('lists.shareAddress')}
 			</p>
 			<div class="mt-1 flex items-center gap-2">
 				<code

@@ -75,6 +75,7 @@
 		"noWritePermission": "You cannot add to this list — it belongs to someone else."
 	},
 	"tabs": {
+		"transfer": "Hand the list over",
 		"create": "Make a list",
 		"open": "Open a shared list"
 	},
@@ -114,6 +115,7 @@
 		"writePermissions": "Write permissions",
 		"didPlaceholder": "did:key:… of the identity to allow",
 		"openByAddress": "Open a shared list by address",
+		"openByAddressHint": "Paste the full OrbitDB address someone shared with you. You can read it right away — writing needs a permission grant from the owner.",
 		"opening": "Opening…",
 		"openList": "Open list",
 		"webrtcWaiting": "Waiting for a WebRTC connection"
@@ -157,5 +159,54 @@
 			"label": "WebRTC connected",
 			"description": "A direct WebRTC connection to another browser."
 		}
+	},
+	"lists": {
+		"heading": "Your lists",
+		"kept": "Kept in your own OrbitDB registry, so they come back after a reload and follow your passkey to another device.",
+		"forget": "Forget",
+		"drop": "Drop",
+		"role": {
+			"owner": "owner",
+			"guest": "guest",
+			"shared": "public"
+		},
+		"shareAddress": "Share this address so others can open the list. They can read it right away; writing needs a grant below.",
+		"permissionsHint": "DIDs allowed to write to this list. Only list admins (the creator) can grant or revoke.",
+		"addDid": "Add DID",
+		"createdBefore": "Created ",
+		"createdAfter": " — you are now writing to it.",
+		"unnamed": "unnamed list",
+		"active": "open"
+	},
+	"net": {
+		"details": "Network details",
+		"peers": "{count, plural, =0 {no peers} one {1 peer} other {# peers}}",
+		"connectToRelay": "Connect to relay",
+		"relayHint": "Choose a current browser-reachable relay discovered through Aleph.",
+		"discovering": "Discovering and pinging Aleph relays…",
+		"noRelayAddresses": "No relay addresses discovered",
+		"loading": "Loading…",
+		"refresh": "Refresh",
+		"customMultiaddr": "Use a custom multiaddress",
+		"discoveryFailed": "Aleph relay discovery failed: {reason}",
+		"discoveryUnavailable": "Relay discovery unavailable",
+		"nonePinged": "None of the {count} discovered relay addresses answered a libp2p ping.",
+		"noDialable": "No current browser-dialable relays were found.",
+		"refreshOrCustom": "Refresh or enter a custom multiaddress.",
+		"connecting": "Connecting…",
+		"connect": "Connect",
+		"peersTitle": "Connected Peers",
+		"peersEmpty": "No peers connected yet."
+	},
+	"shared": {
+		"writingToBefore": "You are writing to ",
+		"writingToAfter": ". The mnemonic below still refers to the public shared list.",
+		"mnemonicLabel": "Public mnemonic / OrbitDB database name",
+		"copy": "Copy",
+		"copied": "Copied!",
+		"addressLabel": "OrbitDB address",
+		"anyoneHint": "Anyone who knows this share code can open the same public database and edit it once connected.",
+		"replicationHint": "The mnemonic selects the same database. Live replication also requires a connection to another browser peer.",
+		"openAnother": "Open another shared list"
 	}
 }

@@ -1,6 +1,7 @@
 <script>
 	import { onDestroy } from 'svelte';
 	import { writable } from 'svelte/store';
+	import { _ } from '$lib/i18n/index.js';
 	import { formatPeerId } from './utils.js';
 	import TransportBadge from './TransportBadge.svelte';
 
@@ -17,8 +18,11 @@
 	// Plugin interface - only needs libp2p instance
 	/** @type {any} */
 	export let libp2p = null;
-	export let title = 'Connected Peers';
-	export let emptyMessage = 'No peers connected yet.';
+	// Left empty rather than defaulted to a translated string: a prop default is
+	// evaluated once, so a translated one would freeze the language it was first
+	// rendered in. The fallbacks below are reactive and follow the locale.
+	export let title = '';
+	export let emptyMessage = '';
 	export let showOnlineIndicator = true;
 	export let autoConnect = true;
 	export let compact = false;
@@ -424,7 +428,7 @@
 		class:text-sm={compact}
 		class="font-semibold"
 	>
-		{title} ({$peers.length})
+		{title || $_('net.peersTitle')} ({$peers.length})
 	</h2>
 	{#if $peers.length > 0}
 		<div
@@ -462,6 +466,6 @@
 			{/each}
 		</div>
 	{:else}
-		<p class:h-28={compact} class="text-xs text-faint">{emptyMessage}</p>
+		<p class:h-28={compact} class="text-xs text-faint">{emptyMessage || $_('net.peersEmpty')}</p>
 	{/if}
 </div>
