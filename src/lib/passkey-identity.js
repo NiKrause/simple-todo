@@ -14,9 +14,7 @@
 // see the chapter README.
 import {
 	WebAuthnDIDProvider,
-	createDidLargeBlobPayload,
 	parseDidLargeBlobPayload,
-	writeLargeBlobMetadata,
 	readLargeBlobMetadata,
 	storeWebAuthnCredential,
 	loadWebAuthnCredential,
@@ -41,37 +39,29 @@ export async function createPasskeyCredential({ userId, displayName }) {
 	// localStorage fallback first — it never fails for platform reasons.
 	storeWebAuthnCredential(credential, CREDENTIAL_STORAGE_KEY);
 
-	// Best effort: put the metadata into the authenticator's largeBlob so the
-	// identity survives a cleared browser profile. Costs one extra WebAuthn
-	// prompt right after registration; not every authenticator supports it.
-	try {
-		// The package's own `types/index.d.ts` is wrong for these three, checked
-		// against `src/webauthn/large-blob-metadata.js` in 0.5.0: it declares
-		// `createDidLargeBlobPayload(credentialInfo)` and
-		// `writeLargeBlobMetadata(credentialId, payload, options?)`, while the
-		// implementations take `(credential, did)` and a single destructured object.
-		// `readLargeBlobMetadata` is declared as returning `unknown`, so reading
-		// `.blob` off it fails too.
-		//
-		// The calls below match the *implementation*. Changing them to satisfy the
-		// declarations would break working code — `writeLargeBlobMetadata` would
-		// receive the whole options object as `credentialId` and `undefined` as the
-		// payload, and fail silently into the catch below, looking like an
-		// authenticator that does not support largeBlob.
-		//
-		// `@ts-expect-error` rather than a cast, deliberately: it turns into an
-		// error of its own once the package ships correct types, which is the
-		// signal to delete these lines.
-		// @ts-expect-error package types disagree with its implementation (0.5.0)
-		const payload = createDidLargeBlobPayload(credential, credential.did);
-		// @ts-expect-error package types disagree with its implementation (0.5.0)
-		await writeLargeBlobMetadata({
-			credentialId: credential.rawCredentialId,
-			payload
-		});
-	} catch (error) {
-		console.warn('largeBlob write skipped (falling back to localStorage only):', error);
-	}
+	// The largeBlob write used to sit here, and it cost a WebAuthn prompt to do
+	// nothing at all.
+	//
+	// Measured by wrapping `navigator.credentials`: the write assertion returns
+	// `largeBlob: { written: false }`, every time. `WebAuthnDIDProvider.
+	// createCredential` never requests the extension at registration — PRF and
+	// hmac-secret get theirs, largeBlob is left with a comment saying the write
+	// happens later — and the WebAuthn spec only permits writing a blob to a
+	// credential registered with `largeBlob: { support: ... }`. So there was
+	// nothing to write to.
+	//
+	// It also *looked* like it worked, because the return value was discarded:
+	// `writeLargeBlobMetadata` reports the outcome in `extensionResults`, and
+	// only an exception would have been noticed. Nothing threw.
+	//
+	// So this is removed rather than moved behind a button. A button offering to
+	// back the passkey up would fail in exactly the same way, and an action that
+	// asks for a fingerprint and silently achieves nothing is worse than no
+	// action. Registering with the extension is an upstream change; when it
+	// lands, the explicit backup step is worth adding.
+	//
+	// Creating a passkey now costs three WebAuthn prompts instead of four:
+	// `create` (prf), `get` (prf, keystore), `get` (signIdentity).
 
 	return credential;
 }
