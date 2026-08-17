@@ -8,8 +8,15 @@
 
 	/** @type {'create' | 'existing' | 'anonymous'} */
 	export let mode = 'anonymous';
-	export let userId = '';
-	export let displayName = '';
+
+	// One field, because there is only one thing to say. WebAuthn takes a
+	// `user.name` and a `displayName`, but both are labels for the credential
+	// picker — neither identifies the passkey. What identifies it is the user
+	// handle, which the identity provider now generates as 64 random bytes
+	// instead of deriving it from the text typed here
+	// (Le-Space/orbitdb-identity-provider-webauthn-did#45). Asking twice for a
+	// label suggested the first one meant something.
+	export let label = '';
 
 	const hasStoredPasskey = hasStoredPasskeyCredential();
 
@@ -17,7 +24,9 @@
 		{
 			value: 'create',
 			label: 'Create a passkey',
-			hint: 'Register a new WebAuthn passkey and derive your OrbitDB identity (DID) from it.'
+			hint: hasStoredPasskey
+				? 'Register another WebAuthn passkey — a second identity alongside the one already on this device.'
+				: 'Register a new WebAuthn passkey and derive your OrbitDB identity (DID) from it.'
 		},
 		{
 			value: 'existing',
@@ -56,21 +65,18 @@
 	</div>
 
 	{#if mode === 'create'}
-		<div class="mt-3 grid gap-2 sm:grid-cols-2">
+		<div class="mt-3">
 			<input
 				type="text"
-				bind:value={userId}
-				placeholder="user id (e.g. alice@example.com)"
-				data-testid="passkey-user-id"
-				class="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
+				bind:value={label}
+				placeholder="name for this passkey (e.g. Alice)"
+				data-testid="passkey-label"
+				class="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
 			/>
-			<input
-				type="text"
-				bind:value={displayName}
-				placeholder="display name (e.g. Alice)"
-				data-testid="passkey-display-name"
-				class="rounded-md border border-gray-300 px-2 py-1.5 text-sm"
-			/>
+			<p class="mt-1 text-xs text-gray-500" data-testid="passkey-label-hint">
+				Only a label for the passkey picker. Your identity comes from the key, not from this name —
+				two people on this device may use the same one.
+			</p>
 		</div>
 	{/if}
 </fieldset>

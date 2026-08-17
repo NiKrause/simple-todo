@@ -24,8 +24,8 @@ OrbitDB identity: entries were attributable to *a* peer, but not to *you*.
 This chapter replaces that with an opt-in **passkey-backed identity**:
 
 - **Onboarding choice** before the P2P stack starts: *create a passkey*
-  (user id + display name), *use an existing passkey* (recovery), or
-  *continue without one* (exactly the previous chapter's behaviour).
+  (one name, and it is only a label), *use an existing passkey* (recovery),
+  or *continue without one* (exactly the previous chapter's behaviour).
 - **Keystore-based DID provider** from
   [`@le-space/orbitdb-identity-provider-webauthn-did`](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did)
   with `encryptKeystore`: an Ed25519 OrbitDB signing key is encrypted at
@@ -44,6 +44,25 @@ This chapter replaces that with an opt-in **passkey-backed identity**:
 - **Access control is unchanged** (`write: ['*']`): this chapter is only
   about *who you are*, not yet about *who may write*. That is the next
   chapter (`acl01`).
+
+### The name you type is a label, not your identity
+
+The onboarding form asks for one name, and nothing depends on it. A passkey
+carries two human-readable fields (`user.name` and `displayName`) that exist
+only so the browser's passkey picker has something to show. What identifies
+the credential is the **user handle**, 64 random bytes the identity provider
+generates — and your DID comes from the credential's public key, not from
+either of them. Two people on the same device may type the same name and
+still get two separate identities.
+
+That is worth stating because it was not always true. While the handle was
+derived from the typed name, an authenticator — which keeps one credential
+per (origin, handle) — silently **replaced** the earlier passkey when a
+second person used the same name, taking the DID and everything signed under
+it with it
+([provider #45](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did/issues/45)).
+The WebAuthn spec says the handle must not contain personal data such as a
+username or e-mail address, and should be random, for exactly this reason.
 
 ### ⚠️ Passkeys are bound to the origin (rpId)
 
@@ -84,9 +103,9 @@ This branch extends the basic `main` tutorial with a three-word Spanish shared-l
 
 ### Try this chapter (passkey identities)
 
-1. On the onboarding screen pick **Create a passkey**, enter a user id and
-   display name, then **Open shared list**. Your **Passkey DID** appears in
-   the header (with a copy button).
+1. On the onboarding screen pick **Create a passkey**, enter a name, then
+   **Open shared list**. Your **Passkey DID** appears in the header (with a
+   copy button).
 2. Add a todo — it shows *Created by: your DID*. Have a second browser create
    its own passkey; each todo is attributed to the writer's DID on both sides.
 3. **Reload** the page. The app preselects *Use an existing passkey*; confirm,
