@@ -1,5 +1,38 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeDiscoveredMultiaddrs, relayHttpOriginFromMultiaddr } from './multiaddr-utils.js';
+import {
+	normalizeDiscoveredMultiaddrs,
+	relayHttpOriginForPeer,
+	relayHttpOriginFromMultiaddr
+} from './multiaddr-utils.js';
+
+describe('relayHttpOriginForPeer', () => {
+	const relay = '12D3KooWE6Lqb1b9rNF9aFiuaFVLh5AJgeuWNGFT91oC9YYjfpas';
+	const proxy = `/dns4/either-thing-fatal-true.2n6.me/tcp/443/tls/ws/p2p/${relay}`;
+	const autotls = `/dns4/62-141-40-252.k51qzi.libp2p.direct/tcp/30410/tls/ws/p2p/${relay}`;
+
+	it('finds the proxy address even when the browser arrived over AutoTLS', () => {
+		// The regression this function exists for: reading the origin off the
+		// live connection left an AutoTLS-connected browser with none, so it
+		// logged "Waiting for a connected relay HTTP origin before proving"
+		// until the run timed out.
+		expect(relayHttpOriginForPeer(relay, [proxy, autotls], autotls)).toBe(
+			'https://either-thing-fatal-true.2n6.me'
+		);
+	});
+
+	it('ignores addresses belonging to a different peer', () => {
+		const other = '12D3KooWHQiR9x27yqTrbdhMQNtWUegKNetzcQZZCRZ6mmQtyBxe';
+		expect(relayHttpOriginForPeer(relay, [`/dns4/other.example/tcp/443/tls/ws/p2p/${other}`])).toBe(
+			''
+		);
+	});
+
+	it('falls back to the connection when nothing is known — local dev and e2e', () => {
+		expect(relayHttpOriginForPeer(relay, [], proxy)).toBe('https://either-thing-fatal-true.2n6.me');
+		expect(relayHttpOriginForPeer(relay, [], autotls)).toBe('');
+		expect(relayHttpOriginForPeer('', [], '')).toBe('');
+	});
+});
 
 describe('relayHttpOriginFromMultiaddr', () => {
 	const relayPeerId = '12D3KooWE6Lqb1b9rNF9aFiuaFVLh5AJgeuWNGFT91oC9YYjfpas';

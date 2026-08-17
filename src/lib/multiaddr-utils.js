@@ -41,6 +41,37 @@ export function relayHttpOriginFromMultiaddr(address) {
 }
 
 /**
+ * The relay's HTTP origin, looked up by peer id across every address we know
+ * for it — not just the one the live connection happens to use.
+ *
+ * The origin is a property of the *relay*, not of the connection. A relay
+ * announces several addresses and a browser ends up on whichever one it
+ * dialled first; reading the origin off that connection made a relay with a
+ * perfectly good HTTP API look like it had none, purely because the browser
+ * arrived over AutoTLS:
+ *
+ *   remoteAddr: /dns4/62-141-40-252.<key>.libp2p.direct/tcp/30410/tls/ws/...
+ *   → "Waiting for a connected relay HTTP origin before proving" × 15
+ *
+ * The bootstrap list carries the proxy address for the same peer, so the
+ * answer was available all along. Falling back to the connection's own address
+ * keeps local dev and e2e working, where the relay is not in any list.
+ *
+ * @param {string} peerId the relay we are connected to
+ * @param {readonly string[]} knownAddresses bootstrap addresses
+ * @param {string} [connectedAddress] the live connection's multiaddr
+ * @returns {string} an https origin, or '' if nothing known serves HTTP
+ */
+export function relayHttpOriginForPeer(peerId, knownAddresses = [], connectedAddress = '') {
+	for (const address of knownAddresses) {
+		if (peerId && !String(address).includes(`/p2p/${peerId}`)) continue;
+		const origin = relayHttpOriginFromMultiaddr(address);
+		if (origin) return origin;
+	}
+	return relayHttpOriginFromMultiaddr(connectedAddress);
+}
+
+/**
  * Normalize discovered addresses and ensure the discovered peer id occurs once
  * at the end. Some relay discovery paths already include the target peer id.
  *
