@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { todoInput } from './open-app.mjs';
+import { todoInput, openListTab } from './open-app.mjs';
 import { SITE_TODOS } from '../src/lib/site-todos.js';
 
 // The chapter's premise, tested rather than asserted in a README.
@@ -95,6 +95,7 @@ test.describe('offline PWA', () => {
 			timeout
 		});
 
+		await openListTab(page, 'create');
 		await page.getByTestId('new-list-seed-site').click();
 		await expect(page.getByTestId('new-list-created')).toBeVisible({ timeout });
 		await expect(page.getByText(SITE_TODOS[0], { exact: true })).toBeVisible({ timeout });
@@ -107,6 +108,7 @@ test.describe('offline PWA', () => {
 		// The app opens its default list on mount, so reopen the one just made —
 		// the way a person would, and the only way that proves the blocks came
 		// off this device rather than the shell merely rendering.
+		await openListTab(page, 'create');
 		await expect(page.getByTestId('list-switcher')).toBeVisible({ timeout });
 		await page.locator(`[data-testid="list-switcher-open"][data-address="${address}"]`).click();
 

@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { TodoBrowserAgent, remoteProgress } from './agent.mjs';
 import { SITE_TODOS } from '../../src/lib/site-todos.js';
+import { openListTab } from '../open-app.mjs';
 import { generateSpanishMnemonic } from '../../src/lib/spanish-mnemonic.js';
 
 /**
@@ -95,6 +96,7 @@ export async function runQr01RemoteScenario({
 		await Promise.all([agentA.open(result.mnemonics.a), agentB.open(result.mnemonics.b)]);
 
 		setStage('seeding-site-list-on-a');
+		await openListTab(agentA.page, 'create');
 		await agentA.page.getByTestId('new-list-seed-site').click();
 		await agentA.page.getByTestId('new-list-created').waitFor({ state: 'visible', timeout });
 		await agentA.page
@@ -104,6 +106,10 @@ export async function runQr01RemoteScenario({
 
 		setStage('handover-by-link');
 		const started = Date.now();
+		// Seeding the list moved A onto the "make a list" tab; the transfer
+		// controls are hidden until it comes back.
+		await openListTab(agentA.page, 'transfer');
+		await openListTab(agentB.page, 'transfer');
 		await agentA.page.getByTestId('qr-transfer-start').click();
 
 		// Driven through the invite link, not the `__simpleTodoQr` debug handle.

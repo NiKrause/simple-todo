@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { openReadyApp as openApp, createPasskey } from './open-app.mjs';
+import {
+	openReadyApp as openApp,
+	createPasskey,
+	openListTab,
+	pinTechnicalView
+} from './open-app.mjs';
 
 // Chapter (acl01), issue #114: creating a private list used to leave no trace in
 // the UI. The list was created and became active, but its name was never
@@ -19,6 +24,7 @@ test.describe('private list visibility (#114)', () => {
 		await openReadyApp(page);
 
 		const listName = `test-${Date.now().toString(36)}`;
+		await openListTab(page, 'create');
 		await page.getByTestId('new-list-name').fill(listName);
 		await page.getByTestId('new-list-create').click();
 
@@ -47,6 +53,7 @@ test.describe('private list visibility (#114)', () => {
 		await addVirtualAuthenticator(page);
 		await openReadyApp(page);
 
+		await openListTab(page, 'create');
 		await page.getByTestId('new-list-name').fill('clipboard-list');
 		await page.getByTestId('new-list-create').click();
 		await expect(page.getByTestId('new-list-created')).toBeVisible({ timeout });
@@ -70,6 +77,7 @@ test.describe('private list visibility (#114)', () => {
 		expect(mnemonic).toMatch(/^·\s+\S+-\S+-\S+$/);
 
 		const listName = `named-${Date.now().toString(36)}`;
+		await openListTab(page, 'create');
 		await page.getByTestId('new-list-name').fill(listName);
 		await page.getByTestId('new-list-create').click();
 		await expect(page.getByTestId('permissions-panel')).toBeVisible({ timeout });
@@ -92,12 +100,14 @@ test.describe('private list visibility (#114)', () => {
 			await Promise.all([addVirtualAuthenticator(owner), addVirtualAuthenticator(guest)]);
 			await Promise.all([openReadyApp(owner), openReadyApp(guest)]);
 
+			await openListTab(owner, 'create');
 			await owner.getByTestId('new-list-name').fill('shared-by-address');
 			await owner.getByTestId('new-list-create').click();
 			await expect(owner.getByTestId('new-list-created')).toBeVisible({ timeout });
 			const address = (await owner.getByTestId('new-list-created-address').textContent())?.trim();
 			expect(address).toBeTruthy();
 
+			await openListTab(guest, 'open');
 			await guest.getByTestId('open-db-address-input').fill(String(address));
 			await guest.getByTestId('open-db-button').click();
 
@@ -147,6 +157,9 @@ async function openReadyApp(page) {
 	// restart is about to replace — and because the copy was local, fixing that
 	// race in open-app.mjs did nothing for this file. That cost four tests in
 	// list-registry.spec.js a long time to diagnose.
+	// These assertions read the mnemonic block and the OrbitDB address, which
+	// only exist in the technical view.
+	await pinTechnicalView(page);
 	await openApp(page, { url: testUrl, timeout });
 	await createPasskey(page, {
 		userId: `${runId}@example.com`,
