@@ -3,7 +3,6 @@ import { get, writable } from 'svelte/store';
 import { createLibp2p } from 'libp2p';
 import { createHeliaLight } from 'helia';
 import { withBitswap } from '@helia/bitswap';
-import { withHTTP } from '@helia/http';
 import { withLibp2p } from '@helia/libp2p';
 import { createOrbitDB, IPFSAccessController } from '@orbitdb/core';
 import * as dagCbor from '@ipld/dag-cbor';
@@ -123,12 +122,15 @@ let discoveryDialRetryInterval = null;
 function createHeliaWithLibp2p(libp2pNode) {
 	return withBitswap(
 		withLibp2p(
-			withHTTP(
-				createHeliaLight({
-					codecs: [dagCbor, dagJson, json],
-					hashers: [sha512]
-				})
-			),
+			// Bitswap only, deliberately. `withHTTP` used to wrap this: it ships
+			// three public gateways and Helia asks them for any block bitswap does
+			// not produce. Nothing here can be there — todos are OrbitDB entries
+			// written in a browser, so the request can only fail while announcing
+			// the CID to three strangers.
+			createHeliaLight({
+				codecs: [dagCbor, dagJson, json],
+				hashers: [sha512]
+			}),
 			libp2pNode
 		)
 	);
