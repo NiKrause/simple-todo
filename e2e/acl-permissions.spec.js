@@ -38,19 +38,13 @@ async function runGrantScenario(browser, { ownerName, guestName }) {
 
 		// 1. Owner registers a passkey, creates a PRIVATE (owner-only) list and
 		//    writes the first todo. The mnemonic default list stays public.
-		await openReadyAppWithNewPasskey(owner, {
-			userId: `${ownerName.toLowerCase()}-${runId}@example.com`,
-			displayName: ownerName
-		});
+		await openReadyAppWithNewPasskey(owner, { label: ownerName });
 		await createPrivateList(owner);
 		await addTodoOk(owner, ownerTodo);
 		const dbAddress = await getActiveDatabaseAddress(owner);
 		const guestDid = await (async () => {
 			// 2. Guest opens the same list by address (read/replication works).
-			await openReadyAppWithNewPasskey(guest, {
-				userId: `${guestName.toLowerCase()}-${runId}@example.com`,
-				displayName: guestName
-			});
+			await openReadyAppWithNewPasskey(guest, { label: guestName });
 			await openListByAddress(guest, dbAddress);
 			return getOwnDid(guest);
 		})();
@@ -105,9 +99,9 @@ async function addVirtualAuthenticator(page) {
 
 /**
  * @param {import('@playwright/test').Page} page
- * @param {{ userId: string, displayName: string }} identity
+ * @param {{ label: string }} identity
  */
-async function openReadyAppWithNewPasskey(page, { userId, displayName }) {
+async function openReadyAppWithNewPasskey(page, { label }) {
 	await page.goto(testUrl);
 	const modal = page.locator('div.fixed.inset-0.z-50');
 	await expect(modal).toBeVisible();
@@ -115,8 +109,7 @@ async function openReadyAppWithNewPasskey(page, { userId, displayName }) {
 		await checkbox.check();
 	}
 	await page.getByTestId('identity-mode-create').check();
-	await page.getByTestId('passkey-user-id').fill(userId);
-	await page.getByTestId('passkey-display-name').fill(displayName);
+	await page.getByTestId('passkey-label').fill(label);
 	await page.getByRole('button', { name: 'Open shared list' }).click();
 	await expect(modal).not.toBeVisible({ timeout });
 	await expect(todoInput(page)).toBeEnabled({ timeout });

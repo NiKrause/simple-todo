@@ -28,12 +28,14 @@ test.describe('Passkey identities', () => {
 		try {
 			await Promise.all([addVirtualAuthenticator(alice), addVirtualAuthenticator(bob)]);
 
+			// Deliberately the same label on both sides. The passkey is identified by
+			// its random user handle, not by what is typed here, so two people who
+			// pick the same name still get two identities. Before the handle became
+			// random this would have been a collision — on one device the second
+			// registration replaced the first.
 			await Promise.all([
-				openReadyAppWithNewPasskey(alice, {
-					userId: `alice-${runId}@example.com`,
-					displayName: 'Alice'
-				}),
-				openReadyAppWithNewPasskey(bob, { userId: `bob-${runId}@example.com`, displayName: 'Bob' })
+				openReadyAppWithNewPasskey(alice, { label: 'Alex' }),
+				openReadyAppWithNewPasskey(bob, { label: 'Alex' })
 			]);
 
 			const aliceDid = await getOwnDid(alice);
@@ -88,15 +90,14 @@ async function addVirtualAuthenticator(page) {
 
 /**
  * @param {import('@playwright/test').Page} page
- * @param {{ userId: string, displayName: string }} identity
+ * @param {{ label: string }} identity
  */
-async function openReadyAppWithNewPasskey(page, { userId, displayName }) {
+async function openReadyAppWithNewPasskey(page, { label }) {
 	await page.goto(testUrl);
 	const modal = await fillConsentModal(page);
 
 	await page.getByTestId('identity-mode-create').check();
-	await page.getByTestId('passkey-user-id').fill(userId);
-	await page.getByTestId('passkey-display-name').fill(displayName);
+	await page.getByTestId('passkey-label').fill(label);
 
 	await page.getByRole('button', { name: 'Open shared list' }).click();
 	await expect(modal).not.toBeVisible({ timeout: collaborationTimeout });

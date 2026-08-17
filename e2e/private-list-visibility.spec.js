@@ -142,8 +142,7 @@ async function openReadyApp(page) {
 		await checkbox.check();
 	}
 	await page.getByTestId('identity-mode-create').check();
-	await page.getByTestId('passkey-user-id').fill(`${runId}@example.com`);
-	await page.getByTestId('passkey-display-name').fill(`User ${runId}`);
+	await page.getByTestId('passkey-label').fill(`User ${runId}`);
 	await page.getByRole('button', { name: 'Open shared list' }).click();
 	await expect(modal).not.toBeVisible({ timeout });
 	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
