@@ -1,7 +1,8 @@
 <script>
 	import { onDestroy } from 'svelte';
 	import { relayHttpStatusStore } from './relay-status.js';
-	import { relayHttpOriginFromMultiaddr } from './multiaddr-utils.js';
+	import { relayHttpOriginForPeer } from './multiaddr-utils.js';
+	import { getRelayBootstrapAddrs } from './libp2p-config.js';
 
 	/** @typedef {'pending' | 'active' | 'complete' | 'error'} StepStatus */
 	/** @typedef {{ label: string, description: string, status: StepStatus }} StatusStep */
@@ -126,7 +127,11 @@
 			startRelayHealthCheck(configuredRelayHttpOrigin, connection);
 			return;
 		}
-		const origin = relayHttpOriginFromMultiaddr(address);
+		const origin = relayHttpOriginForPeer(
+			connection.remotePeer?.toString() ?? '',
+			getRelayBootstrapAddrs(),
+			address
+		);
 		if (!origin) {
 			if (relayHealthKey !== address) {
 				resetRelayHealth();
