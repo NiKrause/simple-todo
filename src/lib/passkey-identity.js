@@ -14,8 +14,6 @@
 // see the chapter README.
 import {
 	WebAuthnDIDProvider,
-	parseDidLargeBlobPayload,
-	readLargeBlobMetadata,
 	storeWebAuthnCredential,
 	loadWebAuthnCredential,
 	clearWebAuthnCredential
@@ -69,25 +67,29 @@ export async function createPasskeyCredential({ userId, displayName }) {
 /**
  * Recover a previously registered passkey identity.
  *
+ * Reads the credential this browser stored at registration. There is no
+ * WebAuthn call, so signing in asks for nothing.
+ *
+ * That is a deliberate trade and worth stating plainly, because the code no
+ * longer shows it: **"use my passkey" performs no user verification.** Anyone
+ * holding the unlocked phone can adopt the identity with one tap.
+ *
+ * What it replaces was not protection either, only the appearance of it. The
+ * flow used to try `readLargeBlobMetadata` first, which cost a prompt with
+ * `userVerification: 'required'` and — measured — returned `largeBlob: {}` with
+ * no blob, every time. The credential is never registered with the largeBlob
+ * extension (Le-Space/orbitdb-identity-provider-webauthn-did#48), so that read
+ * can find nothing, and the identity always came from the localStorage line
+ * below. The prompt guarded the session by accident, and would have been
+ * removed by the first person to notice the read was dead.
+ *
+ * If verification is wanted back, it should be added on purpose — a plain
+ * assertion whose reason is written down — rather than restored as a side
+ * effect of a lookup that does not work.
+ *
  * @returns {Promise<any | null>} the credential, or null when nothing found
  */
 export async function recoverPasskeyCredential() {
-	try {
-		// @ts-expect-error declared as returning `unknown`; it resolves to { blob }
-		const { blob } = await readLargeBlobMetadata({ discoverableCredentials: true });
-		if (blob?.length) {
-			const payload = parseDidLargeBlobPayload(blob);
-			const credential = /** @type {any} */ (payload)?.credential ?? payload;
-			if (credential?.did) {
-				// Refresh the local fallback so the next recovery works offline of largeBlob.
-				storeWebAuthnCredential(credential, CREDENTIAL_STORAGE_KEY);
-				return credential;
-			}
-		}
-	} catch (error) {
-		console.warn('largeBlob recovery unavailable, trying localStorage:', error);
-	}
-
 	return loadWebAuthnCredential(CREDENTIAL_STORAGE_KEY);
 }
 
