@@ -1,6 +1,8 @@
 <script>
 	import { onDestroy } from 'svelte';
 	import { relayHttpStatusStore } from './relay-status.js';
+	import { relayHttpOriginForPeer } from './multiaddr-utils.js';
+	import { getRelayBootstrapAddrs } from './libp2p-config.js';
 
 	/** @typedef {'pending' | 'active' | 'complete' | 'error'} StepStatus */
 	/** @typedef {{ label: string, description: string, status: StepStatus }} StatusStep */
@@ -125,8 +127,12 @@
 			startRelayHealthCheck(configuredRelayHttpOrigin, connection, address);
 			return;
 		}
-		const match = address.match(/\/dns[46]\/([^/]+)\/tcp\/(\d+)\/(?:tls\/)?(?:ws|wss)(?:\/|$)/i);
-		if (!match) {
+		const origin = relayHttpOriginForPeer(
+			connection.remotePeer?.toString() ?? '',
+			getRelayBootstrapAddrs(),
+			address
+		);
+		if (!origin) {
 			if (relayHealthKey !== address) {
 				resetRelayHealth();
 				relayHealthKey = address;
@@ -134,7 +140,6 @@
 			return;
 		}
 
-		const origin = `https://${match[1]}${match[2] === '443' ? '' : `:${match[2]}`}`;
 		startRelayHealthCheck(origin, connection, address);
 	}
 
@@ -323,9 +328,7 @@
 					>
 				{/if}
 			</summary>
-			<div
-				class="mt-3 grid min-w-0 gap-3 border-t border-border pt-3 lg:grid-cols-3 [&>*]:min-w-0"
-			>
+			<div class="mt-3 grid min-w-0 gap-3 border-t border-border pt-3 lg:grid-cols-3 [&>*]:min-w-0">
 				<slot />
 			</div>
 		</details>
