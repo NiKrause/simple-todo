@@ -75,6 +75,7 @@
 		"noWritePermission": "Sie können auf dieser Liste nichts eintragen — sie gehört jemand anderem."
 	},
 	"tabs": {
+		"transfer": "Liste weitergeben",
 		"create": "Liste anlegen",
 		"open": "Geteilte Liste öffnen"
 	},
@@ -114,6 +115,7 @@
 		"writePermissions": "Schreibrechte",
 		"didPlaceholder": "did:key:… der Identität, die zugelassen wird",
 		"openByAddress": "Geteilte Liste über Adresse öffnen",
+		"openByAddressHint": "Fügen Sie die vollständige OrbitDB-Adresse ein, die Ihnen jemand geschickt hat. Mitlesen geht sofort — zum Schreiben braucht es eine Freigabe des Eigentümers.",
 		"opening": "Wird geöffnet…",
 		"openList": "Liste öffnen",
 		"webrtcWaiting": "Wartet auf eine WebRTC-Verbindung"
@@ -157,5 +159,54 @@
 			"label": "WebRTC verbunden",
 			"description": "Eine direkte WebRTC-Verbindung zu einem anderen Browser."
 		}
+	},
+	"lists": {
+		"heading": "Ihre Listen",
+		"kept": "Liegen in Ihrer eigenen OrbitDB-Registry — sie sind nach einem Neuladen wieder da und folgen Ihrem Passkey auf ein anderes Gerät.",
+		"forget": "Vergessen",
+		"drop": "Löschen",
+		"role": {
+			"owner": "Eigentümer",
+			"guest": "Gast",
+			"shared": "Öffentlich"
+		},
+		"shareAddress": "Geben Sie diese Adresse weiter, damit andere die Liste öffnen können. Mitlesen geht sofort; zum Schreiben braucht es unten eine Freigabe.",
+		"permissionsHint": "DIDs, die in diese Liste schreiben dürfen. Nur wer die Liste angelegt hat, kann Rechte vergeben oder entziehen.",
+		"addDid": "DID hinzufügen",
+		"createdBefore": "„",
+		"createdAfter": "“ angelegt — Sie schreiben jetzt hier hinein.",
+		"unnamed": "Liste ohne Namen",
+		"active": "aktiv"
+	},
+	"net": {
+		"details": "Netzwerk-Details",
+		"peers": "{count, plural, =0 {keine Peers} one {1 Peer} other {# Peers}}",
+		"connectToRelay": "Mit Relay verbinden",
+		"relayHint": "Wählen Sie ein aktuelles, vom Browser erreichbares Relay, das über Aleph gefunden wurde.",
+		"discovering": "Aleph-Relays werden gesucht und angepingt…",
+		"noRelayAddresses": "Keine Relay-Adressen gefunden",
+		"loading": "Wird geladen…",
+		"refresh": "Aktualisieren",
+		"customMultiaddr": "Eigene Multiadresse verwenden",
+		"discoveryFailed": "Aleph-Relay-Suche fehlgeschlagen: {reason}",
+		"discoveryUnavailable": "Relay-Suche nicht verfügbar",
+		"nonePinged": "Keine der {count} gefundenen Relay-Adressen hat auf einen libp2p-Ping geantwortet.",
+		"noDialable": "Es wurden keine aktuell vom Browser erreichbaren Relays gefunden.",
+		"refreshOrCustom": "Aktualisieren Sie oder geben Sie eine eigene Multiadresse ein.",
+		"connecting": "Verbinde…",
+		"connect": "Verbinden",
+		"peersTitle": "Verbundene Peers",
+		"peersEmpty": "Noch keine Peers verbunden."
+	},
+	"shared": {
+		"writingToBefore": "Sie schreiben in ",
+		"writingToAfter": ". Das Mnemonic unten verweist weiterhin auf die öffentliche geteilte Liste.",
+		"mnemonicLabel": "Öffentliches Mnemonic / OrbitDB-Datenbankname",
+		"copy": "Kopieren",
+		"copied": "Kopiert!",
+		"addressLabel": "OrbitDB-Adresse",
+		"anyoneHint": "Wer diesen Code kennt, kann dieselbe öffentliche Datenbank öffnen und darin schreiben, sobald eine Verbindung besteht.",
+		"replicationHint": "Das Mnemonic wählt dieselbe Datenbank aus. Für die Live-Übertragung braucht es zusätzlich eine Verbindung zu einem anderen Browser.",
+		"openAnother": "Andere geteilte Liste öffnen"
 	}
 }

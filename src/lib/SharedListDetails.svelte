@@ -1,5 +1,6 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
+	import { _ } from '$lib/i18n/index.js';
 
 	export let mnemonic = '';
 	export let databaseAddress = '';
@@ -67,11 +68,14 @@
 	<div class="mt-3 border-t border-border pt-3">
 		{#if activeList?.kind !== 'shared'}
 			<p class="mb-2 text-xs text-data-700" data-testid="active-list-note">
-				You are writing to <strong>{activeList.name}</strong>. The mnemonic below still refers to
-				the public shared list.
+				<!-- Split instead of `{@html}`: the name is user-supplied, so
+				     interpolating it into markup would run a list called `<script>…`. -->
+				{$_('shared.writingToBefore')}<strong>{activeList.name}</strong>{$_(
+					'shared.writingToAfter'
+				)}
 			</p>
 		{/if}
-		<p class="text-xs text-faint">Public mnemonic / OrbitDB database name</p>
+		<p class="text-xs text-faint">{$_('shared.mnemonicLabel')}</p>
 		<div class="mt-1 flex items-center gap-2 rounded-md bg-cyan-50 p-2">
 			<code class="min-w-0 flex-1 font-mono text-xs break-all" data-testid="active-shared-list-name"
 				>{mnemonic}</code
@@ -81,29 +85,24 @@
 				on:click={copyMnemonic}
 				class="rounded border border-cyan-200 bg-surface px-2 py-1 text-xs"
 			>
-				{copied ? 'Copied!' : 'Copy'}
+				{copied ? $_('shared.copied') : $_('shared.copy')}
 			</button>
 		</div>
 		{#if databaseAddress}
-			<p class="mt-2 text-xs text-faint">OrbitDB address</p>
+			<p class="mt-2 text-xs text-faint">{$_('shared.addressLabel')}</p>
 			<code
 				class="mt-1 block font-mono text-[11px] break-all text-text"
 				data-testid="active-database-address">{databaseAddress}</code
 			>
 		{/if}
-		<p class="mt-2 text-xs text-data-700">
-			Anyone who knows this share code can open the same public database and edit it once connected.
-		</p>
-		<p class="mt-1 text-xs text-faint">
-			The mnemonic selects the same database. Live replication also requires a connection to another
-			browser peer.
-		</p>
+		<p class="mt-2 text-xs text-data-700">{$_('shared.anyoneHint')}</p>
+		<p class="mt-1 text-xs text-faint">{$_('shared.replicationHint')}</p>
 		<button
 			type="button"
 			on:click={() => dispatch('change')}
 			class="mt-3 text-xs font-medium text-cyan-700 underline"
 		>
-			Open another shared list
+			{$_('shared.openAnother')}
 		</button>
 	</div>
 </details>
