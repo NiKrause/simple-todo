@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	// The list of lists (acl01, issue #114 step 3). Entries come from the
 	// identity's own registry database, so they survive a reload and replicate
 	// to the same passkey on another device — see list-registry.js.
@@ -76,10 +77,9 @@
 		data-testid="list-switcher"
 		data-registry-name={$listRegistryNameStore}
 	>
-		<h2 class="text-lg font-semibold text-heading">Your lists</h2>
+		<h2 class="text-lg font-semibold text-heading">{$_('lists.heading')}</h2>
 		<p class="mt-1 text-xs text-faint">
-			Kept in your own OrbitDB registry, so they come back after a reload and follow your passkey to
-			another device.
+			{$_('lists.kept')}
 		</p>
 
 		<ul class="mt-3 flex flex-col gap-1" data-testid="list-switcher-items">
@@ -98,9 +98,11 @@
 							? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950'
 							: 'border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800'}"
 					>
-						<span class="font-medium text-heading">{entry.name || 'unnamed list'}</span>
-						<span class="ml-1 text-faint">· {entry.role}</span>
-						{#if active}<span class="ml-1 text-emerald-700 dark:text-emerald-400">· open</span>{/if}
+						<span class="font-medium text-heading">{entry.name || $_('lists.unnamed')}</span>
+						<span class="ml-1 text-faint">· {$_(`lists.role.${entry.role}`)}</span>
+						{#if active}<span class="ml-1 text-emerald-700 dark:text-emerald-400"
+								>· {$_('lists.active')}</span
+							>{/if}
 						<code class="mt-0.5 block truncate font-mono text-[10px] text-faint"
 							>{entry.address}</code
 						>
@@ -126,7 +128,7 @@
 						data-address={entry.address}
 						class="shrink-0 rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:hover:bg-gray-800"
 					>
-						Forget
+						{$_('lists.forget')}
 					</button>
 					<button
 						type="button"
@@ -137,7 +139,7 @@
 						data-address={entry.address}
 						class="shrink-0 rounded-md border border-red-300 px-2 py-1 text-xs text-red-700 hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
 					>
-						Drop
+						{$_('lists.drop')}
 					</button>
 				</li>
 			{/each}

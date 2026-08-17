@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openReadyApp, createPasskey } from './open-app.mjs';
+import { openReadyApp, createPasskey, openListTab, pinTechnicalView } from './open-app.mjs';
 
 // Chapter (acl01): a list is owner-only until the owner grants another DID
 // write access. Both directions are exercised — Alice-owner and Bob-owner —
@@ -81,6 +81,7 @@ async function runGrantScenario(browser, { ownerName, guestName }) {
 
 /** @param {import('@playwright/test').Page} page */
 async function createPrivateList(page) {
+	await openListTab(page, 'create');
 	await page.getByTestId('new-list-create').click();
 	// The permissions panel only renders for access-controlled lists.
 	await expect(page.getByTestId('permissions-panel')).toBeVisible({ timeout });
@@ -109,6 +110,9 @@ async function addVirtualAuthenticator(page) {
  * @param {{ userId: string, displayName: string }} identity
  */
 async function openReadyAppWithNewPasskey(page, { userId, displayName }) {
+	// These assertions read the mnemonic block and the OrbitDB address, which
+	// only exist in the technical view.
+	await pinTechnicalView(page);
 	await openReadyApp(page, { url: testUrl, timeout });
 	await createPasskey(page, { userId, displayName, timeout });
 }
@@ -138,6 +142,7 @@ async function getActiveDatabaseAddress(page) {
  * @param {string} address
  */
 async function openListByAddress(page, address) {
+	await openListTab(page, 'open');
 	await page.getByTestId('open-db-address-input').fill(address);
 	await page.getByTestId('open-db-button').click();
 	const el = page.getByTestId('active-database-address');

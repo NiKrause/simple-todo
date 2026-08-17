@@ -24,7 +24,7 @@ import { attachQrSession, resetQrSession } from './qr-transport.js';
 import { registerHandoverProtocol } from './handover-protocol.js';
 // Safe to import here: list-registry pulls in no app modules of its own, so
 // this does not close a cycle with db-actions.
-import { resetListRegistry } from './list-registry.js';
+import { resetListRegistry, rememberList } from './list-registry.js';
 import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
 import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
 import { getTodoDatabaseName } from './default-todo-database.js';
@@ -228,6 +228,23 @@ export async function initializeP2P(
 		// Initialize database stores and actions
 		setInitializationProgress(5);
 		await initializeDatabase(orbitdb, todoDB);
+
+		// Put the default mnemonic list into the registry, so "your lists" is not
+		// empty on a first visit. It is a real OrbitDB database like any other and
+		// it is the one being written to before anything else is created — leaving
+		// it out made the switcher look like no list existed yet, while todos were
+		// already landing in it. Registered only when we opened it by name: an
+		// address passed in from outside belongs to someone else's list, and
+		// `openInitialTodoDatabase` blanks the name in that case.
+		if (activeTodoDatabaseName && defaultTodoDbAddress) {
+			void rememberList(orbitdb, {
+				address: defaultTodoDbAddress,
+				name: activeTodoDatabaseName,
+				role: 'shared'
+			}).catch((error) => {
+				console.warn('Could not register the default shared list:', error);
+			});
+		}
 
 		// Mark initialization as complete
 		initializationStore.set({

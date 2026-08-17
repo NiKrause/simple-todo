@@ -2,7 +2,9 @@ import { test, expect } from '@playwright/test';
 import {
 	openReadyApp as openApp,
 	createPasskey,
-	restorePasskey as restoreSharedPasskey
+	restorePasskey as restoreSharedPasskey,
+	openListTab,
+	pinTechnicalView
 } from './open-app.mjs';
 
 // Chapter (acl01), issue #114 step 3: the registry.
@@ -118,11 +120,15 @@ test.describe('list registry (#114)', () => {
 		await expect(page.getByTestId('list-switcher')).toContainText(name);
 
 		await page.locator(`[data-testid="list-switcher-forget"][data-address="${address}"]`).click();
-		// It was the only entry, so the whole switcher goes away rather than
-		// rendering an empty box.
-		await expect(page.getByTestId('list-switcher')).toBeHidden({ timeout });
+		// The switcher stays: the default shared list registers itself at startup,
+		// so there is always at least one entry. What has to go is this entry.
+		await expect(
+			page.locator(`[data-testid="list-switcher-open"][data-address="${address}"]`)
+		).toHaveCount(0, { timeout });
+		await expect(page.getByTestId('list-switcher')).not.toContainText(name);
 
 		// The database is untouched: opening it by address works and re-registers it.
+		await openListTab(page, 'open');
 		await page.getByTestId('open-db-address-input').fill(address);
 		await page.getByTestId('open-db-button').click();
 		await expect(page.getByTestId('active-database-address')).toHaveText(address, { timeout });
@@ -135,6 +141,7 @@ test.describe('list registry (#114)', () => {
  * @param {string} name
  */
 async function createList(page, name) {
+	await openListTab(page, 'create');
 	await page.getByTestId('new-list-name').fill(name);
 	await page.getByTestId('new-list-create').click();
 	await expect(page.getByTestId('new-list-created-name')).toHaveText(name, { timeout });
@@ -191,6 +198,9 @@ async function openReadyApp(page) {
 	// all for these four tests. Measured: the passkey restart still landed
 	// between filling the list name and clicking create, so the remount cleared
 	// the field and the list was created under the default name.
+	// These assertions read the mnemonic block and the OrbitDB address, which
+	// only exist in the technical view.
+	await pinTechnicalView(page);
 	await openApp(page, { url: testUrl, timeout });
 	await createPasskey(page, {
 		userId: `${runId}@example.com`,

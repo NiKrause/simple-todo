@@ -187,11 +187,9 @@
 	<div class:mb-4={!compact} class:mb-2={compact} class="flex items-start justify-between gap-4">
 		<div>
 			<h2 class:text-xl={!compact} class:text-sm={compact} class="font-semibold">
-				Connect to relay
+				{$_('net.connectToRelay')}
 			</h2>
-			<p class="mt-1 text-xs text-faint">
-				Choose a current browser-reachable relay discovered through Aleph.
-			</p>
+			<p class="mt-1 text-xs text-faint">{$_('net.relayHint')}</p>
 		</div>
 	</div>
 
@@ -204,9 +202,9 @@
 				class="min-w-0 flex-1 rounded-md border border-border px-2 py-1.5 text-xs focus:border-transparent focus:ring-2 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:bg-surface-2"
 			>
 				{#if isDiscovering}
-					<option value="">Discovering and pinging Aleph relays…</option>
+					<option value="">{$_('net.discovering')}</option>
 				{:else if discoveredMultiaddrs.length === 0}
-					<option value="">No relay addresses discovered</option>
+					<option value="">{$_('net.noRelayAddresses')}</option>
 				{:else}
 					{#each discoveredMultiaddrs as address (address)}
 						<option value={address} data-ping-verified={addressesPingVerified ? 'true' : undefined}
@@ -221,7 +219,7 @@
 				disabled={disabled || isConnecting || isDiscovering}
 				class="rounded-md border border-border px-2 py-1.5 text-xs font-medium text-text hover:bg-surface disabled:cursor-not-allowed disabled:bg-surface-2"
 			>
-				{isDiscovering ? 'Loading…' : 'Refresh'}
+				{isDiscovering ? $_('net.loading') : $_('net.refresh')}
 			</button>
 		</div>
 
@@ -231,7 +229,7 @@
 				bind:checked={useCustomMultiaddr}
 				disabled={disabled || isConnecting}
 			/>
-			Use a custom multiaddress
+			{$_('net.customMultiaddr')}
 		</label>
 
 		{#if useCustomMultiaddr}
@@ -247,17 +245,17 @@
 
 		{#if discoveryError}
 			<ErrorAlert
-				error={`Aleph relay discovery failed: ${discoveryError}`}
+				error={$_('net.discoveryFailed', { values: { reason: discoveryError } })}
 				type="warning"
-				title="Relay discovery unavailable"
+				title={$_('net.discoveryUnavailable')}
 				{compact}
 			/>
 		{:else if !isDiscovering && discoveredMultiaddrs.length === 0}
 			<p class="text-sm text-data-700">
 				{discoveredAddressCount > 0
-					? `None of the ${discoveredAddressCount} discovered relay addresses answered a libp2p ping.`
-					: 'No current browser-dialable relays were found.'}
-				Refresh or enter a custom multiaddress.
+					? $_('net.nonePinged', { values: { count: discoveredAddressCount } })
+					: $_('net.noDialable')}
+				{$_('net.refreshOrCustom')}
 			</p>
 		{/if}
 
@@ -286,7 +284,7 @@
 					!(useCustomMultiaddr ? customMultiaddr.trim() : selectedMultiaddr)}
 				class="rounded-md bg-code px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-code disabled:cursor-not-allowed disabled:bg-faint"
 			>
-				{isConnecting ? 'Connecting...' : 'Connect'}
+				{isConnecting ? $_('net.connecting') : $_('net.connect')}
 			</button>
 		</div>
 	</div>

@@ -29,10 +29,7 @@
 	data-testid="open-database-form"
 >
 	<h2 class="text-lg font-semibold text-heading">{$_('tech.openByAddress')}</h2>
-	<p class="mt-1 text-xs text-faint">
-		Paste the full OrbitDB address someone shared with you. You can read it right away — writing
-		needs a permission grant from the owner.
-	</p>
+	<p class="mt-1 text-xs text-faint">{$_('tech.openByAddressHint')}</p>
 	<div class="mt-3 flex gap-2">
 		<input
 			type="text"

@@ -1,4 +1,4 @@
-import { writable, get } from 'svelte/store';
+import { writable } from 'svelte/store';
 import { OrbitDBAccessController } from '@orbitdb/core';
 
 /**
@@ -28,7 +28,12 @@ import { OrbitDBAccessController } from '@orbitdb/core';
 
 const DOMAIN = 'simple-todo/list-registry/v1';
 
-/** @typedef {{ address: string, name: string, role: 'owner' | 'guest', createdAt: number }} ListEntry */
+/**
+ * `shared` is the public mnemonic list every browser opens at startup. It is
+ * neither owned nor guested: anyone who knows the mnemonic can write to it.
+ * @typedef {'owner' | 'guest' | 'shared'} ListRole
+ */
+/** @typedef {{ address: string, name: string, role: ListRole, createdAt: number }} ListEntry */
 
 /** Lists known to this identity, newest first. */
 export const listRegistryStore = writable(/** @type {ListEntry[]} */ ([]));
@@ -139,12 +144,18 @@ async function refreshRegistry() {
  * updates the entry instead of duplicating it.
  *
  * @param {any} orbitdb
- * @param {{ address: string, name: string, role: 'owner' | 'guest' }} entry
+ * @param {{ address: string, name: string, role: ListRole }} entry
  */
 export async function rememberList(orbitdb, { address, name, role }) {
 	if (!address) return;
 	const db = await openListRegistry(orbitdb);
-	const known = get(listRegistryStore).find((e) => e.address === address);
+
+	// Asked of the database rather than of `listRegistryStore`. The store is
+	// whatever was last refreshed, and adopting a passkey swaps the registry for
+	// a different identity's — so a store still holding the previous identity's
+	// entries would answer about a database that has never seen this address.
+	// `db` is the registry that was just opened, so it cannot be the wrong one.
+	const known = await db.get(address);
 	/** @type {ListEntry} */
 	const value = {
 		address,
@@ -154,6 +165,10 @@ export async function rememberList(orbitdb, { address, name, role }) {
 		role: known?.role === 'owner' ? 'owner' : role,
 		createdAt: known?.createdAt ?? Date.now()
 	};
+	// The default shared list re-registers itself on every startup. Without this
+	// check that would append an oplog entry per page load, growing a log that
+	// says the same thing every time.
+	if (known && known.name === value.name && known.role === value.role) return;
 	await db.put(address, value);
 	await refreshRegistry();
 }
