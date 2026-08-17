@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { PREVIEW_PORT } from './e2e/preview-origin.mjs';
 
 // `e2e/start-e2e-server.mjs` already reads this; the config did not, so setting
 // it moved the preview server without moving what Playwright waited for and
@@ -7,7 +8,7 @@ import { defineConfig, devices } from '@playwright/test';
 // branch on 4173 would be silently used instead, so a suite could pass or fail
 // against an app it never built. That is not hypothetical: it produced three
 // contradictory runs before the page snapshot gave it away.
-const previewPort = Number(process.env.E2E_PREVIEW_PORT || 4173);
+const previewPort = PREVIEW_PORT;
 
 export default defineConfig({
 	webServer: {
