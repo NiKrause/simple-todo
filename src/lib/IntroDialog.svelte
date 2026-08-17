@@ -112,6 +112,23 @@
 				</p>
 				{#if verdict !== null && verdict !== 'open' && verdict !== 'relay'}
 					<p class="mt-1 text-xs text-faint">{$_('intro.check.sameNetwork')}</p>
+					<!--
+						What to *do* about it, not just what is broken. The verdict above
+						says the connection will not reach another network; without this
+						the reader is told they are stuck and left there.
+
+						Split around the link rather than rendered through `{@html}`: the
+						surrounding sentences are translations, and an interpolation habit
+						here is the one that later gets pointed at a user-supplied string.
+					-->
+					<p class="mt-1 text-xs text-faint" data-testid="intro-vpn-advice">
+						{$_('intro.check.vpnBefore')}<a
+							href="https://nymvpn.com/"
+							target="_blank"
+							rel="noopener noreferrer"
+							class="text-cyan-700 underline dark:text-cyan-400">{$_('intro.check.vpnLink')}</a
+						>{$_('intro.check.vpnAfter')}
+					</p>
 				{/if}
 				<!-- The chips themselves, for anyone who wants the detail rather than
 				     the sentence. Hidden rather than unmounted in the simple view: the
