@@ -234,7 +234,12 @@
 			"localOnly": "Ihr Netz vergibt pro Ziel einen neuen Port (symmetrisches NAT). Zu einem Gerät in einem anderen Netz kommen Sie damit nicht durch.",
 			"vpnBefore": "Wollen Sie Daten mit einem Gerät über das Internet austauschen, hilft ein VPN wie ",
 			"vpnLink": "NymVPN",
-			"vpnAfter": " über dieses Hindernis hinweg."
+			"vpnAfter": " über dieses Hindernis hinweg.",
+			"simple": {
+				"ok": "Passt — auch Geräte in anderen Netzen sind erreichbar.",
+				"limitedBefore": "Im selben WLAN oder Hotspot klappt es. Übers Internet nicht — dafür brauchen Sie ein VPN wie ",
+				"limitedAfter": "."
+			}
 		},
 		"dontShow": "Nicht mehr zeigen",
 		"close": "Los geht's",

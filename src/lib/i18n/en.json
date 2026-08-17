@@ -234,7 +234,12 @@
 			"localOnly": "Your network assigns a new port per destination (symmetric NAT). That will not reach a device on another network.",
 			"vpnBefore": "If you want to exchange data with a device over the internet, a VPN such as ",
 			"vpnLink": "NymVPN",
-			"vpnAfter": " gets you past this."
+			"vpnAfter": " gets you past this.",
+			"simple": {
+				"ok": "All good — devices on other networks are reachable too.",
+				"limitedBefore": "On the same Wi-Fi or hotspot it works. Over the internet it does not — for that you need a VPN such as ",
+				"limitedAfter": "."
+			}
 		},
 		"dontShow": "Don't show this again",
 		"close": "Get started",
