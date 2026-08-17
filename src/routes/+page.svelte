@@ -202,7 +202,9 @@
 	let connectedPeersRef;
 	let showMnemonicEditor = false;
 	/** @type {'create' | 'open'} */
-	let listTab = 'create';
+	/** @typedef {'transfer' | 'create' | 'open'} ListTab */
+	/** @type {ListTab} */
+	let listTab = 'transfer';
 </script>
 
 <ToastNotification message={toastMessage} type={toastType} />
@@ -327,29 +329,26 @@
 	{/if}
 
 	{#if $initializationStore.isInitialized}
-		<QrTransfer />
-
 		<!--
-			Two ways to end up with a list, as two tabs rather than two stacked
-			panels. They are alternatives — you either make one or you open
+			Three things you can do with a list, as tabs rather than stacked
+			panels. They are alternatives — hand one over, make one, or open
 			somebody else's — and stacking them made the page read as a checklist
-			of things to do rather than a choice between two.
+			of things to do rather than a choice between three.
 
-			"Create" is the default, and your existing lists live inside it: that
-			is where you look for a list you already have, right under the control
-			that makes new ones.
+			Handing over comes first and is the default: it is what this chapter is
+			for, and by the time you get here a list already exists to hand over.
 		-->
 		<section
 			class="mt-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700"
 			data-testid="list-tabs"
 		>
 			<div class="flex gap-1 border-b border-border" role="tablist">
-				{#each [{ id: 'create', label: $_('tabs.create') }, { id: 'open', label: $_('tabs.open') }] as tab (tab.id)}
+				{#each [{ id: 'transfer', label: $_('tabs.transfer') }, { id: 'create', label: $_('tabs.create') }, { id: 'open', label: $_('tabs.open') }] as tab (tab.id)}
 					<button
 						type="button"
 						role="tab"
 						aria-selected={listTab === tab.id}
-						on:click={() => (listTab = /** @type {'create' | 'open'} */ (tab.id))}
+						on:click={() => (listTab = /** @type {ListTab} */ (tab.id))}
 						data-testid="list-tab-{tab.id}"
 						class="-mb-px border-b-2 px-3 py-1.5 text-xs font-medium
 							{listTab === tab.id
@@ -362,10 +361,19 @@
 			</div>
 
 			<div class="mt-3">
+				<!--
+					Hidden rather than unmounted. QrTransfer owns the live handover
+					session, the `hashchange` listener that picks up an invite link,
+					and the window hook the tests drive; `{#if}` here would tear all
+					three down the moment someone switched tabs mid-handover.
+				-->
+				<div class:hidden={listTab !== 'transfer'}>
+					<QrTransfer embedded />
+				</div>
 				{#if listTab === 'create'}
 					<NewPrivateListButton />
 					<ListSwitcher />
-				{:else}
+				{:else if listTab === 'open'}
 					<OpenDatabaseForm />
 				{/if}
 			</div>

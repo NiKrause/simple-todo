@@ -22,6 +22,10 @@
 	import { todoDBAddressStore, activeListStore } from './db-actions.js';
 	import { ownDidStore } from './p2p.js';
 
+	// Drops the panel chrome and the heading when this sits inside a tab that
+	// already provides both.
+	export let embedded = false;
+
 	/** @type {'idle' | 'offering' | 'answering' | 'connected'} */
 	let phase = 'idle';
 	/** @type {string} */
@@ -332,7 +336,7 @@
 </script>
 
 <section
-	class="mt-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700"
+	class={embedded ? '' : 'mt-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700'}
 	data-testid="qr-transfer"
 >
 	<!--
@@ -359,7 +363,11 @@
 	{/if}
 
 	<div class="mt-3 flex flex-wrap items-center gap-2">
-		<h2 class="mr-auto text-sm font-semibold text-heading">{$_('transfer.heading')}</h2>
+		<!-- Inside the tab the tab's own label already says this; repeating it
+		     here would title the panel twice. -->
+		{#if !embedded}
+			<h2 class="mr-auto text-sm font-semibold text-heading">{$_('transfer.heading')}</h2>
+		{/if}
 
 		{#if phase === 'idle'}
 			<button
