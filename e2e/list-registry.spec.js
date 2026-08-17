@@ -132,6 +132,11 @@ test.describe('list registry (#114)', () => {
 		await page.getByTestId('open-db-address-input').fill(address);
 		await page.getByTestId('open-db-button').click();
 		await expect(page.getByTestId('active-database-address')).toHaveText(address, { timeout });
+		// Back to the tab the switcher lives in. Opening by address happens in a
+		// different one, and the switcher is not merely hidden there — the tab
+		// body renders with `{#if}`, so it is absent from the DOM entirely and
+		// the assertion waits for an element that cannot appear.
+		await openListTab(page, 'create');
 		await expect(page.getByTestId('list-switcher')).toContainText(address, { timeout });
 	});
 });
