@@ -422,7 +422,22 @@
 -->
 {#if !$qrCodeOnScreen && !$simpleView}
 	<div data-testid="relay-button-slot">
-		<SponsorRelayFab manifestUrl="./rootfs-manifest.json" showInstances={true} />
+		<!--
+			Draggable, because it floats over the bottom-right corner and lands on
+			whatever is there — in the report that raised this, on top of the "static
+			code" checkbox, which is a control and not decoration.
+
+			`positionStorageKey` is passed explicitly: the component stores nothing
+			unless asked, which is the right default for a library and means the key
+			namespace stays ours. Same `qr01.` prefix as the view mode and the intro
+			dialog, so one glance at storage says which app wrote what.
+		-->
+		<SponsorRelayFab
+			manifestUrl="./rootfs-manifest.json"
+			showInstances={true}
+			draggable={true}
+			positionStorageKey="qr01.relayFabPosition"
+		/>
 	</div>
 {/if}
 
