@@ -1,4 +1,10 @@
-# Simple Todo - A Local-First Peer-to-Peer PWA Tutorial
+# QR-Todo - A Local-First Peer-to-Peer PWA Tutorial
+
+> **The app on this branch is called QR-Todo.** It is the `qr01` chapter of the
+> Simple-Todo tutorial, deployed at https://qr01.le-space.de. The repository,
+> its package and the production app at simple-todo.le-space.de keep their
+> names — what changed is the brand this chapter's app shows to the person
+> using it.
 
 [![Main E2E](https://github.com/NiKrause/simple-todo/actions/workflows/deploy.yml/badge.svg?branch=main)](https://github.com/NiKrause/simple-todo/actions/workflows/deploy.yml?query=branch%3Amain)
 [![Remote browser replication](https://github.com/NiKrause/simple-todo/actions/workflows/remote-replication.yml/badge.svg?branch=main)](https://github.com/NiKrause/simple-todo/actions/workflows/remote-replication.yml)

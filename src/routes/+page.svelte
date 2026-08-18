@@ -218,7 +218,7 @@
 <ListOfferDialog />
 
 <svelte:head>
-	<title>Simple-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title>
+	<title>QR-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<meta
 		name="description"
@@ -244,7 +244,7 @@
 						{$_('app.tagline')}
 					{:else}
 						A local-first peer-to-peer PWA · {formatVersions({
-							appName: 'Simple-Todo'
+							appName: 'QR-Todo'
 						})} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{typeof __BUILD_DATE__ !==
 						'undefined'
 							? __BUILD_DATE__

@@ -9,7 +9,7 @@ describe('/+page.svelte', () => {
 
 		const heading = page.getByRole('main').getByRole('heading', {
 			level: 1,
-			name: 'Simple-Todo'
+			name: 'QR-Todo'
 		});
 		await expect.element(heading).toBeInTheDocument();
 	});
