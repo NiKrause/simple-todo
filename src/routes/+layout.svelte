@@ -13,7 +13,7 @@
 <svelte:head>
 	<!-- Dynamic title with build info -->
 	<title
-		>Simple-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'} [{typeof __BUILD_DATE__ !==
+		>QR-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'} [{typeof __BUILD_DATE__ !==
 		'undefined'
 			? __BUILD_DATE__
 			: 'dev'}]</title

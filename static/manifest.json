@@ -1,6 +1,6 @@
 {
-  "name": "Simple-Todo QR",
-  "short_name": "Todo QR",
+  "name": "QR-Todo",
+  "short_name": "QR-Todo",
   "description": "Hand a todo list to another device by scanning a QR code. No relay, no signalling server, no internet — the scanned code is the only introduction.",
   "start_url": "/",
   "display": "standalone",

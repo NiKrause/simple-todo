@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the Simple-Todo social card, one per tutorial chapter.
+"""Generate the social card, one per tutorial chapter.
 
 The mark is the Le-Space logo ("Der erste Knoten") lifted verbatim from
 src/lib/LeSpaceLogo.svelte, with the CSS variables resolved to their brand
@@ -21,14 +21,21 @@ MUTED = '#8B95A7'
 
 W, H = 1200, 630
 
-# name -> (badge, one-line promise)
+# The wordmark is per chapter, not global. qr01 ships under its own brand while
+# the rest of the tutorial stays Simple-Todo — a card that disagreed with the
+# app's own header would be the kind of mismatch nobody notices until it is on
+# somebody else's timeline.
+#
+# name -> (badge, one-line promise, wordmark)
+DEFAULT_WORDMARK = ('Simple', 'Todo')
+
 CHAPTERS = {
-    'main': (None, 'No servers. No accounts. No passwords.'),
-    'collab01': ('collab01', 'One list, shared between two browsers.'),
-    'passkey01': ('passkey01', 'A passkey signs everything you write.'),
-    'acl01': ('acl01', 'You decide who is allowed to write.'),
-    'qr01': ('qr01', 'Hand a list over with a code. No internet.'),
-    'qr02': ('qr02', 'Hand a list over with a code. No internet.'),
+    'main': (None, 'No servers. No accounts. No passwords.', DEFAULT_WORDMARK),
+    'collab01': ('collab01', 'One list, shared between two browsers.', DEFAULT_WORDMARK),
+    'passkey01': ('passkey01', 'A passkey signs everything you write.', DEFAULT_WORDMARK),
+    'acl01': ('acl01', 'You decide who is allowed to write.', DEFAULT_WORDMARK),
+    'qr01': ('qr01', 'Hand a list over with a code. No internet.', ('QR', 'Todo')),
+    'qr02': ('qr02', 'Hand a list over with a code. No internet.', DEFAULT_WORDMARK),
 }
 
 
@@ -71,7 +78,7 @@ def badge(label: str, x: float, y: float) -> str:
 
 
 def card(name: str) -> str:
-    label, promise = CHAPTERS[name]
+    label, promise, (head, tail) = CHAPTERS[name]
     return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">
   <defs>
     <radialGradient id="glow" cx="26%" cy="34%" r="62%">
@@ -88,7 +95,7 @@ def card(name: str) -> str:
   {mark(96, 132, 2.05)}
 
   <text x="112" y="392" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
-        font-size="96" font-weight="700" fill="{INK}" letter-spacing="-2">Simple<tspan fill="{CORAL}">-</tspan>Todo</text>
+        font-size="96" font-weight="700" fill="{INK}" letter-spacing="-2">{head}<tspan fill="{CORAL}">-</tspan>{tail}</text>
 
   <text x="116" y="452" font-family="Helvetica Neue, Helvetica, Arial, sans-serif"
         font-size="31" fill="{MUTED}">{promise}</text>
