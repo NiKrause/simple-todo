@@ -48,6 +48,19 @@ const RELAY_BOOTSTRAP_ADDR = (isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_B
 console.log('RELAY_BOOTSTRAP_ADDR', RELAY_BOOTSTRAP_ADDR);
 
 /**
+ * The relay addresses this build was configured with.
+ *
+ * Exposed because the relay's HTTP origin has to be looked up per peer rather
+ * than read off whichever connection is currently open — see
+ * `relayHttpOriginForPeer`.
+ *
+ * @returns {string[]}
+ */
+export function getRelayBootstrapAddrs() {
+	return [...RELAY_BOOTSTRAP_ADDR];
+}
+
+/**
  * The relay addresses this build shipped with, filtered to what a browser can
  * actually dial.
  *
