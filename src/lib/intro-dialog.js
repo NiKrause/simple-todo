@@ -10,11 +10,11 @@ import { writable } from 'svelte/store';
  *
  * The rules below are also in the package, as `createIntroPolicy`, and this
  * file should be delegating to it. It cannot yet: the policy is only reachable
- * through the `/elements` subpath, which defines ten custom elements and so
+ * through the `/elements` subpath, which defines five custom elements and so
  * throws `HTMLElement is not defined` the moment it is imported during
  * prerendering. Importing it lazily would mean pulling the whole element
  * bundle in front of the first paint to read one localStorage key. Upstream
- * needs to export it from the package entry.
+ * needs to export it from the package entry — see NiKrause/libp2p-webrtc-qr#102.
  */
 export const INTRO_DIALOG_STORAGE_KEY = 'qr01.introSeen';
 
