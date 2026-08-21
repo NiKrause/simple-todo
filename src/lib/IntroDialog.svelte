@@ -14,6 +14,7 @@
 	import { diagnosticRtcConfiguration } from './ice-mode.js';
 	import {
 		relayOptIn,
+		relayVerdict,
 		hydrateRelayOptIn,
 		setRelayOptIn,
 		findReachableRelays
@@ -71,6 +72,9 @@
 	 */
 	/** @type {'idle' | 'waiting' | 'checking' | 'baked' | 'aleph' | 'none'} */
 	let relayState = 'idle';
+	// Mirrored rather than read from the store, because the markup below reads it
+	// a dozen times and a local is cheaper; the store exists for the page.
+	$: relayVerdict.set(relayState);
 	let relayCount = 0;
 	let relayCheckRunning = false;
 

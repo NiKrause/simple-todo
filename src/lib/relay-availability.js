@@ -14,6 +14,17 @@ export const RELAY_OPT_IN_STORAGE_KEY = 'qr01.relayOptIn';
 export const relayOptIn = writable(false);
 
 /**
+ * What the last check found, for anything outside the dialog.
+ *
+ * `'none'` is the one worth acting on: somebody asked for a relay and there is
+ * none to be had, which is exactly when starting one is worth offering. The
+ * other values are the dialog's business.
+ *
+ * @type {import('svelte/store').Writable<'idle' | 'waiting' | 'checking' | 'baked' | 'aleph' | 'none'>}
+ */
+export const relayVerdict = writable(/** @type {any} */ ('idle'));
+
+/**
  * The stored choice, read without a store subscription.
  *
  * `libp2p-config` needs the answer while it builds the node, before any
