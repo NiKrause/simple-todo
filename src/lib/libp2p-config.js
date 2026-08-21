@@ -10,6 +10,7 @@ import { autoNAT } from '@libp2p/autonat';
 import { gossipsub } from '@libp2p/gossipsub';
 import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
 import { bootstrap } from '@libp2p/bootstrap';
+import { readStoredRelayOptIn } from './relay-availability.js';
 import { ping } from '@libp2p/ping';
 import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
@@ -45,6 +46,38 @@ const RELAY_BOOTSTRAP_ADDR = (isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_B
 	.split(',')
 	.map((/** @type {string} */ addr) => addr.trim());
 console.log('RELAY_BOOTSTRAP_ADDR', RELAY_BOOTSTRAP_ADDR);
+
+/**
+ * The relay addresses this build shipped with, filtered to what a browser can
+ * actually dial.
+ *
+ * Exported so the startup check probes exactly the list the node would use —
+ * re-deriving it from the environment somewhere else would be a second place
+ * for the dev/prod switch above to be got wrong, and a check that probed an
+ * address the node cannot dial would be worse than no check.
+ *
+ * @returns {string[]}
+ */
+/**
+ * Which of the shipped relay addresses the node may bootstrap from.
+ *
+ * Pure and separate from the two lookups it combines, so the rule itself can be
+ * tested with fixture addresses — a build without a relay configured would make
+ * a test of the wiring pass for the wrong reason.
+ *
+ * @param {readonly string[]} baked
+ * @param {boolean} optIn
+ * @returns {string[]}
+ */
+export function selectRelayBootstrapAddrs(baked, optIn) {
+	return optIn ? [...baked] : [];
+}
+
+export function bakedRelayBootstrapAddrs() {
+	return selectValidBrowserBootstrapMultiaddrs(
+		parseBootstrapMultiaddrs(RELAY_BOOTSTRAP_ADDR.join(','))
+	);
+}
 
 /**
  * True when dialing this multiaddr would open an insecure WebSocket from a
@@ -96,8 +129,18 @@ export async function createLibp2pConfig(privateKey = null) {
 	// perfectly usable. What it must *not* do is become incapable of a relay:
 	// milestone 3 adds one, and the two paths coexist rather than replace each
 	// other. So the transports stay, and only the configuration is empty.
-	const relayBootstrapAddrs = selectValidBrowserBootstrapMultiaddrs(
-		parseBootstrapMultiaddrs(RELAY_BOOTSTRAP_ADDR.join(','))
+	// ...and a relay this build ships with is still not one this person asked
+	// for. Without the gate the checkbox would be decorative: a production build
+	// carries `VITE_RELAY_BOOTSTRAP_ADDR_PROD`, so the node dialled that relay on
+	// every start and announced `/p2p-circuit` to it, box ticked or not. The
+	// promise is that an untouched start talks to nobody, and that has to be true
+	// in the code, not only in the copy.
+	//
+	// Read straight from storage rather than through the store: this runs while
+	// the node is being built, before any component has mounted to hydrate it.
+	const relayBootstrapAddrs = selectRelayBootstrapAddrs(
+		bakedRelayBootstrapAddrs(),
+		readStoredRelayOptIn()
 	);
 	const hasRelay = relayBootstrapAddrs.length > 0;
 	const webRTCEnabled = getWebRTCEnabled();

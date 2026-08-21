@@ -2,6 +2,7 @@ import { expect } from '@playwright/test';
 import { SPANISH_MNEMONIC_STORAGE_KEY } from '../src/lib/spanish-mnemonic.js';
 import { VIEW_MODE_STORAGE_KEY } from '../src/lib/view-mode.js';
 import { INTRO_DIALOG_STORAGE_KEY } from '../src/lib/intro-dialog.js';
+import { RELAY_OPT_IN_STORAGE_KEY } from '../src/lib/relay-availability.js';
 
 /**
  * Opening the app, for a chapter that has no consent screen.
@@ -115,16 +116,47 @@ export async function seedSharedList(page, mnemonic) {
 }
 
 /**
+ * Consent to connecting through a relay before the page runs.
+ *
+ * The app now starts with no relay in its bootstrap list unless somebody ticks
+ * the box, so a spec that expects replication over one has to say so. Called by
+ * `openReadyApp` for every spec by default, because that is what every spec
+ * silently got before the switch existed — the spec that is *about* the switch
+ * opts out with `{ relay: false }`.
+ *
+ * Written to storage rather than clicked: `createLibp2pConfig` reads this while
+ * building the node, so a later click would need the whole stack restarted.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+export async function seedRelayOptIn(page) {
+	await page.addInitScript(
+		([key, value]) => {
+			try {
+				localStorage.setItem(key, value);
+			} catch {
+				// Storage blocked: the node starts without a relay and whichever
+				// assertion needed one fails there, naming the connection rather
+				// than naming storage.
+			}
+		},
+		[RELAY_OPT_IN_STORAGE_KEY, 'true']
+	);
+}
+
+/**
  * Navigate and wait until the app can actually be written to.
  *
  * @param {import('@playwright/test').Page} page
- * @param {{ url?: string, mnemonic?: string, timeout?: number, intro?: boolean }} [options]
+ * @param {{ url?: string, mnemonic?: string, timeout?: number, intro?: boolean, relay?: boolean }} [options]
  *   `intro: true` leaves the first-launch dialog in place; everything else gets
- *   it dismissed, because it covers the page.
+ *   it dismissed, because it covers the page. `relay: false` leaves the relay
+ *   opt-in untouched, for the spec that asserts what an untouched start does.
  */
 export async function openReadyApp(page, options = {}) {
-	const { url = '/', mnemonic, timeout = 90_000, intro = false } = options;
+	const { url = '/', mnemonic, timeout = 90_000, intro = false, relay = true } = options;
 	if (!intro) await seedIntroDismissed(page);
+	if (relay) await seedRelayOptIn(page);
 	if (mnemonic) await seedSharedList(page, mnemonic);
 	await page.goto(url);
 	await expectAppReady(page, timeout);

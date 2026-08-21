@@ -12,6 +12,15 @@
 	import LanguageSwitcher from './LanguageSwitcher.svelte';
 	import ViewModeToggle from './ViewModeToggle.svelte';
 	import { diagnosticRtcConfiguration } from './ice-mode.js';
+	import {
+		relayOptIn,
+		hydrateRelayOptIn,
+		setRelayOptIn,
+		findReachableRelays
+	} from './relay-availability.js';
+	import { bakedRelayBootstrapAddrs } from './libp2p-config.js';
+	import { selectValidBrowserBootstrapMultiaddrs } from './bootstrap-multiaddrs.js';
+	import { libp2pStore } from './p2p.js';
 
 	let dontShowAgain = false;
 	let probeStarted = false;
@@ -51,6 +60,98 @@
 			verdict = 'blocked';
 		}
 	}
+
+	/**
+	 * Relay availability, checked only on request.
+	 *
+	 * `waiting` is its own state rather than folded into `checking`: the ping
+	 * needs a running libp2p node, and a tick during startup would otherwise
+	 * report "no relay answered" when the truth is that nothing was asked yet.
+	 * That is the failure mode this whole check exists to remove.
+	 */
+	/** @type {'idle' | 'waiting' | 'checking' | 'baked' | 'aleph' | 'none'} */
+	let relayState = 'idle';
+	let relayCount = 0;
+	let relayCheckRunning = false;
+
+	async function checkRelays() {
+		if (relayCheckRunning) return;
+		relayCheckRunning = true;
+		relayState = 'checking';
+		try {
+			const [{ probeRelayAddresses }, { pingMultiaddr }] = await Promise.all([
+				import('./relay-probe.js'),
+				import('./p2p.js')
+			]);
+			const result = await findReachableRelays({
+				baked: bakedRelayBootstrapAddrs(),
+				probe: (candidates) => probeRelayAddresses(candidates, { ping: pingMultiaddr }),
+				// Imported here, not at module scope: a start with the box unticked
+				// must not even load the Aleph client, let alone call it.
+				discover: async () => {
+					const { discoverScopedBootstrapMultiaddrs } = await import(
+						'./aleph-bootstrap-discovery.js'
+					);
+					// Scoped exactly as `ManualConnectForm` scopes it. The channel is
+					// public and holds orphaned registrations of long-erased relays
+					// (#84); an unscoped query would spend the probe budget on corpses.
+					const discovered = await discoverScopedBootstrapMultiaddrs({
+						profile: import.meta.env.VITE_RELAY_BOOTSTRAP_PROFILE || 'orbitdb-relay',
+						registrationId:
+							import.meta.env.VITE_RELAY_BOOTSTRAP_REGISTRATION_ID ||
+							'relay:orbitdb-relay:orbitdb-relay'
+					});
+					return selectValidBrowserBootstrapMultiaddrs(discovered);
+				}
+			});
+			relayCount = result.addresses.length;
+			relayState = result.source;
+
+			// Finding one is not using one. The node was built without a relay in
+			// its bootstrap list — that is what the unticked box buys — so the
+			// reservation only happens if we dial now. First reachable address is
+			// enough: they are already sorted by the probe, and one reservation is
+			// all a circuit needs.
+			if (result.addresses.length > 0) {
+				const { connectToMultiaddr } = await import('./p2p.js');
+				try {
+					await connectToMultiaddr(result.addresses[0]);
+				} catch {
+					// The ping answered and the dial did not. Rare, and not worth a
+					// second verdict line — the addresses stay listed as reachable.
+				}
+			}
+		} catch {
+			// Nothing answered and nothing could be asked — for the person reading
+			// this line the two are the same fact.
+			relayCount = 0;
+			relayState = 'none';
+		} finally {
+			relayCheckRunning = false;
+		}
+	}
+
+	function toggleRelay(/** @type {Event} */ event) {
+		const on = /** @type {HTMLInputElement} */ (event.currentTarget).checked;
+		setRelayOptIn(on);
+		if (!on) {
+			relayState = 'idle';
+			relayCount = 0;
+			return;
+		}
+		// Ticking the box starts the check at once. An opt-in that only takes
+		// effect on the next connection attempt leaves the person guessing, which
+		// is the state this replaces.
+		relayState = 'waiting';
+	}
+
+	// Fires when both conditions hold, whichever arrives last: the box is ticked
+	// and there is a node to ping from. A remembered tick therefore also checks
+	// on startup, without the dialog having to ask again.
+	$: if ($relayOptIn && $libp2pStore && (relayState === 'idle' || relayState === 'waiting'))
+		void checkRelays();
+
+	onMount(hydrateRelayOptIn);
 
 	// Subscribed rather than done with `$:`. A reactive block that reads
 	// `verdict` and calls something that writes it is a loop as far as the
@@ -158,6 +259,44 @@
 						data-testid="intro-network-chips"
 					></qr-status>
 				</div>
+			</div>
+
+			<div class="mt-3 rounded-md border border-border p-3" data-testid="intro-relay">
+				<label class="flex items-start gap-2 text-xs text-text">
+					<input
+						type="checkbox"
+						class="mt-0.5"
+						checked={$relayOptIn}
+						on:change={toggleRelay}
+						data-testid="intro-relay-optin"
+					/>
+					<span>
+						<span class="font-medium text-heading">{$_('intro.relay.label')}</span>
+						<span class="mt-0.5 block text-faint">{$_('intro.relay.hint')}</span>
+					</span>
+				</label>
+
+				{#if relayState !== 'idle'}
+					<p
+						class="mt-2 flex items-center gap-2 text-xs text-faint"
+						data-testid="intro-relay-result"
+						data-state={relayState}
+					>
+						{#if relayState === 'waiting' || relayState === 'checking'}
+							<span
+								class="inline-block h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent"
+								aria-hidden="true"
+							></span>
+							{$_('intro.relay.checking')}
+						{:else if relayState === 'baked'}
+							{$_('intro.relay.reachable', { values: { count: relayCount } })}
+						{:else if relayState === 'aleph'}
+							{$_('intro.relay.discovered', { values: { count: relayCount } })}
+						{:else}
+							{$_('intro.relay.none')}
+						{/if}
+					</p>
+				{/if}
 			</div>
 
 			{#if !$simpleView}

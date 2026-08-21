@@ -243,6 +243,14 @@
 		},
 		"dontShow": "Don't show this again",
 		"close": "Get started",
-		"reopen": "Show the explanation again"
+		"reopen": "Show the explanation again",
+		"relay": {
+			"label": "Connect through a relay",
+			"hint": "Off by default: this app needs no server. Tick it only if the other device cannot scan your code — over a messenger, for instance.",
+			"checking": "Looking for a relay that answers…",
+			"reachable": "{count, plural, one {1 known relay answers} other {# known relays answer}}. Nothing was asked of Aleph.",
+			"discovered": "{count, plural, one {1 relay found} other {# relays found}} via Aleph — the ones shipped with the app stayed silent.",
+			"none": "No relay answered. The code path still works; you can start your own relay."
+		}
 	}
 }

@@ -1,6 +1,7 @@
 import { SPANISH_MNEMONIC_STORAGE_KEY } from '../../src/lib/spanish-mnemonic.js';
 import { VIEW_MODE_STORAGE_KEY } from '../../src/lib/view-mode.js';
 import { INTRO_DIALOG_STORAGE_KEY } from '../../src/lib/intro-dialog.js';
+import { RELAY_OPT_IN_STORAGE_KEY } from '../../src/lib/relay-availability.js';
 
 const DEFAULT_TIMEOUT = 120_000;
 
@@ -69,11 +70,17 @@ export class TodoBrowserAgent {
 		// handover scenario is meant to run through the view an actual user
 		// gets. Pinning it there would quietly stop testing that.
 		await this.page.addInitScript(
-			([[mnemonicKey, mnemonicValue], [viewKey, viewValue], [introKey, introValue]]) => {
+			([
+				[mnemonicKey, mnemonicValue],
+				[viewKey, viewValue],
+				[introKey, introValue],
+				[relayKey, relayValue]
+			]) => {
 				try {
 					localStorage.setItem(mnemonicKey, mnemonicValue);
 					if (viewValue !== null) localStorage.setItem(viewKey, viewValue);
 					localStorage.setItem(introKey, introValue);
+					localStorage.setItem(relayKey, relayValue);
 				} catch {
 					// Storage blocked: the app falls back to a generated mnemonic and
 					// the simple view, and whichever assertion needed the specific list
@@ -85,7 +92,12 @@ export class TodoBrowserAgent {
 				[VIEW_MODE_STORAGE_KEY, technicalView ? 'false' : null],
 				// The first-launch dialog covers the page; a harness driving the UI
 				// would be clicking into an overlay.
-				[INTRO_DIALOG_STORAGE_KEY, 'true']
+				[INTRO_DIALOG_STORAGE_KEY, 'true'],
+				// Seeded for every agent, because this is what every remote scenario
+				// silently had before the relay became a choice: a node that
+				// bootstraps from the configured relay on start. Deciding per
+				// scenario would change what the existing ones measure.
+				[RELAY_OPT_IN_STORAGE_KEY, 'true']
 			]
 		);
 
