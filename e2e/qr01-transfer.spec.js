@@ -22,6 +22,13 @@ import { SITE_TODOS } from '../src/lib/site-todos.js';
 // the chapter claims.
 
 const testUrl = '/';
+// `relay: false` on every `openReadyApp` here, because the claim under test is
+// that two devices met by nothing but a scanned code. The workflow runs this
+// spec with E2E_RELAY_MODE=isolated for the same reason — that keeps a relay
+// out of the *build*, and this keeps one out of the *node*, so the spec is
+// honest in either mode. Measured: in the default `local` mode without it,
+// Alice's peer list carried the relay alongside Bob and the assertion failed
+// on a connection the chapter never claimed to avoid making.
 const timeout = 90_000;
 
 test.describe('QR handover', () => {
@@ -40,8 +47,8 @@ test.describe('QR handover', () => {
 			await addVirtualAuthenticator(bob);
 
 			await Promise.all([
-				openReadyApp(alice, { url: testUrl, timeout }),
-				openReadyApp(bob, { url: testUrl, timeout })
+				openReadyApp(alice, { url: testUrl, relay: false, timeout }),
+				openReadyApp(bob, { url: testUrl, relay: false, timeout })
 			]);
 
 			const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -151,8 +158,8 @@ test.describe('QR handover', () => {
 
 		try {
 			await Promise.all([
-				openReadyApp(alice, { url: testUrl, timeout }),
-				openReadyApp(bob, { url: testUrl, timeout })
+				openReadyApp(alice, { url: testUrl, relay: false, timeout }),
+				openReadyApp(bob, { url: testUrl, relay: false, timeout })
 			]);
 
 			await openListTab(alice, 'create');

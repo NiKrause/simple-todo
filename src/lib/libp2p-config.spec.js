@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { createLibp2pConfig, isInsecureWebSocketDial } from './libp2p-config.js';
+import {
+	createLibp2pConfig,
+	isInsecureWebSocketDial,
+	selectRelayBootstrapAddrs
+} from './libp2p-config.js';
 import { rtcConfiguration } from './ice-mode.js';
 
 const PEER = '/p2p/12D3KooWAX2ARgYnWjrAPHiM9hAXBvGUaQ9iK1PBNCV4FbMBRDVu';
@@ -78,5 +82,25 @@ describe('a chapter with no relay configured', () => {
 		// gathering completes, and unreachable STUN servers make that wait out the
 		// full 15s timeout — once for the offer, again for the answer.
 		expect(rtcConfiguration()).toEqual({ iceServers: [] });
+	});
+});
+
+describe('selectRelayBootstrapAddrs', () => {
+	// A build ships `VITE_RELAY_BOOTSTRAP_ADDR_PROD`, so without this rule the
+	// node dialled that relay on every start and announced `/p2p-circuit` to it
+	// — whatever the checkbox said. The promise is that an untouched start talks
+	// to nobody, and it has to hold in the node, not only in the dialog.
+	const BAKED = [`/dns4/relay.example/tcp/443/tls/ws${PEER}`];
+
+	it('withholds a shipped relay until somebody asks for one', () => {
+		expect(selectRelayBootstrapAddrs(BAKED, false)).toEqual([]);
+	});
+
+	it('hands over the shipped relay once they do', () => {
+		expect(selectRelayBootstrapAddrs(BAKED, true)).toEqual(BAKED);
+	});
+
+	it('does not invent one when the build shipped none', () => {
+		expect(selectRelayBootstrapAddrs([], true)).toEqual([]);
 	});
 });

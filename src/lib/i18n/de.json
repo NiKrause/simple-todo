@@ -243,6 +243,14 @@
 		},
 		"dontShow": "Nicht mehr zeigen",
 		"close": "Los geht's",
-		"reopen": "Erklärung noch einmal zeigen"
+		"reopen": "Erklärung noch einmal zeigen",
+		"relay": {
+			"label": "Über einen Relay verbinden",
+			"hint": "Standardmäßig aus: Diese App braucht keinen Server. Nur anhaken, wenn das andere Gerät den Code nicht scannen kann — etwa über einen Messenger.",
+			"checking": "Suche einen Relay, der antwortet…",
+			"reachable": "{count, plural, one {1 bekannter Relay antwortet} other {# bekannte Relays antworten}}. Aleph wurde nicht gefragt.",
+			"discovered": "{count, plural, one {1 Relay} other {# Relays}} über Aleph gefunden — die mitgelieferten schwiegen.",
+			"none": "Kein Relay hat geantwortet. Der Weg über den Code funktioniert weiter; du kannst einen eigenen Relay starten."
+		}
 	}
 }

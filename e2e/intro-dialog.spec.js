@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { openReadyApp, todoInput } from './open-app.mjs';
 import { buildInviteLink } from '../src/lib/invite-link.js';
+import { PREVIEW_ORIGIN } from './preview-origin.mjs';
 
 // Chapter (qr01), issue #213: the app opened straight into a list, so a first
 // visitor had no way to learn that it works without internet, what the codes
@@ -8,6 +9,9 @@ import { buildInviteLink } from '../src/lib/invite-link.js';
 //
 // `intro: true` on every `openReadyApp` here is what makes these tests real —
 // every other spec has the dialog pinned away, because it covers the page.
+// `relay: false` for the same reason: every other spec seeds the relay opt-in
+// to keep the connection it always had, and this is the one place where what an
+// untouched start does is the subject rather than the setup.
 
 const timeout = 90_000;
 
@@ -17,7 +21,7 @@ test.describe('the first-launch introduction', () => {
 		const page = await context.newPage();
 
 		try {
-			await openReadyApp(page, { intro: true, timeout });
+			await openReadyApp(page, { intro: true, relay: false, timeout });
 			await expect(page.getByTestId('intro-dialog')).toBeVisible({ timeout });
 
 			// Dismissed without the checkbox: this visit only.
@@ -51,7 +55,7 @@ test.describe('the first-launch introduction', () => {
 		const page = await context.newPage();
 
 		try {
-			await openReadyApp(page, { intro: true, timeout });
+			await openReadyApp(page, { intro: true, relay: false, timeout });
 			const dialog = page.getByTestId('intro-dialog');
 			await expect(dialog).toBeVisible({ timeout });
 
@@ -82,7 +86,7 @@ test.describe('the first-launch introduction', () => {
 		const page = await context.newPage();
 
 		try {
-			await openReadyApp(page, { intro: true, timeout });
+			await openReadyApp(page, { intro: true, relay: false, timeout });
 
 			// The probe runs for up to six seconds, so "checking" has to be visible
 			// and has to look like work rather than like a stall.
@@ -130,6 +134,80 @@ test.describe('the first-launch introduction', () => {
 
 			await expect(todoInput(page)).toBeVisible({ timeout });
 			await expect(page.getByTestId('intro-dialog')).toBeHidden();
+		} finally {
+			await context.close();
+		}
+	});
+});
+
+test.describe('connecting through a relay', () => {
+	// A relay is the second way in, for the case the QR path cannot serve —
+	// the other person is not here to scan anything. It is off until asked for,
+	// and the claim that goes with that is not a UI state: an untouched start
+	// must not reach anybody. So this watches the wire, not the checkbox.
+
+	test('an untouched start reaches nobody', async ({ browser }) => {
+		const context = await browser.newContext();
+		const page = await context.newPage();
+
+		/** @type {string[]} */
+		const offOrigin = [];
+		/** @type {string[]} */
+		const sockets = [];
+		// Compared against the configured preview origin rather than `page.url()`:
+		// the listener also sees the requests made before navigation resolves,
+		// when `page.url()` is still `about:blank` and every origin looks foreign.
+		const ownOrigin = new URL(PREVIEW_ORIGIN).origin;
+		page.on('request', (request) => {
+			if (new URL(request.url()).origin !== ownOrigin) offOrigin.push(request.url());
+		});
+		page.on('websocket', (ws) => sockets.push(ws.url()));
+
+		try {
+			await openReadyApp(page, { intro: true, relay: false, timeout });
+
+			const optIn = page.getByTestId('intro-relay-optin');
+			await expect(optIn).toBeVisible({ timeout });
+			await expect(optIn).not.toBeChecked();
+			// No verdict line, because nothing was asked. An "unknown" here would
+			// read as a failed check rather than a check that never ran.
+			await expect(page.getByTestId('intro-relay-result')).toBeHidden();
+
+			// Give the app the same window a ticked box would have used.
+			await page.waitForTimeout(5_000);
+
+			// The relay is a websocket dial and Aleph discovery is an HTTPS request
+			// to a foreign origin. Neither may have happened.
+			expect(sockets, `dialled: ${sockets.join(', ')}`).toEqual([]);
+			expect(offOrigin, `requested: ${offOrigin.join(', ')}`).toEqual([]);
+		} finally {
+			await context.close();
+		}
+	});
+
+	test('ticking the box checks at once, and says what it found', async ({ browser }) => {
+		const context = await browser.newContext();
+		const page = await context.newPage();
+
+		try {
+			await openReadyApp(page, { intro: true, relay: false, timeout });
+
+			await page.getByTestId('intro-relay-optin').check();
+
+			// Immediately, not on the next connection attempt. An opt-in whose
+			// effect is invisible leaves the person guessing, which is the state
+			// this replaces.
+			const result = page.getByTestId('intro-relay-result');
+			await expect(result).toBeVisible({ timeout: 5_000 });
+
+			// Which answer depends on what is reachable from here, so the assertion
+			// is that it settles on one of them rather than staying on the spinner.
+			await expect(result).toHaveAttribute('data-state', /^(baked|aleph|none)$/, { timeout });
+
+			// And that it is remembered: the point of the switch is not having to
+			// find it again.
+			await page.reload();
+			await expect(page.getByTestId('intro-relay-optin')).toBeChecked({ timeout });
 		} finally {
 			await context.close();
 		}

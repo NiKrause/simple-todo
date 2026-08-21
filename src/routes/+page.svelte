@@ -47,6 +47,7 @@
 	import ManualConnectForm from '$lib/ManualConnectForm.svelte';
 	import { libp2pStore } from '$lib/p2p.js';
 	import SponsorRelayFab from '@le-space/ui/svelte';
+	import { relayVerdict } from '$lib/relay-availability.js';
 
 	/** @typedef {'default' | 'success' | 'error' | 'warning'} ToastType */
 	/** @typedef {{ detail: { text: string } }} AddTodoEvent */
@@ -419,8 +420,15 @@
 
 	It is also the least relevant control here until milestone 3 adds a relay,
 	which is the other half of "less intrusive than in the earlier chapters".
+
+	The exception is somebody who asked for a relay and got none: `relayVerdict`
+	is `'none'` only after the check in the introduction ran and nothing
+	answered. That is the one moment when starting a relay is an answer to a
+	question the person actually asked, so the button appears then even in the
+	simple view — as an offer following a finding, rather than as a permanent
+	fixture nobody asked about.
 -->
-{#if !$qrCodeOnScreen && !$simpleView}
+{#if !$qrCodeOnScreen && (!$simpleView || $relayVerdict === 'none')}
 	<div data-testid="relay-button-slot">
 		<!--
 			Draggable, because it floats over the bottom-right corner and lands on
