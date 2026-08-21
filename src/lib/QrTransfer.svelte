@@ -12,9 +12,17 @@
 	// is shown and what a scanned payload means, which is the part that belongs
 	// to this app rather than to the transport.
 	import { onMount, onDestroy } from 'svelte';
-	import { parsePayload, QR_TYPE_OFFER, QR_TYPE_ANSWER } from '@le-space/libp2p-webrtc-qr';
+	// `createWakeLock` used to be our own `wake-lock.js`. It was ported from the
+	// webrtc-qr demo in the first place, and upstream has since absorbed it —
+	// comments and all, down to the `wanted` versus `held` distinction. Two
+	// copies of the same reasoning is one too many.
+	import {
+		parsePayload,
+		QR_TYPE_OFFER,
+		QR_TYPE_ANSWER,
+		createWakeLock
+	} from '@le-space/libp2p-webrtc-qr';
 	import { getQrSession, qrCodeOnScreen } from './qr-transport.js';
-	import { syncWakeLock, releaseWakeLock } from './wake-lock.js';
 	import { rtcConfiguration } from './ice-mode.js';
 	import { sendListOffer } from './handover-protocol.js';
 	import { simpleView } from './view-mode.js';
@@ -25,6 +33,8 @@
 	// Drops the panel chrome and the heading when this sits inside a tab that
 	// already provides both.
 	export let embedded = false;
+
+	const wakeLock = createWakeLock();
 
 	/** @type {'idle' | 'offering' | 'answering' | 'connected'} */
 	let phase = 'idle';
@@ -327,11 +337,11 @@
 	// holding a phone still and not touching it, which is precisely when it
 	// decides to sleep. An animated code needs several frames; a screen dimming
 	// halfway through is worse than one that never lit up.
-	$: void syncWakeLock(phase === 'offering' || phase === 'answering' || scanning);
+	$: void wakeLock.sync(phase === 'offering' || phase === 'answering' || scanning);
 
 	onDestroy(() => {
 		qrCodeOnScreen.set(false);
-		void releaseWakeLock();
+		void wakeLock.sync(false);
 	});
 </script>
 

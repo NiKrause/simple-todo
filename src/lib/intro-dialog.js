@@ -7,6 +7,14 @@ import { writable } from 'svelte/store';
  * unmounted and remounted — `{#if $initializationStore.isInitialized}` does
  * exactly that on every identity change, and a dialog that reappeared each
  * time somebody adopted a passkey would be worse than no dialog.
+ *
+ * The rules below are also in the package, as `createIntroPolicy`, and this
+ * file should be delegating to it. It cannot yet: the policy is only reachable
+ * through the `/elements` subpath, which defines ten custom elements and so
+ * throws `HTMLElement is not defined` the moment it is imported during
+ * prerendering. Importing it lazily would mean pulling the whole element
+ * bundle in front of the first paint to read one localStorage key. Upstream
+ * needs to export it from the package entry.
  */
 export const INTRO_DIALOG_STORAGE_KEY = 'qr01.introSeen';
 
