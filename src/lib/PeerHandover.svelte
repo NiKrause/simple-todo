@@ -16,6 +16,7 @@
 	import { libp2pStore, ownDidStore } from './p2p.js';
 	import { todoDBAddressStore, activeListStore } from './db-actions.js';
 	import ManualConnectForm from './ManualConnectForm.svelte';
+	import { relayOptIn } from './relay-availability.js';
 
 	const roster = createPeerRoster();
 
@@ -88,7 +89,9 @@
 </script>
 
 <section class="mt-6 border-t border-border pt-4" data-testid="peer-handover">
-	<h3 class="text-sm font-medium text-heading">{$_('handover.heading')}</h3>
+	<h3 class="text-sm font-medium text-heading">
+		{$relayOptIn ? $_('handover.headingOnly') : $_('handover.heading')}
+	</h3>
 	<p class="mt-1 text-xs text-faint">{$_('handover.hint')}</p>
 
 	{#if peers.length === 0}

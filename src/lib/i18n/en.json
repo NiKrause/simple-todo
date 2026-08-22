@@ -64,6 +64,7 @@
 	},
 	"handover": {
 		"heading": "Or give it to someone already connected",
+		"headingOnly": "Give it to someone who is connected",
 		"hint": "No code to hold up: these devices are reachable right now. Over the internet that needs a relay — see the explanation for what your network allows.",
 		"empty": "Nobody is connected yet.",
 		"send": "Send the list",

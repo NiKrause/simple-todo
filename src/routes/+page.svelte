@@ -11,6 +11,7 @@
 	import IdentityPanel from '$lib/IdentityPanel.svelte';
 	import QrTransfer from '$lib/QrTransfer.svelte';
 	import PeerHandover from '$lib/PeerHandover.svelte';
+	import { relayOptIn } from '$lib/relay-availability.js';
 	import { qrCodeOnScreen } from '$lib/qr-transport.js';
 	import ListOfferDialog from '$lib/ListOfferDialog.svelte';
 	import {
@@ -415,7 +416,14 @@
 					three down the moment someone switched tabs mid-handover.
 				-->
 				<div class:hidden={listTab !== 'transfer'}>
-					<QrTransfer embedded />
+					<!-- Gone once a relay is the chosen way in: the code answers the
+					     question "the other phone is here", and picking a relay says it
+					     is not. Hidden rather than unmounted, like the tab around it -
+					     `QrTransfer` owns a live handover, and unticking the box in the
+					     middle of one must not take it down. -->
+					<div class:hidden={$relayOptIn}>
+						<QrTransfer embedded />
+					</div>
 					<!-- The other way to hand a list over, for when the two devices are
 					     not in the same room. Below the code rather than beside it: the
 					     code is still the answer when somebody is standing there. -->

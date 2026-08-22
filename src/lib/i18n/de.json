@@ -64,6 +64,7 @@
 	},
 	"handover": {
 		"heading": "Oder an jemanden geben, der schon verbunden ist",
+		"headingOnly": "An jemanden geben, der verbunden ist",
 		"hint": "Kein Code zum Hinhalten: diese Geräte sind gerade erreichbar. Über das Internet braucht das einen Relay — was dein Netz zulässt, steht in der Erklärung.",
 		"empty": "Noch ist niemand verbunden.",
 		"send": "Liste senden",
