@@ -5,13 +5,15 @@
 	// because this is the first thing a person sees: sending them to the header
 	// to change the language of the dialog they are currently failing to read
 	// would be a poor joke.
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
+	import { get } from 'svelte/store';
 	import { _ } from '$lib/i18n/index.js';
 	import { simpleView } from './view-mode.js';
 	import { introOpen, closeIntro } from './intro-dialog.js';
 	import LanguageSwitcher from './LanguageSwitcher.svelte';
 	import ViewModeToggle from './ViewModeToggle.svelte';
 	import { diagnosticRtcConfiguration } from './ice-mode.js';
+	import { probeNetwork } from '@le-space/libp2p-webrtc-qr';
 	import {
 		relayOptIn,
 		relayVerdict,
@@ -31,8 +33,13 @@
 	/** @type {'open' | 'relay' | 'symmetric' | 'blocked' | null} */
 	let verdict = null;
 
+	/** The measurement the verdict and the chips both come from. */
+	/** @type {any} */
+	let networkResult = null;
+	let chipsLoaded = false;
+
 	/**
-	 * The verdict comes from `qr-status`, not from a second probe of my own.
+	 * The verdict is measured, not guessed.
 	 *
 	 * The first version of this counted *any* ICE candidate and therefore always
 	 * said "usable": every device has host candidates, its own LAN addresses.
@@ -41,25 +48,38 @@
 	 * front of the person least able to tell which half to believe.
 	 *
 	 * `probeNetwork` counts reflexive candidates only, which are the sole
-	 * evidence that anything beyond this network answers. It is not exported
-	 * from the package entry, so the element — which has a `result` getter and
-	 * emits `probe` — is both the correct source and the only stable one.
+	 * evidence that anything beyond this network answers. It used to be reachable
+	 * only through `./elements`, so this mounted a hidden `qr-status` and read the
+	 * result off it — an element instantiated to reach a function. Since 0.10.0 it
+	 * is on the package entry, so the simple view now measures without loading the
+	 * element bundle at all.
 	 */
 	async function startProbe() {
-		await import('@le-space/libp2p-webrtc-qr/elements');
-		if (!statusEl) return;
-		// Assigned before asking it to probe, so the measurement uses STUN rather
-		// than the element's own default.
-		statusEl.rtcConfiguration = diagnosticRtcConfiguration();
-		statusEl.addEventListener('probe', (/** @type {any} */ event) => {
-			verdict = event.detail?.overall?.state ?? 'blocked';
-		});
 		try {
-			await statusEl.probe();
+			networkResult = await probeNetwork(diagnosticRtcConfiguration());
+			verdict = networkResult?.overall?.state ?? 'blocked';
 		} catch {
 			// A probe that cannot run tells us nothing better than "no path found".
 			verdict = 'blocked';
 		}
+		if (!get(simpleView)) void showChips();
+	}
+
+	/**
+	 * The chips, for the technical view only, painted from the measurement that
+	 * produced the verdict rather than from a second one of their own. Two probes
+	 * seconds apart could disagree, and a sentence contradicting the chips beside
+	 * it is the exact failure this panel was fixed for once already.
+	 */
+	async function showChips() {
+		if (!chipsLoaded) {
+			await import('@le-space/libp2p-webrtc-qr/elements');
+			chipsLoaded = true;
+		}
+		// The element mounts with the `{#if}` in the same update this subscription
+		// runs in, so it does not exist yet when we are called.
+		await tick();
+		if (statusEl && networkResult) statusEl.renderResult(networkResult);
 	}
 
 	/**
@@ -161,13 +181,22 @@
 	// `verdict` and calls something that writes it is a loop as far as the
 	// linter is concerned, and it is right to be suspicious — the guard that
 	// makes it terminate lives inside the function it cannot see.
-	onMount(() =>
-		introOpen.subscribe((open) => {
+	onMount(() => {
+		const stopIntro = introOpen.subscribe((open) => {
 			if (!open || probeStarted) return;
 			probeStarted = true;
 			void startProbe();
-		})
-	);
+		});
+		// Switching to the technical view after the measurement is done still has
+		// to paint the chips, and nothing else would ask for them.
+		const stopView = simpleView.subscribe((simple) => {
+			if (!simple && networkResult) void showChips();
+		});
+		return () => {
+			stopIntro();
+			stopView();
+		};
+	});
 </script>
 
 {#if $introOpen}
@@ -253,16 +282,24 @@
 						>{$_('intro.check.vpnAfter')}
 					</p>
 				{/if}
-				<!-- The chips themselves, for anyone who wants the detail rather than
-				     the sentence. Hidden rather than unmounted in the simple view: the
-				     element is what performs the measurement. -->
-				<div class="mt-2" class:hidden={$simpleView}>
-					<qr-status
-						bind:this={statusEl}
-						rows="browser ipv4 ipv6 camera overall"
-						data-testid="intro-network-chips"
-					></qr-status>
-				</div>
+				<!-- The chips, for anyone who wants the detail rather than the sentence.
+				     Unmounted in the simple view now rather than hidden: it no longer
+				     performs the measurement, so a reader who never opens the technical
+				     view never loads the element bundle.
+
+				     Three rows, not five: `renderResult` paints what it is handed, and
+				     `probeBrowser`/`probeCamera` are reachable from inside the element
+				     only - so a browser and a camera row could not be filled without a
+				     second probe. -->
+				{#if !$simpleView}
+					<div class="mt-2">
+						<qr-status
+							bind:this={statusEl}
+							rows="ipv4 ipv6 overall"
+							data-testid="intro-network-chips"
+						></qr-status>
+					</div>
+				{/if}
 			</div>
 
 			<div class="mt-3 rounded-md border border-border p-3" data-testid="intro-relay">

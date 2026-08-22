@@ -70,7 +70,12 @@ export function iceMode() {
  * verdict is phrased as a statement about the *network* rather than about what
  * the app will do with it.
  *
- * @returns {{ iceServers: Array<{ urls: string[] }> }}
+ * One entry per URL rather than one entry listing them all. Both are valid
+ * WebRTC and behave the same for credential-less STUN, but this is the shape
+ * `probeNetwork` is typed for - its parameter type is inferred from the
+ * package's own default, which spells a single string.
+ *
+ * @returns {{ iceServers: Array<{ urls: string }> }}
  */
 export function diagnosticRtcConfiguration() {
 	const configured = import.meta.env?.VITE_STUN_SERVERS;
@@ -79,7 +84,7 @@ export function diagnosticRtcConfiguration() {
 		.map((/** @type {string} */ url) => url.trim())
 		.filter(Boolean);
 
-	return { iceServers: [{ urls }] };
+	return { iceServers: urls.map((/** @type {string} */ url) => ({ urls: url })) };
 }
 
 /**
