@@ -62,6 +62,21 @@
 		"staticCode": "Fester Code — das andere Telefon kann ihn mit der Kamera scannen",
 		"staticCodeHint": "Ein festes Bild statt eines bewegten, damit eine normale Kamera es lesen und den Link öffnen kann. Die Verbindung ist dafür etwas weniger zuverlässig."
 	},
+	"handover": {
+		"heading": "Oder an jemanden geben, der schon verbunden ist",
+		"hint": "Kein Code zum Hinhalten: diese Geräte sind gerade erreichbar. Über das Internet braucht das einen Relay — was dein Netz zulässt, steht in der Erklärung.",
+		"empty": "Noch ist niemand verbunden.",
+		"send": "Liste senden",
+		"sending": "Wird gesendet…",
+		"sent": "An {peer} gesendet. Die andere Seite entscheidet, ob sie sie behält.",
+		"failed": "Konnte nicht gesendet werden: {reason}",
+		"noList": "Es ist keine Liste offen, die gesendet werden könnte.",
+		"connectManually": "Mit einem bestimmten Gerät verbinden",
+		"state": {
+			"connected": "verbunden",
+			"reconnecting": "verbindet erneut…"
+		}
+	},
 	"offer": {
 		"heading": "Jemand hat Ihnen eine Liste geschickt",
 		"from": "Von",

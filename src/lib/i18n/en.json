@@ -62,6 +62,21 @@
 		"staticCode": "Static code — the other phone can scan it with its camera",
 		"staticCodeHint": "One picture instead of a moving one, so a normal camera can read it and open the link. The connection is a little less reliable."
 	},
+	"handover": {
+		"heading": "Or give it to someone already connected",
+		"hint": "No code to hold up: these devices are reachable right now. Over the internet that needs a relay — see the explanation for what your network allows.",
+		"empty": "Nobody is connected yet.",
+		"send": "Send the list",
+		"sending": "Sending…",
+		"sent": "Sent to {peer}. They decide whether to keep it.",
+		"failed": "Could not send it: {reason}",
+		"noList": "No list is open to send.",
+		"connectManually": "Connect to a specific device",
+		"state": {
+			"connected": "connected",
+			"reconnecting": "reconnecting…"
+		}
+	},
 	"offer": {
 		"heading": "Someone sent you a list",
 		"from": "From",
