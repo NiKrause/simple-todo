@@ -7,9 +7,10 @@
 	import { hydrateIntro, openIntro } from '$lib/intro-dialog.js';
 	import { readInviteLink } from '$lib/invite-link.js';
 	import { simpleView, hydrateViewMode } from '$lib/view-mode.js';
-	import { peerIdStore, initializationStore, ownDidStore } from '$lib/p2p-stores.js';
+	import { peerIdStore, initializationStore } from '$lib/p2p-stores.js';
 	import IdentityPanel from '$lib/IdentityPanel.svelte';
 	import QrTransfer from '$lib/QrTransfer.svelte';
+	import PeerHandover from '$lib/PeerHandover.svelte';
 	import { qrCodeOnScreen } from '$lib/qr-transport.js';
 	import ListOfferDialog from '$lib/ListOfferDialog.svelte';
 	import {
@@ -412,6 +413,10 @@
 				-->
 				<div class:hidden={listTab !== 'transfer'}>
 					<QrTransfer embedded />
+					<!-- The other way to hand a list over, for when the two devices are
+					     not in the same room. Below the code rather than beside it: the
+					     code is still the answer when somebody is standing there. -->
+					<PeerHandover />
 				</div>
 				{#if listTab === 'create'}
 					<NewPrivateListButton />
