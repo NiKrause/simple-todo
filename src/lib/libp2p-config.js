@@ -9,6 +9,9 @@ import { dcutr } from '@libp2p/dcutr';
 import { autoNAT } from '@libp2p/autonat';
 import { gossipsub } from '@libp2p/gossipsub';
 import { pubsubPeerDiscovery } from '@libp2p/pubsub-peer-discovery';
+// Light module on purpose — see relay-bootstrap-addrs.js.
+import { RELAY_BOOTSTRAP_ADDR, getRelayBootstrapAddrs } from './relay-bootstrap-addrs.js';
+export { getRelayBootstrapAddrs };
 import { bootstrap } from '@libp2p/bootstrap';
 import { ping } from '@libp2p/ping';
 import { privateKeyFromProtobuf } from '@libp2p/crypto/keys';
@@ -21,11 +24,6 @@ import {
 import { qrTransports, webRTCQRTransport } from './qr-transport.js';
 import { isRelayNetworkMode } from './network-mode.js';
 
-// Environment variables
-const RELAY_BOOTSTRAP_ADDR_DEV =
-	import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV ||
-	'/ip4/127.0.0.1/tcp/4001/ws/p2p/12D3KooWAJjbRkp8FPF5MKgMU53aUTxWkqvDrs4zc1VMbwRwfsbE';
-const RELAY_BOOTSTRAP_ADDR_PROD = import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_PROD || '';
 const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discovery._p2p._pubsub')
 	.split(',')
 	.map((/** @type {string} */ t) => t.trim());
@@ -42,23 +40,7 @@ const isDevelopment =
 	import.meta.env.MODE === 'test' ||
 	import.meta.env.MODE === 'e2e';
 console.log('isDevelopment', isDevelopment);
-const RELAY_BOOTSTRAP_ADDR = (isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_BOOTSTRAP_ADDR_PROD)
-	.split(',')
-	.map((/** @type {string} */ addr) => addr.trim());
 console.log('RELAY_BOOTSTRAP_ADDR', RELAY_BOOTSTRAP_ADDR);
-
-/**
- * The relay addresses this build was configured with.
- *
- * Exposed because the relay's HTTP origin has to be looked up per peer rather
- * than read off whichever connection is currently open — see
- * `relayHttpOriginForPeer`.
- *
- * @returns {string[]}
- */
-export function getRelayBootstrapAddrs() {
-	return [...RELAY_BOOTSTRAP_ADDR];
-}
 
 /**
  * True when dialing this multiaddr would open an insecure WebSocket from a
