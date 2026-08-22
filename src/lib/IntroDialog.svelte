@@ -100,6 +100,9 @@
 
 	async function checkRelays() {
 		if (relayCheckRunning) return;
+		// Idle means nobody has asked yet, waiting means somebody asked before
+		// there was a node to ask with. Any other value means this already ran.
+		if (relayState !== 'idle' && relayState !== 'waiting') return;
 		relayCheckRunning = true;
 		relayState = 'checking';
 		try {
@@ -172,8 +175,13 @@
 	// Fires when both conditions hold, whichever arrives last: the box is ticked
 	// and there is a node to ping from. A remembered tick therefore also checks
 	// on startup, without the dialog having to ask again.
-	$: if ($relayOptIn && $libp2pStore && (relayState === 'idle' || relayState === 'waiting'))
-		void checkRelays();
+	//
+	// Whether a check is due is `checkRelays`'s own business, not this line's. It
+	// used to be tested here, which made the reactive statement read the state
+	// that the function it calls writes — a cycle on paper, and one the linter
+	// was right to flag even though it terminates. The guard belongs with the
+	// thing it guards.
+	$: if ($relayOptIn && $libp2pStore) void checkRelays();
 
 	onMount(hydrateRelayOptIn);
 
