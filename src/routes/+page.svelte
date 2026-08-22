@@ -94,7 +94,6 @@
 	// and gossipsub, and none of it is needed to render the consent dialog —
 	// the only thing on screen until the user agrees.
 	async function startP2P(/** @type {any} */ options) {
-		void loadSponsorFab();
 		const { initializeP2P } = await import('$lib/p2p.js');
 		await initializeP2P(options);
 	}
@@ -116,6 +115,10 @@
 	}
 
 	onMount(async () => {
+		// Not tied to a p2p entry point: this widget is UI, and hanging its load
+		// off `startP2P` meant the path through `restartP2P` never loaded it, so
+		// whether the Relay Button existed depended on how the app had started.
+		void loadSponsorFab();
 		hydrateViewMode();
 		// Not in front of somebody who followed a shared link: they came to accept
 		// a list, and an introduction would stand between them and the one thing
