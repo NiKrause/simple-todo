@@ -23,10 +23,10 @@ export class TodoBrowserAgent {
 
 	/**
 	 * @param {string} mnemonic
-	 * @param {{ technicalView?: boolean }} [options] `technicalView` is required
+	 * @param {{ technicalView?: boolean, relayOptIn?: boolean }} [options] `technicalView` is required
 	 *   by any caller that drives the network panel or the relay select.
 	 */
-	async open(mnemonic, { technicalView = false } = {}) {
+	async open(mnemonic, { technicalView = false, relayOptIn = true } = {}) {
 		this.context = await this.browser.newContext();
 		this.page = await this.context.newPage();
 		this.page.on('console', (message) => {
@@ -93,11 +93,19 @@ export class TodoBrowserAgent {
 				// The first-launch dialog covers the page; a harness driving the UI
 				// would be clicking into an overlay.
 				[INTRO_DIALOG_STORAGE_KEY, 'true'],
-				// Seeded for every agent, because this is what every remote scenario
-				// silently had before the relay became a choice: a node that
-				// bootstraps from the configured relay on start. Deciding per
-				// scenario would change what the existing ones measure.
-				[RELAY_OPT_IN_STORAGE_KEY, 'true']
+				// On by default, because that is what every remote scenario silently
+				// had before the relay became a choice: a node that bootstraps from
+				// the configured relay on start. Turning it off for those would
+				// change what they measure.
+				//
+				// Off for qr01, which measures the opposite. That scenario ends in
+				// `verifying-no-relay` and the workflow says it "introduces them with
+				// the scanned payload and needs none" - so seeding the opt-in there
+				// made the run configure a relay and then assert none was used. With
+				// it on, the node announces `/p2p-circuit`, runs the bootstrap service
+				// and turns on pubsub peer discovery, none of which that scenario
+				// wants.
+				[RELAY_OPT_IN_STORAGE_KEY, relayOptIn ? 'true' : 'false']
 			]
 		);
 
