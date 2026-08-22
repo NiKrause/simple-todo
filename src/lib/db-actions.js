@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import { peerIdStore } from './p2p.js';
+import { peerIdStore } from './p2p-stores.js';
 import { relayHttpStatusStore } from './relay-status.js';
 
 /**

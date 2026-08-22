@@ -1,6 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
-	import { peerIdStore, initializeP2P, initializationStore, restartP2P } from '$lib/p2p.js';
+	import { peerIdStore, initializationStore } from '$lib/p2p-stores.js';
 	import {
 		todosStore,
 		todoDBAddressStore,
@@ -30,8 +30,7 @@
 		normalizeSpanishMnemonic
 	} from '$lib/spanish-mnemonic.js';
 	import ManualConnectForm from '$lib/ManualConnectForm.svelte';
-	import { libp2pStore } from '$lib/p2p.js';
-	import SponsorRelayFab from '@le-space/ui/svelte';
+	import { libp2pStore } from '$lib/p2p-stores.js';
 
 	/** @typedef {'default' | 'success' | 'error' | 'warning'} ToastType */
 	/** @typedef {{ detail: { text: string } }} AddTodoEvent */
@@ -68,9 +67,9 @@
 		}
 		try {
 			if ($initializationStore.isInitialized) {
-				await restartP2P({ todoDbName: canonicalMnemonic });
+				await restartP2PLazy({ todoDbName: canonicalMnemonic });
 			} else {
-				await initializeP2P({ todoDbName: canonicalMnemonic });
+				await startP2P({ todoDbName: canonicalMnemonic });
 			}
 			activeMnemonic = canonicalMnemonic;
 		} catch (err) {
@@ -80,13 +79,38 @@
 		}
 	};
 
+	// Loaded on demand, not at page load. `p2p.js` pulls libp2p, Helia, OrbitDB
+	// and gossipsub, and none of it is needed to render the consent dialog —
+	// the only thing on screen until the user agrees.
+	async function startP2P(/** @type {any} */ options) {
+		void loadSponsorFab();
+		const { initializeP2P } = await import('$lib/p2p.js');
+		await initializeP2P(options);
+	}
+
+	async function restartP2PLazy(/** @type {any} */ options) {
+		const { restartP2P } = await import('$lib/p2p.js');
+		await restartP2P(options);
+	}
+
+	// The largest single thing this app ships, and the whole Aleph deployment
+	// machinery rides with it. It lives inside the network panel behind the
+	// consent dialog, so a static import made every visitor download a relay
+	// deployer before they could read the dialog.
+	/** @type {any} */
+	let SponsorRelayFab = null;
+	async function loadSponsorFab() {
+		if (SponsorRelayFab) return;
+		SponsorRelayFab = (await import('@le-space/ui/svelte')).default;
+	}
+
 	onMount(async () => {
 		try {
 			selectedMnemonic = loadOrGenerateMnemonic();
 			if (localStorage.getItem(CONSENT_KEY) === 'true') {
 				showModal = false;
 				activeMnemonic = normalizeSpanishMnemonic(selectedMnemonic);
-				await initializeP2P({ todoDbName: activeMnemonic });
+				await startP2P({ todoDbName: activeMnemonic });
 			}
 		} catch {
 			// ignore storage errors
@@ -180,9 +204,7 @@
 <ToastNotification message={toastMessage} type={toastType} />
 
 <svelte:head>
-	<title
-		>Simple-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title
-	>
+	<title>Simple-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<meta
 		name="description"
@@ -269,4 +291,10 @@
 </main>
 
 <!-- Floating Relay Button FAB -->
-<SponsorRelayFab manifestUrl="./rootfs-manifest.json" showInstances={true} />
+{#if SponsorRelayFab}
+	<svelte:component
+		this={SponsorRelayFab}
+		manifestUrl="./rootfs-manifest.json"
+		showInstances={true}
+	/>
+{/if}
