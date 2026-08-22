@@ -1,5 +1,3 @@
-import { MemoryStorage } from '@orbitdb/core';
-
 /**
  * Where this browser keeps the todo data it holds.
  *
@@ -100,6 +98,12 @@ export const PERSISTENT_STORAGE_PATHS = Object.freeze({
 export async function createLogStorages() {
 	if (getPersistentStorageEnabled()) return {};
 
+	// Imported here rather than at module scope: `db-actions.js` imports this
+	// module and the page imports `db-actions.js`, so a static import put the
+	// whole OrbitDB core — multiformats, Ed25519, secp256k1 — into the bundle
+	// the consent dialog waits for. This function is already async and only
+	// runs once a database is being opened.
+	const { MemoryStorage } = await import('@orbitdb/core');
 	const [headsStorage, indexStorage] = await Promise.all([MemoryStorage(), MemoryStorage()]);
 	return { headsStorage, indexStorage };
 }

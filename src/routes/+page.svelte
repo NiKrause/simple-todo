@@ -24,7 +24,6 @@
 	import OwnMultiaddrs from '$lib/OwnMultiaddrs.svelte';
 	import ManualConnectForm from '$lib/ManualConnectForm.svelte';
 	import { libp2pStore } from '$lib/p2p-stores.js';
-	import SponsorRelayFab from '@le-space/ui/svelte';
 
 	/** @typedef {'default' | 'success' | 'error' | 'warning'} ToastType */
 	/** @typedef {{ detail: { text: string } }} AddTodoEvent */
@@ -94,7 +93,21 @@
 	// dialog, which is the only thing on screen until the user agrees. Keeping
 	// it in the eager bundle meant the page stayed blank until all of it had
 	// arrived: measured at 2562 KB before the dialog could render.
+
+	// 668 KB — the largest single thing the app ships, and the whole Aleph
+	// deployment machinery (CRN listing, rootfs, instance lifecycle) rides with
+	// it. It lives inside the network panel behind the consent dialog, so a
+	// static import made every visitor download a relay deployer before they
+	// could read the dialog. Loaded once the app is actually running instead.
+	/** @type {any} */
+	let SponsorRelayFab = null;
+	async function loadSponsorFab() {
+		if (SponsorRelayFab) return;
+		SponsorRelayFab = (await import('@le-space/ui/svelte')).default;
+	}
+
 	async function startP2P() {
+		void loadSponsorFab();
 		const { initializeP2P } = await import('$lib/p2p.js');
 		await initializeP2P();
 	}
@@ -241,11 +254,14 @@
 				on:connected={handleManualConnect}
 			/>
 			<div class="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-				<SponsorRelayFab
-					manifestUrl="./rootfs-manifest.json"
-					showInstances={true}
-					launcherMode="inline"
-				/>
+				{#if SponsorRelayFab}
+					<svelte:component
+						this={SponsorRelayFab}
+						manifestUrl="./rootfs-manifest.json"
+						showInstances={true}
+						launcherMode="inline"
+					/>
+				{/if}
 				<QrConnect />
 			</div>
 		</div>
