@@ -15,6 +15,7 @@ import {
 	SPANISH_MNEMONIC_STORAGE_KEY
 } from '../src/lib/spanish-mnemonic.js';
 import { VIEW_MODE_STORAGE_KEY } from '../src/lib/view-mode.js';
+import { INTRO_DIALOG_STORAGE_KEY } from '../src/lib/intro-dialog.js';
 import { PREVIEW_ORIGIN } from './preview-origin.mjs';
 
 // Chapter (collab01): provisions a real relay through the Relay Button UI and
@@ -249,7 +250,16 @@ relayTest.describe('Relay Button', () => {
 					},
 					[
 						[SPANISH_MNEMONIC_STORAGE_KEY, sharedMnemonic],
-						[VIEW_MODE_STORAGE_KEY, 'false']
+						[VIEW_MODE_STORAGE_KEY, 'false'],
+						// The introduction is a <dialog> opened with showModal(), which
+						// puts it in the top layer and makes the rest of the document
+						// inert - the relay button included. Measured: without this the
+						// widget mounts, reports `wallet: null` forever and the run ends
+						// at the 50-minute test timeout, because nothing this harness
+						// clicks can reach it. A person could not click it either, so
+						// dismissing the dialog is what the harness has to do rather
+						// than something to work around.
+						[INTRO_DIALOG_STORAGE_KEY, 'true']
 					]
 				);
 				await deploymentPage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
