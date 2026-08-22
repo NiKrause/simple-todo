@@ -141,6 +141,19 @@ export async function createLibp2pConfig(privateKey = null) {
 		readStoredRelayOptIn()
 	);
 	const hasRelay = relayBootstrapAddrs.length > 0;
+	// Wanting a relay and having one baked in are different questions, and
+	// conflating them is what made this branch look connected and stay blind.
+	// This build ships no relay address at all, so `hasRelay` was false however
+	// the box was set - and the node came up without peer discovery. Ticking the
+	// box then found a relay through Aleph and dialled it, which worked, and the
+	// two browsers still never saw each other: the machinery that would have
+	// introduced them was never configured.
+	//
+	// `bootstrap` stays on `hasRelay` - with no addresses there is nothing to
+	// bootstrap from. Discovery and `/p2p-circuit` follow the choice, because a
+	// relay found at runtime needs both and neither reaches out on its own: with
+	// nothing connected, a topic nobody shares carries no traffic.
+	const relayWanted = readStoredRelayOptIn();
 	const webRTCEnabled = getWebRTCEnabled();
 
 	/** @type {any} */
@@ -148,7 +161,7 @@ export async function createLibp2pConfig(privateKey = null) {
 		addresses: {
 			// `/p2p-circuit` only means something with a relay to reserve on, so it
 			// is announced only when one is configured. `/webrtc` stays either way.
-			listen: [...(hasRelay ? ['/p2p-circuit'] : []), ...(webRTCEnabled ? ['/webrtc'] : [])]
+			listen: [...(relayWanted ? ['/p2p-circuit'] : []), ...(webRTCEnabled ? ['/webrtc'] : [])]
 		},
 		transports: [
 			// The chapter's own transport, always present: it is how two devices
@@ -198,7 +211,7 @@ export async function createLibp2pConfig(privateKey = null) {
 		// Discovery needs somewhere to discover *from*. With no relay there is no
 		// shared pubsub network to announce on, so this is configured only when a
 		// relay is — and comes back on its own in milestone 3.
-		peerDiscovery: hasRelay
+		peerDiscovery: relayWanted
 			? [
 					pubsubPeerDiscovery(
 						/** @type {any} */ ({

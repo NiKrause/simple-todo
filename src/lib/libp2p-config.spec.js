@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
 	createLibp2pConfig,
@@ -6,6 +6,7 @@ import {
 	selectRelayBootstrapAddrs
 } from './libp2p-config.js';
 import { rtcConfiguration } from './ice-mode.js';
+import { RELAY_OPT_IN_STORAGE_KEY } from './relay-availability.js';
 
 const PEER = '/p2p/12D3KooWAX2ARgYnWjrAPHiM9hAXBvGUaQ9iK1PBNCV4FbMBRDVu';
 const HTTPS = 'https:';
@@ -82,6 +83,38 @@ describe('a chapter with no relay configured', () => {
 		// gathering completes, and unreachable STUN servers make that wait out the
 		// full 15s timeout — once for the offer, again for the answer.
 		expect(rtcConfiguration()).toEqual({ iceServers: [] });
+	});
+});
+
+describe('a build with no relay address, once somebody asks for one', () => {
+	// The case this branch is actually in: the deploy ships no relay address at
+	// all. Discovery used to be gated on *having* one baked in, so ticking the
+	// box changed nothing about how the node came up - it then found a relay
+	// through Aleph, dialled it successfully, and the two browsers still never
+	// saw each other, because nothing was configured to introduce them.
+	//
+	// Reported from a phone and a laptop that both reached the relay and stayed
+	// blind to each other.
+
+	beforeEach(() => {
+		localStorage.setItem(RELAY_OPT_IN_STORAGE_KEY, 'true');
+	});
+
+	afterEach(() => {
+		localStorage.removeItem(RELAY_OPT_IN_STORAGE_KEY);
+	});
+
+	it('configures discovery and a circuit address, so a relay found later can be used', async () => {
+		const config = await createLibp2pConfig();
+
+		expect(config.peerDiscovery).not.toEqual([]);
+		expect(config.addresses.listen).toContain('/p2p-circuit');
+	});
+
+	it('still configures no bootstrap, because there is nothing to bootstrap from', async () => {
+		const config = await createLibp2pConfig();
+
+		expect(config.services.bootstrap).toBeUndefined();
 	});
 });
 
