@@ -1,7 +1,10 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
 	import ErrorAlert from './ErrorAlert.svelte';
-	import { connectToMultiaddr, pingMultiaddr } from './p2p.js';
+	// Imported where they are used, not at module scope: `p2p.js` carries
+	// libp2p/Helia/OrbitDB, and this form renders on the page — a static
+	// import would put all of it back into the bundle the consent dialog
+	// waits for. Both call sites are user actions.
 	import { probeRelayAddresses } from './relay-probe.js';
 	import {
 		describeBootstrapMultiaddr,
@@ -78,7 +81,10 @@
 			// as unreachable; here it discarded every address of the only live relay,
 			// leaving both browsers with nothing to dial (run 31717535131).
 			discoveredMultiaddrs = await probeRelayAddresses(candidates, {
-				ping: pingMultiaddr,
+				ping: async (/** @type {any} */ addr) => {
+					const { pingMultiaddr } = await import('./p2p.js');
+					return pingMultiaddr(addr);
+				},
 				onUnreachable: (address, error) =>
 					console.warn(`Ignoring unreachable Aleph relay address ${address}:`, error)
 			});
@@ -123,6 +129,7 @@
 		isConnecting = true;
 
 		try {
+			const { connectToMultiaddr } = await import('./p2p.js');
 			/** @type {ManualConnectResult} */
 			const result = await connectToMultiaddr(address);
 			statusMessage =
