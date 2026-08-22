@@ -28,7 +28,7 @@
 	import { simpleView } from './view-mode.js';
 	import { buildInviteLink, readInviteLink, clearInviteLink } from './invite-link.js';
 	import { todoDBAddressStore, activeListStore } from './db-actions.js';
-	import { ownDidStore } from './p2p.js';
+	import { libp2pStore, ownDidStore } from './p2p.js';
 
 	// Drops the panel chrome and the heading when this sits inside a tab that
 	// already provides both.
@@ -314,7 +314,7 @@
 			return;
 		}
 		try {
-			sentList = await sendListOffer(session(), peerId, {
+			sentList = await sendListOffer($libp2pStore, peerId, {
 				address,
 				name: $activeListStore?.name ?? '',
 				ownerDid: $ownDidStore ?? ''

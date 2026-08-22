@@ -87,6 +87,7 @@
 		"@ipld/dag-cbor": "^10.0.1",
 		"@ipld/dag-json": "^11.0.0",
 		"@le-space/aleph-bootstrap": "0.9.1",
+		"@libp2p/peer-id": "^6.0.12",
 		"@le-space/libp2p-webrtc-qr": "0.10.0",
 		"@le-space/orbitdb-identity-provider-webauthn-did": "0.5.0",
 		"@le-space/ui": "0.9.2",
