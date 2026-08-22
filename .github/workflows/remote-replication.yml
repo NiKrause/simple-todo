@@ -39,6 +39,18 @@ on:
           - aleph
           - local
         default: aleph
+      # `workflow_call` has had this since the qr01 scenario was written; the
+      # dispatch never did, so running one by hand silently ran `main` instead.
+      # That matters exactly when it is needed: reproducing a red qr01 run
+      # without redeploying the preview to trigger one.
+      scenario:
+        description: Which remote scenario to run
+        required: true
+        type: choice
+        options:
+          - main
+          - qr01
+        default: main
 
 permissions:
   contents: read

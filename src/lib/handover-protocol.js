@@ -1,4 +1,5 @@
 import { writable, get } from 'svelte/store';
+import { peerIdFromString } from '@libp2p/peer-id';
 import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
 import { toString as uint8ArrayToString } from 'uint8arrays/to-string';
 
@@ -95,19 +96,60 @@ export function registerHandoverProtocol(node) {
 }
 
 /**
+ * Open the handover stream, on the node rather than through the QR session.
+ *
+ * `QRSession.dialProtocol` resolves through the session's own address table -
+ * "a peer whose answer was accepted", as the package puts it - so it reaches
+ * only somebody whose code was scanned. A peer met through a relay is not in
+ * there. The receiving half never had that limit: `registerHandoverProtocol`
+ * sits on the bare node and accepts the protocol over any transport, which is
+ * why the gap is invisible from that side.
+ *
+ * Dialing by PeerId reuses the connection that is already open - which is the
+ * situation whenever the peer is one we are connected to, however we met. The
+ * string has to be parsed first: libp2p reads a bare string as a multiaddr and
+ * fails deep inside with "getComponents is not a function".
+ *
+ * The retry is the session's, kept rather than inherited. Right after a QR
+ * handshake the connection is still settling, and the session dialled up to
+ * `dialAttempts: 15` times for exactly that reason; dropping it here would have
+ * made the scanned path flakier while fixing the relay one.
+ *
+ * @param {any} libp2p
+ * @param {string} peerId
+ */
+async function dialHandover(libp2p, peerId, { attempts = 15, timeout = 30_000 } = {}) {
+	const peer = peerIdFromString(peerId);
+	let lastError;
+
+	for (let attempt = 0; attempt < attempts; attempt++) {
+		try {
+			return await libp2p.dialProtocol(peer, HANDOVER_PROTOCOL, {
+				signal: AbortSignal.timeout(timeout)
+			});
+		} catch (error) {
+			lastError = error;
+			await new Promise((resolve) => setTimeout(resolve, 200));
+		}
+	}
+
+	throw lastError;
+}
+
+/**
  * Offer a list to the peer on the other end of the scanned connection.
  *
  * Dialled through the QR session rather than the node: the session holds the
  * peer connection the handshake negotiated, and this peer has no address
  * anybody could dial without it.
  *
- * @param {any} session a QRSession
+ * @param {any} libp2p the app's libp2p node
  * @param {string} peerId
  * @param {{ address: string, name: string, ownerDid: string }} list
  * @returns {Promise<ListOffer>}
  */
-export async function sendListOffer(session, peerId, { address, name, ownerDid }) {
-	const stream = await session.dialProtocol(peerId, HANDOVER_PROTOCOL);
+export async function sendListOffer(libp2p, peerId, { address, name, ownerDid }) {
+	const stream = await dialHandover(libp2p, peerId);
 	await stream.send(envelope({ kind: 'list-offer', address, name, ownerDid }));
 	return { v: ENVELOPE_VERSION, kind: 'list-offer', address, name, ownerDid };
 }

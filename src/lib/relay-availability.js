@@ -77,7 +77,7 @@ function whenNodeReady(/** @type {any} */ libp2pStore, timeoutMs = 15_000) {
 			resolve(value);
 		};
 		const timer = setTimeout(() => finish(false), timeoutMs);
-		const unsubscribe = libp2pStore.subscribe((node) => {
+		const unsubscribe = libp2pStore.subscribe((/** @type {unknown} */ node) => {
 			if (node) finish(true);
 		});
 	});

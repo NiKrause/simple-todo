@@ -33,7 +33,11 @@
 
 	/** @type {any} */
 	let introEl;
+	/** @type {any} */
+	let statusEl;
 	let ready = false;
+	/** @type {any} */
+	let networkResult = null;
 
 	/**
 	 * The element's own text, folded over its English defaults.
@@ -89,6 +93,23 @@
 	/** @type {'unknown' | 'routable' | 'limited'} */
 	let verdict = 'unknown';
 
+	/**
+	 * The chips, painted from the measurement the element already made.
+	 *
+	 * `qr-status` has a `renderResult` method, so showing the detail costs no
+	 * second probe — the earlier version of this file dropped the chips on the
+	 * assumption that it would. Three rows rather than five: `renderResult`
+	 * paints what it is handed, and the browser and camera rows come from
+	 * `probeBrowser`/`probeCamera`, which this measurement does not include.
+	 */
+	function paintChips() {
+		if (statusEl && networkResult) statusEl.renderResult(networkResult);
+	}
+
+	// Mounted only in the technical view, so it is a fresh element each time the
+	// switch is thrown — and each one needs painting.
+	$: if (!$simpleView && statusEl && networkResult) paintChips();
+
 	onMount(async () => {
 		hydrateRelayOptIn();
 		await import('@le-space/libp2p-webrtc-qr/elements');
@@ -110,6 +131,8 @@
 			// of bad news they cannot act on differently is not information.
 			const state = event.detail?.overall?.state;
 			verdict = state === 'open' || state === 'relay' ? 'routable' : 'limited';
+			networkResult = event.detail;
+			paintChips();
 		});
 		introEl.addEventListener('relay-opt-in', (/** @type {any} */ event) => {
 			relayOptIn.set(event.detail.optIn === true);
@@ -168,6 +191,18 @@
 				>{$_('intro.check.vpnAfter')}
 			{/if}
 		</p>
+	{/if}
+
+	<!-- The detail, for whoever wants it rather than the sentence. In the advice
+	     slot because that is where it belongs: directly under the verdict it is
+	     the long form of. -->
+	{#if !$simpleView}
+		<qr-status
+			slot="advice"
+			bind:this={statusEl}
+			rows="ipv4 ipv6 overall"
+			data-testid="intro-network-chips"
+		></qr-status>
 	{/if}
 
 	<button

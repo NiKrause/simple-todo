@@ -1,4 +1,5 @@
-import { get, writable } from 'svelte/store';
+import { get } from 'svelte/store';
+import { libp2pStore, peerIdStore, ownDidStore, initializationStore } from './p2p-stores.js';
 
 import { createLibp2p } from 'libp2p';
 import { createHeliaLight } from 'helia';
@@ -41,12 +42,10 @@ import { normalizeDiscoveredMultiaddrs } from './multiaddr-utils.js';
 
 export { setWebRTCEnabled, webrtcEnabledStore };
 
-// Export libp2p instance for plugins
-export const libp2pStore = writable(/** @type {any} */ (null));
-export const peerIdStore = writable(/** @type {string | null} */ (null));
-// The DID of the passkey-backed OrbitDB identity, or null when the user
-// chose the anonymous throwaway identity from the previous chapters.
-export const ownDidStore = writable(/** @type {string | null} */ (null));
+// The stores live in `p2p-stores.js` so a page can read them without
+// pulling libp2p/Helia/OrbitDB into its eager bundle. Re-exported here
+// because plenty of callers legitimately want both from one import.
+export { libp2pStore, peerIdStore, ownDidStore, initializationStore } from './p2p-stores.js';
 
 const INITIALIZATION_STEP_DEFINITIONS = [
 	{
@@ -83,16 +82,6 @@ function createInitializationSteps(activeIndex = -1) {
 		)
 	}));
 }
-
-// Add initialization state store
-export const initializationStore = writable(
-	/** @type {{ isInitializing: boolean, isInitialized: boolean, error: string | null, steps: InitializationStep[] }} */ ({
-		isInitializing: false,
-		isInitialized: false,
-		error: null,
-		steps: createInitializationSteps()
-	})
-);
 
 /** @param {number} activeIndex */
 function setInitializationProgress(activeIndex) {

@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { createIntroPolicy } from '@le-space/libp2p-webrtc-qr';
 
 /**
  * Whether the first-launch introduction is showing.
@@ -8,40 +9,26 @@ import { writable } from 'svelte/store';
  * exactly that on every identity change, and a dialog that reappeared each
  * time somebody adopted a passkey would be worse than no dialog.
  *
- * The rules below are also in the package, as `createIntroPolicy`, and this
- * file should be delegating to it. It cannot yet: the policy is only reachable
- * through the `/elements` subpath, which defines ten custom elements and so
- * throws `HTMLElement is not defined` the moment it is imported during
- * prerendering. Importing it lazily would mean pulling the whole element
- * bundle in front of the first paint to read one localStorage key. Upstream
- * needs to export it from the package entry.
+ * *When* it opens is the package's decision now. `createIntroPolicy` carries
+ * the same three rules this file used to spell out — no dialog for someone who
+ * arrived by invite, show it when storage is unreadable, dismissal is not a
+ * one-way door — and carries them for every app that shows an introduction
+ * rather than for this one. What stays here is the Svelte store, because a
+ * store is what our components subscribe to.
  */
 export const INTRO_DIALOG_STORAGE_KEY = 'qr01.introSeen';
 
-export const introOpen = writable(false);
+const policy = createIntroPolicy({ storageKey: INTRO_DIALOG_STORAGE_KEY });
 
-function seen() {
-	try {
-		return localStorage.getItem(INTRO_DIALOG_STORAGE_KEY) === 'true';
-	} catch {
-		// Storage unavailable: show it. An introduction shown twice is a smaller
-		// problem than a first-time user who never gets one.
-		return false;
-	}
-}
+export const introOpen = writable(false);
 
 /**
  * Open it on a first visit, and never on a repeat one.
  *
- * Deliberately not called when a shared link brought somebody here: that person
- * arrived to accept a list, and a dialog in front of it would be in the way of
- * the one thing they came to do. They see it on their next plain visit.
- *
  * @param {{ arrivedViaInvite?: boolean }} [options]
  */
 export function hydrateIntro({ arrivedViaInvite = false } = {}) {
-	if (arrivedViaInvite) return;
-	introOpen.set(!seen());
+	introOpen.set(policy.shouldOpen({ arrivedViaInvite }));
 }
 
 /**
@@ -49,15 +36,16 @@ export function hydrateIntro({ arrivedViaInvite = false } = {}) {
  */
 export function closeIntro(rememberDismissal) {
 	introOpen.set(false);
-	if (!rememberDismissal) return;
-	try {
-		localStorage.setItem(INTRO_DIALOG_STORAGE_KEY, 'true');
-	} catch {
-		// Nothing to do: it reappears next time, which is the safe direction.
-	}
+	if (rememberDismissal) policy.remember();
 }
 
-/** Reopen it from the header — dismissing must not be a one-way door. */
+/**
+ * Reopen it from the header — dismissing must not be a one-way door.
+ *
+ * Deliberately not `policy.forget()`: that clears the stored dismissal so the
+ * dialog returns on the *next* launch too. Somebody pressing the header button
+ * wants to read it now, not to undo a decision they made once.
+ */
 export function openIntro() {
 	introOpen.set(true);
 }

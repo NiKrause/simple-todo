@@ -1,4 +1,3 @@
-
 ---
 
 ## Connecting: relay-optional by construction

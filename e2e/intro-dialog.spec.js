@@ -93,6 +93,15 @@ test.describe('the first-launch introduction', () => {
 			await expect(technicalOf(page)).toBeVisible();
 			await expect(technicalOf(page)).toContainText('symmetric NAT');
 			await expect(technicalOf(page)).toContainText('NymVPN');
+
+			// The chips come with it, painted from the measurement the element
+			// already made rather than from a probe of their own. Asserted because
+			// the cheap mistake here is a second STUN wave nobody notices — and the
+			// cheaper one is chips that stay empty because nobody handed them the
+			// result.
+			const chips = page.getByTestId('intro-network-chips');
+			await expect(chips).toBeVisible();
+			await expect(chips).toContainText(/IPv4|IPv6/, { timeout });
 		} finally {
 			await context.close();
 		}
