@@ -15,6 +15,21 @@ import { PREVIEW_ORIGIN } from './preview-origin.mjs';
 
 const timeout = 90_000;
 
+// The dialog is `<qr-intro>` from the transport package, so half of what these
+// tests touch lives in its shadow root. Playwright's locators pierce an open
+// one, and the element exposes the two checkboxes as parts precisely so nobody
+// has to reach for "whichever input comes first" — which is how a hidden second
+// box once silently broke "do not show again" upstream.
+//
+// What the app slots in keeps its own `data-testid`: those nodes are ours.
+const intro = (page) => page.getByTestId('intro-dialog');
+const shown = (page) => intro(page).locator('dialog');
+const dontShow = (page) => intro(page).locator('input[part=dont-show]');
+const verdictOf = (page) => intro(page).locator('.verdict');
+const technicalOf = (page) => intro(page).locator('.tech');
+const relayBox = (page) => intro(page).locator('input[part=relay-opt-in]');
+const relayResult = (page) => intro(page).locator('.relay-result');
+
 test.describe('the first-launch introduction', () => {
 	test('appears once, and stays gone when dismissed for good', async ({ browser }) => {
 		const context = await browser.newContext();
@@ -22,27 +37,27 @@ test.describe('the first-launch introduction', () => {
 
 		try {
 			await openReadyApp(page, { intro: true, relay: false, timeout });
-			await expect(page.getByTestId('intro-dialog')).toBeVisible({ timeout });
+			await expect(shown(page)).toBeVisible({ timeout });
 
 			// Dismissed without the checkbox: this visit only.
 			await page.getByTestId('intro-close').click();
-			await expect(page.getByTestId('intro-dialog')).toBeHidden();
+			await expect(shown(page)).toBeHidden();
 
 			await page.reload();
-			await expect(page.getByTestId('intro-dialog')).toBeVisible({ timeout });
+			await expect(shown(page)).toBeVisible({ timeout });
 
 			// Now for good.
-			await page.getByTestId('intro-dont-show').check();
+			await dontShow(page).check();
 			await page.getByTestId('intro-close').click();
-			await expect(page.getByTestId('intro-dialog')).toBeHidden();
+			await expect(shown(page)).toBeHidden();
 
 			await page.reload();
 			await expect(todoInput(page)).toBeVisible({ timeout });
-			await expect(page.getByTestId('intro-dialog')).toBeHidden();
+			await expect(shown(page)).toBeHidden();
 
 			// Dismissing is not a one-way door.
 			await page.getByTestId('intro-reopen').click();
-			await expect(page.getByTestId('intro-dialog')).toBeVisible({ timeout });
+			await expect(shown(page)).toBeVisible({ timeout });
 		} finally {
 			await context.close();
 		}
@@ -56,8 +71,12 @@ test.describe('the first-launch introduction', () => {
 
 		try {
 			await openReadyApp(page, { intro: true, relay: false, timeout });
-			const dialog = page.getByTestId('intro-dialog');
-			await expect(dialog).toBeVisible({ timeout });
+			const dialog = intro(page);
+			// The host element, not the dialog inside it: `<qr-intro>` puts its
+			// `<dialog>` in the top layer, so the host itself has no box and never
+			// counts as visible. It is still the right *scope* for the locators
+			// below — which is why `shown()` exists separately.
+			await expect(shown(page)).toBeVisible({ timeout });
 
 			// Read off the button rather than the prose. The explanatory sentences
 			// are the part most likely to be reworded, and a test that pins them
@@ -69,11 +88,11 @@ test.describe('the first-launch introduction', () => {
 			await expect(dialog.getByTestId('intro-close')).toHaveText('Get started');
 
 			// The browser-and-NAT detail is for whoever asks for it.
-			await expect(page.getByTestId('intro-technical')).toBeHidden();
+			await expect(technicalOf(page)).toBeHidden();
 			await dialog.getByTestId('view-mode-toggle').click();
-			await expect(page.getByTestId('intro-technical')).toBeVisible();
-			await expect(page.getByTestId('intro-technical')).toContainText('symmetric NAT');
-			await expect(page.getByTestId('intro-technical')).toContainText('NymVPN');
+			await expect(technicalOf(page)).toBeVisible();
+			await expect(technicalOf(page)).toContainText('symmetric NAT');
+			await expect(technicalOf(page)).toContainText('NymVPN');
 		} finally {
 			await context.close();
 		}
@@ -90,15 +109,17 @@ test.describe('the first-launch introduction', () => {
 
 			// The probe runs for up to six seconds, so "checking" has to be visible
 			// and has to look like work rather than like a stall.
-			const verdict = page.getByTestId('intro-network-verdict');
+			const verdict = verdictOf(page);
 			await expect(verdict).toBeVisible({ timeout });
 
 			// Which verdict depends on the network running this, so the assertion is
-			// that it *settles* — and that it settles on one of the states the
-			// package actually reports. `local only` on a mobile network is a
-			// correct answer; the bug this replaced was reporting `open` there,
-			// because it counted host candidates every device always has.
-			await expect(verdict).toHaveAttribute('data-state', /^(open|relay|symmetric|blocked)$/, {
+			// that it *settles* — and on one of the states the element reports.
+			// These are the element's three, not the four the probe distinguishes:
+			// it folds `symmetric` and `blocked` into `unreliable` and `none`
+			// because the advice for them is the same. `unreliable` on a mobile
+			// network is a correct answer; the bug this replaced was reporting a
+			// working network there, from host candidates every device always has.
+			await expect(verdict).toHaveAttribute('data-state', /^(ok|unreliable|none)$/, {
 				timeout
 			});
 
@@ -107,7 +128,7 @@ test.describe('the first-launch introduction', () => {
 			// boilerplate that teaches people to skip the dialog.
 			const state = await verdict.getAttribute('data-state');
 			const advice = page.getByTestId('intro-vpn-advice');
-			if (state === 'open' || state === 'relay') {
+			if (state === 'ok') {
 				await expect(advice).toBeHidden();
 			} else {
 				await expect(advice).toBeVisible();
@@ -133,7 +154,7 @@ test.describe('the first-launch introduction', () => {
 			await openReadyApp(page, { url: `/${hash}`, intro: true, timeout });
 
 			await expect(todoInput(page)).toBeVisible({ timeout });
-			await expect(page.getByTestId('intro-dialog')).toBeHidden();
+			await expect(shown(page)).toBeHidden();
 		} finally {
 			await context.close();
 		}
@@ -166,12 +187,12 @@ test.describe('connecting through a relay', () => {
 		try {
 			await openReadyApp(page, { intro: true, relay: false, timeout });
 
-			const optIn = page.getByTestId('intro-relay-optin');
+			const optIn = relayBox(page);
 			await expect(optIn).toBeVisible({ timeout });
 			await expect(optIn).not.toBeChecked();
 			// No verdict line, because nothing was asked. An "unknown" here would
 			// read as a failed check rather than a check that never ran.
-			await expect(page.getByTestId('intro-relay-result')).toBeHidden();
+			await expect(relayResult(page)).toBeHidden();
 
 			// Give the app the same window a ticked box would have used.
 			await page.waitForTimeout(5_000);
@@ -192,12 +213,12 @@ test.describe('connecting through a relay', () => {
 		try {
 			await openReadyApp(page, { intro: true, relay: false, timeout });
 
-			await page.getByTestId('intro-relay-optin').check();
+			await relayBox(page).check();
 
 			// Immediately, not on the next connection attempt. An opt-in whose
 			// effect is invisible leaves the person guessing, which is the state
 			// this replaces.
-			const result = page.getByTestId('intro-relay-result');
+			const result = relayResult(page);
 			await expect(result).toBeVisible({ timeout: 5_000 });
 
 			// Which answer depends on what is reachable from here, so the assertion
@@ -207,7 +228,7 @@ test.describe('connecting through a relay', () => {
 			// And that it is remembered: the point of the switch is not having to
 			// find it again.
 			await page.reload();
-			await expect(page.getByTestId('intro-relay-optin')).toBeChecked({ timeout });
+			await expect(relayBox(page)).toBeChecked({ timeout });
 		} finally {
 			await context.close();
 		}

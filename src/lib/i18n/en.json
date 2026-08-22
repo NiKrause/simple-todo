@@ -238,7 +238,8 @@
 			"simple": {
 				"ok": "All good — devices on other networks are reachable too.",
 				"limitedBefore": "On the same Wi-Fi or hotspot it works. Over the internet it does not — for that you need a VPN such as ",
-				"limitedAfter": "."
+				"limitedAfter": ".",
+				"limited": "On the same Wi-Fi or hotspot it works. Over the internet it does not."
 			}
 		},
 		"dontShow": "Don't show this again",
@@ -251,6 +252,10 @@
 			"reachable": "{count, plural, one {1 known relay answers} other {# known relays answer}}. Nothing was asked of Aleph.",
 			"discovered": "{count, plural, one {1 relay found} other {# relays found}} via Aleph — the ones shipped with the app stayed silent.",
 			"none": "No relay answered. The code path still works; you can start your own relay."
+		},
+		"ways": {
+			"heading": "How the other device gets in",
+			"qr": "By camera: you hold up a code, they scan it. Nothing leaves this network."
 		}
 	}
 }

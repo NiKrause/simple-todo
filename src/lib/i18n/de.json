@@ -238,7 +238,8 @@
 			"simple": {
 				"ok": "Passt — auch Geräte in anderen Netzen sind erreichbar.",
 				"limitedBefore": "Im selben WLAN oder Hotspot klappt es. Übers Internet nicht — dafür brauchen Sie ein VPN wie ",
-				"limitedAfter": "."
+				"limitedAfter": ".",
+				"limited": "Im selben WLAN oder Hotspot klappt es. Über das Internet nicht."
 			}
 		},
 		"dontShow": "Nicht mehr zeigen",
@@ -251,6 +252,10 @@
 			"reachable": "{count, plural, one {1 bekannter Relay antwortet} other {# bekannte Relays antworten}}. Aleph wurde nicht gefragt.",
 			"discovered": "{count, plural, one {1 Relay} other {# Relays}} über Aleph gefunden — die mitgelieferten schwiegen.",
 			"none": "Kein Relay hat geantwortet. Der Weg über den Code funktioniert weiter; du kannst einen eigenen Relay starten."
+		},
+		"ways": {
+			"heading": "Wie das andere Gerät hereinkommt",
+			"qr": "Per Kamera: Du hältst einen Code hoch, das andere Gerät scannt ihn. Nichts verlässt dieses Netz."
 		}
 	}
 }
