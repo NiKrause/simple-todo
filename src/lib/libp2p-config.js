@@ -1,5 +1,8 @@
 // libp2p-config.js
 import { noise } from '@chainsafe/libp2p-noise';
+// Light module on purpose — see relay-bootstrap-addrs.js.
+import { RELAY_BOOTSTRAP_ADDR, getRelayBootstrapAddrs } from './relay-bootstrap-addrs.js';
+export { getRelayBootstrapAddrs };
 import { yamux } from '@chainsafe/libp2p-yamux';
 import { webSockets } from '@libp2p/websockets';
 import { webRTC, webRTCDirect } from '@libp2p/webrtc';
@@ -30,8 +33,6 @@ import { rtcConfiguration } from './ice-mode.js';
 // reservations, so a test could pass *through a relay* while claiming to prove
 // two devices met by nothing but a scanned code. Set the variable explicitly
 // when you want a relay — milestone 3 does exactly that.
-const RELAY_BOOTSTRAP_ADDR_DEV = import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_DEV || '';
-const RELAY_BOOTSTRAP_ADDR_PROD = import.meta.env.VITE_RELAY_BOOTSTRAP_ADDR_PROD || '';
 const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discovery._p2p._pubsub')
 	.split(',')
 	.map((/** @type {string} */ t) => t.trim());
@@ -42,23 +43,7 @@ const isDevelopment =
 	import.meta.env.MODE === 'test' ||
 	import.meta.env.MODE === 'e2e';
 console.log('isDevelopment', isDevelopment);
-const RELAY_BOOTSTRAP_ADDR = (isDevelopment ? RELAY_BOOTSTRAP_ADDR_DEV : RELAY_BOOTSTRAP_ADDR_PROD)
-	.split(',')
-	.map((/** @type {string} */ addr) => addr.trim());
 console.log('RELAY_BOOTSTRAP_ADDR', RELAY_BOOTSTRAP_ADDR);
-
-/**
- * The relay addresses this build was configured with.
- *
- * Exposed because the relay's HTTP origin has to be looked up per peer rather
- * than read off whichever connection is currently open — see
- * `relayHttpOriginForPeer`.
- *
- * @returns {string[]}
- */
-export function getRelayBootstrapAddrs() {
-	return [...RELAY_BOOTSTRAP_ADDR];
-}
 
 /**
  * The relay addresses this build shipped with, filtered to what a browser can

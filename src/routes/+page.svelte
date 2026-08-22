@@ -7,7 +7,7 @@
 	import { hydrateIntro, openIntro } from '$lib/intro-dialog.js';
 	import { readInviteLink } from '$lib/invite-link.js';
 	import { simpleView, hydrateViewMode } from '$lib/view-mode.js';
-	import { peerIdStore, initializeP2P, initializationStore, restartP2P } from '$lib/p2p.js';
+	import { peerIdStore, initializationStore, ownDidStore } from '$lib/p2p-stores.js';
 	import IdentityPanel from '$lib/IdentityPanel.svelte';
 	import QrTransfer from '$lib/QrTransfer.svelte';
 	import { qrCodeOnScreen } from '$lib/qr-transport.js';
@@ -45,8 +45,7 @@
 		normalizeSpanishMnemonic
 	} from '$lib/spanish-mnemonic.js';
 	import ManualConnectForm from '$lib/ManualConnectForm.svelte';
-	import { libp2pStore } from '$lib/p2p.js';
-	import SponsorRelayFab from '@le-space/ui/svelte';
+	import { libp2pStore } from '$lib/p2p-stores.js';
 	import { relayVerdict } from '$lib/relay-availability.js';
 
 	/** @typedef {'default' | 'success' | 'error' | 'warning'} ToastType */
@@ -82,13 +81,38 @@
 			// ignore storage errors
 		}
 		try {
-			await restartP2P({ todoDbName: canonicalMnemonic });
+			await restartP2PLazy({ todoDbName: canonicalMnemonic });
 			activeMnemonic = canonicalMnemonic;
 		} catch (err) {
 			error = `Failed to switch list: ${err instanceof Error ? err.message : String(err)}`;
 			console.error('Shared list switch failed:', err);
 		}
 	};
+
+	// Loaded on demand, not at page load. `p2p.js` pulls libp2p, Helia, OrbitDB
+	// and gossipsub, and none of it is needed to render the consent dialog —
+	// the only thing on screen until the user agrees.
+	async function startP2P(/** @type {any} */ options) {
+		void loadSponsorFab();
+		const { initializeP2P } = await import('$lib/p2p.js');
+		await initializeP2P(options);
+	}
+
+	async function restartP2PLazy(/** @type {any} */ options) {
+		const { restartP2P } = await import('$lib/p2p.js');
+		await restartP2P(options);
+	}
+
+	// The largest single thing this app ships, and the whole Aleph deployment
+	// machinery rides with it. It lives inside the network panel behind the
+	// consent dialog, so a static import made every visitor download a relay
+	// deployer before they could read the dialog.
+	/** @type {any} */
+	let SponsorRelayFab = null;
+	async function loadSponsorFab() {
+		if (SponsorRelayFab) return;
+		SponsorRelayFab = (await import('@le-space/ui/svelte')).default;
+	}
 
 	onMount(async () => {
 		hydrateViewMode();
@@ -119,7 +143,7 @@
 
 		try {
 			activeMnemonic = normalizeSpanishMnemonic(mnemonic);
-			await initializeP2P({ todoDbName: activeMnemonic, passkeyCredential: null });
+			await startP2P({ todoDbName: activeMnemonic, passkeyCredential: null });
 		} catch (err) {
 			error = `Failed to initialize P2P: ${err instanceof Error ? err.message : String(err)}`;
 			console.error('P2P initialization failed:', err);
@@ -440,12 +464,15 @@
 			namespace stays ours. Same `qr01.` prefix as the view mode and the intro
 			dialog, so one glance at storage says which app wrote what.
 		-->
-		<SponsorRelayFab
-			manifestUrl="./rootfs-manifest.json"
-			showInstances={true}
-			draggable={true}
-			positionStorageKey="qr01.relayFabPosition"
-		/>
+		{#if SponsorRelayFab}
+			<svelte:component
+				this={SponsorRelayFab}
+				manifestUrl="./rootfs-manifest.json"
+				showInstances={true}
+				draggable={true}
+				positionStorageKey="qr01.relayFabPosition"
+			/>
+		{/if}
 	</div>
 {/if}
 
