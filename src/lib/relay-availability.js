@@ -1,4 +1,12 @@
 import { writable } from 'svelte/store';
+import { findReachableRelays, readRelayOptIn, writeRelayOptIn } from '@le-space/libp2p-webrtc-qr';
+
+// The search itself is the package's, and was already word for word the same
+// function - baked-in addresses probed before discovery, discovered ones probed
+// too because a registration can outlive the machine it describes. What is
+// local is only which addresses this app ships with and where it keeps the
+// choice.
+export { findReachableRelays };
 
 /**
  * Connecting through a relay: off unless somebody asks for it.
@@ -33,12 +41,10 @@ export const relayVerdict = writable(/** @type {any} */ ('idle'));
  * @returns {boolean}
  */
 export function readStoredRelayOptIn() {
-	try {
-		return localStorage.getItem(RELAY_OPT_IN_STORAGE_KEY) === 'true';
-	} catch {
-		// Storage blocked: off, which is the safe direction here.
-		return false;
-	}
+	// `globalThis.localStorage` rather than the bare name: this runs during
+	// prerendering too, where the bare name is a ReferenceError and the property
+	// is simply undefined - which `readRelayOptIn` already reads as "off".
+	return readRelayOptIn(globalThis.localStorage, RELAY_OPT_IN_STORAGE_KEY);
 }
 
 /** Called once on mount: `localStorage` does not exist while prerendering. */
@@ -48,54 +54,7 @@ export function hydrateRelayOptIn() {
 
 export function setRelayOptIn(/** @type {boolean} */ next) {
 	relayOptIn.set(next);
-	try {
-		localStorage.setItem(RELAY_OPT_IN_STORAGE_KEY, String(next));
-	} catch {
-		// The choice holds for this session only.
-	}
-}
-
-/**
- * Find a relay that answers, cheapest source first.
- *
- * Baked-in addresses are probed before Aleph is asked, and that order is not
- * only about speed: it means the app talks to Aleph exactly when the addresses
- * it shipped with have gone quiet. Somebody who opens this in a studio where
- * the known relay is up never contacts a third party at all.
- *
- * Discovery is imported by the caller rather than here, so a caller that only
- * wants the baked-in check — or a test — never pulls the Aleph client in.
- *
- * @param {{
- *   baked?: readonly string[],
- *   probe: (addresses: string[]) => Promise<string[]>,
- *   discover?: () => Promise<string[]>
- * }} options
- * @returns {Promise<{ source: 'baked' | 'aleph' | 'none', addresses: string[], askedAleph: boolean }>}
- */
-export async function findReachableRelays({ baked = [], probe, discover }) {
-	const seed = [...baked].map((address) => address.trim()).filter(Boolean);
-
-	if (seed.length > 0) {
-		const reachable = await probe(seed);
-		if (reachable.length > 0) {
-			return { source: 'baked', addresses: reachable, askedAleph: false };
-		}
-	}
-
-	if (!discover) {
-		return { source: 'none', addresses: [], askedAleph: false };
-	}
-
-	// Only now, and only because nothing we shipped with answered.
-	const discovered = await discover();
-	const candidates = discovered.map((address) => address.trim()).filter(Boolean);
-	if (candidates.length === 0) {
-		return { source: 'none', addresses: [], askedAleph: true };
-	}
-
-	const reachable = await probe(candidates);
-	return reachable.length > 0
-		? { source: 'aleph', addresses: reachable, askedAleph: true }
-		: { source: 'none', addresses: [], askedAleph: true };
+	// A blocked store loses the choice after this session, which is the safe
+	// direction and the package's behaviour too.
+	writeRelayOptIn(globalThis.localStorage, RELAY_OPT_IN_STORAGE_KEY, next);
 }
