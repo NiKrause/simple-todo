@@ -1,6 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
-	import { peerIdStore, initializeP2P, initializationStore } from '$lib/p2p.js';
+	import { peerIdStore, initializationStore } from '$lib/p2p-stores.js';
 	import { getRelayNetworkEnabled, setRelayNetworkEnabled } from '$lib/network-mode.js';
 	import {
 		getPersistentStorageEnabled,
@@ -23,7 +23,7 @@
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
 	import OwnMultiaddrs from '$lib/OwnMultiaddrs.svelte';
 	import ManualConnectForm from '$lib/ManualConnectForm.svelte';
-	import { libp2pStore } from '$lib/p2p.js';
+	import { libp2pStore } from '$lib/p2p-stores.js';
 	import SponsorRelayFab from '@le-space/ui/svelte';
 
 	/** @typedef {'default' | 'success' | 'error' | 'warning'} ToastType */
@@ -82,18 +82,28 @@
 			// ignore storage errors
 		}
 		try {
-			await initializeP2P();
+			await startP2P();
 		} catch (err) {
 			error = `Failed to initialize P2P: ${err instanceof Error ? err.message : String(err)}`;
 			console.error('P2P initialization failed:', err);
 		}
 	};
 
+	// Loaded on demand, not at page load. `p2p.js` pulls libp2p, Helia, OrbitDB
+	// and gossipsub — 1.6 MB — and none of it is needed to show the consent
+	// dialog, which is the only thing on screen until the user agrees. Keeping
+	// it in the eager bundle meant the page stayed blank until all of it had
+	// arrived: measured at 2562 KB before the dialog could render.
+	async function startP2P() {
+		const { initializeP2P } = await import('$lib/p2p.js');
+		await initializeP2P();
+	}
+
 	onMount(async () => {
 		try {
 			if (localStorage.getItem(CONSENT_KEY) === 'true') {
 				showModal = false;
-				await initializeP2P();
+				await startP2P();
 			}
 		} catch {
 			// ignore storage errors
