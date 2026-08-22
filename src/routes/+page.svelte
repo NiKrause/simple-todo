@@ -7,7 +7,7 @@
 	import { hydrateIntro, openIntro } from '$lib/intro-dialog.js';
 	import { readInviteLink } from '$lib/invite-link.js';
 	import { simpleView, hydrateViewMode } from '$lib/view-mode.js';
-	import { peerIdStore, initializationStore, ownDidStore } from '$lib/p2p-stores.js';
+	import { peerIdStore, initializationStore } from '$lib/p2p-stores.js';
 	import IdentityPanel from '$lib/IdentityPanel.svelte';
 	import QrTransfer from '$lib/QrTransfer.svelte';
 	import { qrCodeOnScreen } from '$lib/qr-transport.js';

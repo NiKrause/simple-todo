@@ -1,0 +1,52 @@
+# The three checks a pull request can fail in under two minutes.
+#
+# Nothing ran them before. `pnpm build` was the only thing CI did for this
+# branch, and `pnpm run lint` broke twice within hours without anyone noticing:
+# once on a leading blank line in AGENTS.md, once on an import that stopped being
+# used. Both were one-line fixes found by hand, days apart from the commits that
+# caused them.
+#
+# Scoped to pull requests targeting qr01 rather than every branch. The other
+# chapters are separate on purpose and may not pass today; turning this on for
+# them is their own decision, not a side effect of fixing this one.
+name: PR checks
+
+on:
+  pull_request:
+    branches: [qr01]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      # `prettier --check` and `eslint`, in that order - the script chains them,
+      # so a formatting failure hides the lint result. Run first anyway: it is
+      # the cheapest of the three and the one that has actually been breaking.
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Types
+        run: pnpm run check
+
+      # The unit tests run in a real chromium (vitest browser mode, playwright
+      # provider), so the browser has to be there. Only chromium, and only its
+      # dependencies: this job has no business installing three engines.
+      - name: Install chromium for the unit tests
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Unit tests
+        run: pnpm run test:unit
