@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openReadyApp, todoInput } from './open-app.mjs';
+import { openReadyApp, pinTechnicalView, todoInput } from './open-app.mjs';
 import { buildInviteLink } from '../src/lib/invite-link.js';
 import { PREVIEW_ORIGIN } from './preview-origin.mjs';
 
@@ -238,6 +238,50 @@ test.describe('connecting through a relay', () => {
 			// find it again.
 			await page.reload();
 			await expect(relayBox(page)).toBeChecked({ timeout });
+		} finally {
+			await context.close();
+		}
+	});
+});
+
+test.describe('the introduction as a modal', () => {
+	test('while it is open nothing behind it can be reached, and afterwards everything can', async ({
+		browser
+	}) => {
+		// The introduction is a <dialog> opened with showModal(): it sits in the
+		// top layer and makes the rest of the document inert. That is right for an
+		// introduction — it is the only thing on screen until somebody dismisses
+		// it — and it is a stronger claim than the overlay it replaced, which only
+		// covered the page and left what was under it clickable.
+		//
+		// It is pinned here because the difference is invisible until something
+		// drives the app without dismissing the dialog first. When that happened
+		// it cost a 50-minute test timeout in the relay provisioning suite, with
+		// the widget mounted, reporting `wallet: null`, and nothing able to click
+		// it.
+		const context = await browser.newContext();
+		const page = await context.newPage();
+
+		try {
+			// The relay button lives in the technical view, so pin it: this test is
+			// about what the dialog does to the page beneath, not about which
+			// controls that page shows.
+			await pinTechnicalView(page);
+			await openReadyApp(page, { intro: true, relay: false, timeout });
+			await expect(shown(page)).toBeVisible({ timeout });
+
+			const relayButton = page.getByTestId('relay-button-slot').locator('button').first();
+			await expect(relayButton).toHaveCount(1);
+
+			// A trial click resolves only if the element could actually be clicked.
+			await expect(relayButton.click({ trial: true, timeout: 3_000 })).rejects.toThrow(/Timeout/);
+
+			await page.getByTestId('intro-close').click();
+			await expect(shown(page)).toBeHidden();
+
+			// And the barrier is gone with it, rather than lingering as an inert
+			// document nobody can use.
+			await relayButton.click({ trial: true, timeout: 10_000 });
 		} finally {
 			await context.close();
 		}
