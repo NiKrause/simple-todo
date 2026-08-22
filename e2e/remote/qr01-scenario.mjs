@@ -93,7 +93,12 @@ export async function runQr01RemoteScenario({
 		// the same data. `open()` writes its argument to localStorage unguarded,
 		// so omitting it would store the string "undefined" as the mnemonic.
 		result.mnemonics = { a: generateSpanishMnemonic(), b: generateSpanishMnemonic() };
-		await Promise.all([agentA.open(result.mnemonics.a), agentB.open(result.mnemonics.b)]);
+		// No relay for either side: this scenario introduces the two through the
+		// scanned payload and ends by asserting none was used.
+		await Promise.all([
+			agentA.open(result.mnemonics.a, { relayOptIn: false }),
+			agentB.open(result.mnemonics.b, { relayOptIn: false })
+		]);
 
 		setStage('seeding-site-list-on-a');
 		await openListTab(agentA.page, 'create');
