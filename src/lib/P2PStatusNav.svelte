@@ -2,7 +2,7 @@
 	import { onDestroy } from 'svelte';
 	import { relayHttpStatusStore } from './relay-status.js';
 	import { relayHttpOriginForPeer } from './multiaddr-utils.js';
-	import { getRelayBootstrapAddrs } from './libp2p-config.js';
+	import { getRelayBootstrapAddrs } from './relay-bootstrap-addrs.js';
 
 	/** @typedef {'pending' | 'active' | 'complete' | 'error'} StepStatus */
 	/** @typedef {{ label: string, description: string, status: StepStatus }} StatusStep */

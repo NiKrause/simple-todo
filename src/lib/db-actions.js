@@ -1,6 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import { OrbitDBAccessController } from '@orbitdb/core';
-import { peerIdStore } from './p2p.js';
+import { peerIdStore } from './p2p-stores.js';
 import { rememberList, listRegistryStore, openListRegistry } from './list-registry.js';
 import { relayHttpStatusStore } from './relay-status.js';
 
