@@ -260,7 +260,15 @@
 	<!-- Header with title and social icons -->
 	<header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div class="flex flex-1 items-center gap-3">
-			<LeSpaceLogo size={52} />
+			<a
+				href="https://local-first.le-space.de"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="shrink-0"
+				aria-label={$_('app.title')}
+			>
+				<LeSpaceLogo size={52} />
+			</a>
 			<div>
 				<h1 class="text-2xl font-bold text-heading sm:text-3xl">{$_('app.title')}</h1>
 				<!--
@@ -446,6 +454,26 @@
 
 	<!-- TODO List -->
 	<TodoList todos={$todosStore} on:delete={handleDelete} on:toggleComplete={handleToggleComplete} />
+	<!--
+		The imprint and the privacy notice live on le-space.de as modals rather
+		than as pages, so these land on its front page where the two buttons are.
+		A deep link would be better and there is nothing to link to yet.
+	-->
+	<footer class="mt-10 border-t border-border pt-4 text-xs text-faint">
+		<a
+			href="https://le-space.de"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="hover:text-text hover:underline">{$_('footer.imprint')}</a
+		>
+		<span class="mx-2" aria-hidden="true">·</span>
+		<a
+			href="https://le-space.de"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="hover:text-text hover:underline">{$_('footer.privacy')}</a
+		>
+	</footer>
 </main>
 
 <!--

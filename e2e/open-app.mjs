@@ -179,8 +179,10 @@ export async function expectAppReady(page, timeout = 90_000) {
  */
 export async function createPasskey(page, { userId, displayName, timeout = 90_000 }) {
 	await page.getByTestId('identity-create-toggle').click();
-	await page.getByTestId('identity-user-id').fill(userId);
-	await page.getByTestId('identity-display-name').fill(displayName);
+	// One field now: WebAuthn's user id and display name are the same answer for
+	// somebody setting up a passkey on their own device. Callers still pass both
+	// so their intent stays readable; the form takes the display name.
+	await page.getByTestId('identity-name').fill(displayName || userId);
 	await page.getByTestId('identity-create').click();
 	await waitForPasskeyAdopted(page, timeout);
 }
