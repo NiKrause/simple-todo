@@ -34,6 +34,10 @@ const OUTPUT_DIR = 'test-results/relay-button';
 // controller moves to the next CRN, and two flaky CRNs in a row are routine.
 const PROVISION_TIMEOUT = 35 * 60_000;
 const REGISTRATION_TIMEOUT = 15 * 60_000;
+// The wallet mock is in place before the first navigation, so this is not a
+// race worth waiting minutes on: either the widget picks it up on one of its
+// first refreshes or it never does.
+const WALLET_CONNECT_TIMEOUT = 30_000;
 const RELAY_HEALTH_TIMEOUT = 60_000;
 const RELAY_READINESS_TIMEOUT = 10 * 60_000;
 const RELAY_DIAL_ATTEMPT_TIMEOUT = 20_000;
@@ -266,6 +270,35 @@ relayTest.describe('Relay Button', () => {
 				await deploymentPage
 					.getByTestId('todo-input')
 					.waitFor({ state: 'visible', timeout: 60_000 });
+
+				// Fail in half a minute rather than in fifty.
+				//
+				// `provision()` waits for phases that never arrive when the widget
+				// cannot see a wallet: it reports `wallet: null` on every 30 s
+				// refresh, no phase is ever entered, and the run burns the full
+				// 50-minute test timeout while holding an Aleph VM — producing no
+				// result file, so even the job summary comes out empty (ENOENT on
+				// `test-results/relay-button/result.json`).
+				//
+				// The wallet mock is installed on the context before the first
+				// navigation, so if it has not been picked up within 30 s it never
+				// will. Reading the widget's own trace is what tells us: it logs the
+				// address it is working with on each refresh.
+				const walletSeen = deploymentPage
+					.waitForEvent('console', {
+						predicate: (message) => /refresh:start \{wallet: 0x/.test(message.text()),
+						timeout: WALLET_CONNECT_TIMEOUT
+					})
+					.then(() => true)
+					.catch(() => false);
+				if (!(await walletSeen)) {
+					throw new Error(
+						`Relay Button never reported a connected wallet within ${WALLET_CONNECT_TIMEOUT}ms — ` +
+							'the widget is mounted but reports `wallet: null`, so no deployment can start. ' +
+							'Failing here instead of waiting out the 50-minute test timeout.'
+					);
+				}
+				progress('wallet: connected');
 
 				// Phase 1: Wallet + manifest + provision (deploy → instance → bootstrap).
 				const relay = await relayLifecycle.provision(deploymentPage, {
