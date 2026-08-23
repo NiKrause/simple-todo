@@ -86,7 +86,7 @@
 		"@helia/libp2p": "^1.0.6",
 		"@ipld/dag-cbor": "^10.0.1",
 		"@ipld/dag-json": "^11.0.0",
-		"@le-space/aleph-bootstrap": "0.9.1",
+		"@le-space/aleph-bootstrap": "0.9.4",
 		"@libp2p/peer-id": "^6.0.12",
 		"@le-space/libp2p-webrtc-qr": "^0.11.0",
 		"@le-space/orbitdb-identity-provider-webauthn-did": "0.5.0",

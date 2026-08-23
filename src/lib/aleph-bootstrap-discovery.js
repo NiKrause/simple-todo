@@ -1,8 +1,4 @@
-import {
-	fetchAlephBootstrapPosts,
-	selectCurrentRelayBootstrapPosts,
-	filterRelayBootstrapPostsByProfile
-} from '@le-space/aleph-bootstrap';
+import { discoverAlephBootstrapMultiaddrs } from '@le-space/aleph-bootstrap';
 
 // The relay registrations live on a public Aleph channel: anyone with an ETH
 // key can post there, and registrations of erased VMs are orphaned forever
@@ -16,27 +12,32 @@ import {
 //  - maxAgeMs: orphans stop refreshing (live relays republish every 6 h), so
 //    anything older than ~2 cadences is dead weight even when the
 //    registrationId matches.
+//
+// Both scopes are the package's own since @le-space/aleph-bootstrap 0.9.4
+// (relay-button#121). This file used to rebuild that pipeline out of the
+// primitives — paging, freshness, profile, address selection, dedupe — for the
+// sake of the one filter the package lacked. It no longer lacks it.
 const DEFAULT_REGISTRATION_ID = 'relay:orbitdb-relay:orbitdb-relay';
 const DEFAULT_MAX_AGE_MS = 13 * 60 * 60 * 1000;
 
+/**
+ * @param {{ profile?: string, registrationId?: string, maxAgeMs?: number, pagination?: number }} [options]
+ * @returns {Promise<string[]>}
+ */
 export async function discoverScopedBootstrapMultiaddrs({
 	profile = 'orbitdb-relay',
 	registrationId = DEFAULT_REGISTRATION_ID,
 	maxAgeMs = DEFAULT_MAX_AGE_MS,
 	pagination = 100
 } = {}) {
-	const posts = await fetchAlephBootstrapPosts({ pagination });
-	const current = selectCurrentRelayBootstrapPosts(posts, { maxAgeMs });
-	const profiled = filterRelayBootstrapPostsByProfile(current, profile);
-	const scoped = registrationId
-		? profiled.filter((post) => post.content?.registrationId === registrationId)
-		: profiled;
-	const addresses = scoped.flatMap((post) => {
-		const content = post.content;
-		if (!content) return [];
-		return content.browserMultiaddrs?.length
-			? content.browserMultiaddrs
-			: (content.multiaddrs ?? []);
+	return await discoverAlephBootstrapMultiaddrs({
+		profile,
+		registrationId,
+		maxAgeMs,
+		pagination,
+		// The callers filter again for what *this* browser can dial — an https
+		// page refuses a plaintext `/ws` as mixed content — so this is the coarse
+		// pass, not the only one.
+		browserDialableOnly: true
 	});
-	return [...new Set(addresses)];
 }
