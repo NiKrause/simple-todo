@@ -6,6 +6,7 @@ import {
 	selectRelayBootstrapAddrs
 } from './libp2p-config.js';
 import { rtcConfiguration } from './ice-mode.js';
+import { PUBSUB_TOPICS } from './libp2p-config.js';
 import { RELAY_OPT_IN_STORAGE_KEY } from './relay-availability.js';
 
 const PEER = '/p2p/12D3KooWAX2ARgYnWjrAPHiM9hAXBvGUaQ9iK1PBNCV4FbMBRDVu';
@@ -115,6 +116,23 @@ describe('a build with no relay address, once somebody asks for one', () => {
 		const config = await createLibp2pConfig();
 
 		expect(config.services.bootstrap).toBeUndefined();
+	});
+});
+
+describe('the meeting places this app calls out on', () => {
+	// A meeting place is not a property of having a relay - it is a property of
+	// the relay's own subscriptions. `orbitdb-relay` carries the first topic,
+	// `uc-go-peer` the second, and Aleph discovery hands out whichever answered.
+	// Calling out on one of them means two browsers can both report a healthy
+	// connection to the same relay and never hear each other.
+	//
+	// Reported that way from a phone and a laptop. `Le-Space/ablage` keeps the
+	// same pair, and measured it: 60 seconds of silence on a topic the relay
+	// does not carry, against 10 to meet on one it does.
+
+	it('calls out on both, because different relays carry different ones', () => {
+		expect(PUBSUB_TOPICS).toContain('todo._peer-discovery._p2p._pubsub');
+		expect(PUBSUB_TOPICS).toContain('universal-connectivity-browser-peer-discovery');
 	});
 });
 
