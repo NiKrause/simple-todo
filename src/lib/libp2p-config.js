@@ -33,7 +33,22 @@ import { rtcConfiguration } from './ice-mode.js';
 // reservations, so a test could pass *through a relay* while claiming to prove
 // two devices met by nothing but a scanned code. Set the variable explicitly
 // when you want a relay — milestone 3 does exactly that.
-const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discovery._p2p._pubsub')
+// Both meeting places, because a meeting place is not a property of having a
+// relay - it is a property of the relay's own subscriptions. `orbitdb-relay`
+// carries the first, `uc-go-peer` the second, and Aleph discovery hands out
+// whichever answered. Calling out on one of them means two browsers can both
+// report a healthy connection to the same relay and never hear each other,
+// which is exactly what was reported from a phone and a laptop.
+//
+// `Le-Space/ablage` carries both for this reason and measured the difference:
+// 60 seconds of silence on a topic the relay does not carry, against 10 to
+// meet on one it does.
+const DEFAULT_PUBSUB_TOPICS = [
+	'todo._peer-discovery._p2p._pubsub',
+	'universal-connectivity-browser-peer-discovery'
+].join(',');
+
+export const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || DEFAULT_PUBSUB_TOPICS)
 	.split(',')
 	.map((/** @type {string} */ t) => t.trim());
 // Determine which relay address to use based on environment
