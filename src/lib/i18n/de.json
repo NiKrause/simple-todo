@@ -25,6 +25,8 @@
 		"anonymous": "Nicht angemeldet",
 		"explain": "So funktioniert die App auch. Wenn Sie diesen Browser aber leeren, sind Ihre Listen und Passkeys weg. Ein Passkey unterzeichnet Ihre Einträge und zeigt anderen, von wem sie kommen.",
 		"create": "Passkey einrichten",
+		"namePlaceholder": "Ihr Name",
+		"nameRequired": "Geben Sie einen Namen für den Passkey ein.",
 		"use": "Meinen Passkey benutzen",
 		"signedInAs": "Angemeldet als",
 		"passkeyHidden": "Auf diesem Gerät gibt es einen Passkey. Listen, die Sie damit angelegt haben, bleiben verborgen, bis Sie ihn wiederherstellen.",
@@ -273,5 +275,9 @@
 			"heading": "Wie das andere Gerät hereinkommt",
 			"qr": "Per Kamera: Du hältst einen Code hoch, das andere Gerät scannt ihn. Nichts verlässt dieses Netz."
 		}
+	},
+	"footer": {
+		"imprint": "Impressum",
+		"privacy": "Datenschutz"
 	}
 }

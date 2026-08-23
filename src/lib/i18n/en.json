@@ -25,6 +25,8 @@
 		"anonymous": "Not signed in",
 		"explain": "You can use the app like this. But if you clear this browser, your lists and passkeys are gone. A passkey signs your entries and shows others who they came from.",
 		"create": "Set up a passkey",
+		"namePlaceholder": "Your name",
+		"nameRequired": "Enter a name for the passkey.",
 		"use": "Use my passkey",
 		"signedInAs": "Signed in as",
 		"passkeyHidden": "A passkey exists on this device. Lists you made with it stay hidden until you restore it.",
@@ -273,5 +275,9 @@
 			"heading": "How the other device gets in",
 			"qr": "By camera: you hold up a code, they scan it. Nothing leaves this network."
 		}
+	},
+	"footer": {
+		"imprint": "Imprint",
+		"privacy": "Privacy"
 	}
 }

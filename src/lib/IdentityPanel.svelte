@@ -27,8 +27,10 @@
 	let state = 'idle';
 	/** @type {string | null} */
 	let error = null;
-	let userId = '';
-	let displayName = '';
+	// One field, not two. WebAuthn wants a user id and a display name, and for a
+	// person setting up a passkey on their own phone they are the same answer to
+	// the same question - yogasuci settled on this and it reads better there.
+	let name = '';
 	let showCreateForm = false;
 	let copied = false;
 
@@ -73,10 +75,9 @@
 
 	const create = () =>
 		adopt(() => {
-			if (!userId.trim() || !displayName.trim()) {
-				throw new Error('Enter a user id and a display name for the new passkey.');
-			}
-			return createPasskeyCredential({ userId: userId.trim(), displayName: displayName.trim() });
+			const trimmed = name.trim();
+			if (!trimmed) throw new Error($_('identity.nameRequired'));
+			return createPasskeyCredential({ userId: trimmed, displayName: trimmed });
 		});
 
 	const recover = () => adopt(() => recoverPasskeyCredential());
@@ -152,18 +153,12 @@
 			</div>
 
 			{#if showCreateForm}
-				<div class="mt-2 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+				<div class="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
 					<input
 						class="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
-						placeholder="User id"
-						bind:value={userId}
-						data-testid="identity-user-id"
-					/>
-					<input
-						class="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
-						placeholder="Display name"
-						bind:value={displayName}
-						data-testid="identity-display-name"
+						placeholder={$_('identity.namePlaceholder')}
+						bind:value={name}
+						data-testid="identity-name"
 					/>
 					<button
 						type="button"
