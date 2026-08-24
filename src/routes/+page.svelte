@@ -1,5 +1,7 @@
 <script>
 	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
+	import { getRelayBootstrapAddrs } from '$lib/relay-bootstrap-addrs.js';
 	import { peerIdStore, initializationStore } from '$lib/p2p-stores.js';
 	import { getRelayNetworkEnabled, setRelayNetworkEnabled } from '$lib/network-mode.js';
 	import {
@@ -97,6 +99,61 @@
 	async function startP2P() {
 		const { initializeP2P } = await import('$lib/p2p.js');
 		await initializeP2P();
+		void recoverRelayIfBakedOnesAreGone();
+	}
+
+	// The baked relay was alive when this build was made. It may not be now.
+	//
+	// `resolve-aleph-bootstrap.mjs` discovers and *probes* the relays at deploy
+	// time, so what ships is verified — but a relay VM lives about a day, and a
+	// snapshot cannot survive that. On 2026-08-22 the deployed app spent two
+	// minutes on `ERR_CONNECTION_CLOSED` with no dialable address, while two
+	// healthy relays were registered on the Aleph channel the whole time.
+	//
+	// So: baked first, and only when none of them answer, ask the directory.
+	// The grace period is what keeps this off the fast path — a normal start
+	// connects long before it elapses and the check then costs one predicate.
+	const RELAY_RECOVERY_GRACE_MS = 20_000;
+	async function recoverRelayIfBakedOnesAreGone() {
+		await new Promise((resolve) => setTimeout(resolve, RELAY_RECOVERY_GRACE_MS));
+		try {
+			const [{ recoverRelayConnection }, { probeRelayAddresses }, p2p] = await Promise.all([
+				import('$lib/relay-fallback.js'),
+				import('$lib/relay-probe.js'),
+				import('$lib/p2p.js')
+			]);
+			await recoverRelayConnection({
+				// "Do we have any relay at all", not "a public one". The e2e suite
+				// runs its relay on 127.0.0.1, and treating that as absent made this
+				// fall back mid-test — reaching for the real Aleph directory and
+				// dialling a public relay while a local one was working fine.
+				// Comparing against the baked peer ids says exactly what is meant.
+				isConnected: () => {
+					const node = get(libp2pStore);
+					const baked = new Set(
+						getRelayBootstrapAddrs()
+							.map((address) => address.match(/\/p2p\/([^/]+)$/)?.[1])
+							.filter(Boolean)
+					);
+					return (node?.getConnections?.() ?? []).some((/** @type {any} */ connection) =>
+						baked.has(String(connection?.remotePeer ?? ''))
+					);
+				},
+				discover: async () => {
+					// Imported here, not above: a start that never needs the fallback
+					// must not load the Aleph client at all.
+					const { discoverScopedBootstrapMultiaddrs } = await import(
+						'$lib/aleph-bootstrap-discovery.js'
+					);
+					return discoverScopedBootstrapMultiaddrs();
+				},
+				probe: (candidates) => probeRelayAddresses(candidates, { ping: p2p.pingMultiaddr }),
+				connect: (address) => p2p.connectToMultiaddr(address),
+				log: (message, detail) => console.info(`[relay-fallback] ${message}`, detail ?? '')
+			});
+		} catch (err) {
+			console.warn('[relay-fallback] could not run:', err);
+		}
 	}
 
 	onMount(async () => {
