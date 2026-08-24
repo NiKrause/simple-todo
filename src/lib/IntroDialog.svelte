@@ -68,7 +68,15 @@
 		],
 		dontShow: $_('intro.dontShow'),
 		waysHeading: $_('intro.ways.heading'),
-		wayQr: $_('intro.ways.qr'),
+		// The ways section is the one place that tells a person what to *do*, and
+		// it only ever offered the camera. With a relay answering, a code is not
+		// required at all — saying so at that moment is the difference between
+		// the dialog describing the app and describing this network right now.
+		// (`wayRelay` does not exist in the element, so this rides on `wayQr`.)
+		wayQr:
+			$relayVerdict === 'baked' || $relayVerdict === 'aleph'
+				? $_('intro.ways.qrWithRelay')
+				: $_('intro.ways.qr'),
 		relayLabel: $_('intro.relay.label'),
 		relayHint: $_('intro.relay.hint'),
 		relayChecking: $_('intro.relay.checking'),

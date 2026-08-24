@@ -273,7 +273,8 @@
 		},
 		"ways": {
 			"heading": "How the other device gets in",
-			"qr": "By camera: you hold up a code, they scan it. Nothing leaves this network."
+			"qr": "By camera: you hold up a code, they scan it. Nothing leaves this network.",
+			"qrWithRelay": "By camera: you hold up a code, they scan it. Nothing leaves this network. A relay answered, so the other device can also join without a code."
 		}
 	},
 	"footer": {
