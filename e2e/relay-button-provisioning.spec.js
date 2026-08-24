@@ -34,10 +34,15 @@ const OUTPUT_DIR = 'test-results/relay-button';
 // controller moves to the next CRN, and two flaky CRNs in a row are routine.
 const PROVISION_TIMEOUT = 35 * 60_000;
 const REGISTRATION_TIMEOUT = 15 * 60_000;
-// The wallet mock is in place before the first navigation, so this is not a
-// race worth waiting minutes on: either the widget picks it up on one of its
-// first refreshes or it never does.
-const WALLET_CONNECT_TIMEOUT = 30_000;
+// Long enough for `prepare()` to fail on its own terms first.
+//
+// The watchdog exists to stop a stuck run burning the 50-minute test timeout,
+// not to pre-empt the harness. `driver.prepare()` waits up to 60 s for the
+// launcher button before giving up, and at 30 s this fired first — reporting
+// "no wallet" over the top of Playwright's precise "waiting for
+// getByRole('button', ...)". Two runs were spent on that. Past 60 s the
+// specific error wins and this only catches what nothing else bounds.
+const WALLET_CONNECT_TIMEOUT = 120_000;
 const RELAY_HEALTH_TIMEOUT = 60_000;
 const RELAY_READINESS_TIMEOUT = 10 * 60_000;
 const RELAY_DIAL_ATTEMPT_TIMEOUT = 20_000;
