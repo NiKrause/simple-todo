@@ -271,19 +271,19 @@ relayTest.describe('Relay Button', () => {
 					.getByTestId('todo-input')
 					.waitFor({ state: 'visible', timeout: 60_000 });
 
-				// Fail in half a minute rather than in fifty.
+				// Fail in half a minute rather than in fifty — but watch, do not gate.
 				//
-				// `provision()` waits for phases that never arrive when the widget
-				// cannot see a wallet: it reports `wallet: null` on every 30 s
-				// refresh, no phase is ever entered, and the run burns the full
-				// 50-minute test timeout while holding an Aleph VM — producing no
-				// result file, so even the job summary comes out empty (ENOENT on
-				// `test-results/relay-button/result.json`).
+				// An earlier version of this asserted a connected wallet *before*
+				// `provision()`. That could never pass: the wallet is connected by
+				// `driver.prepare()` inside `provision()`, which clicks the widget's
+				// "connect wallet" button. The check therefore waited for something
+				// its own position prevented, and failed every run at 30 s whatever
+				// the actual state.
 				//
-				// The wallet mock is installed on the context before the first
-				// navigation, so if it has not been picked up within 30 s it never
-				// will. Reading the widget's own trace is what tells us: it logs the
-				// address it is working with on each refresh.
+				// So start listening first, then let `provision()` run, and only cut
+				// in if no wallet appears while it is working. Without this the run
+				// burns the full 50-minute test timeout holding an Aleph VM, and
+				// produces no result file — so even the job summary comes out empty.
 				const walletSeen = deploymentPage
 					.waitForEvent('console', {
 						predicate: (message) => /refresh:start \{wallet: 0x/.test(message.text()),
@@ -291,17 +291,9 @@ relayTest.describe('Relay Button', () => {
 					})
 					.then(() => true)
 					.catch(() => false);
-				if (!(await walletSeen)) {
-					throw new Error(
-						`Relay Button never reported a connected wallet within ${WALLET_CONNECT_TIMEOUT}ms — ` +
-							'the widget is mounted but reports `wallet: null`, so no deployment can start. ' +
-							'Failing here instead of waiting out the 50-minute test timeout.'
-					);
-				}
-				progress('wallet: connected');
 
 				// Phase 1: Wallet + manifest + provision (deploy → instance → bootstrap).
-				const relay = await relayLifecycle.provision(deploymentPage, {
+				const provisioning = relayLifecycle.provision(deploymentPage, {
 					instanceName,
 					sshPublicKey: SSH_PUBLIC_KEY,
 					startedAt,
@@ -310,6 +302,18 @@ relayTest.describe('Relay Button', () => {
 					onPhase: (phase, detail = '') =>
 						progress(`provision: ${phase}${detail ? ` (${detail})` : ''}`)
 				});
+				const relay = await Promise.race([
+					provisioning,
+					walletSeen.then((ok) => {
+						if (ok) return provisioning;
+						throw new Error(
+							`Relay Button never reported a connected wallet within ${WALLET_CONNECT_TIMEOUT}ms of ` +
+								'provisioning starting — the widget is mounted but reports `wallet: null`, so no ' +
+								'deployment can start. Failing here instead of waiting out the 50-minute test timeout.'
+						);
+					})
+				]);
+
 				pass('walletAndManifest');
 				evidence.instanceHash = relay.instanceHash;
 				evidence.registration = relay.registration;
