@@ -30,7 +30,8 @@
 		"use": "Use my passkey",
 		"signedInAs": "Signed in as",
 		"passkeyHidden": "A passkey exists on this device. Lists you made with it stay hidden until you restore it.",
-		"useOnDevice": "Use the passkey on this device"
+		"useOnDevice": "Use the passkey on this device",
+		"peerId": "Peer ID"
 	},
 	"list": {
 		"heading": "Your list",
@@ -78,7 +79,9 @@
 		"state": {
 			"connected": "connected",
 			"reconnecting": "reconnecting…"
-		}
+		},
+		"filterPlaceholder": "Filter by peer ID…",
+		"filterEmpty": "No connected device matches that."
 	},
 	"offer": {
 		"heading": "Someone sent you a list",

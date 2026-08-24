@@ -84,6 +84,21 @@
 		}
 	}
 
+	// A filter, but only once the list stops being readable at a glance.
+	//
+	// With two or three peers a search box is clutter; with a dozen the row you
+	// want is the one you cannot find. The threshold is where scanning the list
+	// stops being faster than typing. Matching is on the full peer id, not the
+	// shortened form on screen, so pasting an id someone read out works.
+	const FILTER_FROM = 6;
+	let peerFilter = '';
+	$: showFilter = peers.length >= FILTER_FROM;
+	$: visiblePeers = (() => {
+		const needle = peerFilter.trim().toLowerCase();
+		if (!needle) return peers;
+		return peers.filter((peer) => peer.peerId.toLowerCase().includes(needle));
+	})();
+
 	/** Enough to tell two peers apart without filling the row with base58. */
 	const short = (/** @type {string} */ peerId) => `${peerId.slice(0, 8)}…${peerId.slice(-6)}`;
 </script>
@@ -94,11 +109,26 @@
 	</h3>
 	<p class="mt-1 text-xs text-faint">{$_('handover.hint')}</p>
 
+	{#if showFilter}
+		<input
+			type="search"
+			bind:value={peerFilter}
+			placeholder={$_('handover.filterPlaceholder')}
+			aria-label={$_('handover.filterPlaceholder')}
+			class="mt-3 w-full rounded-md border border-border bg-surface px-2 py-1 text-xs"
+			data-testid="peer-handover-filter"
+		/>
+	{/if}
+
 	{#if peers.length === 0}
 		<p class="mt-3 text-xs text-faint" data-testid="peer-handover-empty">{$_('handover.empty')}</p>
+	{:else if visiblePeers.length === 0}
+		<p class="mt-3 text-xs text-faint" data-testid="peer-handover-nomatch">
+			{$_('handover.filterEmpty')}
+		</p>
 	{:else}
 		<ul class="mt-3 space-y-2" data-testid="peer-handover-list">
-			{#each peers as peer (peer.peerId)}
+			{#each visiblePeers as peer (peer.peerId)}
 				<li
 					class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2"
 					data-testid="peer-handover-row"

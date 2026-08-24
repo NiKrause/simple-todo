@@ -30,7 +30,8 @@
 		"use": "Meinen Passkey benutzen",
 		"signedInAs": "Angemeldet als",
 		"passkeyHidden": "Auf diesem Gerät gibt es einen Passkey. Listen, die Sie damit angelegt haben, bleiben verborgen, bis Sie ihn wiederherstellen.",
-		"useOnDevice": "Passkey auf diesem Gerät benutzen"
+		"useOnDevice": "Passkey auf diesem Gerät benutzen",
+		"peerId": "Peer-ID"
 	},
 	"list": {
 		"heading": "Ihre Liste",
@@ -78,7 +79,9 @@
 		"state": {
 			"connected": "verbunden",
 			"reconnecting": "verbindet erneut…"
-		}
+		},
+		"filterPlaceholder": "Nach Peer-ID filtern…",
+		"filterEmpty": "Kein verbundenes Gerät passt dazu."
 	},
 	"offer": {
 		"heading": "Jemand hat Ihnen eine Liste geschickt",

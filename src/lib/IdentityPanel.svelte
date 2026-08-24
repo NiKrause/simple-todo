@@ -22,6 +22,7 @@
 		hasStoredPasskeyCredential
 	} from './passkey-identity.js';
 	import { restartP2P, ownDidStore } from './p2p.js';
+	import { peerIdStore } from './p2p-stores.js';
 
 	/** @type {'idle' | 'busy'} */
 	let state = 'idle';
@@ -79,6 +80,20 @@
 			if (!trimmed) throw new Error($_('identity.nameRequired'));
 			return createPasskeyCredential({ userId: trimmed, displayName: trimmed });
 		});
+
+	let peerCopied = false;
+	function shortPeerId(/** @type {string} */ value) {
+		return value.length <= 20 ? value : `${value.slice(0, 10)}…${value.slice(-6)}`;
+	}
+	async function copyPeerId() {
+		try {
+			await navigator.clipboard.writeText($peerIdStore ?? '');
+			peerCopied = true;
+			setTimeout(() => (peerCopied = false), 1500);
+		} catch (error) {
+			console.warn('Clipboard unavailable:', error);
+		}
+	}
 
 	const recover = () => adopt(() => recoverPasskeyCredential());
 </script>
@@ -169,6 +184,29 @@
 					>
 				</div>
 			{/if}
+		</div>
+	{/if}
+
+	<!-- The peer id, shown in both views. The DID says who you are; the peer id
+	     says which node the other device has to reach. Someone comparing two
+	     screens, or picking a row out of the peer list below, needs it - and it
+	     used to appear only in the technical panel. -->
+	{#if $peerIdStore}
+		<div
+			class="flex items-center gap-2 px-1 py-1 text-xs"
+			data-testid="own-peer-badge"
+			title={$peerIdStore}
+		>
+			<span class="font-semibold text-faint">{$_('identity.peerId')}</span>
+			<code class="min-w-0 truncate font-mono text-faint" data-testid="own-peer-value"
+				>{shortPeerId($peerIdStore)}</code
+			>
+			<button
+				type="button"
+				on:click={copyPeerId}
+				class="shrink-0 rounded border border-border px-1.5 py-0.5 hover:bg-surface"
+				data-testid="own-peer-copy">{peerCopied ? 'Copied ✓' : 'Copy'}</button
+			>
 		</div>
 	{/if}
 </section>
