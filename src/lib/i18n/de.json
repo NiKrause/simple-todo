@@ -273,7 +273,8 @@
 		},
 		"ways": {
 			"heading": "Wie das andere Gerät hereinkommt",
-			"qr": "Per Kamera: Du hältst einen Code hoch, das andere Gerät scannt ihn. Nichts verlässt dieses Netz."
+			"qr": "Per Kamera: Du hältst einen Code hoch, das andere Gerät scannt ihn. Nichts verlässt dieses Netz.",
+			"qrWithRelay": "Per Kamera: Du hältst einen Code hoch, das andere Gerät scannt ihn. Nichts verlässt dieses Netz. Ein Relay hat geantwortet — das andere Gerät kann auch ohne Code dazukommen."
 		}
 	},
 	"footer": {
