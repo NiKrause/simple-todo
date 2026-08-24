@@ -11,7 +11,7 @@
 	import IdentityPanel from '$lib/IdentityPanel.svelte';
 	import QrTransfer from '$lib/QrTransfer.svelte';
 	import PeerHandover from '$lib/PeerHandover.svelte';
-	import { relayOptIn } from '$lib/relay-availability.js';
+	import { relayOptIn, readStoredRelayOptIn } from '$lib/relay-availability.js';
 	import { qrCodeOnScreen } from '$lib/qr-transport.js';
 	import ListOfferDialog from '$lib/ListOfferDialog.svelte';
 	import {
@@ -111,14 +111,24 @@
 	//
 	// Guarded against the initial hydrate (which only reports what was already
 	// stored) and against a restart while one is already running.
-	let relayOptInApplied = /** @type {boolean | null} */ (null);
+	// Rebuild the node only when the *user* changes the relay choice.
+	//
+	// The first version compared against the store's first emission and passed
+	// `activeMnemonic` straight through. Both were wrong, and together they
+	// broke a working session: `relayOptIn` starts as `false` and is hydrated
+	// from storage a tick later, so anyone who had the relay on got a restart
+	// on every load — and that restart threw `Enter a three-word Spanish share
+	// code`, because `activeMnemonic` is not set yet at that point. The node
+	// was torn down and did not come back, so sending a list to a peer went
+	// nowhere.
+	//
+	// So compare against what the node was actually built with — the same
+	// stored value `createLibp2pConfig` reads — and refuse to restart before
+	// there is a database name to restart into.
+	let relayOptInApplied = readStoredRelayOptIn();
 	let relayRestartRunning = false;
 	async function applyRelayOptIn(/** @type {boolean} */ wanted) {
-		if (relayOptInApplied === null) {
-			relayOptInApplied = wanted;
-			return;
-		}
-		if (wanted === relayOptInApplied || relayRestartRunning) return;
+		if (wanted === relayOptInApplied || relayRestartRunning || !activeMnemonic) return;
 		relayOptInApplied = wanted;
 		relayRestartRunning = true;
 		try {
