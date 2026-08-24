@@ -192,6 +192,27 @@ relayTest.describe('Relay Button', () => {
 			// exist. These collectors fail the test if one reappears — the
 			// regression is invisible to a plain green run because this suite is
 			// served over http://localhost, where mixed content never applies.
+			// Which request dies during provisioning?
+			//
+			// With the intro overlay gone (#269) the run now reaches
+			// `wallet-and-manifest-ready`, `deployment-submitted` and even
+			// `Runtime ready` — the VM really is created — and then ends with
+			// `Relay Button deployment failed: Failed to fetch`, right after
+			// `net::ERR_CONNECTION_CLOSED`. Not a payment problem: insufficient
+			// credits fail at the Aleph broadcast, long before a runtime exists.
+			//
+			// `Failed to fetch` carries no URL, so log the failures with theirs.
+			// Bounded, because the page keeps polling every 30 s.
+			const failedRequests = [];
+			deploymentPage.on('requestfailed', (request) => {
+				if (failedRequests.length >= 25) return;
+				const url = request.url();
+				failedRequests.push(url);
+				progress(
+					`[request-failed] ${request.method()} ${url.slice(0, 130)} :: ${request.failure()?.errorText}`
+				);
+			});
+
 			const insecureGuestRequests = [];
 			const mixedContentErrors = [];
 			deploymentPage.on('request', (request) => {
