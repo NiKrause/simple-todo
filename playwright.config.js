@@ -23,6 +23,14 @@ export default defineConfig({
 		timeout: 30000
 	},
 	use: {
+		// Without this, Playwright puts no limit on a single action: a `click()`
+		// or `fill()` whose element never becomes actionable waits until the test
+		// timeout, and the error names the line that gave up rather than the
+		// locator that hung. That is why the relay-button failures could only
+		// ever say "no wallet" — the harness was stuck inside `prepare()` with
+		// nothing bounding it. Matched to the expect timeout so a slow action and
+		// a slow assertion fail the same way.
+		actionTimeout: 30_000,
 		baseURL: `http://localhost:${previewPort}`,
 		// Capture screenshots on failure
 		screenshot: 'only-on-failure',
