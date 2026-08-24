@@ -246,10 +246,15 @@ relayTest.describe('Relay Button', () => {
 				// place before the first render, with no window in which the test
 				// could look for a control that has not appeared yet.
 				await deploymentPage.addInitScript(
-					([[mnemonicKey, mnemonicValue], [viewKey, viewValue]]) => {
+					// Written by iterating, not by destructuring positions. #252 added
+					// the intro key to this array and never unpacked it, so it was
+					// passed and silently dropped — and the `catch` below hides the
+					// difference. Measured on the deploy page: `qr01.introSeen` was
+					// `null`, the introduction opened as a modal dialog, and every
+					// click on the Relay Button hit the top layer instead.
+					(/** @type {string[][]} */ entries) => {
 						try {
-							localStorage.setItem(mnemonicKey, mnemonicValue);
-							localStorage.setItem(viewKey, viewValue);
+							for (const [key, value] of entries) localStorage.setItem(key, value);
 						} catch {
 							// Storage blocked: the app generates its own mnemonic, which
 							// the relay assertions below do not depend on — but it would
