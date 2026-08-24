@@ -99,6 +99,39 @@
 		await initializeP2P(options);
 	}
 
+	// Ticking "connect through a relay" has to rebuild the node, not just flip a
+	// store.
+	//
+	// `createLibp2pConfig` reads the opt-in once, when the node is created, and
+	// two things hang off it: `/p2p-circuit` in `addresses.listen` and
+	// `pubsubPeerDiscovery`. Switching it on mid-session left both off — the
+	// intro then dialled a relay, so the relay itself appeared in the peer list
+	// and nothing else ever did. Observed on a phone and a laptop: the QR path
+	// worked, the relay path showed one peer, the relay.
+	//
+	// Guarded against the initial hydrate (which only reports what was already
+	// stored) and against a restart while one is already running.
+	let relayOptInApplied = /** @type {boolean | null} */ (null);
+	let relayRestartRunning = false;
+	async function applyRelayOptIn(/** @type {boolean} */ wanted) {
+		if (relayOptInApplied === null) {
+			relayOptInApplied = wanted;
+			return;
+		}
+		if (wanted === relayOptInApplied || relayRestartRunning) return;
+		relayOptInApplied = wanted;
+		relayRestartRunning = true;
+		try {
+			await restartP2PLazy({ todoDbName: activeMnemonic, passkeyCredential: null });
+		} catch (err) {
+			error = `Failed to apply the relay choice: ${err instanceof Error ? err.message : String(err)}`;
+			console.error('relay opt-in restart failed:', err);
+		} finally {
+			relayRestartRunning = false;
+		}
+	}
+	$: void applyRelayOptIn($relayOptIn);
+
 	async function restartP2PLazy(/** @type {any} */ options) {
 		const { restartP2P } = await import('$lib/p2p.js');
 		await restartP2P(options);
