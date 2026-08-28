@@ -24,6 +24,27 @@ import {
 import { qrTransports, webRTCQRTransport } from './qr-transport.js';
 import { isRelayNetworkMode } from './network-mode.js';
 
+/**
+ * identify responses larger than this are rejected — and libp2p rejects the
+ * whole message, not the entries that made it large.
+ *
+ * The relay announces one libp2p protocol per database it holds open
+ * (`/orbitdb/heads/<address>`, from OrbitDB's own sync). With enough of them
+ * its identify response passes libp2p's 8192-byte default, every client drops
+ * it, and `/libp2p/circuit/relay/0.2.0/hop` disappears from the protocol list
+ * along with everything else. `circuitRelayTransport` then never recognises a
+ * connected, working relay as a relay: no reservation, no `/p2p-circuit`
+ * address, and this peer is unreachable while still visible over gossipsub.
+ *
+ * Measured against the production relay: 10538 bytes, and 11056 an hour later.
+ * With the default limit a client got no circuit address in 30 s; raising this
+ * was the only change needed to get one in 2.0 s.
+ *
+ * 64 KiB leaves room for roughly 700 databases. The relay side is tracked in
+ * NiKrause/orbitdb-relay#50 and #51; this keeps browsers working meanwhile.
+ */
+const IDENTIFY_MAX_MESSAGE_SIZE = 65_536;
+
 const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discovery._p2p._pubsub')
 	.split(',')
 	.map((/** @type {string} */ t) => t.trim());
@@ -178,7 +199,7 @@ export async function createLibp2pConfig(privateKey = null) {
 			)
 		],
 		services: {
-			identify: identify(),
+			identify: identify({ maxMessageSize: IDENTIFY_MAX_MESSAGE_SIZE }),
 			identifyPush: identifyPush(),
 			ping: ping({ timeout: 10_000 }),
 			bootstrap: alephBootstrap,
@@ -226,7 +247,7 @@ function qrOnlyConfig(privateKey) {
 		streamMuxers: [yamux()],
 		peerDiscovery: [],
 		services: {
-			identify: identify(),
+			identify: identify({ maxMessageSize: IDENTIFY_MAX_MESSAGE_SIZE }),
 			identifyPush: identifyPush(),
 			ping: ping({ timeout: 10_000 }),
 			pubsub: gossipsub({
