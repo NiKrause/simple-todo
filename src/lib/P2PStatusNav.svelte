@@ -328,7 +328,13 @@
 					>
 				{/if}
 			</summary>
-			<div class="mt-3 grid gap-3 border-t border-border pt-3 lg:grid-cols-3">
+			<!--
+				Grid items default to `min-width: auto`, so a track refuses to shrink
+				below its content: the relay select, a peer id and a multiaddress are
+				all long unbreakable strings, which pushed these panels to 850px inside
+				a 698px card on a folded Galaxy Fold and clipped them at the edge.
+			-->
+			<div class="mt-3 grid gap-3 border-t border-border pt-3 lg:grid-cols-3 [&>*]:min-w-0">
 				<slot />
 			</div>
 		</details>
