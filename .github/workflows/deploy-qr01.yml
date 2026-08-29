@@ -73,7 +73,7 @@ jobs:
           VITE_APP_BRANCH: qr01
         run: pnpm build
       - name: Install isolated Aleph deploy tooling
-        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.22
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.22 --ignore-scripts
       - name: Publish preview to Aleph IPFS
         id: publish
         env:
@@ -106,7 +106,7 @@ jobs:
           node-version: '24.x'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.22
+      - run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.22 --ignore-scripts
       - name: Link qr01 preview domain
         env:
           ALEPH_VM_MODE: site-domain-link
