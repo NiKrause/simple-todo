@@ -42,8 +42,15 @@ import { isRelayNetworkMode } from './network-mode.js';
  *
  * 64 KiB leaves room for roughly 700 databases. The relay side is tracked in
  * NiKrause/orbitdb-relay#50 and #51; this keeps browsers working meanwhile.
+ *
+ * **Both services read it, and for a while only one was given it.** identify
+ * carries the first answer, which is where `hop` is found - so raising it there
+ * fixed the reservation and the fix looked complete. identifyPush reads against
+ * the same limit for every *later* update a peer sends, so at the default those
+ * kept being dropped whole from exactly the peers whose first answer had needed
+ * the higher ceiling. Silent, and the same failure one message later.
  */
-const IDENTIFY_MAX_MESSAGE_SIZE = 65_536;
+export const IDENTIFY_MAX_MESSAGE_SIZE = 65_536;
 
 const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discovery._p2p._pubsub')
 	.split(',')
@@ -200,7 +207,7 @@ export async function createLibp2pConfig(privateKey = null) {
 		],
 		services: {
 			identify: identify({ maxMessageSize: IDENTIFY_MAX_MESSAGE_SIZE }),
-			identifyPush: identifyPush(),
+			identifyPush: identifyPush({ maxMessageSize: IDENTIFY_MAX_MESSAGE_SIZE }),
 			ping: ping({ timeout: 10_000 }),
 			bootstrap: alephBootstrap,
 			autonat: autoNAT(),
@@ -248,7 +255,7 @@ function qrOnlyConfig(privateKey) {
 		peerDiscovery: [],
 		services: {
 			identify: identify({ maxMessageSize: IDENTIFY_MAX_MESSAGE_SIZE }),
-			identifyPush: identifyPush(),
+			identifyPush: identifyPush({ maxMessageSize: IDENTIFY_MAX_MESSAGE_SIZE }),
 			ping: ping({ timeout: 10_000 }),
 			pubsub: gossipsub({
 				emitSelf: false,
