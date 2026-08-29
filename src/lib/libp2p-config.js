@@ -19,6 +19,10 @@ import { fromString as uint8ArrayFromString } from 'uint8arrays/from-string';
 import { getWebRTCEnabled } from './webrtc-settings.js';
 import {
 
+	parseBootstrapMultiaddrs,
+	selectValidBrowserBootstrapMultiaddrs
+} from './bootstrap-multiaddrs.js';
+
 /**
  * identify responses larger than this are rejected — and libp2p rejects the
  * whole message, not the entries that made it large.
@@ -39,9 +43,6 @@ import {
  * NiKrause/orbitdb-relay#50 and #51; this keeps browsers working meanwhile.
  */
 const IDENTIFY_MAX_MESSAGE_SIZE = 65_536;
-	parseBootstrapMultiaddrs,
-	selectValidBrowserBootstrapMultiaddrs
-} from './bootstrap-multiaddrs.js';
 
 // Environment variables
 const PUBSUB_TOPICS = (import.meta.env.VITE_PUBSUB_TOPICS || 'todo._peer-discovery._p2p._pubsub')
