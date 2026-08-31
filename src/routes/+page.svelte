@@ -9,7 +9,7 @@
 		setPersistentStorageEnabled,
 		wipePersistentStorage
 	} from '$lib/storage-mode.js';
-	import { formatBuildDate, formatVersions } from '$lib/build-info.js';
+	import { formatBuildDate, formatCommitSha, formatVersions } from '$lib/build-info.js';
 	import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
@@ -46,6 +46,9 @@
 	// Modal state
 	let showModal = true;
 	let rememberDecision = false;
+
+	// Empty outside a checkout; the header then omits it entirely.
+	const buildCommit = formatCommitSha(typeof __COMMIT_SHA__ !== 'undefined' ? __COMMIT_SHA__ : '');
 	// Seeded from storage so the box reflects this browser's existing choice
 	// rather than resetting to the default on every visit.
 	let relayNetworkEnabled = getRelayNetworkEnabled();
@@ -271,9 +274,9 @@
 				<p class="mt-1 text-sm text-faint">
 					A local-first peer-to-peer PWA · {formatVersions({
 						appName: 'Simple-Todo'
-					})} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{formatBuildDate(
-						typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : ''
-					)}]
+					})} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'}{buildCommit
+						? ` @${buildCommit}`
+						: ''} [{formatBuildDate(typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : '')}]
 				</p>
 			</div>
 		</div>
