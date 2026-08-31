@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
@@ -41,6 +42,25 @@ function installedVersion(name) {
 const buildDate = new Date().toISOString();
 const appBranch = process.env.VITE_APP_BRANCH || process.env.GITHUB_REF_NAME || 'local';
 
+// The commit this bundle was built from. A build date only answers "is this
+// recent"; it takes a workflow listing and a timezone conversion to turn that
+// into "does this deployment contain commit X", which is the question actually
+// being asked when something looks stale. `__APP_VERSION__` cannot answer it
+// either — package.json's version stands still for dozens of commits.
+//
+// `git rev-parse` covers a local build; CI has the value in the environment
+// already. Empty when neither is available, and the header then omits it
+// rather than showing a guess.
+const commitSha = (() => {
+	const fromCi = process.env.GITHUB_SHA || process.env.VITE_COMMIT_SHA;
+	if (fromCi) return fromCi.trim();
+	try {
+		return execSync('git rev-parse HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+	} catch {
+		return '';
+	}
+})();
+
 export default defineConfig({
 	test: {
 		include: ['src/**/*.spec.js'],
@@ -82,6 +102,7 @@ export default defineConfig({
 		__APP_VERSION__: JSON.stringify(pkg.version),
 		__BUILD_DATE__: JSON.stringify(buildDate),
 		__APP_BRANCH__: JSON.stringify(appBranch),
+		__COMMIT_SHA__: JSON.stringify(commitSha),
 		__ORBITDB_VERSION__: JSON.stringify(installedVersion('@orbitdb/core')),
 		__HELIA_VERSION__: JSON.stringify(installedVersion('helia')),
 		__LIBP2P_VERSION__: JSON.stringify(installedVersion('libp2p'))

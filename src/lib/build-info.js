@@ -77,3 +77,21 @@ export function formatVersions({ appName = '' } = {}) {
 
 	return [app, ...stackVersions().map(({ name, version }) => `${name} ${version}`)].join(' · ');
 }
+
+/**
+ * The commit a bundle was built from, shortened to what a person compares.
+ *
+ * Seven characters is what `git log --oneline` prints, so the value can be
+ * matched against the repository by eye. Returns an empty string when the
+ * build had no commit to record — a local `vite dev` outside a checkout —
+ * and the caller then leaves it out rather than showing a placeholder that
+ * looks like a real answer.
+ *
+ * @param {string} sha
+ * @returns {string}
+ */
+export function formatCommitSha(sha) {
+	const trimmed = String(sha ?? '').trim();
+	if (!/^[0-9a-f]{7,40}$/i.test(trimmed)) return '';
+	return trimmed.slice(0, 7).toLowerCase();
+}
