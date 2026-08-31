@@ -25,6 +25,14 @@ const CACHE = `simple-todo-${version}`;
 // `version`, which changes the cache name, and the old one is deleted below.
 const PRECACHE = [...build, ...files, ...prerendered];
 
+// Only `build` is safe to answer from the cache without asking: those names
+// carry a content hash, so a name that exists can only mean one body. The HTML
+// and everything in static/ keep their names across deployments, so serving
+// them from the cache first is how a browser ends up running an old build for
+// as long as its worker survives — with an old baked relay address in it, and
+// no way for the user to tell.
+const IMMUTABLE = new Set(build);
+
 self.addEventListener('install', (event) => {
 	event.waitUntil(
 		(async () => {
@@ -69,10 +77,17 @@ self.addEventListener('fetch', (event) => {
 
 			// Hashed build assets never change under the same name, so the cache is
 			// authoritative and going to the network first would only add latency.
-			if (PRECACHE.includes(url.pathname)) {
+			if (IMMUTABLE.has(url.pathname)) {
 				const cached = await cache.match(url.pathname);
 				if (cached) return cached;
 			}
+
+			// Everything else — the HTML shell above all — asks the network first
+			// and falls back to the cache below. That costs a round trip on a slow
+			// connection where the cache would have answered at once, and it buys
+			// the thing that matters more: a deployment reaches a returning visitor
+			// on their next load rather than whenever a new worker happens to
+			// activate. Offline is unaffected; the catch answers it.
 
 			try {
 				const response = await fetch(request);
