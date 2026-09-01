@@ -233,10 +233,9 @@
 	"intro": {
 		"title": "Wie das hier funktioniert",
 		"simple": {
-			"lead": "Sie haben eine Liste, und jemand neben Ihnen braucht sie. Halten Sie Ihren Code hoch, das andere Telefon liest ihn — dann hält es seinen hoch und Sie lesen zurück. Zweimal scannen, und die Liste ist auf beiden Geräten.",
-			"offline": "Dafür braucht es kein Internet. Die Liste geht direkt von einem Gerät zum anderen.",
-			"hotspot": "Die zwei Geräte müssen aber im selben Netz sein. Sind sie es nicht, macht eines einen WLAN-Hotspot auf und das andere verbindet sich damit.",
-			"passkey": "Ein Passkey ist Ihre Unterschrift. Er zeigt der anderen Seite, dass die Einträge von Ihnen kommen. Sie können die App auch ohne benutzen."
+			"whatItIs": "Eine Aufgabenliste, die Sie jemandem weitergeben können. Kein Server, kein Konto — sie geht von Ihrem Gerät auf das andere und lebt in beiden Browsern.",
+			"lead": "Halten Sie Ihren Code hoch, er wird gescannt, dann hält die Gegenseite ihre Antwort hoch und Sie scannen zurück. Internet braucht das nicht, aber beide Geräte müssen im selben Netz sein — sonst macht eines einen Hotspot auf und das andere verbindet sich damit.",
+			"passkey": "Ein Passkey ist Ihre Unterschrift: er zeigt der anderen Seite, dass die Einträge von Ihnen stammen. Ohne geht es auch."
 		},
 		"tech": {
 			"heading": "Warum es im Mobilfunknetz manchmal scheitert",

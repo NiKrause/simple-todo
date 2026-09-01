@@ -16,9 +16,12 @@ on:
 
 # Two jobs from deploy-acl01.yml are deliberately absent.
 #
-# "Resolve production bootstrap snapshot" bakes relay multiaddresses into the
-# build. This chapter configures no relay, and baking one in would let the
-# offline test pass *through a relay* — proving the opposite of what it claims.
+# "Resolve production bootstrap snapshot" used to be absent here, so that baking
+# an address in could not let the offline test pass *through* a relay. It runs
+# now: `e2e` is a separate job ahead of the build, and the isolated mode it uses
+# sets VITE_NODE_ENV to development, so that app reads the DEV address and never
+# sees the baked one. Without the step there was nothing to try before asking
+# Aleph, which made a public directory a dependency of connecting at all.
 #
 # "start-remote-replication" provisions an ephemeral Aleph VM relay and
 # replicates through it. That is precisely the thing qr01 does without, so
@@ -67,26 +70,20 @@ jobs:
           node-version: '24.x'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Ask Aleph once, here, instead of asking every visitor on their first
-      # click. Nothing was baked in before: the variable was never set for this
-      # branch, so the app had no address to try and a public directory became a
-      # dependency of it working at all.
+      # `resolve-aleph-bootstrap.mjs` has been in this branch all along and
+      # nothing called it - which is why no address was ever baked in, not a
+      # missing script. It discovers the current relays, proves one with a real
+      # libp2p ping, and writes VITE_RELAY_BOOTSTRAP_ADDR_PROD. `main` invokes it
+      # exactly like this.
       #
-      # Never fails the deploy. An address is an optimisation - without one the
-      # app discovers at runtime exactly as it does today - and stopping a deploy
-      # because a directory is briefly down trades a small problem for a large
-      # one. `|| true` covers the script dying outright; an empty result is
-      # already its own normal answer.
-      - name: Find a relay that answers
-        id: relay
-        run: |
-          address="$(node scripts/discover-relay.mjs || true)"
-          echo "VITE_RELAY_BOOTSTRAP_ADDR_PROD=$address" >> "$GITHUB_ENV"
-          if [ -n "$address" ]; then
-            echo "Baking in: $address" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "No relay answered; this build ships without one." >> "$GITHUB_STEP_SUMMARY"
-          fi
+      # The header of this file says the step is deliberately absent, because
+      # baking an address in "would let the offline test pass through a relay".
+      # That no longer holds: `e2e` is a separate job that runs before this one
+      # and builds its own app, and `createPreviewEnv` sets VITE_NODE_ENV to
+      # development for the isolated mode - so the app reads
+      # RELAY_BOOTSTRAP_ADDR_DEV there and never sees this.
+      - name: Resolve production bootstrap snapshot
+        run: node scripts/resolve-aleph-bootstrap.mjs
 
       - name: Build qr01 preview
         env:
