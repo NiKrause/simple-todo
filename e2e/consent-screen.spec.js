@@ -101,9 +101,9 @@ test.describe('Consent Screen', () => {
 		const expectedFeatures = [
 			'No tracking cookies are used',
 			'only that consent choice is saved locally',
-			'Nothing you write is processed on our servers',
-			'IPFS/IPNS or an HTTP gateway',
-			'Kubo node or the IPFS Companion extension'
+			'We run no server',
+			'delivered through a public IPFS gateway',
+			'Kubo node, or the IPFS Companion extension'
 		];
 
 		for (const feature of expectedFeatures) {
@@ -113,6 +113,17 @@ test.describe('Consent Screen', () => {
 					.filter({ hasText: new RegExp(feature.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') })
 			).toBeVisible();
 		}
+	});
+
+	test('says it is a demonstration, without frightening anybody off', async ({ page }) => {
+		await page.goto('/');
+		// It is a demonstration and saying so is fair. A warning that sends people
+		// away is not a warning, it is a door - so this asserts the words are there
+		// and that they are the calm ones.
+		const warning = page.getByTestId('consent-warning');
+		await expect(warning).toBeVisible();
+		await expect(warning).toContainText('working demonstration');
+		await expect(warning).toContainText('somewhere else as well');
 	});
 
 	test('the relay sentences appear with the relay, and not without it', async ({ page }) => {
