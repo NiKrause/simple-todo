@@ -18,7 +18,7 @@
 	// joke.
 	import { onMount } from 'svelte';
 	import { get } from 'svelte/store';
-	import { _ } from '$lib/i18n/index.js';
+	import { _, locale } from '$lib/i18n/index.js';
 	import { simpleView } from './view-mode.js';
 	import { introOpen, closeIntro } from './intro-dialog.js';
 	import LanguageSwitcher from './LanguageSwitcher.svelte';
@@ -35,11 +35,22 @@
 
 	/** @type {any} */
 	let introEl;
-	/** @type {any} */
-	let statusEl;
 	let ready = false;
-	/** @type {any} */
-	let networkResult = null;
+
+	/**
+	 * Whether the statement has been accepted.
+	 *
+	 * The element disables its own close control, which is the small cross in the
+	 * corner. This button is ours, in the footer slot, and looked perfectly
+	 * clickable while `close()` quietly refused - so somebody would press "Get
+	 * started", watch nothing happen, and find no reason for it anywhere on
+	 * screen. A gate that gives no account of itself is a broken button.
+	 *
+	 * Read off the tick through its `part`, because the element emits nothing when
+	 * acceptance changes. That belongs upstream as an event; until it exists this
+	 * is the honest way to ask.
+	 */
+	let accepted = false;
 
 	/**
 	 * The element's own text, folded over its English defaults.
@@ -51,7 +62,23 @@
 	 * them the two facts that do matter — same network works, the internet needs
 	 * a VPN.
 	 */
+	/**
+	 * The element's own German, underneath ours.
+	 *
+	 * `qr-intro` carries strings this file never names - the candidate list is a
+	 * dozen of them - and anything left unnamed falls back to the element's
+	 * English default. That is how "Show the addresses this check found" ended up
+	 * in the middle of a German dialog.
+	 *
+	 * Spread as the base rather than copied into our own catalogue: a string the
+	 * package adds later is then translated here without anybody noticing it had
+	 * to be.
+	 */
+	/** @type {Record<string, any>} */
+	let packageStrings = {};
+
 	$: strings = {
+		...($locale?.startsWith('de') ? packageStrings : {}),
 		title: $_('intro.title'),
 		close: $_('intro.close'),
 		checkHeading: $_('intro.check.heading'),
@@ -126,7 +153,24 @@
 			get(_)('intro.privacy.local')
 		].filter(Boolean);
 
-	$: if (ready) introEl.privacy = { accept: true, clauses };
+	/**
+	 * Idempotent: the reactive statement below runs again whenever `ready` or the
+	 * element changes, and a second listener on the same box would double-count
+	 * nothing but is still a leak.
+	 */
+	function watchAcceptance() {
+		const box = introEl?.shadowRoot?.querySelector('input[part=accept]');
+		if (!box || box.dataset.watched === 'true') return;
+		box.dataset.watched = 'true';
+		accepted = box.checked === true;
+		box.addEventListener('change', () => (accepted = box.checked === true));
+	}
+
+	$: if (ready) {
+		introEl.privacy = { accept: true, clauses };
+		// After the assignment, not before: the tick is built by it.
+		watchAcceptance();
+	}
 
 	// The identity is the app's half of the state the clauses read. Reported as
 	// a word rather than a DID: the panel says what kind of identity signs the
@@ -154,17 +198,14 @@
 	 * paints what it is handed, and the browser and camera rows come from
 	 * `probeBrowser`/`probeCamera`, which this measurement does not include.
 	 */
-	function paintChips() {
-		if (statusEl && networkResult) statusEl.renderResult(networkResult);
-	}
 
 	// Mounted only in the technical view, so it is a fresh element each time the
 	// switch is thrown — and each one needs painting.
-	$: if (!$simpleView && statusEl && networkResult) paintChips();
 
 	onMount(async () => {
 		hydrateRelayOptIn();
-		await import('@le-space/libp2p-webrtc-qr/elements');
+		const elements = await import('@le-space/libp2p-webrtc-qr/elements');
+		packageStrings = elements.QR_INTRO_STRINGS_DE ?? {};
 
 		introEl.rtcConfiguration = diagnosticRtcConfiguration();
 		introEl.strings = strings;
@@ -183,8 +224,6 @@
 			// of bad news they cannot act on differently is not information.
 			const state = event.detail?.overall?.state;
 			verdict = state === 'open' || state === 'relay' ? 'routable' : 'limited';
-			networkResult = event.detail;
-			paintChips();
 		});
 		introEl.addEventListener('relay-opt-in', (/** @type {any} */ event) => {
 			relayOptIn.set(event.detail.optIn === true);
@@ -232,10 +271,17 @@
 			relay replaces. With the relay ticked they describe a different app than
 			the one the person just configured.
 		-->
+		<!--
+			What this is, and the two ways in - always, whichever switch is set. The
+			previous version hung all of it on the relay checkbox, so somebody who
+			had ticked the relay opened the dialog and was told about passkeys
+			before being told what the app does. The mechanics of the code are the
+			part that belongs behind the switch, not the explanation.
+		-->
+		<p>{$_('intro.simple.whatItIs')}</p>
+
 		{#if !$relayOptIn}
 			<p data-testid="intro-qr-story">{$_('intro.simple.lead')}</p>
-			<p data-testid="intro-qr-story">{$_('intro.simple.offline')}</p>
-			<p data-testid="intro-qr-story">{$_('intro.simple.hotspot')}</p>
 		{/if}
 		<p>{$_('intro.simple.passkey')}</p>
 	</div>
@@ -269,21 +315,22 @@
 	<!-- The detail, for whoever wants it rather than the sentence. In the advice
 	     slot because that is where it belongs: directly under the verdict it is
 	     the long form of. -->
-	{#if !$simpleView}
-		<qr-status
-			slot="advice"
-			bind:this={statusEl}
-			rows="ipv4 ipv6 overall"
-			data-testid="intro-network-chips"
-		></qr-status>
-	{/if}
+	<!--
+		The chips used to sit here, and they brought a second copy of the address
+		list with them: `qr-status` and `qr-intro` both build one, and neither lets
+		a consumer turn it off. Two identical `<details>` in one dialog is worse
+		than three fewer chips - the verdict above says the conclusion and the list
+		below gives the addresses, so the middle layer was the one to lose.
+	-->
 
 	<button
 		slot="footer"
 		type="button"
+		disabled={!accepted}
 		on:click={() => introEl.close()}
 		data-testid="intro-close"
-		class="rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700"
+		title={accepted ? undefined : $_('intro.privacy.accept')}
+		class="rounded-md bg-cyan-600 px-4 py-2 text-sm font-medium text-white hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
 	>
 		{$_('intro.close')}
 	</button>

@@ -66,3 +66,28 @@ test('with the relay ticked, the code story is gone', async ({ page }) => {
 	await expect(page.getByTestId('intro-qr-story')).toHaveCount(0);
 	await page.screenshot({ path: `${process.env.SHOT_DIR}/qr01-relay-on.png`, fullPage: true });
 });
+
+/**
+ * The gate, and the button that has to say so.
+ *
+ * The element disables its own close control - the cross in the corner. This
+ * app draws its own "Get started" in the footer slot, which looked clickable
+ * while `close()` quietly refused: press it, watch nothing happen, find no
+ * reason on screen.
+ */
+test('the way out is disabled until the statement is accepted', async ({ page }) => {
+	test.setTimeout(90_000);
+	await page.goto(PREVIEW_ORIGIN);
+	await page.locator('qr-intro').waitFor({ state: 'attached', timeout: 30_000 });
+
+	const proceed = page.getByTestId('intro-close');
+	await expect(proceed).toBeDisabled();
+
+	await page.evaluate(() => {
+		const box = document.querySelector('qr-intro').shadowRoot.querySelector('input[part=accept]');
+		box.checked = true;
+		box.dispatchEvent(new Event('change'));
+	});
+
+	await expect(proceed).toBeEnabled();
+});
