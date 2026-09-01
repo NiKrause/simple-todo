@@ -233,7 +233,7 @@
 	"intro": {
 		"title": "Wie das hier funktioniert",
 		"simple": {
-			"lead": "Sie haben eine Liste, und jemand neben Ihnen braucht sie. Sie halten einen Code hoch, das andere Telefon liest ihn mit der Kamera — fertig.",
+			"lead": "Sie haben eine Liste, und jemand neben Ihnen braucht sie. Halten Sie Ihren Code hoch, das andere Telefon liest ihn — dann hält es seinen hoch und Sie lesen zurück. Zweimal scannen, und die Liste ist auf beiden Geräten.",
 			"offline": "Dafür braucht es kein Internet. Die Liste geht direkt von einem Gerät zum anderen.",
 			"hotspot": "Die zwei Geräte müssen aber im selben Netz sein. Sind sie es nicht, macht eines einen WLAN-Hotspot auf und das andere verbindet sich damit.",
 			"passkey": "Ein Passkey ist Ihre Unterschrift. Er zeigt der anderen Seite, dass die Einträge von Ihnen kommen. Sie können die App auch ohne benutzen."
@@ -283,13 +283,18 @@
 			"heading": "Was das für Ihre Daten bedeutet",
 			"empty": "Was hier steht, entscheiden die Angaben oben.",
 			"accept": "Ich habe das gelesen und bin einverstanden",
-			"noServer": "Nichts, was Sie schreiben, wird auf unseren Servern verarbeitet. Es gibt kein Konto und nirgends eine Kopie Ihrer Liste, über die wir verfügen.",
+			"noServer": "Wir betreiben keinen Server, und nirgends existiert eine Kopie Ihrer Liste, über die wir verfügen.",
 			"qr": "Ein Code, den Sie von diesem Bildschirm zum anderen Gerät tragen. Die Liste geht direkt von einem zum anderen und verlässt dieses Netz nur, wenn Sie den Link verschicken.",
 			"relayOn": "Ein Relay stellt die beiden Geräte einander vor. Es kann Daten kurz vorhalten, damit das andere Gerät sie abholen kann, wenn dieses offline geht.",
 			"relayOff": "Es wird kein Relay kontaktiert. Ohne eines muss das andere Gerät aus diesem Netz erreichbar sein.",
 			"passkey": "Ihr Passkey signiert, was Sie schreiben — die andere Seite sieht, dass die Einträge von Ihnen stammen. Er bleibt auf diesem Gerät.",
 			"throwaway": "Ein temporärer Schlüssel dieses Browsers signiert Ihre Einträge. Niemand kann sie Ihnen zuordnen, und er ist fort, sobald Sie den Browser leeren.",
-			"local": "Ihre Listen liegen in diesem Browser. Wird er geleert, sind sie fort."
+			"local": "Ihre Listen liegen in diesem Browser. Wird er geleert, sind sie fort.",
+			"gateway": "Die App selbst kommt über ein öffentliches IPFS-Gateway, das sieht, dass Sie sie geladen haben. Mit einem eigenen Kubo-Knoten oder der IPFS-Companion-Erweiterung holen Sie sie direkt aus dem Netz — niemand dazwischen, und es funktioniert weiter, wenn ein Gateway ausfällt."
+		},
+		"warning": {
+			"heading": "Noch früh",
+			"body": "Das hier ist eine lauffähige Demonstration, kein fertiges Produkt. Es tut, was es sagt, und das Format kann sich noch ändern — bewahren Sie also alles, dessen Verlust Sie ärgern würde, zusätzlich woanders auf."
 		}
 	},
 	"footer": {

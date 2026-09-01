@@ -67,6 +67,27 @@ jobs:
           node-version: '24.x'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Ask Aleph once, here, instead of asking every visitor on their first
+      # click. Nothing was baked in before: the variable was never set for this
+      # branch, so the app had no address to try and a public directory became a
+      # dependency of it working at all.
+      #
+      # Never fails the deploy. An address is an optimisation - without one the
+      # app discovers at runtime exactly as it does today - and stopping a deploy
+      # because a directory is briefly down trades a small problem for a large
+      # one. `|| true` covers the script dying outright; an empty result is
+      # already its own normal answer.
+      - name: Find a relay that answers
+        id: relay
+        run: |
+          address="$(node scripts/discover-relay.mjs || true)"
+          echo "VITE_RELAY_BOOTSTRAP_ADDR_PROD=$address" >> "$GITHUB_ENV"
+          if [ -n "$address" ]; then
+            echo "Baking in: $address" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No relay answered; this build ships without one." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Build qr01 preview
         env:
           VITE_NODE_ENV: production
