@@ -13,24 +13,11 @@ test.describe('Consent Screen', () => {
 		// Check that the title is present in the modal
 		await expect(modal.locator('h1').filter({ hasText: 'Simple-Todo' })).toBeVisible();
 
-		// Check that all required checkboxes are present and initially unchecked
-		const relayConnectionCheckbox = page
-			.locator('label')
-			.filter({ hasText: /I understand this app uses libp2p peer-to-peer networking/ })
-			.locator('input[type="checkbox"]');
-		const dataVisibilityCheckbox = page
-			.locator('label')
-			.filter({ hasText: /I understand relay or peer nodes may cache/ })
-			.locator('input[type="checkbox"]');
-		const replicationTestingCheckbox = page
-			.locator('label')
-			.filter({ hasText: /I understand collaboration requires another browser or device/ })
-			.locator('input[type="checkbox"]');
-
-		// Verify all checkboxes are unchecked initially
-		await expect(relayConnectionCheckbox).not.toBeChecked();
-		await expect(dataVisibilityCheckbox).not.toBeChecked();
-		await expect(replicationTestingCheckbox).not.toBeChecked();
+		// One gate, where three acknowledgements used to be. Those confirmed
+		// sentences this dialog had just asserted, and a tick against a line
+		// somebody has read confirms only that they can read.
+		const acceptCheckbox = page.getByTestId('consent-accept');
+		await expect(acceptCheckbox).not.toBeChecked();
 
 		// The storage choice replaced the fourth acknowledgement. It is a choice,
 		// not a confirmation: it starts on the safe side and must never gate the
@@ -41,20 +28,11 @@ test.describe('Consent Screen', () => {
 		await expect(indexedDbOption).not.toBeChecked();
 
 		// Check that the proceed button is disabled initially
-		const proceedButton = page
-			.locator('button')
-			.filter({ hasText: /Please check all boxes to continue/ });
+		const proceedButton = page.locator('button').filter({ hasText: /Please accept to continue/ });
 		await expect(proceedButton).toBeDisabled();
 
-		// Check each required checkbox
-		await relayConnectionCheckbox.check();
-		await dataVisibilityCheckbox.check();
-		await replicationTestingCheckbox.check();
-
-		// Verify all checkboxes are now checked
-		await expect(relayConnectionCheckbox).toBeChecked();
-		await expect(dataVisibilityCheckbox).toBeChecked();
-		await expect(replicationTestingCheckbox).toBeChecked();
+		await acceptCheckbox.check();
+		await expect(acceptCheckbox).toBeChecked();
 
 		// Check that the proceed button is now enabled and text changed
 		const enabledProceedButton = page
@@ -90,22 +68,7 @@ test.describe('Consent Screen', () => {
 		await rememberCheckbox.check();
 
 		// Check all required consent checkboxes
-		const relayConnectionCheckbox = page
-			.locator('label')
-			.filter({ hasText: /I understand this app uses libp2p peer-to-peer networking/ })
-			.locator('input[type="checkbox"]');
-		const dataVisibilityCheckbox = page
-			.locator('label')
-			.filter({ hasText: /I understand relay or peer nodes may cache/ })
-			.locator('input[type="checkbox"]');
-		const replicationTestingCheckbox = page
-			.locator('label')
-			.filter({ hasText: /I understand collaboration requires another browser or device/ })
-			.locator('input[type="checkbox"]');
-
-		await relayConnectionCheckbox.check();
-		await dataVisibilityCheckbox.check();
-		await replicationTestingCheckbox.check();
+		await page.getByTestId('consent-accept').check();
 
 		// Click proceed
 		const proceedButton = page.locator('button').filter({ hasText: /Proceed to Test the App/ });
@@ -130,16 +93,17 @@ test.describe('Consent Screen', () => {
 	test('should display all required consent information', async ({ page }) => {
 		await page.goto('/');
 
-		// Check that all expected features are listed
+		// What is said unconditionally. Three lines left this list rather than
+		// being reworded: the Helia/OrbitDB one, because the storage choice below
+		// draws that distinction as a decision instead of a sentence; and the
+		// unencrypted-database one, because both sides of that switch already
+		// state it, so picking either is the acknowledgement.
 		const expectedFeatures = [
 			'No tracking cookies are used',
 			'only that consent choice is saved locally',
-			'local-first in your browser session',
-			'Helia, OrbitDB, and libp2p',
-			'connects to relay/bootstrap nodes and other peers',
-			'cache, pin, or replicate demo todo data',
-			'shared, unencrypted OrbitDB database',
-			'IPFS/IPNS or an HTTP gateway'
+			'Nothing you write is processed on our servers',
+			'IPFS/IPNS or an HTTP gateway',
+			'Kubo node or the IPFS Companion extension'
 		];
 
 		for (const feature of expectedFeatures) {
@@ -149,5 +113,22 @@ test.describe('Consent Screen', () => {
 					.filter({ hasText: new RegExp(feature.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') })
 			).toBeVisible();
 		}
+	});
+
+	test('the relay sentences appear with the relay, and not without it', async ({ page }) => {
+		// Telling somebody their browser connects to relay nodes, in an app they
+		// have just switched the relay off in, describes a different app than the
+		// one they chose.
+		await page.goto('/');
+
+		const relayToggle = page.getByTestId('consent-relay-network');
+		await expect(relayToggle).toBeChecked();
+		await expect(page.getByTestId('consent-relay-feature').first()).toBeVisible();
+
+		await relayToggle.uncheck();
+		await expect(page.getByTestId('consent-relay-feature')).toHaveCount(0);
+
+		await relayToggle.check();
+		await expect(page.getByTestId('consent-relay-feature').first()).toBeVisible();
 	});
 });
