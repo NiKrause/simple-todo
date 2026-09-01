@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { passConsent } from './consent.mjs';
 
 // What the storage toggle is for: whether a todo is still there after a reload.
 //
@@ -19,24 +20,9 @@ const testUrl = '/';
  * @param {'memory' | 'indexeddb'} mode
  */
 async function acceptConsent(page, mode) {
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
-
-	await page
-		.getByTestId(mode === 'indexeddb' ? 'consent-storage-indexeddb' : 'consent-storage-memory')
-		.check();
-
-	// Everything except "Don't show this again": the reload below has to bring
-	// the modal back, both to re-pick the mode and to prove the stored choice
-	// survives. Remembering consent would skip it and hide that.
-	const confirmations = modal
-		.locator('input[type="checkbox"]')
-		.and(page.locator(':not([data-testid="consent-remember"])'));
-	for (const checkbox of await confirmations.all()) {
-		await checkbox.check();
-	}
-	await page.getByRole('button', { name: 'Proceed to Test the App' }).click();
-	await expect(modal).toBeHidden();
+	// Not remembering, deliberately: the reload below has to bring the dialog
+	// back, both to re-pick the mode and to prove the stored choice survives.
+	await passConsent(page, { persistent: mode === 'indexeddb' });
 }
 
 /**

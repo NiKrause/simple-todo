@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { consentModal, passConsent } from './consent.mjs';
 import { privateKeyToAccount } from 'viem/accounts';
 import { mkdir } from 'node:fs/promises';
 import {
@@ -53,16 +54,12 @@ const REPLICATION_TIMEOUT = 3 * 60_000;
  * @param {import('@playwright/test').Page} page
  */
 async function acceptConsent(page) {
-	const modal = page.locator('div.fixed.inset-0.z-50');
-
+	// The dialog may already have been dismissed on a previous load.
+	const modal = consentModal(page);
 	await modal.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
 	if (!(await modal.isVisible())) return;
 
-	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-		await checkbox.check();
-	}
-	await page.getByRole('button', { name: 'Proceed to Test the App' }).click();
-	await expect(modal).toBeHidden();
+	await passConsent(page);
 }
 
 /**

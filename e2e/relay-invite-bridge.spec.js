@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { acceptNotice, waitForConsent } from './consent.mjs';
 
 /**
  * Three browsers, two ways of meeting, one shared database (#129).
@@ -113,20 +114,22 @@ test.describe('relay and invite meeting at one peer (#129)', () => {
  * @param {import('@playwright/test').Page} page
  */
 async function acceptConsent(page, { relayNetwork = true } = {}) {
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
+	await waitForConsent(page);
 
 	// One gate now, where three acknowledgements used to be. It has a testid, so
 	// the old selector - every checkbox *without* one - matched nothing and left
 	// the button disabled.
-	await modal.getByTestId('consent-accept').check();
+	// The tick lives in the element's shadow tree now.
+	await acceptNotice(page);
 
 	if (!relayNetwork) {
 		await page.getByTestId('consent-relay-network').uncheck();
 	}
 
-	await page.getByRole('button', { name: 'Proceed to Test the App' }).click();
-	await expect(modal).not.toBeVisible();
+	await page.getByTestId('consent-proceed').click();
+	await page.waitForFunction(
+		() => document.querySelector('[data-testid="consent-modal"]')?.isOpen !== true
+	);
 	await expect(getTodoInput(page)).toBeEnabled({ timeout });
 }
 

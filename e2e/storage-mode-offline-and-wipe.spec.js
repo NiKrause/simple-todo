@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { passConsent } from './consent.mjs';
 
 // The two claims the storage switch makes that nothing else covers.
 //
@@ -15,26 +16,7 @@ const testUrl = '/';
  * @param {{ mode: 'memory' | 'indexeddb', relay?: boolean }} options
  */
 async function acceptConsent(page, { mode, relay = true }) {
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
-
-	await page
-		.getByTestId(mode === 'indexeddb' ? 'consent-storage-indexeddb' : 'consent-storage-memory')
-		.check();
-
-	const relayToggle = page.getByTestId('consent-relay-network');
-	if (relay) await relayToggle.check();
-	else await relayToggle.uncheck();
-
-	const confirmations = modal
-		.locator('input[type="checkbox"]')
-		.and(page.locator(':not([data-testid="consent-remember"])'))
-		.and(page.locator(':not([data-testid="consent-relay-network"])'));
-	for (const checkbox of await confirmations.all()) {
-		await checkbox.check();
-	}
-	await page.getByRole('button', { name: 'Proceed to Test the App' }).click();
-	await expect(modal).toBeHidden();
+	await passConsent(page, { persistent: mode === 'indexeddb', relay });
 }
 
 /**

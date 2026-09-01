@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { acceptNotice, waitForConsent } from './consent.mjs';
 
 /**
  * Two lists that could not see each other, joined by a scanned code.
@@ -144,8 +145,7 @@ test.describe('Invite-only collaboration', () => {
  * @param {import('@playwright/test').Page} page
  */
 async function acceptConsent(page, { relayNetwork = true } = {}) {
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
+	await waitForConsent(page);
 
 	// `consent-remember` stays untouched on purpose: ticking it would persist the
 	// decision, so the modal would not reappear when a page reloads through an
@@ -153,7 +153,8 @@ async function acceptConsent(page, { relayNetwork = true } = {}) {
 	// One gate now, where three acknowledgements used to be. It has a testid, so
 	// the old selector - every checkbox *without* one - matched nothing and left
 	// the button disabled.
-	await modal.getByTestId('consent-accept').check();
+	// The tick lives in the element's shadow tree now.
+	await acceptNotice(page);
 
 	const relayBox = page.getByTestId('consent-relay-network');
 	await expect(relayBox).toBeChecked();
@@ -163,10 +164,14 @@ async function acceptConsent(page, { relayNetwork = true } = {}) {
 	}
 
 	// Unticking it must never block the button — it is a choice, not consent.
-	const proceed = page.getByRole('button', { name: 'Proceed to Test the App' });
+	// By testid, not by name: the button carries the disabled wording until the
+	// statement is accepted, so a name locator finds nothing at the wrong moment.
+	const proceed = page.getByTestId('consent-proceed');
 	await expect(proceed).toBeEnabled();
 	await proceed.click();
-	await expect(modal).not.toBeVisible();
+	await page.waitForFunction(
+		() => document.querySelector('[data-testid="consent-modal"]')?.isOpen !== true
+	);
 }
 
 /**
