@@ -45,6 +45,7 @@
 
 	// Modal state
 	let showModal = true;
+	const reopenLabel = 'Show the notice again';
 	let rememberDecision = false;
 
 	// Empty outside a checkout; the header then omits it entirely.
@@ -281,6 +282,23 @@
 			</div>
 		</div>
 		<div class="flex flex-shrink-0 items-center gap-2 self-start sm:self-auto">
+			<!--
+				The way back. "Don't show this again" is only safe to offer if
+				something puts it back - a dialog dismissed for good and never
+				recallable is a one-way door, and this one carries the storage
+				choice and the relay switch, which somebody may well want to change
+				later. `qr01` has had this; nothing else did.
+			-->
+			<button
+				type="button"
+				on:click={() => (showModal = true)}
+				data-testid="intro-reopen"
+				title={reopenLabel}
+				aria-label={reopenLabel}
+				class="rounded-md border border-border px-2 py-1 text-xs text-faint hover:text-text"
+			>
+				?
+			</button>
 			<ThemeToggle />
 			<SocialIcons size="w-5 h-5" className="" />
 		</div>
