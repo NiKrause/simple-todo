@@ -17,12 +17,14 @@
 	// language of the dialog they are currently failing to read would be a poor
 	// joke.
 	import { onMount } from 'svelte';
+	import { get } from 'svelte/store';
 	import { _ } from '$lib/i18n/index.js';
 	import { simpleView } from './view-mode.js';
 	import { introOpen, closeIntro } from './intro-dialog.js';
 	import LanguageSwitcher from './LanguageSwitcher.svelte';
 	import ViewModeToggle from './ViewModeToggle.svelte';
 	import { diagnosticRtcConfiguration } from './ice-mode.js';
+	import { ownDidStore } from './p2p-stores.js';
 	import {
 		RELAY_OPT_IN_STORAGE_KEY,
 		relayOptIn,
@@ -86,8 +88,43 @@
 			$_('intro.relay.reachable', { values }),
 		relayDiscovered: (/** @type {{ count: number }} */ values) =>
 			$_('intro.relay.discovered', { values }),
-		relayNone: $_('intro.relay.none')
+		relayNone: $_('intro.relay.none'),
+		privacyHeading: $_('intro.privacy.heading'),
+		privacyEmpty: $_('intro.privacy.empty'),
+		privacyAccept: $_('intro.privacy.accept')
 	};
+
+	/**
+	 * The statement, assembled from what was actually chosen.
+	 *
+	 * A generic notice describes an app nobody is running, and a tick against one
+	 * confirms nothing. These sentences are ours rather than the element's for the
+	 * same reason: what this app does with somebody's data is this app's to say.
+	 *
+	 * Defined once and reading the translation at call time, not rebuilt whenever
+	 * the language changes. The element calls this on every repaint, and assigning
+	 * `strings` is itself a repaint - so a switch to German reaches these
+	 * sentences on the same pass that reaches the labels around them.
+	 *
+	 * @param {any} state
+	 */
+	const clauses = (state) =>
+		[
+			get(_)('intro.privacy.noServer'),
+			get(_)('intro.privacy.qr'),
+			state.relayOptIn ? get(_)('intro.privacy.relayOn') : get(_)('intro.privacy.relayOff'),
+			state.identity === 'passkey'
+				? get(_)('intro.privacy.passkey')
+				: get(_)('intro.privacy.throwaway'),
+			get(_)('intro.privacy.local')
+		].filter(Boolean);
+
+	$: if (ready) introEl.privacy = { accept: true, clauses };
+
+	// The identity is the app's half of the state the clauses read. Reported as
+	// a word rather than a DID: the panel says what kind of identity signs the
+	// entries, and the DID itself would be neither readable nor relevant there.
+	$: if (ready) introEl.choices = { identity: $ownDidStore ? 'passkey' : 'throwaway' };
 
 	$: if (ready) introEl.strings = strings;
 	$: if (ready) introEl.technical = !$simpleView;
