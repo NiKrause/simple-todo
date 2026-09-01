@@ -29,11 +29,12 @@
 	 */
 	export let features = [
 		'No tracking cookies are used. If you choose "remember this device", only that consent choice is saved locally.',
-		// Nothing is processed on our servers - and the honest half of that, which
-		// went unsaid until now: a relay does hold data briefly, which is the whole
-		// point of having one.
-		'Nothing you write is processed on our servers. There is no account and no copy of your list anywhere we control.',
-		'The app may be served through IPFS/IPNS or an HTTP gateway, depending on how you open it - including your own Kubo node or the IPFS Companion extension.'
+		// "No servers" is true and incomplete, which is worse than either. We run
+		// none - and this page still arrives through somebody's, because a public
+		// gateway is a server and it sees that you loaded it. Both halves, and the
+		// two ways out of the second one.
+		'We run no server, and no copy of your list exists anywhere we control.',
+		'The app itself is delivered through a public IPFS gateway, which sees that you loaded it. Running your own Kubo node, or the IPFS Companion extension, fetches it from the network instead - nobody in the middle, and it keeps working if a gateway is down.'
 	];
 
 	/** Shown only with the relay box ticked, because only then are they true. */
@@ -54,6 +55,9 @@
 	 * the shared element - the point of assembling one is that what is consented
 	 * to is what was configured.
 	 */
+	export let warningHeading = 'Early days';
+	export let warningBody =
+		'This is a working demonstration rather than a finished product. It does what it says, and the format may still change - so keep anything you would be sorry to lose somewhere else as well.';
 	export let acceptLabel = 'I have read this and accept it';
 	export let accepted = false;
 	export let proceedButtonText = 'Start P2P Demo';
@@ -105,6 +109,20 @@
 				{#if version}
 					<p class="mt-2 text-center text-sm text-faint">{version}</p>
 				{/if}
+
+				<!--
+					First, and quietly. It is a demonstration and saying so is fair - but
+					a warning that frightens people off is not a warning, it is a door.
+					What is true (the format may change) and what to do about it, without
+					adjectives.
+				-->
+				<p
+					class="mb-4 rounded-md border border-border px-3 py-2 text-sm text-faint"
+					data-testid="consent-warning"
+				>
+					<strong class="text-text">{warningHeading}</strong>
+					{warningBody}
+				</p>
 
 				<div class="mb-6 space-y-4">
 					<p class="text-text">{description}</p>
