@@ -278,6 +278,18 @@
 			"heading": "Wie das andere Gerät hereinkommt",
 			"qr": "Per Kamera: Du hältst einen Code hoch, das andere Gerät scannt ihn. Nichts verlässt dieses Netz.",
 			"qrWithRelay": "Per Kamera: Du hältst einen Code hoch, das andere Gerät scannt ihn. Nichts verlässt dieses Netz. Ein Relay hat geantwortet — das andere Gerät kann auch ohne Code dazukommen."
+		},
+		"privacy": {
+			"heading": "Was das für Ihre Daten bedeutet",
+			"empty": "Was hier steht, entscheiden die Angaben oben.",
+			"accept": "Ich habe das gelesen und bin einverstanden",
+			"noServer": "Nichts, was Sie schreiben, wird auf unseren Servern verarbeitet. Es gibt kein Konto und nirgends eine Kopie Ihrer Liste, über die wir verfügen.",
+			"qr": "Ein Code, den Sie von diesem Bildschirm zum anderen Gerät tragen. Die Liste geht direkt von einem zum anderen und verlässt dieses Netz nur, wenn Sie den Link verschicken.",
+			"relayOn": "Ein Relay stellt die beiden Geräte einander vor. Es kann Daten kurz vorhalten, damit das andere Gerät sie abholen kann, wenn dieses offline geht.",
+			"relayOff": "Es wird kein Relay kontaktiert. Ohne eines muss das andere Gerät aus diesem Netz erreichbar sein.",
+			"passkey": "Ihr Passkey signiert, was Sie schreiben — die andere Seite sieht, dass die Einträge von Ihnen stammen. Er bleibt auf diesem Gerät.",
+			"throwaway": "Ein temporärer Schlüssel dieses Browsers signiert Ihre Einträge. Niemand kann sie Ihnen zuordnen, und er ist fort, sobald Sie den Browser leeren.",
+			"local": "Ihre Listen liegen in diesem Browser. Wird er geleert, sind sie fort."
 		}
 	},
 	"footer": {

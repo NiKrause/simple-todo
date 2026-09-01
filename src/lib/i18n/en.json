@@ -278,6 +278,18 @@
 			"heading": "How the other device gets in",
 			"qr": "By camera: you hold up a code, they scan it. Nothing leaves this network.",
 			"qrWithRelay": "By camera: you hold up a code, they scan it. Nothing leaves this network. A relay answered, so the other device can also join without a code."
+		},
+		"privacy": {
+			"heading": "What this means for your data",
+			"empty": "The choices above decide what goes here.",
+			"accept": "I have read this and accept it",
+			"noServer": "Nothing you write is processed on our servers. There is no account and no copy of your list anywhere we control.",
+			"qr": "A code carried from this screen to the other device. The list goes straight from one to the other and leaves this network only if you send the link.",
+			"relayOn": "A relay introduces the two devices to each other. It may hold data briefly so the other device can collect it after this one goes offline.",
+			"relayOff": "No relay is contacted. Without one, the other device has to be reachable from this network.",
+			"passkey": "Your passkey signs what you write, so the other side can see the entries came from you. It stays on this device.",
+			"throwaway": "A temporary key for this browser signs your entries. Nobody can attribute them to you, and it is gone when you clear this browser.",
+			"local": "Your lists live in this browser. Clearing it clears them."
 		}
 	},
 	"footer": {
