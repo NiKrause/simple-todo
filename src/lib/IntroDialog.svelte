@@ -111,7 +111,14 @@
 	const clauses = (state) =>
 		[
 			get(_)('intro.privacy.noServer'),
-			get(_)('intro.privacy.qr'),
+			// The gateway is the honest other half of "we run no server": somebody
+			// does, and they see that this page was loaded. Naming the two ways out
+			// is more use than leaving the sentence at "no servers".
+			get(_)('intro.privacy.gateway'),
+			// The code sentence describes a way in that is not in use once a relay
+			// is doing the introducing. Leaving it there would describe a different
+			// app than the one the switch above has just configured.
+			state.relayOptIn ? null : get(_)('intro.privacy.qr'),
 			state.relayOptIn ? get(_)('intro.privacy.relayOn') : get(_)('intro.privacy.relayOff'),
 			state.identity === 'passkey'
 				? get(_)('intro.privacy.passkey')
@@ -206,9 +213,30 @@
 	</div>
 
 	<div class="space-y-3 text-sm">
-		<p>{$_('intro.simple.lead')}</p>
-		<p>{$_('intro.simple.offline')}</p>
-		<p>{$_('intro.simple.hotspot')}</p>
+		<!--
+			First, and quietly. It is a demonstration and saying so is fair - but a
+			warning that frightens people off is not a warning, it is a door. The
+			wording says what is actually true (the format may change) and what to
+			do about it (keep a copy elsewhere), without adjectives.
+		-->
+		<p
+			class="rounded-md border border-border px-3 py-2 text-xs text-faint"
+			data-testid="intro-warning"
+		>
+			<strong class="text-heading">{$_('intro.warning.heading')}</strong>
+			{$_('intro.warning.body')}
+		</p>
+
+		<!--
+			The three paragraphs about carrying a code describe the way in that a
+			relay replaces. With the relay ticked they describe a different app than
+			the one the person just configured.
+		-->
+		{#if !$relayOptIn}
+			<p data-testid="intro-qr-story">{$_('intro.simple.lead')}</p>
+			<p data-testid="intro-qr-story">{$_('intro.simple.offline')}</p>
+			<p data-testid="intro-qr-story">{$_('intro.simple.hotspot')}</p>
+		{/if}
 		<p>{$_('intro.simple.passkey')}</p>
 	</div>
 

@@ -233,7 +233,7 @@
 	"intro": {
 		"title": "How this works",
 		"simple": {
-			"lead": "You have a list, and somebody next to you needs it. You hold up a code, their phone reads it with its camera — done.",
+			"lead": "You have a list, and somebody next to you needs it. Hold up your code, they scan it — then they hold up theirs and you scan back. Two scans, and the list is on both phones.",
 			"offline": "No internet needed. The list goes straight from one device to the other.",
 			"hotspot": "The two devices do have to be on the same network. If they are not, one of them opens a Wi-Fi hotspot and the other joins it.",
 			"passkey": "A passkey is your signature. It shows the other side that the entries came from you. You can use the app without one."
@@ -283,13 +283,18 @@
 			"heading": "What this means for your data",
 			"empty": "The choices above decide what goes here.",
 			"accept": "I have read this and accept it",
-			"noServer": "Nothing you write is processed on our servers. There is no account and no copy of your list anywhere we control.",
+			"noServer": "We run no server, and no copy of your list exists anywhere we control.",
 			"qr": "A code carried from this screen to the other device. The list goes straight from one to the other and leaves this network only if you send the link.",
 			"relayOn": "A relay introduces the two devices to each other. It may hold data briefly so the other device can collect it after this one goes offline.",
 			"relayOff": "No relay is contacted. Without one, the other device has to be reachable from this network.",
 			"passkey": "Your passkey signs what you write, so the other side can see the entries came from you. It stays on this device.",
 			"throwaway": "A temporary key for this browser signs your entries. Nobody can attribute them to you, and it is gone when you clear this browser.",
-			"local": "Your lists live in this browser. Clearing it clears them."
+			"local": "Your lists live in this browser. Clearing it clears them.",
+			"gateway": "The app itself is delivered through a public IPFS gateway, which sees that you loaded it. Running your own Kubo node, or the IPFS Companion extension, fetches it from the network instead — nobody in the middle, and it keeps working if a gateway is down."
+		},
+		"warning": {
+			"heading": "Early days",
+			"body": "This is a working demonstration rather than a finished product. It does what it says, and the format may still change — so keep anything you would be sorry to lose somewhere else as well."
 		}
 	},
 	"footer": {
