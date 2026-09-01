@@ -116,9 +116,10 @@ async function acceptConsent(page, { relayNetwork = true } = {}) {
 	const modal = page.locator('div.fixed.inset-0.z-50');
 	await expect(modal).toBeVisible();
 
-	for (const checkbox of await modal.locator('input[type="checkbox"]:not([data-testid])').all()) {
-		await checkbox.check();
-	}
+	// One gate now, where three acknowledgements used to be. It has a testid, so
+	// the old selector - every checkbox *without* one - matched nothing and left
+	// the button disabled.
+	await modal.getByTestId('consent-accept').check();
 
 	if (!relayNetwork) {
 		await page.getByTestId('consent-relay-network').uncheck();

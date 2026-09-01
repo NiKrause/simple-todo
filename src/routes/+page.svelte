@@ -259,7 +259,7 @@
 		bind:rememberDecision
 		rememberLabel="Don't show this again on this device"
 		proceedButtonText="Proceed to Test the App"
-		disabledButtonText="Please check all boxes to continue"
+		disabledButtonText="Please accept to continue"
 		on:proceed={handleModalClose}
 	/>
 {/if}

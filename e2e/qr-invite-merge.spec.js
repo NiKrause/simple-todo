@@ -147,13 +147,13 @@ async function acceptConsent(page, { relayNetwork = true } = {}) {
 	const modal = page.locator('div.fixed.inset-0.z-50');
 	await expect(modal).toBeVisible();
 
-	// Only the "I understand…" acknowledgements — they are the ones without a
-	// testid. Ticking `consent-remember` would persist the decision, so the modal
-	// would not reappear when a page reloads through an invite link, skipping the
-	// very state under test.
-	for (const checkbox of await modal.locator('input[type="checkbox"]:not([data-testid])').all()) {
-		await checkbox.check();
-	}
+	// `consent-remember` stays untouched on purpose: ticking it would persist the
+	// decision, so the modal would not reappear when a page reloads through an
+	// invite link - skipping the very state under test.
+	// One gate now, where three acknowledgements used to be. It has a testid, so
+	// the old selector - every checkbox *without* one - matched nothing and left
+	// the button disabled.
+	await modal.getByTestId('consent-accept').check();
 
 	const relayBox = page.getByTestId('consent-relay-network');
 	await expect(relayBox).toBeChecked();

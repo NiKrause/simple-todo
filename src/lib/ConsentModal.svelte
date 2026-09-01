@@ -16,38 +16,48 @@
 	export let title = 'Simple-Todo';
 	export let version = `${fallbackVersions} [${fallbackBuildDate}]`;
 	export let description = 'Before joining this local-first P2P demo, please note:';
+	/**
+	 * What somebody is told, before they can be asked to agree to it.
+	 *
+	 * Two of these are about relays and appear only when the relay box is ticked:
+	 * telling somebody their browser connects to relay nodes, in an app they have
+	 * just left the relay switched off in, is describing a different app.
+	 *
+	 * Gone: "Todos are local-first ... through Helia, OrbitDB, and libp2p". The
+	 * storage choice below already draws that distinction, and draws it as a
+	 * decision rather than as a sentence.
+	 */
 	export let features = [
 		'No tracking cookies are used. If you choose "remember this device", only that consent choice is saved locally.',
-		'Todos are local-first in your browser session and synchronize through Helia, OrbitDB, and libp2p.',
-		'The browser connects to relay/bootstrap nodes and other peers for discovery, connectivity, and replication.',
-		'Relay or peer nodes may cache, pin, or replicate demo todo data so collaborators can sync.',
-		'The demo uses a shared, unencrypted OrbitDB database. Do not enter private or sensitive data.',
-		'The app may be served through IPFS/IPNS or an HTTP gateway, depending on how you open it.'
+		// Nothing is processed on our servers - and the honest half of that, which
+		// went unsaid until now: a relay does hold data briefly, which is the whole
+		// point of having one.
+		'Nothing you write is processed on our servers. There is no account and no copy of your list anywhere we control.',
+		'The app may be served through IPFS/IPNS or an HTTP gateway, depending on how you open it - including your own Kubo node or the IPFS Companion extension.'
 	];
-	/** @type {{
-	 *   relayConnection: { label: string, checked: boolean },
-	 *   dataVisibility: { label: string, checked: boolean },
-	 *   replicationTesting: { label: string, checked: boolean }
-	 * }} */
-	export let checkboxes = {
-		relayConnection: {
-			label:
-				'I understand this app uses libp2p peer-to-peer networking and may connect to relay/bootstrap nodes and other peers.',
-			checked: false
-		},
-		dataVisibility: {
-			label: 'I understand relay or peer nodes may cache, pin, or replicate demo todo data.',
-			checked: false
-		},
-		replicationTesting: {
-			label:
-				'I understand collaboration requires another browser or device using the same app and database address.',
-			checked: false
-		}
-	};
-	export let confirmationLabel = 'Please confirm:';
+
+	/** Shown only with the relay box ticked, because only then are they true. */
+	export let relayFeatures = [
+		'The browser connects to relay/bootstrap nodes and other peers for discovery, connectivity, and replication.',
+		'Relay or peer nodes may cache, pin, or replicate demo todo data so collaborators can sync - so another device can collect it after this one goes offline.'
+	];
+	/**
+	 * One gate, not three acknowledgements.
+	 *
+	 * The three that were here confirmed sentences this dialog had just
+	 * asserted - that it uses libp2p, that relays may cache, that collaboration
+	 * needs a second device. A tick against a line somebody has just read
+	 * confirms that they can read.
+	 *
+	 * What remains is a single one, and it accepts the notice above. It becomes
+	 * the accept for the assembled privacy statement once this modal moves onto
+	 * the shared element - the point of assembling one is that what is consented
+	 * to is what was configured.
+	 */
+	export let acceptLabel = 'I have read this and accept it';
+	export let accepted = false;
 	export let proceedButtonText = 'Start P2P Demo';
-	export let disabledButtonText = 'Please check all boxes to continue';
+	export let disabledButtonText = 'Please accept to continue';
 
 	export let rememberDecision = false;
 	export let rememberLabel = "Don't show this again on this device";
@@ -79,23 +89,10 @@
 	export let relayNetworkHint =
 		'On: peers find each other automatically through public relay and bootstrap nodes. Off: this browser connects only to peers you invite yourself with a QR code or a copied invite — nothing announces you, and nobody can find you.';
 
-	$: allCheckboxesChecked = Object.values(checkboxes).every((item) => item.checked);
-
 	const handleProceed = () => {
-		if (allCheckboxesChecked) {
+		if (accepted) {
 			show = false;
 			dispatch('proceed');
-		}
-	};
-
-	/**
-	 * @param {'relayConnection' | 'dataVisibility' | 'replicationTesting'} key
-	 * @param {boolean} checked
-	 */
-	const handleCheckboxChange = (key, checked) => {
-		if (checkboxes[key]) {
-			checkboxes[key].checked = checked;
-			checkboxes = { ...checkboxes };
 		}
 	};
 </script>
@@ -115,6 +112,16 @@
 						{#each features as feature, index (index)}
 							<li>{feature}</li>
 						{/each}
+						<!--
+							Only with the relay switched on. Telling somebody their browser
+							connects to relay nodes, in an app they have just switched the
+							relay off in, describes a different app than the one they chose.
+						-->
+						{#if relayNetworkEnabled}
+							{#each relayFeatures as feature, index (index)}
+								<li data-testid="consent-relay-feature">{feature}</li>
+							{/each}
+						{/if}
 					</ul>
 				</div>
 
@@ -159,32 +166,11 @@
 					</div>
 				</fieldset>
 
-				<div class="mb-6 space-y-4">
-					<p class="font-medium text-text">{confirmationLabel}</p>
-
-					{#each Object.entries(checkboxes) as [key, item] (key)}
-						<label class="flex cursor-pointer items-start space-x-3">
-							<input
-								type="checkbox"
-								checked={item.checked}
-								on:click={(e) => {
-									const target = e.target;
-									if (target && target instanceof HTMLInputElement) {
-										handleCheckboxChange(
-											/** @type {'relayConnection' | 'dataVisibility' | 'replicationTesting'} */ (
-												key
-											),
-											target.checked
-										);
-									}
-								}}
-								class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
-							/>
-							<span class="text-text">{item.label}</span>
-						</label>
-					{/each}
-				</div>
-
+				<!--
+					The relay switch, back where it was. It is a choice about what the app
+					does, so it sits above the gate rather than among the things being
+					accepted - and the two relay sentences in the notice appear with it.
+				-->
 				<div class="mt-6 border-t border-border pt-4">
 					<label class="flex cursor-pointer items-start space-x-3">
 						<input
@@ -212,13 +198,25 @@
 					</label>
 				</div>
 
+				<div class="mt-6 border-t border-border pt-4">
+					<label class="flex cursor-pointer items-start space-x-3">
+						<input
+							type="checkbox"
+							bind:checked={accepted}
+							data-testid="consent-accept"
+							class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
+						/>
+						<span class="text-text">{acceptLabel}</span>
+					</label>
+				</div>
+
 				<div class="mt-6 flex justify-center">
 					<button
 						on:click={handleProceed}
-						disabled={!allCheckboxesChecked}
+						disabled={!accepted}
 						class="rounded-md bg-coral-500 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-surface-2 disabled:hover:bg-surface-2"
 					>
-						{allCheckboxesChecked ? proceedButtonText : disabledButtonText}
+						{accepted ? proceedButtonText : disabledButtonText}
 					</button>
 				</div>
 			</div>
