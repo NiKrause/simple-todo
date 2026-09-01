@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { PREVIEW_ORIGIN } from './preview-origin.mjs';
 
 /**
@@ -43,3 +43,26 @@ for (const lang of ['de', 'en']) {
 		}
 	}
 }
+
+/**
+ * The same dialog with the relay ticked.
+ *
+ * Three paragraphs and one privacy clause describe carrying a code between two
+ * phones. A relay replaces that way in, so leaving them there would describe a
+ * different app than the one the switch just configured.
+ */
+test('with the relay ticked, the code story is gone', async ({ page }) => {
+	test.setTimeout(90_000);
+	await page.emulateMedia({ colorScheme: 'dark' });
+	await page.goto(PREVIEW_ORIGIN);
+	await page.locator('qr-intro').waitFor({ state: 'attached', timeout: 30_000 });
+
+	await expect(page.getByTestId('intro-qr-story').first()).toBeVisible();
+	await expect(page.getByTestId('intro-warning')).toBeVisible();
+
+	const relayBox = page.locator('qr-intro').locator('css=.relay input[type="checkbox"]');
+	await relayBox.check();
+
+	await expect(page.getByTestId('intro-qr-story')).toHaveCount(0);
+	await page.screenshot({ path: `${process.env.SHOT_DIR}/qr01-relay-on.png`, fullPage: true });
+});
