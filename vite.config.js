@@ -55,7 +55,10 @@ const commitSha = (() => {
 	const fromCi = process.env.GITHUB_SHA || process.env.VITE_COMMIT_SHA;
 	if (fromCi) return fromCi.trim();
 	try {
-		return execSync('git rev-parse HEAD', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+		return execSync('git rev-parse HEAD', {
+			encoding: 'utf8',
+			stdio: ['ignore', 'pipe', 'ignore']
+		}).trim();
 	} catch {
 		return '';
 	}

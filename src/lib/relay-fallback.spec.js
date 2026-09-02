@@ -23,7 +23,10 @@ describe('recoverRelayConnection', () => {
 	it('dials the first reachable relay Aleph knows about', async () => {
 		const connect = vi.fn(async () => undefined);
 		const result = await run({
-			discover: async () => ['/dns4/dead.example/tcp/443/tls/ws/p2p/12D3KooWD', '/dns4/live.example/tcp/443/tls/ws/p2p/12D3KooWL'],
+			discover: async () => [
+				'/dns4/dead.example/tcp/443/tls/ws/p2p/12D3KooWD',
+				'/dns4/live.example/tcp/443/tls/ws/p2p/12D3KooWL'
+			],
 			probe: async () => ['/dns4/live.example/tcp/443/tls/ws/p2p/12D3KooWL'],
 			connect
 		});

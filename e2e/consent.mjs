@@ -1,5 +1,3 @@
-import { expect } from '@playwright/test';
-
 /**
  * Getting past the consent screen, in one place.
  *
