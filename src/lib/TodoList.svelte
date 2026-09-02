@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	import { createEventDispatcher } from 'svelte';
 	import TodoItem from './TodoItem.svelte';
 	import { todoReplicationStatusStore } from './db-actions.js';
@@ -7,8 +8,6 @@
 
 	/** @type {TodoItemData[]} */
 	export let todos = [];
-	export let title = 'TODO Items';
-	export let emptyMessage = 'No TODOs yet. Add one above!';
 
 	const dispatch = createEventDispatcher();
 
@@ -28,7 +27,7 @@
 </script>
 
 <div class="mb-6 rounded-lg bg-surface p-6 shadow-md">
-	<h2 class="mb-4 text-xl font-semibold">{title} ({todos.length})</h2>
+	<h2 class="mb-4 text-xl font-semibold">{$_('todo.listTitle')} ({todos.length})</h2>
 	{#if todos.length > 0}
 		<div class="space-y-3">
 			{#each todos as { id, text, completed, assignee, createdBy, key } (key)}
@@ -46,6 +45,6 @@
 			{/each}
 		</div>
 	{:else}
-		<p class="py-8 text-center text-faint">{emptyMessage}</p>
+		<p class="py-8 text-center text-faint">{$_('todo.empty')}</p>
 	{/if}
 </div>

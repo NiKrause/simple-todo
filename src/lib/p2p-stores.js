@@ -20,7 +20,7 @@ export const libp2pStore = writable(/** @type {any} */ (null));
 export const peerIdStore = writable(/** @type {string | null} */ (null));
 
 /** @typedef {'pending' | 'active' | 'complete' | 'error'} InitializationStepStatus */
-/** @typedef {{ label: string, description: string, status: InitializationStepStatus }} InitializationStep */
+/** @typedef {{ key: string, status: InitializationStepStatus }} InitializationStep */
 
 /** Progress of `initializeP2P`, read by the status nav. */
 export const initializationStore = writable(

@@ -1,11 +1,21 @@
 <script>
 	import { onDestroy } from 'svelte';
+	import { _ } from '$lib/i18n/index.js';
+	import { relayDescription } from './relay-description.js';
 	import { relayHttpStatusStore } from './relay-status.js';
 	import { relayHttpOriginForPeer } from './multiaddr-utils.js';
 	import { getRelayBootstrapAddrs } from './relay-bootstrap-addrs.js';
 
 	/** @typedef {'pending' | 'active' | 'complete' | 'error'} StepStatus */
-	/** @typedef {{ label: string, description: string, status: StepStatus }} StatusStep */
+	/**
+	 * A step names itself with a key; the sentence comes from the catalogue.
+	 *
+	 * `description` is optional and overrides the lookup — the relay step is the
+	 * only one that has it, because its sentence carries an origin and a version
+	 * that no catalogue can hold.
+	 *
+	 * @typedef {{ key: string, status: StepStatus, description?: string }} StatusStep
+	 */
 
 	/** @type {{ isInitializing: boolean, isInitialized: boolean, error: string | null, steps: StatusStep[] }} */
 	export let initialization;
@@ -44,14 +54,19 @@
 	$: initializationComplete = initialization?.isInitialized === true;
 	$: connectivitySteps = [
 		{
-			label: 'Relay connected',
-			description: getRelayDescription(),
+			key: 'relay',
+			// The only step whose description is assembled rather than looked up:
+			// it names the relay's origin and version, which no catalogue can hold.
+			description: relayDescription($_, {
+				connected: relayConnected,
+				origin: relayHealthOrigin,
+				health: relayHealthStatus,
+				version: relayVersion
+			}),
 			status: relayConnected ? 'complete' : initializationComplete ? 'active' : 'pending'
 		},
 		{
-			label: 'WebRTC connected',
-			description:
-				'A live libp2p connection using WebRTC is available. This normally appears after another browser peer has been discovered.',
+			key: 'webrtc',
 			status: webRTCConnected
 				? 'complete'
 				: initializationComplete && relayConnected
@@ -169,7 +184,7 @@
 			const response = await fetch(`${origin}/health`, { signal: controller.signal });
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 			const health = await response.json();
-			if (peerId && health.peerId !== peerId) throw new Error('Relay peer ID does not match');
+			if (peerId && health.peerId !== peerId) throw new Error($_('status.relayIdMismatch'));
 			if (relayHealthKey !== key) return;
 			relayVersion = getHealthVersion(health);
 			relayHealthStatus = 'verified';
@@ -191,21 +206,6 @@
 				health?.package?.version ??
 				''
 		);
-	}
-
-	function getRelayDescription() {
-		const base =
-			'A live WebSocket connection to a relay/bootstrap peer is available for discovery, pubsub and circuit relay traffic.';
-		if (!relayConnected) return `${base} No relay is connected yet.`;
-		if (!relayHealthOrigin)
-			return `${base} No HTTPS health URL can be derived from the connected relay address.`;
-		if (relayHealthStatus === 'loading')
-			return `${base} Reading the OrbitDB relay version from ${relayHealthOrigin}/health…`;
-		if (relayHealthStatus === 'verified' && relayVersion)
-			return `${base} OrbitDB relay version ${relayVersion}; health and peer ID verified at ${relayHealthOrigin}/health.`;
-		if (relayHealthStatus === 'verified')
-			return `${base} Health and peer ID verified at ${relayHealthOrigin}/health. This relay does not expose its OrbitDB relay version.`;
-		return `${base} ${relayHealthOrigin}/health could not be verified, so its OrbitDB relay version is unavailable.`;
 	}
 
 	function resetRelayHealth() {
@@ -232,12 +232,29 @@
 	 * @param {StatusStep | undefined} step
 	 */
 	function getStatusLabel(complete, step) {
-		if (complete) return 'P2P network ready';
-		if (step?.label === 'Relay connected') return 'Connecting to relay';
-		if (step?.label === 'WebRTC connected') return 'Waiting for WebRTC connection';
-		if (step?.status === 'error') return `Failed to initialize ${step.label}`;
-		if (step) return `Initializing ${step.label}`;
-		return 'Preparing P2P network';
+		if (complete) return $_('status.ready');
+		// By key, not by label. Comparing the English sentence would have made the
+		// summary line depend on which language somebody happened to be reading.
+		if (step?.key === 'relay') return $_('status.connectingRelay');
+		if (step?.key === 'webrtc') return $_('status.waitingWebrtc');
+		if (step?.status === 'error')
+			return $_('status.failedToInitialize', { values: { step: stepLabel(step) } });
+		if (step) return $_('status.initializing', { values: { step: stepLabel(step) } });
+		return $_('status.preparing');
+	}
+
+	/** @param {StatusStep} step */
+	function stepLabel(step) {
+		return $_(`status.step.${step.key}.label`);
+	}
+
+	/**
+	 * A step's description: assembled for the relay, looked up for the rest.
+	 *
+	 * @param {StatusStep} step
+	 */
+	function stepDescription(step) {
+		return step.description ?? $_(`status.step.${step.key}.description`);
 	}
 
 	onDestroy(() => {
@@ -248,7 +265,7 @@
 
 <nav
 	class="mb-6 rounded-lg border border-border bg-surface px-4 py-3 shadow-sm"
-	aria-label="P2P initialization and connection status"
+	aria-label={$_('status.aria')}
 	data-testid="p2p-status-nav"
 >
 	<div class="mb-2 flex items-center gap-2 text-sm font-medium text-text" aria-live="polite">
@@ -263,10 +280,10 @@
 	</div>
 
 	<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
-		{#each allSteps as step (step.label)}
+		{#each allSteps as step (step.key)}
 			<div
 				class="flex cursor-help items-center gap-2 text-xs whitespace-nowrap text-faint outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
-				aria-label={`${step.label}: ${step.description}`}
+				aria-label={`${stepLabel(step)}: ${stepDescription(step)}`}
 				data-testid="p2p-status-step"
 				data-status={step.status}
 				role="button"
@@ -285,7 +302,7 @@
 					class="h-2 w-2 rounded-full shadow-sm"
 					aria-hidden="true"
 				></span>
-				<span class:text-text={step.status === 'active'}>{step.label}</span>
+				<span class:text-text={step.status === 'active'}>{stepLabel(step)}</span>
 			</div>
 		{/each}
 	</div>
@@ -296,8 +313,8 @@
 			role="tooltip"
 			data-testid="p2p-status-tooltip"
 		>
-			<span class="font-semibold">{tooltipStep.label}:</span>
-			{tooltipStep.description}
+			<span class="font-semibold">{stepLabel(tooltipStep)}:</span>
+			{stepDescription(tooltipStep)}
 		</div>
 	{/if}
 
@@ -318,9 +335,9 @@
 						clip-rule="evenodd"
 					/>
 				</svg>
-				<span>Network details</span>
+				<span>{$_('status.details')}</span>
 				<span class="font-normal text-faint"
-					>· {connectedPeerCount} {connectedPeerCount === 1 ? 'peer' : 'peers'}</span
+					>· {$_('status.peerCount', { values: { count: connectedPeerCount } })}</span
 				>
 				{#if peerId}
 					<code class="hidden font-mono font-normal text-faint sm:inline"

@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	import { onMount } from 'svelte';
 	import { getQrSession } from './qr-transport.js';
 	import { isRelayNetworkMode } from './network-mode.js';
@@ -13,7 +14,17 @@
 	let open = $state(false);
 	let outgoing = $state('');
 	let incoming = $state('');
-	let status = $state('Create an invite, or scan the code they are showing you.');
+	/**
+	 * The status line, as a key and its values rather than a sentence.
+	 *
+	 * It was assigned English prose at eleven points. Storing the key means the
+	 * line follows a language switch made *after* it was set — which is the
+	 * ordinary case here, since the switch lives in the dialog somebody has just
+	 * come through.
+	 *
+	 * @type {{ key: string, values?: any }}
+	 */
+	let status = $state({ key: 'qr.lead' });
 	let busy = $state(false);
 	/** @type {any} */
 	let scanner = $state(null);
@@ -61,7 +72,7 @@
 		if (invited) {
 			reveal();
 			clearInviteLink();
-			status = 'Invite received. Waiting for this peer to start…';
+			status = { key: 'qr.received' };
 
 			// A first-time visitor lands on the consent screen, so at this point
 			// there is usually no libp2p node yet — accepting consent is what
@@ -70,7 +81,7 @@
 			if (await waitForSession()) {
 				await usePayload(invited);
 			} else {
-				status = 'Invite received, but this peer never finished starting. Reload to try again.';
+				status = { key: 'qr.neverStarted' };
 			}
 		}
 	}
@@ -101,13 +112,13 @@
 		try {
 			await navigator.clipboard.writeText(buildInviteLink(outgoing));
 			linkCopied = true;
-			status = 'Link copied. Send it to them — opening it connects their browser to yours.';
+			status = { key: 'qr.linkCopiedHint' };
 		} catch (/** @type {any} */ error) {
 			// Clipboard access is denied in plenty of ordinary situations (no
 			// secure context, no user gesture). The link is still in the box below,
 			// so say so instead of failing silently.
 			linkCopied = false;
-			status = `Could not copy: ${error.message}. Copy the invite text below instead.`;
+			status = { key: 'qr.copyFailed', values: { reason: error.message } };
 		}
 	}
 
@@ -115,7 +126,7 @@
 		const current = getQrSession();
 
 		if (current == null) {
-			throw new Error('The peer is still starting');
+			throw new Error($_('qr.peerStarting'));
 		}
 
 		return current;
@@ -126,9 +137,9 @@
 		linkCopied = false;
 		try {
 			outgoing = await session().createOffer();
-			status = 'Show this code, or send the text. Then scan their reply.';
+			status = { key: 'qr.showCode' };
 		} catch (/** @type {any} */ error) {
-			status = `Could not create an invite: ${error.message}`;
+			status = { key: 'qr.createFailed', values: { reason: error.message } };
 		} finally {
 			busy = false;
 		}
@@ -156,7 +167,7 @@
 				// open - OrbitDB and gossipsub use whatever connection exists.
 				const { peerId } = await session().acceptAnswer(trimmed);
 
-				status = `Connected to ${peerId.slice(0, 12)}…`;
+				status = { key: 'qr.connectedTo', values: { peer: peerId.slice(0, 12) } };
 				outgoing = '';
 				// The panel has done its job. Left open it hides the todo list behind
 				// a wall of one-time payloads that are already spent. Delayed so the
@@ -164,11 +175,11 @@
 				closeWhenConnected();
 			} else {
 				outgoing = await session().acceptOffer(trimmed);
-				status = 'Show this reply back to them.';
+				status = { key: 'qr.showReply' };
 			}
 			incoming = '';
 		} catch (/** @type {any} */ error) {
-			status = `That payload was rejected: ${error.message}`;
+			status = { key: 'qr.rejected', values: { reason: error.message } };
 		} finally {
 			busy = false;
 		}
@@ -180,13 +191,13 @@
 			open = false;
 			incoming = '';
 			linkCopied = false;
-			status = 'Create an invite, or scan the code they are showing you.';
+			status = { key: 'qr.lead' };
 		}, 2000);
 	}
 
 	function scan() {
 		scanner?.open().catch((/** @type {any} */ error) => {
-			status = `Camera failed: ${error.message}`;
+			status = { key: 'qr.cameraFailed', values: { reason: error.message } };
 		});
 	}
 </script>
@@ -207,7 +218,7 @@
 		aria-expanded={open}
 		aria-controls="qr-connect-panel"
 	>
-		Scan Connect SDP
+		{$_('qr.scanConnectSdp')}
 	</button>
 {/if}
 
@@ -217,7 +228,7 @@
 		class="mt-3 w-full rounded-lg border border-amber-400/40 bg-amber-50 p-4 dark:bg-gray-800"
 		data-testid="qr-connect"
 	>
-		<h2 class="mb-1 text-sm font-semibold">Connect by invite</h2>
+		<h2 class="mb-1 text-sm font-semibold">{$_('qr.connectByInvite')}</h2>
 		<p class="mb-3 text-xs text-gray-600 dark:text-gray-300">
 			A direct WebRTC connection negotiated through a code you hand over yourself — no relay and no
 			discovery involved in the introduction.
@@ -228,13 +239,13 @@
 				class="rounded bg-amber-500 px-3 py-1 text-sm text-white disabled:opacity-50"
 				onclick={createInvite}
 				disabled={busy}
-				data-testid="qr-create-invite">Create invite</button
+				data-testid="qr-create-invite">{$_('qr.createInvite')}</button
 			>
 			<button
 				class="rounded border px-3 py-1 text-sm disabled:opacity-50"
 				onclick={scan}
 				disabled={busy}
-				data-testid="qr-scan">Scan their code</button
+				data-testid="qr-scan">{$_('qr.scanCode')}</button
 			>
 		</div>
 
@@ -271,14 +282,14 @@
 				class="mt-2 rounded border px-3 py-1 text-sm disabled:opacity-50"
 				onclick={copyInviteLink}
 				disabled={busy}
-				data-testid="qr-copy-link">{linkCopied ? 'Link copied' : 'Copy invite link'}</button
+				data-testid="qr-copy-link">{linkCopied ? $_('qr.linkCopied') : $_('qr.copyLink')}</button
 			>
 		{/if}
 
 		<textarea
 			class="mt-2 w-full rounded border p-2 font-mono text-xs dark:bg-gray-900"
 			rows="2"
-			placeholder="Or paste their invite or reply here"
+			placeholder={$_('qr.pasteHere')}
 			data-testid="qr-incoming"
 			bind:value={incoming}
 		></textarea>
@@ -287,14 +298,14 @@
 			class="mt-2 rounded border px-3 py-1 text-sm disabled:opacity-50"
 			onclick={() => usePayload(incoming)}
 			disabled={busy}
-			data-testid="qr-use-payload">Use this</button
+			data-testid="qr-use-payload">{$_('qr.use')}</button
 		>
 
-		<p class="mt-2 text-xs" data-testid="qr-status">{status}</p>
+		<p class="mt-2 text-xs" data-testid="qr-status">{$_(status.key, { values: status.values })}</p>
 
 		<qr-scanner
 			bind:this={scanner}
-			label="Scan their code"
+			label={$_('qr.scanCode')}
 			style="--qr-scanner-background: #ffffff; --qr-scanner-foreground: #111827; --qr-scanner-border: #d1d5db; --qr-scanner-status-color: #4b5563;"
 			onscan={(/** @type {any} */ event) => usePayload(event.detail.text)}
 		></qr-scanner>

@@ -1,5 +1,6 @@
 <script>
 	import { onDestroy } from 'svelte';
+	import { _ } from '$lib/i18n/index.js';
 	import { writable } from 'svelte/store';
 	import { formatPeerId } from './utils.js';
 	import TransportBadge from './TransportBadge.svelte';
@@ -17,8 +18,6 @@
 	// Plugin interface - only needs libp2p instance
 	/** @type {any} */
 	export let libp2p = null;
-	export let title = 'Connected Peers';
-	export let emptyMessage = 'No peers connected yet.';
 	export let showOnlineIndicator = true;
 	export let autoConnect = true;
 	export let compact = false;
@@ -424,7 +423,7 @@
 		class:text-sm={compact}
 		class="font-semibold"
 	>
-		{title} ({$peers.length})
+		{$_('peers.heading')} ({$peers.length})
 	</h2>
 	{#if $peers.length > 0}
 		<div
@@ -454,7 +453,7 @@
 					<button
 						on:click={() => disconnectPeer(peer.peerId)}
 						class="text-xs text-danger-600 hover:text-danger-800"
-						title="Disconnect peer"
+						title={$_('peers.disconnect')}
 					>
 						✕
 					</button>
@@ -462,6 +461,6 @@
 			{/each}
 		</div>
 	{:else}
-		<p class:h-28={compact} class="text-xs text-faint">{emptyMessage}</p>
+		<p class:h-28={compact} class="text-xs text-faint">{$_('peers.empty')}</p>
 	{/if}
 </div>
