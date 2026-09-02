@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { acceptNotice, consentModal, isAccepted, waitForConsent } from './consent.mjs';
+import {
+	acceptNotice,
+	consentModal,
+	isAccepted,
+	privacyClauses,
+	waitForConsent
+} from './consent.mjs';
 
 test.describe('Consent Screen', () => {
 	test('should display consent modal and allow proceeding after checking all boxes', async ({
@@ -97,25 +103,33 @@ test.describe('Consent Screen', () => {
 		});
 	});
 
-	test('should display all required consent information', async ({ page }) => {
+	test('the statement covers everything it has to, and says it once', async ({ page }) => {
 		await page.goto('/');
 
-		// What the notice itself still lists. The privacy sentences moved into the
-		// panel the element draws beside it - they are clauses now, assembled from
-		// the choices, and asserted where they live rather than here.
-		const expectedFeatures = [
-			'No tracking cookies are used',
-			'only that consent choice is saved locally',
-			'connects to relay/bootstrap nodes and other peers'
-		];
+		// This used to read the notice above the panel. The notice said what the
+		// panel says - one line of it almost word for word - so it is gone, and
+		// the assertion follows the sentences to the copy that is actually being
+		// consented to.
+		const clauses = privacyClauses(page);
 
-		for (const feature of expectedFeatures) {
-			await expect(
-				page
-					.locator('li')
-					.filter({ hasText: new RegExp(feature.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') })
-			).toBeVisible();
+		for (const claim of [
+			'no server',
+			'public IPFS gateway',
+			'Relay and bootstrap nodes',
+			'memory only',
+			'No tracking cookies'
+		]) {
+			await expect(clauses.filter({ hasText: claim })).toHaveCount(1);
 		}
+
+		// Cookies last. It is the only line about this dialog rather than about
+		// the app, and the order is the reason it reads as a footnote instead of
+		// as the first thing somebody is told.
+		await expect(clauses.last()).toContainText('No tracking cookies');
+
+		// And exactly once each: saying a thing twice in a consent notice leaves
+		// a reader working out whether the two versions differ.
+		await expect(clauses).toHaveCount(5);
 	});
 
 	test('says it is a demonstration, without frightening anybody off', async ({ page }) => {
@@ -129,20 +143,61 @@ test.describe('Consent Screen', () => {
 		await expect(warning).toContainText('somewhere else as well');
 	});
 
-	test('the relay sentences appear with the relay, and not without it', async ({ page }) => {
+	test('the relay sentence follows the relay, and says the opposite without it', async ({
+		page
+	}) => {
 		// Telling somebody their browser connects to relay nodes, in an app they
 		// have just switched the relay off in, describes a different app than the
 		// one they chose.
+		//
+		// This used to assert a pair of bullets in a notice above the statement.
+		// The notice is gone - it said what the statement says - so the assertion
+		// moved to where the sentence now lives. Which is the better place for it
+		// anyway: this is the copy somebody is being asked to accept.
 		await page.goto('/');
+		const clauses = privacyClauses(page);
 
 		const relayToggle = page.getByTestId('consent-relay-network');
 		await expect(relayToggle).toBeChecked();
-		await expect(page.getByTestId('consent-relay-feature').first()).toBeVisible();
+		await expect(clauses.filter({ hasText: 'Relay and bootstrap nodes' })).toHaveCount(1);
+		await expect(clauses.filter({ hasText: 'No relay is contacted' })).toHaveCount(0);
 
+		// Off does not merely remove the sentence - it replaces it. A statement
+		// that goes quiet about relays says less than one that says none is used.
 		await relayToggle.uncheck();
-		await expect(page.getByTestId('consent-relay-feature')).toHaveCount(0);
+		await expect(clauses.filter({ hasText: 'No relay is contacted' })).toHaveCount(1);
+		await expect(clauses.filter({ hasText: 'Relay and bootstrap nodes' })).toHaveCount(0);
 
 		await relayToggle.check();
-		await expect(page.getByTestId('consent-relay-feature').first()).toBeVisible();
+		await expect(clauses.filter({ hasText: 'Relay and bootstrap nodes' })).toHaveCount(1);
+	});
+
+	test('a choice flashes the lines it rewrote, and nothing on arrival', async ({ page }) => {
+		// The panel is the point of assembling a statement, and a switch three
+		// inches away was rewriting its sentences silently.
+		await page.goto('/');
+		const clauses = privacyClauses(page);
+		await expect(clauses.first()).toBeVisible();
+
+		// Nothing is marked on the first paint. Everything is new then, and a
+		// statement that flashes in full on arrival tells nobody which line their
+		// choice moved.
+		await expect(clauses.locator('.changed')).toHaveCount(0);
+		await expect(page.locator('[data-testid=consent-modal] .privacy li.changed')).toHaveCount(0);
+
+		await page.getByTestId('consent-relay-network').uncheck();
+
+		// Exactly one: the relay clause was rewritten and the other four were not.
+		// `toHaveCount(1)` rather than a lower bound, because marking the whole
+		// list would be the same failure as marking none of it.
+		const marked = page.locator('[data-testid=consent-modal] .privacy li.changed');
+		await expect(marked).toHaveCount(1);
+		await expect(marked).toContainText('No relay is contacted');
+
+		// The storage choice moves a different line.
+		await page.getByTestId('consent-storage-indexeddb').check();
+		const afterStorage = page.locator('[data-testid=consent-modal] .privacy li.changed');
+		await expect(afterStorage).toHaveCount(1);
+		await expect(afterStorage).toContainText('kept in this browser');
 	});
 });
