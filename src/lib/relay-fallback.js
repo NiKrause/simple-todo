@@ -26,7 +26,13 @@
  * @param {(message: string, detail?: unknown) => void} [options.log]
  * @returns {Promise<{ outcome: 'already-connected' | 'connected' | 'none-reachable' | 'none-registered' | 'failed', address?: string, error?: unknown }>}
  */
-export async function recoverRelayConnection({ isConnected, discover, probe, connect, log = () => {} }) {
+export async function recoverRelayConnection({
+	isConnected,
+	discover,
+	probe,
+	connect,
+	log = () => {}
+}) {
 	if (isConnected()) return { outcome: 'already-connected' };
 
 	log('No relay connection from the baked addresses — asking Aleph.');
