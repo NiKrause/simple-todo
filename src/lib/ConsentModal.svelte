@@ -15,33 +15,24 @@
 	export let show = true;
 	export let title = 'Simple-Todo';
 	export let version = `${fallbackVersions} [${fallbackBuildDate}]`;
-	export let description = 'Before joining this local-first P2P demo, please note:';
 	/**
-	 * What somebody is told, before they can be asked to agree to it.
+	 * The notice list is gone, and it was said twice.
 	 *
-	 * Two of these are about relays and appear only when the relay box is ticked:
-	 * telling somebody their browser connects to relay nodes, in an app they have
-	 * just left the relay switched off in, is describing a different app.
+	 * "Before joining this demo, please note:" introduced three bullets, and the
+	 * privacy panel beside them said the same three things — one of them almost
+	 * word for word. Two relay bullets appeared with the relay box, next to a
+	 * clause that already followed that box. Somebody reading carefully got the
+	 * same page twice and had to work out whether the two versions differed.
 	 *
-	 * Gone: "Todos are local-first ... through Helia, OrbitDB, and libp2p". The
-	 * storage choice below already draws that distinction, and draws it as a
-	 * decision rather than as a sentence.
+	 * They now exist once, in the statement that is actually being consented to,
+	 * which is the copy that has to be right. What did *not* exist there is the
+	 * sentence about cookies — so that one moved rather than being dropped, and
+	 * it goes last: it is the only line that is about this dialog rather than
+	 * about the app.
+	 *
+	 * `description`, `features` and `relayFeatures` were props. Removing them is
+	 * a breaking change to a component with exactly one caller, in this repo.
 	 */
-	export let features = [
-		'No tracking cookies are used. If you choose "remember this device", only that consent choice is saved locally.',
-		// "No servers" is true and incomplete, which is worse than either. We run
-		// none - and this page still arrives through somebody's, because a public
-		// gateway is a server and it sees that you loaded it. Both halves, and the
-		// two ways out of the second one.
-		'We run no server, and no copy of your list exists anywhere we control.',
-		'The app itself is delivered through a public IPFS gateway, which sees that you loaded it. Running your own Kubo node, or the IPFS Companion extension, fetches it from the network instead - nobody in the middle, and it keeps working if a gateway is down.'
-	];
-
-	/** Shown only with the relay box ticked, because only then are they true. */
-	export let relayFeatures = [
-		'The browser connects to relay/bootstrap nodes and other peers for discovery, connectivity, and replication.',
-		'Relay or peer nodes may cache, pin, or replicate demo todo data so collaborators can sync - so another device can collect it after this one goes offline.'
-	];
 	/**
 	 * One gate, not three acknowledgements.
 	 *
@@ -128,7 +119,11 @@
 				: 'No relay is contacted. Without one, the other device has to be reachable from this network.',
 			state.persistent
 				? 'Your todos are kept in this browser and survive a restart, in a shared and unencrypted database.'
-				: 'Your todos live in memory only and are gone when this page reloads. The database is shared and unencrypted either way.'
+				: 'Your todos live in memory only and are gone when this page reloads. The database is shared and unencrypted either way.',
+			// Last, and the only line here about this dialog rather than about the
+			// app. It used to head the notice above; the notice is gone and this is
+			// the one sentence it carried that the statement did not.
+			'No tracking cookies are used. If you tick "don\'t show this again", that choice is the only thing saved on this device.'
 		].filter(Boolean);
 
 	$: strings = {
@@ -143,9 +138,81 @@
 		introEl.privacy = { accept: true, clauses };
 		watchAcceptance();
 	}
-	$: if (ready)
+	$: if (ready) {
 		introEl.choices = { relay: relayNetworkEnabled, persistent: persistentStorageEnabled };
+		// After the assignment, not before: `set choices` repaints the panel
+		// synchronously, so by this line the new clauses are in the DOM.
+		markChangedClauses();
+	}
 	$: if (ready && show && !introEl.isOpen) void introEl.open();
+
+	/**
+	 * The statement as it was last painted, so a choice can be told from a
+	 * repaint.
+	 */
+	/** @type {string[]} */
+	let paintedClauses = [];
+
+	/**
+	 * Flash the lines a choice just rewrote.
+	 *
+	 * The panel is the point of assembling a statement — it says what *this*
+	 * configuration means — and a switch three inches away silently rewrote two
+	 * of its sentences. Somebody who ticks the relay box has no way to know
+	 * which line moved unless they had memorised the paragraph.
+	 *
+	 * Compared by text rather than by index alone: the list is rebuilt whole on
+	 * every repaint (`replaceChildren`), and the clause at position 2 is a
+	 * different sentence depending on the relay, not a different clause.
+	 *
+	 * Nothing is marked on the first paint. Everything is new then, and flashing
+	 * the whole statement on arrival teaches nobody which line their choice
+	 * moved — it just makes the dialog shout when it opens.
+	 */
+	function markChangedClauses() {
+		const list = introEl?.shadowRoot?.querySelector('.privacy ul');
+		if (!list) return;
+
+		const next = [...list.children].map((item) => item.textContent ?? '');
+		if (paintedClauses.length > 0) {
+			next.forEach((text, index) => {
+				if (text !== paintedClauses[index]) list.children[index]?.classList.add('changed');
+			});
+		}
+		paintedClauses = next;
+	}
+
+	/**
+	 * The animation, inside the shadow root because that is where the clauses
+	 * live.
+	 *
+	 * A `part` on each clause would be the clean way and the element does not
+	 * offer one; appending a stylesheet is the reach that avoids forking it, and
+	 * it survives repaints because only the `<ul>`'s children are replaced.
+	 *
+	 * The colour comes from a custom property set on the host below, so it
+	 * follows the app's theme — custom properties cross the shadow boundary and
+	 * a hard-coded yellow would be invisible on one of the two backgrounds.
+	 *
+	 * Reduced motion gets the same signal without the blink: the point is to
+	 * show *which* line changed, and a static tint says that just as well.
+	 */
+	const HIGHLIGHT_STYLE = `
+		.privacy li.changed {
+			border-radius: 0.2rem;
+			animation: consent-changed 900ms ease-in-out 2;
+		}
+		@keyframes consent-changed {
+			0%, 100% { background: transparent; }
+			50% { background: var(--consent-changed); }
+		}
+		@media (prefers-reduced-motion: reduce) {
+			.privacy li.changed {
+				animation: none;
+				background: var(--consent-changed);
+			}
+		}
+	`;
 
 	/**
 	 * The element disables its own close control - the cross in the corner. The
@@ -163,6 +230,20 @@
 	onMount(async () => {
 		await import('@le-space/libp2p-webrtc-qr/elements');
 		introEl.strings = strings;
+
+		// A plain style element rather than `adoptedStyleSheets`: one line, no
+		// feature detection, and nothing else writes to the shadow root's
+		// children apart from the element itself.
+		//
+		// The tag name is not spelled out anywhere in this block on purpose.
+		// Svelte's parser scans the script for a literal style tag and takes one
+		// inside a comment for the real thing — it reported `<script> was left
+		// open` against the closing tag ninety lines further down, which points
+		// at everything except the comment that caused it.
+		const highlight = document.createElement('style');
+		highlight.textContent = HIGHLIGHT_STYLE;
+		introEl.shadowRoot?.append(highlight);
+
 		introEl.addEventListener('close', (/** @type {any} */ event) => {
 			rememberDecision = event.detail?.remember === true;
 			show = false;
@@ -198,18 +279,6 @@
 		<strong class="text-text">{warningHeading}</strong>
 		{warningBody}
 	</p>
-
-	<p class="mb-2">{description}</p>
-	<ul class="mb-4 ml-4 list-outside list-disc space-y-1">
-		{#each features as feature, index (index)}
-			<li>{feature}</li>
-		{/each}
-		{#if relayNetworkEnabled}
-			{#each relayFeatures as feature, index (index)}
-				<li data-testid="consent-relay-feature">{feature}</li>
-			{/each}
-		{/if}
-	</ul>
 
 	<!--
 		The storage choice, first among the decisions: it is the only one here that
@@ -272,3 +341,41 @@
 		{accepted ? proceedButtonText : disabledButtonText}
 	</button>
 </qr-intro>
+
+<style>
+	/*
+		The flash colour, on the host, so it crosses into the shadow root where
+		the clauses are — and so it can differ by theme, which a hard-coded value
+		inside `HIGHLIGHT_STYLE` could not.
+
+		Yellow in the dark, where it is the colour a highlighter would be. Amber
+		in the light, because the same yellow on a white panel is barely a change
+		at all — the signal has to survive both backgrounds, and matching the
+		hue matters less than being seen.
+	*/
+	/*
+		The element's own palette, taken from the app's.
+
+		Without this it themes itself from `prefers-color-scheme` and ignores the
+		app entirely — so the dialog stayed dark while the page around it was
+		light, and the highlight below had a light variant nobody could ever see.
+		`qr01` has passed these since its intro landed; `main` never did, which is
+		why the two chapters' dialogs did not look alike.
+
+		These are the same tokens `.dark` redefines in `app.css`, so the dialog
+		follows the theme toggle rather than the operating system.
+	*/
+	qr-intro {
+		--qr-intro-background: var(--surface);
+		--qr-intro-color: var(--text);
+		--qr-intro-border: var(--border);
+		--qr-intro-muted: var(--faint);
+		--qr-intro-accent: var(--cyan);
+
+		--consent-changed: rgba(217, 119, 6, 0.3);
+	}
+
+	:global(html.dark) qr-intro {
+		--consent-changed: rgba(250, 204, 21, 0.4);
+	}
+</style>

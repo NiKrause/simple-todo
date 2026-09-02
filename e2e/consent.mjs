@@ -17,6 +17,19 @@ import { expect } from '@playwright/test';
 export const consentModal = (page) => page.getByTestId('consent-modal');
 
 /**
+ * The assembled statement's clauses.
+ *
+ * They live in the element's shadow tree, which Playwright pierces. There is no
+ * `part` on them — asked for upstream; until then the class the element gives
+ * the panel is the handle, and it is the same one the app's own highlight CSS
+ * uses, so the two would break together rather than one silently outliving the
+ * other.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+export const privacyClauses = (page) => consentModal(page).locator('.privacy ul li');
+
+/**
  * Whether the dialog is showing.
  *
  * Asked of the element rather than measured: the host is a custom element whose
