@@ -1,5 +1,5 @@
 <script>
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
 	import { formatBuildDate, formatVersions } from './build-info.js';
 
 	const dispatch = createEventDispatcher();
@@ -93,151 +93,182 @@
 	export let relayNetworkHint =
 		'On: peers find each other automatically through public relay and bootstrap nodes. Off: this browser connects only to peers you invite yourself with a QR code or a copied invite — nothing announces you, and nobody can find you.';
 
-	const handleProceed = () => {
-		if (accepted) {
+	/**
+	 * The dialog is `qr-intro` now, not markup of our own.
+	 *
+	 * What moved: the shell, the network measurement, the technical view, the
+	 * "don't show again" tick and the privacy panel with its gate. What stayed
+	 * here is what belongs to this app - the storage choice, the relay switch and
+	 * the notice itself, all of it in the story slot.
+	 *
+	 * The relay switch is deliberately still ours rather than the element's. Its
+	 * value decides how the libp2p node is built, is read before the node starts
+	 * and is persisted by the page; handing that to the element would be a second
+	 * rewiring in the same change, with the node's configuration as the thing at
+	 * risk.
+	 */
+	/** @type {any} */
+	let introEl;
+	let ready = false;
+	let technical = false;
+
+	/**
+	 * What the notice means for somebody's data, assembled from what they chose.
+	 *
+	 * Ours rather than the element's: what this app does with data is this app's
+	 * to state. Read at call time, so the element's repaint is what refreshes
+	 * them rather than a rebuilt closure.
+	 */
+	const clauses = (/** @type {any} */ state) =>
+		[
+			'We run no server, and no copy of your list exists anywhere we control.',
+			'The app itself is delivered through a public IPFS gateway, which sees that you loaded it. Your own Kubo node, or the IPFS Companion extension, fetches it from the network instead.',
+			state.relay
+				? 'Relay and bootstrap nodes introduce peers to each other, and may cache or replicate this demo data so another device can collect it later.'
+				: 'No relay is contacted. Without one, the other device has to be reachable from this network.',
+			state.persistent
+				? 'Your todos are kept in this browser and survive a restart, in a shared and unencrypted database.'
+				: 'Your todos live in memory only and are gone when this page reloads. The database is shared and unencrypted either way.'
+		].filter(Boolean);
+
+	$: strings = {
+		title,
+		close: proceedButtonText,
+		dontShow: rememberLabel
+	};
+
+	$: if (ready) introEl.strings = strings;
+	$: if (ready) introEl.technical = technical;
+	$: if (ready) {
+		introEl.privacy = { accept: true, clauses };
+		watchAcceptance();
+	}
+	$: if (ready)
+		introEl.choices = { relay: relayNetworkEnabled, persistent: persistentStorageEnabled };
+	$: if (ready && show && !introEl.isOpen) void introEl.open();
+
+	/**
+	 * The element disables its own close control - the cross in the corner. The
+	 * proceed button below is ours, and looked ready while `close()` declined.
+	 * Idempotent, because the reactive block above runs again on every choice.
+	 */
+	function watchAcceptance() {
+		const box = introEl?.shadowRoot?.querySelector('input[part=accept]');
+		if (!box || box.dataset.watched === 'true') return;
+		box.dataset.watched = 'true';
+		accepted = box.checked === true;
+		box.addEventListener('change', () => (accepted = box.checked === true));
+	}
+
+	onMount(async () => {
+		await import('@le-space/libp2p-webrtc-qr/elements');
+		introEl.strings = strings;
+		introEl.addEventListener('close', (/** @type {any} */ event) => {
+			rememberDecision = event.detail?.remember === true;
 			show = false;
 			dispatch('proceed');
-		}
-	};
+		});
+		ready = true;
+	});
 </script>
 
-{#if show}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-		<div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-surface shadow-xl">
-			<div class="p-6">
-				<h1 class="text-center text-2xl font-bold text-heading">{title}</h1>
-				{#if version}
-					<p class="mt-2 text-center text-sm text-faint">{version}</p>
-				{/if}
+<qr-intro bind:this={introEl} data-testid="consent-modal">
+	<button
+		slot="header"
+		type="button"
+		on:click={() => (technical = !technical)}
+		data-testid="consent-technical"
+		class="rounded-md border border-border px-2 py-1 text-xs text-faint hover:text-text"
+	>
+		{technical ? 'Simple' : 'Technical'}
+	</button>
 
-				<!--
-					First, and quietly. It is a demonstration and saying so is fair - but
-					a warning that frightens people off is not a warning, it is a door.
-					What is true (the format may change) and what to do about it, without
-					adjectives.
-				-->
-				<p
-					class="mb-4 rounded-md border border-border px-3 py-2 text-sm text-faint"
-					data-testid="consent-warning"
-				>
-					<strong class="text-text">{warningHeading}</strong>
-					{warningBody}
-				</p>
+	{#if version}
+		<p class="mb-3 text-xs text-faint">{version}</p>
+	{/if}
 
-				<div class="mb-6 space-y-4">
-					<p class="text-text">{description}</p>
-					<ul class="ml-4 list-inside list-disc space-y-2 text-text">
-						{#each features as feature, index (index)}
-							<li>{feature}</li>
-						{/each}
-						<!--
-							Only with the relay switched on. Telling somebody their browser
-							connects to relay nodes, in an app they have just switched the
-							relay off in, describes a different app than the one they chose.
-						-->
-						{#if relayNetworkEnabled}
-							{#each relayFeatures as feature, index (index)}
-								<li data-testid="consent-relay-feature">{feature}</li>
-							{/each}
-						{/if}
-					</ul>
-				</div>
+	<!--
+		First, and quietly. It is a demonstration and saying so is fair - but a
+		warning that frightens people off is not a warning, it is a door.
+	-->
+	<p
+		class="mb-4 rounded-md border border-border px-3 py-2 text-sm text-faint"
+		data-testid="consent-warning"
+	>
+		<strong class="text-text">{warningHeading}</strong>
+		{warningBody}
+	</p>
 
-				<!--
-					First, because it is the only decision here that changes what the app
-					does rather than what the user has read — and because the option a
-					person lands on should be the one they actively picked.
+	<p class="mb-2">{description}</p>
+	<ul class="mb-4 ml-4 list-outside list-disc space-y-1">
+		{#each features as feature, index (index)}
+			<li>{feature}</li>
+		{/each}
+		{#if relayNetworkEnabled}
+			{#each relayFeatures as feature, index (index)}
+				<li data-testid="consent-relay-feature">{feature}</li>
+			{/each}
+		{/if}
+	</ul>
 
-					Two radios rather than a single on/off: both sides carry a consequence
-					worth stating ("deleted on reload" against "persists after exit"), and
-					a lone checkbox can only ever spell out one of them.
-				-->
-				<fieldset class="mb-6 rounded-lg border border-border p-4">
-					<legend class="px-1 text-sm font-medium text-text">Where your todos are stored</legend>
-					<div class="grid gap-3 sm:grid-cols-2">
-						<label class="flex cursor-pointer items-start space-x-3">
-							<input
-								type="radio"
-								value={false}
-								bind:group={persistentStorageEnabled}
-								data-testid="consent-storage-memory"
-								class="mt-1 h-4 w-4 shrink-0 text-cyan-600 focus:ring-cyan-500"
-							/>
-							<span>
-								<span class="text-text">{storageMemoryLabel}</span>
-								<span class="mt-1 block text-sm text-faint">{storageMemoryHint}</span>
-							</span>
-						</label>
-						<label class="flex cursor-pointer items-start space-x-3">
-							<input
-								type="radio"
-								value={true}
-								bind:group={persistentStorageEnabled}
-								data-testid="consent-storage-indexeddb"
-								class="mt-1 h-4 w-4 shrink-0 text-cyan-600 focus:ring-cyan-500"
-							/>
-							<span>
-								<span class="text-text">{storagePersistentLabel}</span>
-								<span class="mt-1 block text-sm text-faint">{storagePersistentHint}</span>
-							</span>
-						</label>
-					</div>
-				</fieldset>
+	<!--
+		The storage choice, first among the decisions: it is the only one here that
+		changes what the app does rather than what has been read. Two radios rather
+		than one checkbox, because both sides carry a consequence worth stating and
+		a lone checkbox can spell out only one of them.
+	-->
+	<fieldset class="mb-4 rounded-md border border-border p-3">
+		<legend class="px-1 text-xs font-medium text-heading">Where your todos are stored</legend>
+		<label class="flex cursor-pointer items-start gap-2 text-sm">
+			<input
+				type="radio"
+				bind:group={persistentStorageEnabled}
+				value={false}
+				data-testid="consent-storage-memory"
+				class="mt-1"
+			/>
+			<span>
+				<span class="text-text">{storageMemoryLabel}</span>
+				<span class="mt-0.5 block text-xs text-faint">{storageMemoryHint}</span>
+			</span>
+		</label>
+		<label class="mt-2 flex cursor-pointer items-start gap-2 text-sm">
+			<input
+				type="radio"
+				bind:group={persistentStorageEnabled}
+				value={true}
+				data-testid="consent-storage-indexeddb"
+				class="mt-1"
+			/>
+			<span>
+				<span class="text-text">{storagePersistentLabel}</span>
+				<span class="mt-0.5 block text-xs text-faint">{storagePersistentHint}</span>
+			</span>
+		</label>
+	</fieldset>
 
-				<!--
-					The relay switch, back where it was. It is a choice about what the app
-					does, so it sits above the gate rather than among the things being
-					accepted - and the two relay sentences in the notice appear with it.
-				-->
-				<div class="mt-6 border-t border-border pt-4">
-					<label class="flex cursor-pointer items-start space-x-3">
-						<input
-							type="checkbox"
-							bind:checked={relayNetworkEnabled}
-							data-testid="consent-relay-network"
-							class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
-						/>
-						<span>
-							<span class="text-text">{relayNetworkLabel}</span>
-							<span class="mt-1 block text-sm text-faint">{relayNetworkHint}</span>
-						</span>
-					</label>
-				</div>
+	<label class="flex cursor-pointer items-start gap-2 text-sm">
+		<input
+			type="checkbox"
+			bind:checked={relayNetworkEnabled}
+			data-testid="consent-relay-network"
+			class="mt-1"
+		/>
+		<span>
+			<span class="text-text">{relayNetworkLabel}</span>
+			<span class="mt-0.5 block text-xs text-faint">{relayNetworkHint}</span>
+		</span>
+	</label>
 
-				<div class="mt-4 border-t border-border pt-4">
-					<label class="flex cursor-pointer items-start space-x-3">
-						<input
-							type="checkbox"
-							bind:checked={rememberDecision}
-							data-testid="consent-remember"
-							class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
-						/>
-						<span class="text-text">{rememberLabel}</span>
-					</label>
-				</div>
-
-				<div class="mt-6 border-t border-border pt-4">
-					<label class="flex cursor-pointer items-start space-x-3">
-						<input
-							type="checkbox"
-							bind:checked={accepted}
-							data-testid="consent-accept"
-							class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
-						/>
-						<span class="text-text">{acceptLabel}</span>
-					</label>
-				</div>
-
-				<div class="mt-6 flex justify-center">
-					<button
-						on:click={handleProceed}
-						disabled={!accepted}
-						class="rounded-md bg-coral-500 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-surface-2 disabled:hover:bg-surface-2"
-					>
-						{accepted ? proceedButtonText : disabledButtonText}
-					</button>
-				</div>
-			</div>
-		</div>
-	</div>
-{/if}
+	<button
+		slot="footer"
+		type="button"
+		disabled={!accepted}
+		on:click={() => introEl.close()}
+		data-testid="consent-proceed"
+		title={accepted ? undefined : acceptLabel}
+		class="rounded-md bg-coral-500 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:opacity-50"
+	>
+		{accepted ? proceedButtonText : disabledButtonText}
+	</button>
+</qr-intro>

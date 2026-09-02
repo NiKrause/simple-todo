@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { passConsent } from './consent.mjs';
 
 const testUrl = '/';
 const collaborationTimeout = 90000;
@@ -60,15 +61,7 @@ test.describe('Default todo database collaboration', () => {
 async function openReadyApp(page) {
 	await page.goto(testUrl);
 
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
-
-	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-		await checkbox.check();
-	}
-
-	await page.getByRole('button', { name: 'Proceed to Test the App' }).click();
-	await expect(modal).not.toBeVisible();
+	await passConsent(page);
 	await expect(getTodoInput(page)).toBeVisible();
 	await expect(getTodoInput(page)).toBeEnabled({ timeout: collaborationTimeout });
 }

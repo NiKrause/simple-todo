@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { acceptNotice, consentModal, isAccepted, waitForConsent } from './consent.mjs';
 
 test.describe('Consent Screen', () => {
 	test('should display consent modal and allow proceeding after checking all boxes', async ({
@@ -7,17 +8,23 @@ test.describe('Consent Screen', () => {
 		await page.goto('/');
 
 		// Check that the consent modal is visible
-		const modal = page.locator('div.fixed.inset-0.z-50');
-		await expect(modal).toBeVisible();
+		await waitForConsent(page);
+		const modal = consentModal(page);
 
-		// Check that the title is present in the modal
-		await expect(modal.locator('h1').filter({ hasText: 'Simple-Todo' })).toBeVisible();
+		// The title is the element's own heading, in its shadow tree.
+		expect(
+			await page.evaluate(
+				() =>
+					document.querySelector('[data-testid="consent-modal"]').shadowRoot.querySelector('h2')
+						?.textContent
+			)
+		).toContain('Simple-Todo');
 
 		// One gate, where three acknowledgements used to be. Those confirmed
 		// sentences this dialog had just asserted, and a tick against a line
 		// somebody has read confirms only that they can read.
-		const acceptCheckbox = page.getByTestId('consent-accept');
-		await expect(acceptCheckbox).not.toBeChecked();
+		// The acceptance tick is the element's, in its shadow tree.
+		expect(await isAccepted(page)).toBe(false);
 
 		// The storage choice replaced the fourth acknowledgement. It is a choice,
 		// not a confirmation: it starts on the safe side and must never gate the
@@ -31,8 +38,8 @@ test.describe('Consent Screen', () => {
 		const proceedButton = page.locator('button').filter({ hasText: /Please accept to continue/ });
 		await expect(proceedButton).toBeDisabled();
 
-		await acceptCheckbox.check();
-		await expect(acceptCheckbox).toBeChecked();
+		await acceptNotice(page);
+		expect(await isAccepted(page)).toBe(true);
 
 		// Check that the proceed button is now enabled and text changed
 		const enabledProceedButton = page
@@ -68,7 +75,7 @@ test.describe('Consent Screen', () => {
 		await rememberCheckbox.check();
 
 		// Check all required consent checkboxes
-		await page.getByTestId('consent-accept').check();
+		await acceptNotice(page);
 
 		// Click proceed
 		const proceedButton = page.locator('button').filter({ hasText: /Proceed to Test the App/ });
@@ -81,7 +88,7 @@ test.describe('Consent Screen', () => {
 		await page.reload();
 
 		// The consent modal should not appear again
-		const modal = page.locator('div.fixed.inset-0.z-50');
+		const modal = page.getByTestId('consent-modal');
 		await expect(modal).not.toBeVisible({ timeout: 5000 });
 
 		// Clean up localStorage for next test
@@ -93,17 +100,13 @@ test.describe('Consent Screen', () => {
 	test('should display all required consent information', async ({ page }) => {
 		await page.goto('/');
 
-		// What is said unconditionally. Three lines left this list rather than
-		// being reworded: the Helia/OrbitDB one, because the storage choice below
-		// draws that distinction as a decision instead of a sentence; and the
-		// unencrypted-database one, because both sides of that switch already
-		// state it, so picking either is the acknowledgement.
+		// What the notice itself still lists. The privacy sentences moved into the
+		// panel the element draws beside it - they are clauses now, assembled from
+		// the choices, and asserted where they live rather than here.
 		const expectedFeatures = [
 			'No tracking cookies are used',
 			'only that consent choice is saved locally',
-			'We run no server',
-			'delivered through a public IPFS gateway',
-			'Kubo node, or the IPFS Companion extension'
+			'connects to relay/bootstrap nodes and other peers'
 		];
 
 		for (const feature of expectedFeatures) {

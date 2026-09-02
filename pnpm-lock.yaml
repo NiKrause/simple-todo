@@ -38,8 +38,8 @@ importers:
         specifier: 0.8.0
         version: 0.8.0(typescript@5.9.2)
       '@le-space/libp2p-webrtc-qr':
-        specifier: ^0.7.0
-        version: 0.7.0(@multiformats/multiaddr@13.0.3)(libp2p@3.3.6)
+        specifier: 0.13.1
+        version: 0.13.1(@multiformats/multiaddr@13.0.3)(libp2p@3.3.6)
       '@le-space/orbitdb-identity-provider-webauthn-did':
         specifier: 0.5.0
         version: 0.5.0(@orbitdb/core@4.0.0)
@@ -996,11 +996,15 @@ packages:
   '@le-space/iso-webauthn-varsig@0.3.0':
     resolution: {integrity: sha512-qU3ptOP8ew2ZVr506N8joGsDXQNGjRq7VYBkmNdQKuFmbpDtjYyaSH2qyy0x3M8heghVzbB6SxhQM7o3U06w6Q==}
 
-  '@le-space/libp2p-webrtc-qr@0.7.0':
-    resolution: {integrity: sha512-eWk/oU/AEBI6RU8pMAAQnZNBJUMyrqkAXC36BolIacFexPwxENw+QU86nNhKPfqQ2L4BZ7ST61AC26ZuZO70aA==}
+  '@le-space/libp2p-webrtc-qr@0.13.1':
+    resolution: {integrity: sha512-deqXQhlNo4RbwfiLqBxl4PvFH3r35lMdSKWo1CbM3582rGt2BZu2Y+NQAvHcUC0Mg0VklMI4FOj5912TWLD6Mw==}
     peerDependencies:
       '@multiformats/multiaddr': ^13.0.3
+      ggwave: ^0.4.0
       libp2p: ^3.3.7
+    peerDependenciesMeta:
+      ggwave:
+        optional: true
 
   '@le-space/node@0.8.0':
     resolution: {integrity: sha512-Ezd3Fs1AA5C2358K41tbAwn13IR+VKKGsPWkeLW2Mj0Rtm4RH2sRlO+yMZ43ZRMGey5/IpVT+r4pVkVTyjZ/sw==}
@@ -6351,7 +6355,7 @@ snapshots:
     dependencies:
       iso-base: '@le-space/iso-base@4.3.0'
 
-  '@le-space/libp2p-webrtc-qr@0.7.0(@multiformats/multiaddr@13.0.3)(libp2p@3.3.6)':
+  '@le-space/libp2p-webrtc-qr@0.13.1(@multiformats/multiaddr@13.0.3)(libp2p@3.3.6)':
     dependencies:
       '@libp2p/interface': 3.2.5
       '@libp2p/peer-id': 6.0.13
