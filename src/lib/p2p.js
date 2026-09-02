@@ -37,49 +37,36 @@ export { setWebRTCEnabled, webrtcEnabledStore };
 // because plenty of callers legitimately want both from one import.
 export { libp2pStore, peerIdStore, initializationStore } from './p2p-stores.js';
 
+/**
+ * The steps, as keys rather than sentences.
+ *
+ * These are rendered by `P2PStatusNav`, which is where the translation happens:
+ * a plain module cannot read `$_`, that being a store subscription belonging to
+ * a component instance. So this names each step and the component resolves it —
+ * the same split `TodoItem` makes for its replication states.
+ *
+ * `key` is also what the status label compares against now. It used to compare
+ * the English label, which would have made the summary line depend on which
+ * language somebody was reading in.
+ */
 const INITIALIZATION_STEP_DEFINITIONS = [
-	{
-		label: 'Network config',
-		description:
-			'Validates the configured browser-reachable relay addresses and prepares the libp2p transports and services.'
-	},
-	{
-		label: 'libp2p',
-		description:
-			'Creates and starts the libp2p node, including its peer identity, discovery, relay, WebSocket and WebRTC support.'
-	},
-	{
-		label: 'Helia',
-		description:
-			'Starts the Helia IPFS node on top of libp2p and enables block exchange and HTTP retrieval.'
-	},
-	{
-		label: 'OrbitDB',
-		description:
-			'Loads or creates the persistent OrbitDB identity and initializes OrbitDB using the Helia node.'
-	},
-	{
-		label: 'Database + sync',
-		description:
-			'Opens the shared todo database, loads its local operation log and starts OrbitDB pubsub synchronization.'
-	},
-	{
-		label: 'Local todos',
-		description:
-			'Connects the local todo store and starts hydrating it from OrbitDB in the background without blocking the application.'
-	}
+	{ key: 'networkConfig' },
+	{ key: 'libp2p' },
+	{ key: 'helia' },
+	{ key: 'orbitdb' },
+	{ key: 'database' },
+	{ key: 'localTodos' }
 ];
 
 /**
  * @typedef {'pending' | 'active' | 'complete' | 'error'} InitializationStepStatus
- * @typedef {{ label: string, description: string, status: InitializationStepStatus }} InitializationStep
+ * @typedef {{ key: string, status: InitializationStepStatus }} InitializationStep
  */
 
 /** @param {number} [activeIndex=-1] */
 function createInitializationSteps(activeIndex = -1) {
-	return INITIALIZATION_STEP_DEFINITIONS.map(({ label, description }, index) => ({
-		label,
-		description,
+	return INITIALIZATION_STEP_DEFINITIONS.map(({ key }, index) => ({
+		key,
 		status: /** @type {InitializationStepStatus} */ (
 			index < activeIndex ? 'complete' : index === activeIndex ? 'active' : 'pending'
 		)

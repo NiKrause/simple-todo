@@ -1,5 +1,6 @@
 <script>
 	import { onDestroy } from 'svelte';
+	import { _ } from '$lib/i18n/index.js';
 
 	/** @type {any} */
 	export let libp2p = null;
@@ -126,10 +127,10 @@
 
 <section data-testid="own-multiaddrs">
 	<div class="mb-2 flex items-baseline justify-between gap-2">
-		<h2 class="text-sm font-semibold">My Multiaddresses</h2>
+		<h2 class="text-sm font-semibold">{$_('multiaddrs.heading')}</h2>
 		<span class="text-xs text-faint">{addresses.length}</span>
 	</div>
-	<p class="mb-2 text-xs text-faint">Copy an address to connect another browser directly.</p>
+	<p class="mb-2 text-xs text-faint">{$_('multiaddrs.description')}</p>
 
 	{#if addresses.length > 0}
 		<ul class="max-h-28 space-y-1 overflow-y-auto pr-1" data-testid="own-multiaddr-list">
@@ -143,7 +144,7 @@
 						on:click={() => copyAddress(address)}
 						class="shrink-0 rounded p-1 text-text transition-colors hover:bg-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-500"
 						aria-label={`Copy multiaddress ${index + 1}`}
-						title={copiedAddress === address ? 'Copied!' : 'Copy to clipboard'}
+						title={copiedAddress === address ? $_('common.copied') : $_('common.copy')}
 						data-testid="copy-own-multiaddr"
 						data-multiaddr={address}
 					>
@@ -170,9 +171,9 @@
 			{/each}
 		</ul>
 		<p class="sr-only" aria-live="polite">
-			{copiedAddress ? 'Multiaddress copied to clipboard.' : ''}
+			{copiedAddress ? $_('multiaddrs.copied') : ''}
 		</p>
 	{:else}
-		<p class="text-xs text-faint">Waiting for a dialable address…</p>
+		<p class="text-xs text-faint">{$_('multiaddrs.waiting')}</p>
 	{/if}
 </section>

@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	/** @type {string | null} */
 	export let error = null;
 	/** @type {'error' | 'warning' | 'info'} */
@@ -47,7 +48,7 @@
 					{#if typeof error === 'string'}
 						{error}
 					{:else}
-						Error: {error}
+						{$_('error.prefix')} {error}
 					{/if}
 				</div>
 			</div>
@@ -55,7 +56,7 @@
 				<button
 					on:click={dismiss}
 					class="ml-2 text-lg font-bold opacity-70 hover:opacity-100"
-					aria-label="Dismiss"
+					aria-label={$_('common.dismiss')}
 				>
 					×
 				</button>

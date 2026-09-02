@@ -1,11 +1,9 @@
 <script>
 	import { formatPeerId } from './utils.js';
+	import { _ } from '$lib/i18n/index.js';
 
 	/** @type {string | null | undefined} */
 	export let peerId = null;
-	export let title = 'My Peer ID';
-	export let description = 'Share this ID with others to assign TODOs to you.';
-	export let loadingMessage = 'Loading...';
 	export let copyable = true;
 	export let compact = false;
 
@@ -67,7 +65,7 @@
 		class:text-sm={compact}
 		class="font-semibold"
 	>
-		{title}
+		{$_('peerId.heading')}
 	</h2>
 	{#if peerId}
 		<div class="relative rounded-md bg-cyan-50" class:p-3={!compact} class:p-2={compact}>
@@ -78,7 +76,7 @@
 				<button
 					on:click={copyToClipboard}
 					class="absolute top-2 right-2 rounded p-1 transition-colors hover:bg-cyan-200"
-					title={copied ? 'Copied!' : 'Copy to clipboard'}
+					title={copied ? $_('common.copied') : $_('common.copy')}
 				>
 					{#if copied}
 						<svg
@@ -107,13 +105,13 @@
 				</button>
 			{/if}
 		</div>
-		{#if description && !compact}
-			<p class="mt-2 text-sm text-text">{description}</p>
+		{#if !compact}
+			<p class="mt-2 text-sm text-text">{$_('peerId.description')}</p>
 		{/if}
 		{#if copied}
-			<p class="mt-1 text-sm font-medium text-identity-600">Copied to clipboard!</p>
+			<p class="mt-1 text-sm font-medium text-identity-600">{$_('common.copied')}</p>
 		{/if}
 	{:else}
-		<p class="text-faint">{loadingMessage}</p>
+		<p class="text-faint">…</p>
 	{/if}
 </div>
