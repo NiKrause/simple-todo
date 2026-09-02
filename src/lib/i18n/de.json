@@ -68,7 +68,7 @@
 	"handover": {
 		"heading": "Oder an jemanden geben, der schon verbunden ist",
 		"headingOnly": "An jemanden geben, der verbunden ist",
-		"hint": "Kein Code zum Hinhalten: diese Geräte sind gerade erreichbar. Über das Internet braucht das einen Relay — was dein Netz zulässt, steht in der Erklärung.",
+		"hint": "Kein Code zum Hinhalten: diese Geräte sind gerade erreichbar. Über das Internet braucht das ein Relay; im selben Netz nicht.",
 		"empty": "Noch ist niemand verbunden.",
 		"send": "Liste senden",
 		"sending": "Wird gesendet…",
@@ -242,8 +242,8 @@
 					"text": "Eine WebRTC-Sitzung, ausgehandelt über einen Code, den man vor eine Kamera hält — ohne Vermittler dazwischen."
 				},
 				"identity": {
-					"label": "Deine Unterschrift",
-					"text": "Ein Passkey wird zur DID. Ein Ed25519-Schlüssel, im Ruhezustand verschlüsselt, signiert deine Einträge nach einer einzigen Abfrage pro Sitzung."
+					"label": "Ihre Unterschrift",
+					"text": "Ein Passkey wird zur DID. Ein Ed25519-Schlüssel, im Ruhezustand verschlüsselt, signiert Ihre Einträge nach einer einzigen Abfrage pro Sitzung."
 				},
 				"varsig": {
 					"label": "Vorhanden und bewusst aus",
@@ -280,7 +280,7 @@
 			"heading": "Warum es im Mobilfunknetz manchmal scheitert",
 			"nat": "Mobilfunknetze arbeiten meist mit symmetrischem NAT. Das verhindert genau die direkte Verbindung, die der Code aufbaut.",
 			"chromeIpv6": "Chrome gibt keine IPv6-WebRTC-Kandidaten heraus — also fällt der Weg weg, der im Mobilfunknetz sonst funktionieren würde.",
-			"browsers": "DuckDuckGo und Safari geben IPv6-Kandidaten zuverlässig weiter. Aber Achtung: DuckDuckGo beherrscht auf Android und GrapheneOS unter Umständen keine Passkeys.",
+			"browsers": "DuckDuckGo, Safari, Firefox u. a. Browser geben IPv6-Kandidaten scheinbar zuverlässig weiter. Aber Achtung: DuckDuckGo beherrscht auf Android und GrapheneOS unter Umständen keine Passkeys.",
 			"graphene": "Vanadium auf GrapheneOS funktioniert gut, wenn WebRTC in den Sicherheitseinstellungen freigeschaltet ist — und bei Passkeys zusätzlich Passchain von Accrescent installiert ist.",
 			"vpn": "Hängen beide Geräte am Mobilfunknetz, hilft ein VPN wie NymVPN über das NAT hinweg."
 		},
@@ -310,12 +310,14 @@
 			"checking": "Suche einen Relay, der antwortet…",
 			"reachable": "{count, plural, one {1 bekannter Relay antwortet} other {# bekannte Relays antworten}}. Aleph wurde nicht gefragt.",
 			"discovered": "{count, plural, one {1 Relay} other {# Relays}} über Aleph gefunden — die mitgelieferten schwiegen.",
-			"none": "Kein Relay hat geantwortet. Der Weg über den Code funktioniert weiter; du kannst einen eigenen Relay starten."
+			"none": "Kein Relay hat geantwortet. Der Weg über den Code funktioniert weiter; Sie können ein eigenes Relay starten.",
+			"startHint": "Der Knopf dafür liegt hinter diesem Dialog. Das hier schließt die Erklärung und macht ihn erreichbar.",
+			"startAction": "Eigenes Relay starten"
 		},
 		"ways": {
 			"heading": "Wie das andere Gerät hereinkommt",
-			"qr": "Per Kamera: Du hältst einen Code hoch, das andere Gerät scannt ihn. Nichts verlässt dieses Netz.",
-			"qrWithRelay": "Per Kamera: Du hältst einen Code hoch, das andere Gerät scannt ihn. Nichts verlässt dieses Netz. Ein Relay hat geantwortet — das andere Gerät kann auch ohne Code dazukommen."
+			"qr": "Per Kamera: Sie halten einen Code hoch, das andere Gerät scannt ihn. Nichts verlässt dieses Netz.",
+			"qrWithRelay": "Per Kamera: Sie halten einen Code hoch, das andere Gerät scannt ihn. Nichts verlässt dieses Netz. Ein Relay hat geantwortet, das andere Gerät kann also auch ohne Code dazukommen."
 		},
 		"privacy": {
 			"heading": "Was das für Ihre Daten bedeutet",

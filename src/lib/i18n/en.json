@@ -280,7 +280,7 @@
 			"heading": "Why it sometimes fails on a mobile network",
 			"nat": "Mobile networks commonly use symmetric NAT, which defeats exactly the direct connection the code sets up.",
 			"chromeIpv6": "Chrome does not surface IPv6 WebRTC candidates, so the path that would otherwise work on a mobile network is not offered at all.",
-			"browsers": "DuckDuckGo and Safari pass IPv6 candidates reliably. One caveat: DuckDuckGo may not support passkeys on Android or GrapheneOS.",
+			"browsers": "DuckDuckGo, Safari, Firefox and others appear to pass IPv6 candidates reliably. One caveat: DuckDuckGo may not support passkeys on Android or GrapheneOS.",
 			"graphene": "Vanadium on GrapheneOS works well with WebRTC enabled in the security settings — and, if you use passkeys, Passchain from Accrescent installed.",
 			"vpn": "If both devices are on mobile data, a VPN such as NymVPN gets you past the NAT."
 		},
@@ -310,7 +310,9 @@
 			"checking": "Looking for a relay that answers…",
 			"reachable": "{count, plural, one {1 known relay answers} other {# known relays answer}}. Nothing was asked of Aleph.",
 			"discovered": "{count, plural, one {1 relay found} other {# relays found}} via Aleph — the ones shipped with the app stayed silent.",
-			"none": "No relay answered. The code path still works; you can start your own relay."
+			"none": "No relay answered. The code path still works; you can start your own relay.",
+			"startHint": "The control for that sits behind this dialog. This closes the explanation and leaves it reachable.",
+			"startAction": "Start your own relay"
 		},
 		"ways": {
 			"heading": "How the other device gets in",

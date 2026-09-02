@@ -142,6 +142,13 @@ test.describe('the first-launch introduction', () => {
 			const parts = dialog.getByTestId('intro-chapter-parts');
 			await expect(parts).toBeVisible();
 
+			// Opened, not merely present. It is a collapsed `<details>`, and
+			// `toContainText` reads `textContent` — which includes the folded
+			// content, so every assertion below would pass against a list nobody
+			// can see. Clicking the summary is what makes them mean something.
+			await parts.locator('summary').click();
+			await expect(parts.locator('ul')).toBeVisible();
+
 			// Asserted against the shared list rather than against names typed in
 			// here. A package dropped from `chapter-parts.js` would otherwise leave
 			// this test demanding it, and a package added would go unnoticed - the
@@ -289,6 +296,45 @@ test.describe('connecting through a relay', () => {
 			await page.reload();
 			await expect(relayBox(page)).toBeChecked({ timeout });
 		} finally {
+			await context.close();
+		}
+	});
+
+	test('when nothing answers, the offer to start a relay is reachable', async ({ browser }) => {
+		const context = await browser.newContext();
+		const page = await context.newPage();
+
+		try {
+			await openReadyApp(page, { intro: true, relay: false, timeout });
+
+			// Cut the network so the check *must* land on `none`. Both halves are
+			// real - the baked addresses are probed and the Aleph channel is asked -
+			// so without this the verdict depends on what happens to be reachable
+			// from wherever this runs, and the case under test is the one where
+			// nothing is.
+			await context.setOffline(true);
+			await relayBox(page).check();
+			await expect(relayResult(page)).toHaveAttribute('data-state', 'none', { timeout });
+
+			// The finding used to end in advice with nothing behind it: the relay
+			// button is `position: fixed` and this dialog is in the top layer, so
+			// the control the sentence recommends is painted behind it.
+			const action = intro(page).getByTestId('intro-relay-start-action');
+			await expect(action).toBeVisible();
+			await expect(action).toBeDisabled();
+
+			await acceptStatement(page);
+			await expect(action).toBeEnabled();
+			await action.click();
+			await expect(shown(page)).toBeHidden();
+
+			// The point of the whole exchange, and the only assertion that proves
+			// it: the control is now clickable. A trial click resolves only if it
+			// really could be pressed.
+			const relayButton = page.getByTestId('relay-button-slot').locator('button').first();
+			await relayButton.click({ trial: true, timeout: 10_000 });
+		} finally {
+			await context.setOffline(false);
 			await context.close();
 		}
 	});
