@@ -232,6 +232,45 @@
 	},
 	"intro": {
 		"title": "Wie das hier funktioniert",
+		"chapter": {
+			"heading": "Worum es in diesem Kapitel geht",
+			"goal": "Ein Tutorial-Kapitel, das fünfte. Jedes fügt dem vorigen eine einzige Idee hinzu; dieses nimmt das Internet weg. Zwei Geräte, die sich nie begegnet sind, kein Server, kein Relay, nichts, was die Begegnung vermittelt: jemand hält einen Code hoch, jemand anders scannt ihn, und eine Liste wechselt hinüber.",
+			"partsHeading": "Woraus es gebaut ist",
+			"parts": {
+				"connection": {
+					"label": "Die Verbindung",
+					"text": "Eine WebRTC-Sitzung, ausgehandelt über einen Code, den man vor eine Kamera hält — ohne Vermittler dazwischen."
+				},
+				"identity": {
+					"label": "Deine Unterschrift",
+					"text": "Ein Passkey wird zur DID. Ein Ed25519-Schlüssel, im Ruhezustand verschlüsselt, signiert deine Einträge nach einer einzigen Abfrage pro Sitzung."
+				},
+				"varsig": {
+					"label": "Vorhanden und bewusst aus",
+					"text": "Die strengere Variante fragt bei jedem einzelnen Schreibvorgang nach dem Passkey. Sie kommt mit dem Identity-Provider mit, und dieses Kapitel schaltet sie nicht ein — deshalb steht sie in der Lockfile und nirgends im Code."
+				},
+				"permissions": {
+					"label": "Wer schreiben darf",
+					"text": "Eine Liste wird mit Schreibrecht nur für ihren Eigentümer geöffnet. Die Gegenseite repliziert und liest sie und kann keine Zeile hinzufügen."
+				},
+				"database": {
+					"label": "Die Liste selbst",
+					"text": "Ein Keyvalue-Speicher, dessen Adresse der Hash seines eigenen Manifests ist. Genau das macht eine Adresse unerratbar — und damit wert, übergeben zu werden."
+				},
+				"storage": {
+					"label": "Wo sie überlebt",
+					"text": "Blöcke und Index liegen in der IndexedDB dieses Browsers. Ohne Relay, von dem man sie zurückholen könnte, müssen sie auf dem Gerät liegen, sonst ist die Liste beim nächsten Laden weg."
+				},
+				"protocol": {
+					"label": "Die Übergabe",
+					"text": "Das eigene Protokoll dieser App. Es trägt versionierte JSON-Umschläge, die über ein kind-Feld verteilt werden — so teilen sich das Listenangebot und alles Weitere einen Strom, statt jeweils ein eigenes Protokoll zu bekommen."
+				},
+				"relay": {
+					"label": "Optional und aus",
+					"text": "Eine Verzeichnisabfrage, die ein Relay findet, wenn die in den Build eingebackenen Adressen weggerotiert sind. Nichts kontaktiert es, solange das Kästchen oben nicht angehakt ist."
+				}
+			}
+		},
 		"simple": {
 			"whatItIs": "Eine Aufgabenliste, die Sie jemandem weitergeben können. Kein Server, kein Konto — sie geht von Ihrem Gerät auf das andere und lebt in beiden Browsern.",
 			"lead": "Halten Sie Ihren Code hoch, er wird gescannt, dann hält die Gegenseite ihre Antwort hoch und Sie scannen zurück. Internet braucht das nicht, aber beide Geräte müssen im selben Netz sein — sonst macht eines einen Hotspot auf und das andere verbindet sich damit.",

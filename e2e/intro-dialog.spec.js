@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { openReadyApp, pinTechnicalView, todoInput } from './open-app.mjs';
 import { buildInviteLink } from '../src/lib/invite-link.js';
+import { CHAPTER_PARTS } from '../src/lib/chapter-parts.js';
 import { PREVIEW_ORIGIN } from './preview-origin.mjs';
 
 // Chapter (qr01), issue #213: the app opened straight into a list, so a first
@@ -30,6 +31,18 @@ const technicalOf = (page) => intro(page).locator('.tech');
 const relayBox = (page) => intro(page).locator('input[part=relay-opt-in]');
 const relayResult = (page) => intro(page).locator('.relay-result');
 
+/**
+ * Accept the statement, because the proceed button is gated on it.
+ *
+ * The gate arrived with the privacy panel (#293) and the three tests below
+ * predate it: they clicked a button that had quietly become disabled, and the
+ * failure read as a 30 s timeout on a click rather than as a missing tick.
+ *
+ * Through the `part`, like `dont-show` above — the element exposes both for
+ * exactly this, so nobody reaches for "whichever checkbox comes first".
+ */
+const acceptStatement = (page) => intro(page).locator('input[part=accept]').check();
+
 test.describe('the first-launch introduction', () => {
 	test('appears once, and stays gone when dismissed for good', async ({ browser }) => {
 		const context = await browser.newContext();
@@ -40,6 +53,7 @@ test.describe('the first-launch introduction', () => {
 			await expect(shown(page)).toBeVisible({ timeout });
 
 			// Dismissed without the checkbox: this visit only.
+			await acceptStatement(page);
 			await page.getByTestId('intro-close').click();
 			await expect(shown(page)).toBeHidden();
 
@@ -47,6 +61,7 @@ test.describe('the first-launch introduction', () => {
 			await expect(shown(page)).toBeVisible({ timeout });
 
 			// Now for good.
+			await acceptStatement(page);
 			await dontShow(page).check();
 			await page.getByTestId('intro-close').click();
 			await expect(shown(page)).toBeHidden();
@@ -94,14 +109,49 @@ test.describe('the first-launch introduction', () => {
 			await expect(technicalOf(page)).toContainText('symmetric NAT');
 			await expect(technicalOf(page)).toContainText('NymVPN');
 
-			// The chips come with it, painted from the measurement the element
-			// already made rather than from a probe of their own. Asserted because
-			// the cheap mistake here is a second STUN wave nobody notices — and the
-			// cheaper one is chips that stay empty because nobody handed them the
-			// result.
-			const chips = page.getByTestId('intro-network-chips');
-			await expect(chips).toBeVisible();
-			await expect(chips).toContainText(/IPv4|IPv6/, { timeout });
+			// The chips that used to be asserted here are gone on purpose (#297):
+			// `qr-status` and `qr-intro` each built an address list, and two
+			// identical `<details>` in one dialog were worse than three fewer
+			// chips. The verdict above states the conclusion and the element's own
+			// list gives the addresses, so what this test lost was the middle
+			// layer — and nothing it was the only cover for.
+		} finally {
+			await context.close();
+		}
+	});
+
+	test('says what the chapter is for, and what it is built from', async ({ browser }) => {
+		const context = await browser.newContext();
+		const page = await context.newPage();
+
+		try {
+			await openReadyApp(page, { intro: true, relay: false, timeout });
+			const dialog = intro(page);
+			await expect(shown(page)).toBeVisible({ timeout });
+
+			// The purpose is for everybody: somebody who never touches the view
+			// switch should still learn they are looking at a tutorial chapter and
+			// what its exercise is.
+			await expect(dialog.getByTestId('intro-chapter')).toBeVisible();
+
+			// The parts are not. Package names and a protocol id are exactly what
+			// the simple view exists to keep out.
+			await expect(dialog.getByTestId('intro-chapter-parts')).toBeHidden();
+
+			await dialog.getByTestId('view-mode-toggle').click();
+			const parts = dialog.getByTestId('intro-chapter-parts');
+			await expect(parts).toBeVisible();
+
+			// Asserted against the shared list rather than against names typed in
+			// here. A package dropped from `chapter-parts.js` would otherwise leave
+			// this test demanding it, and a package added would go unnoticed - the
+			// two failures that make a documentation test worth less than nothing.
+			for (const part of CHAPTER_PARTS) {
+				for (const name of part.packages) {
+					await expect(parts).toContainText(name);
+				}
+				if (part.protocol) await expect(parts).toContainText(part.protocol);
+			}
 		} finally {
 			await context.close();
 		}
@@ -276,6 +326,7 @@ test.describe('the introduction as a modal', () => {
 			// A trial click resolves only if the element could actually be clicked.
 			await expect(relayButton.click({ trial: true, timeout: 3_000 })).rejects.toThrow(/Timeout/);
 
+			await acceptStatement(page);
 			await page.getByTestId('intro-close').click();
 			await expect(shown(page)).toBeHidden();
 

@@ -25,6 +25,7 @@
 	import ViewModeToggle from './ViewModeToggle.svelte';
 	import { diagnosticRtcConfiguration } from './ice-mode.js';
 	import { ownDidStore } from './p2p-stores.js';
+	import { CHAPTER_PARTS } from './chapter-parts.js';
 	import {
 		RELAY_OPT_IN_STORAGE_KEY,
 		relayOptIn,
@@ -280,10 +281,57 @@
 		-->
 		<p>{$_('intro.simple.whatItIs')}</p>
 
+		<!--
+			What the app is comes first and what the exercise is comes second, in
+			that order deliberately. Somebody who opened a to-do list should be told
+			what it does before being told it is chapter five of something.
+		-->
+		<section data-testid="intro-chapter">
+			<h3 class="text-sm font-semibold text-heading">{$_('intro.chapter.heading')}</h3>
+			<p class="mt-1">{$_('intro.chapter.goal')}</p>
+		</section>
+
 		{#if !$relayOptIn}
 			<p data-testid="intro-qr-story">{$_('intro.simple.lead')}</p>
 		{/if}
 		<p>{$_('intro.simple.passkey')}</p>
+
+		<!--
+			The parts list, in the technical view only. It names packages and a
+			protocol id, which is exactly what the simple view exists to keep out —
+			and exactly what somebody reading the source wants within one click.
+
+			The structure comes from `chapter-parts.js` and the prose from the
+			translations, which is what lets `scripts/sync-chapter-readme.mjs` put
+			the same list in the README rather than a second version of it.
+		-->
+		{#if !$simpleView}
+			<section data-testid="intro-chapter-parts">
+				<h3 class="text-sm font-semibold text-heading">{$_('intro.chapter.partsHeading')}</h3>
+				<ul class="mt-1 space-y-2">
+					{#each CHAPTER_PARTS as part (part.key)}
+						<!--
+							Two lines, not one. Run together, the name of the part, the
+							package it is and the sentence explaining it read as a single
+							paragraph that happens to contain some monospace — and the
+							package name, which is the one thing a reader came here to
+							copy, is the hardest thing in it to find.
+						-->
+						<li>
+							<div>
+								<strong class="text-heading">{$_(`intro.chapter.parts.${part.key}.label`)}</strong>
+								—
+								{#each part.packages as name, index (name)}
+									<code class="text-xs">{name}</code>{index < part.packages.length - 1 ? ', ' : ''}
+								{/each}
+								{#if part.protocol}<code class="text-xs">{part.protocol}</code>{/if}
+							</div>
+							<div class="text-faint">{$_(`intro.chapter.parts.${part.key}.text`)}</div>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
 	</div>
 
 	<!--

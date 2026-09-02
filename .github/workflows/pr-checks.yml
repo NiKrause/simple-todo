@@ -42,6 +42,13 @@ jobs:
       - name: Types
         run: pnpm run check
 
+      # The chapter's parts list is rendered into the README from the same
+      # source the intro dialog reads, so the two cannot describe the chapter
+      # differently. This is the half the unit tests cannot cover: they run in a
+      # browser, where there is no README to compare against.
+      - name: README chapter block is current
+        run: node scripts/sync-chapter-readme.mjs --check
+
       # The unit tests run in a real chromium (vitest browser mode, playwright
       # provider), so the browser has to be there. Only chromium, and only its
       # dependencies: this job has no business installing three engines.

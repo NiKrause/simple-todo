@@ -232,6 +232,45 @@
 	},
 	"intro": {
 		"title": "How this works",
+		"chapter": {
+			"heading": "What this chapter is for",
+			"goal": "A tutorial chapter — the fifth. Each one adds a single idea to the one before it; this one takes the internet away. Two devices that have never met, no server, no relay, nothing arranging the introduction: somebody holds up a code, somebody else scans it, and a list crosses.",
+			"partsHeading": "What it is built from",
+			"parts": {
+				"connection": {
+					"label": "The connection",
+					"text": "A WebRTC session negotiated from a code held up to a camera, with nothing in the middle to arrange it."
+				},
+				"identity": {
+					"label": "Your signature",
+					"text": "A passkey becomes a DID. An Ed25519 key, encrypted where it rests, signs your entries after a single prompt per session."
+				},
+				"varsig": {
+					"label": "Present, and deliberately off",
+					"text": "The stricter variant asks for the passkey on every single write. It ships with the identity provider, and this chapter does not switch it on — which is why it appears in the lockfile and nowhere in the code."
+				},
+				"permissions": {
+					"label": "Who may write",
+					"text": "A list is opened with write access for its owner alone. The other side replicates it and reads it, and cannot add a line."
+				},
+				"database": {
+					"label": "The list itself",
+					"text": "A keyvalue store whose address is the hash of its own manifest. That is what makes an address impossible to guess, and therefore worth handing over."
+				},
+				"storage": {
+					"label": "Where it survives",
+					"text": "Blocks and index live in this browser's IndexedDB. With no relay to fetch them back from, they have to be on the device or the list is gone at the next reload."
+				},
+				"protocol": {
+					"label": "The handover",
+					"text": "This app's own protocol, carrying versioned JSON envelopes dispatched on a kind field — so the list offer and everything after it share one stream instead of earning a protocol each."
+				},
+				"relay": {
+					"label": "Optional, and off",
+					"text": "A directory lookup that finds a relay when the addresses baked into the build have rotated away. Nothing contacts it unless the box above is ticked."
+				}
+			}
+		},
 		"simple": {
 			"whatItIs": "A to-do list you can hand to somebody else. No server, no account — it goes from your device to theirs and lives in both browsers.",
 			"lead": "Hold up your code, they scan it, then they hold up their answer and you scan back. No internet needed for that, but both devices have to be on the same network — otherwise one opens a hotspot and the other joins it.",
