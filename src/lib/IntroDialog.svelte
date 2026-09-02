@@ -25,6 +25,7 @@
 	import ViewModeToggle from './ViewModeToggle.svelte';
 	import { diagnosticRtcConfiguration } from './ice-mode.js';
 	import { ownDidStore } from './p2p-stores.js';
+	import { CHAPTER_PARTS } from './chapter-parts.js';
 	import {
 		RELAY_OPT_IN_STORAGE_KEY,
 		relayOptIn,
@@ -154,6 +155,36 @@
 		].filter(Boolean);
 
 	/**
+	 * Put the relay choice directly under the explanation.
+	 *
+	 * The element appends its ways section last (`__main.append(ways)`), which
+	 * left the checkbox below the network verdict *and* a page of browser
+	 * caveats: somebody had to scroll past everything in the dialog to reach the
+	 * one decision it actually asks them to make, and the sentence explaining
+	 * what the app is had long scrolled off the top by then.
+	 *
+	 * Moved rather than restyled. Order is what is wrong, and a CSS `order`
+	 * would reposition it while leaving the tab sequence following the DOM —
+	 * which is the same bug again for anybody not using a mouse.
+	 *
+	 * Through the class names rather than the element's underscore-private
+	 * fields: `.ways` and `.check` are what this app's own tests already locate,
+	 * so this is no deeper a reach than what is here already.
+	 *
+	 * Belongs upstream as an ordering option on the element, since the argument
+	 * is the same for any app that gives the choice — filed as
+	 * NiKrause/libp2p-webrtc-qr#170.
+	 */
+	function liftRelayChoice() {
+		const root = introEl?.shadowRoot;
+		const ways = root?.querySelector('.ways');
+		const check = root?.querySelector('.check');
+		// Silent when either is missing: an element built without a relay has no
+		// ways section at all, and that is a supported shape rather than a fault.
+		if (ways && check) check.before(ways);
+	}
+
+	/**
 	 * Idempotent: the reactive statement below runs again whenever `ready` or the
 	 * element changes, and a second listener on the same box would double-count
 	 * nothing but is still a leak.
@@ -216,6 +247,7 @@
 			check: checkRelayAvailability,
 			storageKey: RELAY_OPT_IN_STORAGE_KEY
 		};
+		liftRelayChoice();
 
 		introEl.addEventListener('check', (/** @type {any} */ event) => {
 			// Three states collapse to two here. The advice below the verdict is
@@ -280,10 +312,76 @@
 		-->
 		<p>{$_('intro.simple.whatItIs')}</p>
 
+		<!--
+			What the app is comes first and what the exercise is comes second, in
+			that order deliberately. Somebody who opened a to-do list should be told
+			what it does before being told it is chapter five of something.
+		-->
+		<section data-testid="intro-chapter">
+			<h3 class="text-sm font-semibold text-heading">{$_('intro.chapter.heading')}</h3>
+			<p class="mt-1">{$_('intro.chapter.goal')}</p>
+			<!--
+				The passkey sentence lives here rather than loose below, where it had
+				drifted away from anything it belonged to: a paragraph about
+				signatures between the code story and the network verdict, under no
+				heading, answering a question nobody had been invited to ask.
+
+				Under this heading it is one of the ideas the chapter is made of,
+				which is what it actually is — passkeys arrive from `passkey01` and
+				the technical list below names the package they come from.
+			-->
+			<p class="mt-2">{$_('intro.simple.passkey')}</p>
+		</section>
+
 		{#if !$relayOptIn}
 			<p data-testid="intro-qr-story">{$_('intro.simple.lead')}</p>
 		{/if}
-		<p>{$_('intro.simple.passkey')}</p>
+
+		<!--
+			The parts list, in the technical view only. It names packages and a
+			protocol id, which is exactly what the simple view exists to keep out —
+			and exactly what somebody reading the source wants within one click.
+
+			The structure comes from `chapter-parts.js` and the prose from the
+			translations, which is what lets `scripts/sync-chapter-readme.mjs` put
+			the same list in the README rather than a second version of it.
+		-->
+		{#if !$simpleView}
+			<!--
+				Collapsed, because eight entries of prose is a page of reading between
+				the explanation and the relay choice — and the choice is the thing
+				somebody has to make before pressing on. Folded it costs one line and
+				loses nothing: whoever wants the packages is exactly the person who
+				will open it.
+			-->
+			<details data-testid="intro-chapter-parts">
+				<summary class="cursor-pointer text-sm font-semibold text-heading">
+					{$_('intro.chapter.partsHeading')}
+				</summary>
+				<ul class="mt-2 space-y-2">
+					{#each CHAPTER_PARTS as part (part.key)}
+						<!--
+							Two lines, not one. Run together, the name of the part, the
+							package it is and the sentence explaining it read as a single
+							paragraph that happens to contain some monospace — and the
+							package name, which is the one thing a reader came here to
+							copy, is the hardest thing in it to find.
+						-->
+						<li>
+							<div>
+								<strong class="text-heading">{$_(`intro.chapter.parts.${part.key}.label`)}</strong>
+								—
+								{#each part.packages as name, index (name)}
+									<code class="text-xs">{name}</code>{index < part.packages.length - 1 ? ', ' : ''}
+								{/each}
+								{#if part.protocol}<code class="text-xs">{part.protocol}</code>{/if}
+							</div>
+							<div class="text-faint">{$_(`intro.chapter.parts.${part.key}.text`)}</div>
+						</li>
+					{/each}
+				</ul>
+			</details>
+		{/if}
 	</div>
 
 	<!--
@@ -292,6 +390,42 @@
 		translations, and an interpolation habit here is the one that later gets
 		pointed at a user-supplied string.
 	-->
+	<!--
+		The offer that follows the finding.
+
+		"No relay answered" already told somebody they could start their own, and
+		then gave them no way to do it: the relay button is `position: fixed` and
+		the intro is a `<dialog>` in the top layer, so the control is painted
+		behind the very sentence recommending it — and the modal backdrop takes
+		the click even where it shows through. `launcherMode="inline"` would not
+		help either; the panel it opens is fixed too.
+
+		So the dialog hands over instead of pretending. The button appears in the
+		element's `relay` slot — which exists for exactly this, "what starting a
+		relay costs, who runs theirs" — and closing the explanation leaves the
+		person in front of a control that is now reachable. It is already on
+		screen by then: `+page.svelte` draws the relay button whenever the verdict
+		is `none`, in the simple view as well.
+
+		Gated on acceptance like the footer button, and for the same reason: a
+		button that silently refuses is worse than one that says why.
+	-->
+	{#if $relayVerdict === 'none'}
+		<div slot="relay" class="mt-2 text-xs" data-testid="intro-relay-start">
+			<p class="text-faint">{$_('intro.relay.startHint')}</p>
+			<button
+				type="button"
+				disabled={!accepted}
+				title={accepted ? undefined : $_('intro.privacy.accept')}
+				on:click={() => introEl.close()}
+				data-testid="intro-relay-start-action"
+				class="mt-1 rounded-md border border-cyan-600 px-2 py-1 font-medium text-cyan-700 hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-50 dark:text-cyan-400 dark:hover:bg-cyan-950"
+			>
+				{$_('intro.relay.startAction')}
+			</button>
+		</div>
+	{/if}
+
 	{#if verdict === 'limited'}
 		<p slot="advice" class="text-xs" data-testid="intro-vpn-advice">
 			{#if $simpleView}
