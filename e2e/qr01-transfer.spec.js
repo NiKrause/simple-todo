@@ -148,6 +148,161 @@ test.describe('QR handover', () => {
 		}
 	});
 
+	test('a list from a second sender lands beside the first', async ({ browser }) => {
+		// #181 asked for this and it was the criterion left over: nothing in the
+		// flow is pairwise, and a third peer is the first situation where that
+		// could quietly stop being true. The registry is keyed by address, so
+		// there is no reason to expect a clash - which is exactly the kind of
+		// reasoning this chapter spent its first milestone refusing to accept.
+		test.setTimeout(timeout * 6);
+
+		const aliceContext = await browser.newContext();
+		const carolContext = await browser.newContext();
+		const bobContext = await browser.newContext();
+		const alice = await aliceContext.newPage();
+		const carol = await carolContext.newPage();
+		const bob = await bobContext.newPage();
+
+		try {
+			await addVirtualAuthenticator(bob);
+			await Promise.all([
+				openReadyApp(alice, { url: testUrl, relay: false, timeout }),
+				openReadyApp(carol, { url: testUrl, relay: false, timeout }),
+				openReadyApp(bob, { url: testUrl, relay: false, timeout })
+			]);
+
+			const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+			await createPasskey(bob, {
+				userId: `bob-${runId}@example.com`,
+				displayName: 'Bob',
+				timeout
+			});
+
+			// Two senders, two lists. Alice keeps the seeded site list; Carol makes
+			// one with a name of her own, so the switcher has two entries that can
+			// be told apart by more than their address.
+			await openListTab(alice, 'create');
+			await alice.getByTestId('new-list-seed-site').click();
+			await expect(alice.getByTestId('new-list-created')).toBeVisible({ timeout });
+			const aliceAddress = await databaseAddress(alice);
+
+			const carolListName = `carol-${runId}`;
+			await openListTab(carol, 'create');
+			await carol.getByTestId('new-list-name').fill(carolListName);
+			await carol.getByTestId('new-list-create').click();
+			await expect(carol.getByTestId('new-list-created-name')).toHaveText(carolListName, {
+				timeout
+			});
+			const carolAddress = await databaseAddress(carol);
+			expect(carolAddress).not.toBe(aliceAddress);
+
+			// One handshake at a time: each is a separate scan in the story, and
+			// the second must not disturb what the first left behind.
+			await handshake(alice, bob, { timeout });
+			await acceptOffer(bob, aliceAddress, timeout);
+
+			await handshake(carol, bob, { timeout });
+			await acceptOffer(bob, carolAddress, timeout);
+
+			// Both in the switcher, and both openable - a registry entry that
+			// cannot be opened is a row, not a list.
+			await openListTab(bob, 'create');
+			const switcher = bob.getByTestId('list-switcher');
+			await expect(switcher).toContainText('Excavation and basement', { timeout });
+			await expect(switcher).toContainText(carolListName, { timeout });
+
+			await bob
+				.locator(`[data-testid="list-switcher-open"][data-address="${aliceAddress}"]`)
+				.click();
+			await expect(bob.getByText(SITE_TODOS[0], { exact: true })).toBeVisible({ timeout });
+			expect(await databaseAddress(bob)).toBe(aliceAddress);
+
+			await bob
+				.locator(`[data-testid="list-switcher-open"][data-address="${carolAddress}"]`)
+				.click();
+			await expect.poll(() => databaseAddress(bob), { timeout }).toBe(carolAddress);
+			// Carol's list is empty, and Alice's items must not have followed the
+			// switch - the failure this guards against is one database being shown
+			// under the other's name.
+			await expect(bob.getByText(SITE_TODOS[0], { exact: true })).toHaveCount(0);
+		} finally {
+			await bobContext.close();
+			await carolContext.close();
+			await aliceContext.close();
+		}
+	});
+
+	test('dropping a received list takes its data with it', async ({ browser }) => {
+		// `forget` and `drop` are two different intents, and the README promises
+		// the difference: forget stops tracking and leaves the data, drop deletes
+		// it here as well. `list-registry.spec.js` pins forget; nothing pinned
+		// drop, and the switcher looks identical either way - which is precisely
+		// how a storage switch on `main` went weeks without deleting anything
+		// (#144).
+		test.setTimeout(timeout * 4);
+
+		const aliceContext = await browser.newContext();
+		const bobContext = await browser.newContext();
+		const alice = await aliceContext.newPage();
+		const bob = await bobContext.newPage();
+
+		try {
+			await addVirtualAuthenticator(bob);
+			await Promise.all([
+				openReadyApp(alice, { url: testUrl, relay: false, timeout }),
+				openReadyApp(bob, { url: testUrl, relay: false, timeout })
+			]);
+
+			const runId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+			await createPasskey(bob, {
+				userId: `bob-${runId}@example.com`,
+				displayName: 'Bob',
+				timeout
+			});
+
+			await openListTab(alice, 'create');
+			await alice.getByTestId('new-list-seed-site').click();
+			await expect(alice.getByTestId('new-list-created')).toBeVisible({ timeout });
+			const aliceAddress = await databaseAddress(alice);
+
+			await handshake(alice, bob, { timeout });
+			await acceptOffer(bob, aliceAddress, timeout);
+			for (const todo of SITE_TODOS) {
+				await expect(bob.getByText(todo, { exact: true })).toBeVisible({ timeout });
+			}
+
+			await openListTab(bob, 'create');
+			await expect(bob.getByTestId('list-switcher')).toContainText('Excavation and basement', {
+				timeout
+			});
+			await bob
+				.locator(`[data-testid="list-switcher-drop"][data-address="${aliceAddress}"]`)
+				.click();
+
+			// Gone from the switcher.
+			await expect(
+				bob.locator(`[data-testid="list-switcher-open"][data-address="${aliceAddress}"]`)
+			).toHaveCount(0, { timeout });
+
+			// And gone from the device, which is the half a switcher cannot show.
+			// Reopening by address gives back the same database with nothing in
+			// it: Alice is long disconnected and there is no relay to refetch
+			// from, so anything that appeared would have to have survived the drop.
+			await openListTab(bob, 'open');
+			await bob.getByTestId('open-db-address-input').fill(aliceAddress);
+			await bob.getByTestId('open-db-button').click();
+			// Asked of the app, not of the DOM: `active-database-address` lives in
+			// a panel that the tab bodies render with `{#if}`, so from this tab it
+			// is absent rather than hidden and the wait is for an element that
+			// cannot appear.
+			await expect.poll(() => databaseAddress(bob), { timeout }).toBe(aliceAddress);
+			await expect(bob.getByText(SITE_TODOS[0], { exact: true })).toHaveCount(0);
+		} finally {
+			await bobContext.close();
+			await aliceContext.close();
+		}
+	});
+
 	test('declining imports nothing', async ({ browser }) => {
 		test.setTimeout(timeout * 3);
 
@@ -183,6 +338,24 @@ test.describe('QR handover', () => {
 		}
 	});
 });
+
+/**
+ * Take the list somebody just offered.
+ *
+ * Bob is asked, not told: an address arriving is not consent to replicate
+ * somebody else's database, and three tests now walk through that dialog.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @param {string} address the address the offer must be for
+ * @param {number} timeout
+ */
+async function acceptOffer(page, address, timeout) {
+	const dialog = page.getByTestId('list-offer-dialog');
+	await expect(dialog).toBeVisible({ timeout });
+	await expect(page.getByTestId('list-offer-address')).toContainText(address);
+	await page.getByTestId('list-offer-accept').click();
+	await expect(dialog).toBeHidden({ timeout });
+}
 
 /** @param {import('@playwright/test').Page} page */
 function databaseAddress(page) {
