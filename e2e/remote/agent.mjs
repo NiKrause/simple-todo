@@ -77,10 +77,16 @@ export class TodoBrowserAgent {
 	}
 
 	async diagnostics() {
-		const diagnostics = await this.page.evaluate(() => {
+		const diagnostics = await this.page.evaluate(async () => {
 			const diagnostics = window.__simpleTodoDiagnostics;
 			return {
 				peerId: diagnostics?.getPeerId?.() ?? null,
+				// How much of the list this browser actually has, and what its log
+				// is trying to walk back from. A run where one side rendered 11
+				// todos and the other 0 said neither in the result — only in a
+				// screenshot somebody had to open.
+				todoCount: diagnostics?.getTodoCount?.() ?? null,
+				logHeads: (await diagnostics?.getLogHeads?.()) ?? null,
 				databaseAddress: diagnostics?.getDatabaseAddress?.() ?? null,
 				databasePeers: diagnostics?.getDatabasePeers?.() ?? [],
 				multiaddrs: diagnostics?.getMultiaddrs?.() ?? [],
@@ -92,6 +98,23 @@ export class TodoBrowserAgent {
 			};
 		});
 		return { ...diagnostics, log: this.log.slice(-100) };
+	}
+
+	/**
+	 * Whether a specific block can be fetched here, and how long it takes.
+	 *
+	 * The point of asking is the distinction a timeout cannot make: a block
+	 * that never arrives and a block that arrives too late fail the same way
+	 * from the outside, and they have different causes.
+	 *
+	 * @param {string} cid
+	 * @param {number} [timeoutMs]
+	 */
+	async probeBlock(cid, timeoutMs = 15_000) {
+		return this.page.evaluate(
+			([cidString, timeout]) => window.__simpleTodoDiagnostics?.probeBlock?.(cidString, timeout),
+			/** @type {[string, number]} */ ([cid, timeoutMs])
+		);
 	}
 
 	async waitForReachableRelayOptions() {

@@ -24,6 +24,7 @@ import * as dagJson from '@ipld/dag-json';
 import * as json from 'multiformats/codecs/json';
 import { sha512 } from 'multiformats/hashes/sha2';
 import { multiaddr } from '@multiformats/multiaddr';
+import { CID } from 'multiformats/cid';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
 import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
@@ -420,6 +421,66 @@ function getReadOnlyDiagnostics() {
 				remotePeer: connection.remotePeer?.toString() ?? null,
 				remoteAddr: connection.remoteAddr?.toString() ?? null
 			})) ?? [],
+		// Read-only replication introspection, for the failure the gossipsub
+		// getters below could not explain: one browser rendering the whole list
+		// and the other rendering none of it, both connected, both in the mesh,
+		// with nothing to go on but `LoadBlockFailedError` and a 120 s timeout.
+		//
+		// The three answer what that run could not: how much this peer actually
+		// has, which entries it is trying to walk back from, and whether block
+		// exchange works at all or is merely slower than the wait.
+		getTodoCount: () => get(todosStore).length,
+
+		// `heads()` reads the heads store and does not traverse, so it still
+		// answers when traversal is the thing that is stuck — and the `next`
+		// hashes are precisely the blocks that walk is asking for.
+		getLogHeads: async () => {
+			const heads = await todoDB?.log?.heads?.();
+			return (heads ?? []).map((/** @type {any} */ entry) => ({
+				hash: entry.hash ?? null,
+				next: entry.next ?? [],
+				refs: entry.refs ?? []
+			}));
+		},
+
+		// Timing, never content: this separates "bitswap is dead" from "bitswap
+		// is slower than the wait", which is the one distinction a timeout cannot
+		// make. It returns how long the fetch took and whether it arrived — the
+		// block itself stays inside the node, so this reads as a stopwatch rather
+		// than as a way to pull arbitrary content out through the page.
+		probeBlock: async (
+			/** @type {string} */ cidString,
+			/** @type {number} */ timeoutMs = 15_000
+		) => {
+			const startedAt = Date.now();
+			if (!helia?.blockstore) return { ok: false, ms: 0, bytes: 0, error: 'no helia node' };
+			try {
+				// `get` is an async generator here, so awaiting it hands back the
+				// generator and fetches nothing — which reported every block as
+				// present in 0 ms, including one that cannot exist. The bytes have
+				// to be pulled for the question to be asked at all. The older
+				// promise-returning shape is still handled, so this keeps
+				// answering if the composition underneath changes again.
+				const block = helia.blockstore.get(CID.parse(cidString), {
+					signal: AbortSignal.timeout(timeoutMs)
+				});
+				let bytes = 0;
+				if (typeof block?.[Symbol.asyncIterator] === 'function') {
+					for await (const chunk of block) bytes += chunk?.byteLength ?? 0;
+				} else {
+					bytes = (await block)?.byteLength ?? 0;
+				}
+				return { ok: true, ms: Date.now() - startedAt, bytes, error: null };
+			} catch (error) {
+				return {
+					ok: false,
+					ms: Date.now() - startedAt,
+					bytes: 0,
+					error: error instanceof Error ? error.message : String(error)
+				};
+			}
+		},
+
 		// Read-only gossipsub introspection for the remote-replication E2E: live
 		// head propagation runs over pubsub on the database topic, and a run has
 		// shown both browsers fully synced and relay-joined while the freshly
