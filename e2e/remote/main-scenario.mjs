@@ -69,6 +69,46 @@ export function selectPeerDialAddress(
 	);
 }
 
+/**
+ * Ask each browser for the blocks its own log is waiting on.
+ *
+ * A head's `next` hashes are exactly what a traversal reaches for, so probing
+ * them turns "something could not be loaded" into a named block with a time
+ * against it — and doing it on *both* browsers says whether the block is
+ * unreachable everywhere or only from where the walk is stuck.
+ *
+ * Best-effort throughout: this runs while a run is already failing, and a probe
+ * that itself falls over must not replace the failure that was being reported.
+ *
+ * @param {TodoBrowserAgent} agentA
+ * @param {TodoBrowserAgent} agentB
+ * @param {any} result
+ */
+async function probeStuckHeads(agentA, agentB, result) {
+	/** @type {any[]} */
+	const probes = [];
+	for (const [name, agent, diagnostics] of /** @type {const} */ ([
+		['agentA', agentA, result.agents.a],
+		['agentB', agentB, result.agents.b]
+	])) {
+		const heads = diagnostics?.logHeads ?? [];
+		const wanted = [...new Set(heads.flatMap((/** @type {any} */ head) => head.next ?? []))];
+		remoteProgress(`${name} log heads: ${heads.length}, next hashes: ${wanted.length}`);
+		for (const hash of wanted.slice(0, 3)) {
+			const probe = await agent.probeBlock(hash).catch((/** @type {any} */ error) => ({
+				ok: false,
+				ms: null,
+				error: error instanceof Error ? error.message : String(error)
+			}));
+			remoteProgress(
+				`${name} block ${hash.slice(-8)}: ${probe?.ok ? `ok in ${probe.ms} ms` : `failed after ${probe?.ms} ms — ${probe?.error}`}`
+			);
+			probes.push({ agent: name, hash, ...probe });
+		}
+	}
+	return probes;
+}
+
 export async function runMainRemoteScenario({
 	browserA,
 	browserB,
@@ -281,6 +321,10 @@ export async function runMainRemoteScenario({
 				);
 			}
 		}
+		remoteProgress(
+			`todos rendered at failure: agentA=${result.agents.a?.todoCount ?? '?'} agentB=${result.agents.b?.todoCount ?? '?'}`
+		);
+		result.evidence.blockProbes = await probeStuckHeads(agentA, agentB, result);
 		await Promise.allSettled([
 			agentA.screenshot(`${outputDir}/agent-a-failure.png`),
 			agentB.screenshot(`${outputDir}/agent-b-failure.png`)
