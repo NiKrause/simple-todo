@@ -109,7 +109,7 @@
 			<p class="mt-2 text-sm text-text">{$_('peerId.description')}</p>
 		{/if}
 		{#if copied}
-			<p class="mt-1 text-sm font-medium text-identity-600">{$_('common.copied')}</p>
+			<p class="mt-1 text-sm font-medium text-identity-600">{$_('common.copiedNotice')}</p>
 		{/if}
 	{:else}
 		<p class="text-faint">…</p>

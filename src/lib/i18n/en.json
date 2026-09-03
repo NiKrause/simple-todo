@@ -6,7 +6,8 @@
 	},
 	"common": {
 		"copy": "Copy to clipboard",
-		"copied": "Copied to clipboard!",
+		"copied": "Copied!",
+		"copiedNotice": "Copied to clipboard!",
 		"dismiss": "Dismiss",
 		"reopenIntro": "Show the introduction again",
 		"toLightMode": "Switch to light mode",
@@ -153,7 +154,13 @@
 		"dropped": "Connection dropped",
 		"discoveryFailed": "Aleph relay discovery failed: {reason}",
 		"noneAnswered": "None of the {count} discovered relay addresses answered a libp2p ping.",
-		"refreshHint": "Refresh or enter a custom multiaddress."
+		"refreshHint": "Refresh or enter a custom multiaddress.",
+		"mustStartWithSlash": "A multiaddress must start with \"/\".",
+		"detail": {
+			"nodeGone": "P2P node is no longer available.",
+			"handshakeDropped": "Handshake succeeded, but the remote peer closed the connection during relay or protocol setup.",
+			"stayedOpen": "Connection stayed open for {seconds} seconds."
+		}
 	},
 	"consent": {
 		"warningHeading": "Early days",

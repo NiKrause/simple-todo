@@ -41,7 +41,11 @@
 
 	const dispatch = createEventDispatcher();
 
-	/** @typedef {{ status: 'stable' | 'dropped', detail: string, remotePeer: string | null, remoteAddr: string }} ManualConnectResult */
+	/**
+	 * `detail` is a message key: it comes from `p2p.js`, which cannot translate.
+	 *
+	 * @typedef {{ status: 'stable' | 'dropped', detail: string, detailValues?: any, remotePeer: string | null, remoteAddr: string }} ManualConnectResult
+	 */
 
 	// #38: no automatic Aleph discovery on page load. The dropdown starts with
 	// the pre-validated build-time snapshot so the page is immediately usable;
@@ -139,7 +143,7 @@
 		}
 
 		if (!address.startsWith('/')) {
-			errorMessage = 'A multiaddress must start with "/".';
+			errorMessage = $_('manual.mustStartWithSlash');
 			statusMessage = null;
 			return;
 		}
@@ -161,12 +165,12 @@
 					? {
 							tone: 'success',
 							title: $_('manual.stable'),
-							detail: result.detail
+							detail: $_(result.detail, { values: result.detailValues })
 						}
 					: {
 							tone: 'warning',
 							title: $_('manual.dropped'),
-							detail: result.detail
+							detail: $_(result.detail, { values: result.detailValues })
 						};
 			dispatch('connected', result);
 			if (result.status === 'stable') {

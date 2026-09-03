@@ -808,7 +808,7 @@ function shouldDialDiscoveredPeer(peerInfo) {
  * Attempt to connect to a remote peer via a multiaddress.
  *
  * @param {string} address
- * @returns {Promise<{ status: 'stable' | 'dropped', detail: string, remotePeer: string | null, remoteAddr: string }>}
+ * @returns {Promise<{ status: 'stable' | 'dropped', detail: string, detailValues?: Record<string, unknown>, remotePeer: string | null, remoteAddr: string }>}
  */
 export async function connectToMultiaddr(address) {
 	const normalizedAddress = address.trim();
@@ -852,6 +852,7 @@ export async function connectToMultiaddr(address) {
 	return {
 		status: outcome.status,
 		detail: outcome.detail,
+		detailValues: outcome.detailValues,
 		remotePeer: connection.remotePeer?.toString() ?? null,
 		remoteAddr: connection.remoteAddr?.toString() ?? normalizedAddress
 	};
@@ -931,14 +932,20 @@ function extractPeerIdFromMultiaddr(addr) {
  * a stable handshake from a remote peer that drops during follow-up setup.
  *
  * @param {any} connection
- * @returns {Promise<{ status: 'stable' | 'dropped', detail: string }>}
+ * The `detail` is a message key, not a sentence.
+ *
+ * It is rendered by `ManualConnectForm`, and a plain module cannot read `$_` —
+ * the same split `TodoItem` and the initialization steps make. `detailValues`
+ * carries what a catalogue cannot hold.
+ *
+ * @returns {Promise<{ status: 'stable' | 'dropped', detail: string, detailValues?: Record<string, unknown> }>}
  */
 function waitForManualConnectionOutcome(connection) {
 	return new Promise((resolve) => {
 		if (!libp2p) {
 			resolve({
 				status: 'dropped',
-				detail: 'P2P node is no longer available.'
+				detail: 'manual.detail.nodeGone'
 			});
 			return;
 		}
@@ -946,7 +953,7 @@ function waitForManualConnectionOutcome(connection) {
 		let settled = false;
 
 		/**
-		 * @param {{ status: 'stable' | 'dropped', detail: string }} outcome
+		 * @param {{ status: 'stable' | 'dropped', detail: string, detailValues?: Record<string, unknown> }} outcome
 		 */
 		const finish = (outcome) => {
 			if (settled) return;
@@ -966,15 +973,15 @@ function waitForManualConnectionOutcome(connection) {
 
 			finish({
 				status: 'dropped',
-				detail:
-					'Handshake succeeded, but the remote peer closed the connection during relay or protocol setup.'
+				detail: 'manual.detail.handshakeDropped'
 			});
 		};
 
 		const timeoutId = setTimeout(() => {
 			finish({
 				status: 'stable',
-				detail: `Connection stayed open for ${MANUAL_CONNECT_STABILIZATION_MS / 1000} seconds.`
+				detail: 'manual.detail.stayedOpen',
+				detailValues: { seconds: MANUAL_CONNECT_STABILIZATION_MS / 1000 }
 			});
 		}, MANUAL_CONNECT_STABILIZATION_MS);
 

@@ -6,7 +6,8 @@
 	},
 	"common": {
 		"copy": "In die Zwischenablage kopieren",
-		"copied": "In die Zwischenablage kopiert.",
+		"copied": "Kopiert!",
+		"copiedNotice": "In die Zwischenablage kopiert.",
 		"dismiss": "Schließen",
 		"reopenIntro": "Die Erklärung erneut anzeigen",
 		"toLightMode": "Zur hellen Ansicht wechseln",
@@ -153,7 +154,13 @@
 		"dropped": "Verbindung abgebrochen",
 		"discoveryFailed": "Aleph-Relay-Suche fehlgeschlagen: {reason}",
 		"noneAnswered": "Keine der {count} gefundenen Relay-Adressen hat auf einen libp2p-Ping geantwortet.",
-		"refreshHint": "Laden Sie neu oder geben Sie eine eigene Multiadresse ein."
+		"refreshHint": "Laden Sie neu oder geben Sie eine eigene Multiadresse ein.",
+		"mustStartWithSlash": "Eine Multiadresse muss mit „/“ beginnen.",
+		"detail": {
+			"nodeGone": "Der P2P-Knoten steht nicht mehr zur Verfügung.",
+			"handshakeDropped": "Der Handshake gelang, aber die Gegenseite hat die Verbindung während des Relay- oder Protokollaufbaus geschlossen.",
+			"stayedOpen": "Die Verbindung blieb {seconds} Sekunden offen."
+		}
 	},
 	"consent": {
 		"warningHeading": "Noch früh",
