@@ -1,18 +1,26 @@
 <script context="module">
-	/** @param {'unknown' | 'pending' | 'pinned' | 'unavailable'} status */
+	/**
+	 * The message key for a replication state, not the sentence.
+	 *
+	 * It returned English prose until the app learned a second language. A
+	 * module-level function cannot read `$_` — that is a store subscription and
+	 * belongs to a component instance — so it names the string and the caller
+	 * resolves it. The name stays: `getReplicationDescription` is imported by a
+	 * test, and what it describes has not changed.
+	 *
+	 * @param {'unknown' | 'pending' | 'pinned' | 'unavailable'} status
+	 */
 	export function getReplicationDescription(status) {
-		if (status === 'pending')
-			return 'Waiting for this OrbitDB entry to be replicated by the relay.';
-		if (status === 'pinned')
-			return 'The relay confirmed that this exact OrbitDB entry was replicated and stored locally.';
-		if (status === 'unavailable')
-			return 'No exact relay replication proof is currently available for this entry.';
-		return 'Relay replication status was not observed for this existing entry.';
+		if (status === 'pending') return 'todo.replication.pending';
+		if (status === 'pinned') return 'todo.replication.pinned';
+		if (status === 'unavailable') return 'todo.replication.unavailable';
+		return 'todo.replication.unknown';
 	}
 </script>
 
 <script>
 	import { createEventDispatcher } from 'svelte';
+	import { _ } from '$lib/i18n/index.js';
 	import { formatPeerId } from './utils.js';
 
 	export const id = undefined;
@@ -50,7 +58,7 @@
 			class:bg-data-400={replicationStatus === 'unavailable'}
 			class:bg-surface-2={replicationStatus === 'unknown'}
 			class="relative inline-flex h-2 w-2 shrink-0 cursor-help rounded-full p-0 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
-			aria-label={getReplicationDescription(replicationStatus)}
+			aria-label={$_(getReplicationDescription(replicationStatus))}
 			data-testid="todo-relay-status"
 			data-status={replicationStatus}
 			on:mouseenter={() => (showReplicationTooltip = true)}
@@ -64,8 +72,8 @@
 					role="tooltip"
 					data-testid="todo-relay-tooltip"
 				>
-					<span class="font-semibold">Relay replication:</span>
-					{getReplicationDescription(replicationStatus)}
+					<span class="font-semibold">{$_('todo.replicationLabel')}</span>
+					{$_(getReplicationDescription(replicationStatus))}
 				</span>
 			{/if}
 		</button>
@@ -81,11 +89,13 @@
 			</span>
 			<div class="mt-1 text-sm text-faint">
 				{#if assignee}
-					Assigned to: <code class="rounded bg-surface-2 px-1">{formatPeerId(assignee)}</code>
+					{$_('todo.assignedTo')}
+					<code class="rounded bg-surface-2 px-1">{formatPeerId(assignee)}</code>
 				{:else}
-					<span class="text-data-600">Unassigned</span>
+					<span class="text-data-600">{$_('todo.unassigned')}</span>
 				{/if}
-				• Created by: <code class="rounded bg-surface-2 px-1">{formatPeerId(createdBy)}</code>
+				• {$_('todo.createdBy')}
+				<code class="rounded bg-surface-2 px-1">{formatPeerId(createdBy)}</code>
 			</div>
 		</div>
 	</div>
@@ -94,7 +104,7 @@
 			on:click={handleDelete}
 			class="rounded-md px-3 py-1 text-danger-500 transition-colors hover:text-danger-700"
 		>
-			Delete
+			{$_('todo.delete')}
 		</button>
 	</div>
 </div>

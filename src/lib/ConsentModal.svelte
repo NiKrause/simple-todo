@@ -1,5 +1,8 @@
 <script>
 	import { createEventDispatcher, onMount } from 'svelte';
+	import { get } from 'svelte/store';
+	import { _ } from '$lib/i18n/index.js';
+	import LanguageSwitcher from './LanguageSwitcher.svelte';
 	import { formatBuildDate, formatVersions } from './build-info.js';
 
 	const dispatch = createEventDispatcher();
@@ -13,7 +16,6 @@
 	);
 
 	export let show = true;
-	export let title = 'Simple-Todo';
 	export let version = `${fallbackVersions} [${fallbackBuildDate}]`;
 	/**
 	 * The notice list is gone, and it was said twice.
@@ -46,16 +48,8 @@
 	 * the shared element - the point of assembling one is that what is consented
 	 * to is what was configured.
 	 */
-	export let warningHeading = 'Early days';
-	export let warningBody =
-		'This is a working demonstration rather than a finished product. It does what it says, and the format may still change - so keep anything you would be sorry to lose somewhere else as well.';
-	export let acceptLabel = 'I have read this and accept it';
 	export let accepted = false;
-	export let proceedButtonText = 'Start P2P Demo';
-	export let disabledButtonText = 'Please accept to continue';
-
 	export let rememberDecision = false;
-	export let rememberLabel = "Don't show this again on this device";
 
 	/**
 	 * A choice, not an acknowledgement — which is why it sits outside
@@ -72,17 +66,7 @@
 	 * reading it.
 	 */
 	export let persistentStorageEnabled = false;
-	export let storageMemoryLabel = 'In Memory Only';
-	export let storageMemoryHint =
-		'Todos are stored in a shared, unencrypted OrbitDB database in memory and will be deleted on app reload or on exit.';
-	export let storagePersistentLabel = 'IndexedDB';
-	export let storagePersistentHint =
-		"I understand todos are stored in a shared, unencrypted OrbitDB database in the browser's IndexedDB and will persist between app restarts or after app exit.";
-
 	export let relayNetworkEnabled = true;
-	export let relayNetworkLabel = 'Connect to the public libp2p relay network';
-	export let relayNetworkHint =
-		'On: peers find each other automatically through public relay and bootstrap nodes. Off: this browser connects only to peers you invite yourself with a QR code or a copied invite — nothing announces you, and nobody can find you.';
 
 	/**
 	 * The dialog is `qr-intro` now, not markup of our own.
@@ -112,24 +96,20 @@
 	 */
 	const clauses = (/** @type {any} */ state) =>
 		[
-			'We run no server, and no copy of your list exists anywhere we control.',
-			'The app itself is delivered through a public IPFS gateway, which sees that you loaded it. Your own Kubo node, or the IPFS Companion extension, fetches it from the network instead.',
-			state.relay
-				? 'Relay and bootstrap nodes introduce peers to each other, and may cache or replicate this demo data so another device can collect it later.'
-				: 'No relay is contacted. Without one, the other device has to be reachable from this network.',
-			state.persistent
-				? 'Your todos are kept in this browser and survive a restart, in a shared and unencrypted database.'
-				: 'Your todos live in memory only and are gone when this page reloads. The database is shared and unencrypted either way.',
+			get(_)('consent.clause.noServer'),
+			get(_)('consent.clause.gateway'),
+			state.relay ? get(_)('consent.clause.relayOn') : get(_)('consent.clause.relayOff'),
+			state.persistent ? get(_)('consent.clause.persistent') : get(_)('consent.clause.memory'),
 			// Last, and the only line here about this dialog rather than about the
 			// app. It used to head the notice above; the notice is gone and this is
 			// the one sentence it carried that the statement did not.
-			'No tracking cookies are used. If you tick "don\'t show this again", that choice is the only thing saved on this device.'
+			get(_)('consent.clause.cookies')
 		].filter(Boolean);
 
 	$: strings = {
-		title,
-		close: proceedButtonText,
-		dontShow: rememberLabel
+		title: $_('app.title'),
+		close: $_('consent.proceed'),
+		dontShow: $_('consent.remember')
 	};
 
 	$: if (ready) introEl.strings = strings;
@@ -254,15 +234,23 @@
 </script>
 
 <qr-intro bind:this={introEl} data-testid="consent-modal">
-	<button
-		slot="header"
-		type="button"
-		on:click={() => (technical = !technical)}
-		data-testid="consent-technical"
-		class="rounded-md border border-border px-2 py-1 text-xs text-faint hover:text-text"
-	>
-		{technical ? 'Simple' : 'Technical'}
-	</button>
+	<!--
+		The language switch lives in here, next to the view switch, rather than in
+		the page header: this dialog is the first thing anybody sees, and sending
+		somebody to the header to change the language of the screen they are
+		currently failing to read would be a poor joke.
+	-->
+	<div slot="header" class="flex shrink-0 items-center gap-2">
+		<LanguageSwitcher />
+		<button
+			type="button"
+			on:click={() => (technical = !technical)}
+			data-testid="consent-technical"
+			class="rounded-md border border-border px-2 py-1 text-xs text-faint hover:text-text"
+		>
+			{technical ? $_('consent.simple') : $_('consent.technical')}
+		</button>
+	</div>
 
 	{#if version}
 		<p class="mb-3 text-xs text-faint">{version}</p>
@@ -276,8 +264,8 @@
 		class="mb-4 rounded-md border border-border px-3 py-2 text-sm text-faint"
 		data-testid="consent-warning"
 	>
-		<strong class="text-text">{warningHeading}</strong>
-		{warningBody}
+		<strong class="text-text">{$_('consent.warningHeading')}</strong>
+		{$_('consent.warningBody')}
 	</p>
 
 	<!--
@@ -287,7 +275,7 @@
 		a lone checkbox can spell out only one of them.
 	-->
 	<fieldset class="mb-4 rounded-md border border-border p-3">
-		<legend class="px-1 text-xs font-medium text-heading">Where your todos are stored</legend>
+		<legend class="px-1 text-xs font-medium text-heading">{$_('consent.storageLegend')}</legend>
 		<label class="flex cursor-pointer items-start gap-2 text-sm">
 			<input
 				type="radio"
@@ -297,8 +285,8 @@
 				class="mt-1"
 			/>
 			<span>
-				<span class="text-text">{storageMemoryLabel}</span>
-				<span class="mt-0.5 block text-xs text-faint">{storageMemoryHint}</span>
+				<span class="text-text">{$_('consent.storageMemoryLabel')}</span>
+				<span class="mt-0.5 block text-xs text-faint">{$_('consent.storageMemoryHint')}</span>
 			</span>
 		</label>
 		<label class="mt-2 flex cursor-pointer items-start gap-2 text-sm">
@@ -310,8 +298,8 @@
 				class="mt-1"
 			/>
 			<span>
-				<span class="text-text">{storagePersistentLabel}</span>
-				<span class="mt-0.5 block text-xs text-faint">{storagePersistentHint}</span>
+				<span class="text-text">{$_('consent.storagePersistentLabel')}</span>
+				<span class="mt-0.5 block text-xs text-faint">{$_('consent.storagePersistentHint')}</span>
 			</span>
 		</label>
 	</fieldset>
@@ -324,8 +312,8 @@
 			class="mt-1"
 		/>
 		<span>
-			<span class="text-text">{relayNetworkLabel}</span>
-			<span class="mt-0.5 block text-xs text-faint">{relayNetworkHint}</span>
+			<span class="text-text">{$_('consent.relayLabel')}</span>
+			<span class="mt-0.5 block text-xs text-faint">{$_('consent.relayHint')}</span>
 		</span>
 	</label>
 
@@ -335,10 +323,10 @@
 		disabled={!accepted}
 		on:click={() => introEl.close()}
 		data-testid="consent-proceed"
-		title={accepted ? undefined : acceptLabel}
+		title={accepted ? undefined : $_('consent.accept')}
 		class="rounded-md bg-coral-500 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:opacity-50"
 	>
-		{accepted ? proceedButtonText : disabledButtonText}
+		{accepted ? $_('consent.proceed') : $_('consent.proceedDisabled')}
 	</button>
 </qr-intro>
 

@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	import { createEventDispatcher } from 'svelte';
 	import ErrorAlert from './ErrorAlert.svelte';
 	// Imported where it is used, not at module scope: `p2p.js` carries
@@ -40,7 +41,11 @@
 
 	const dispatch = createEventDispatcher();
 
-	/** @typedef {{ status: 'stable' | 'dropped', detail: string, remotePeer: string | null, remoteAddr: string }} ManualConnectResult */
+	/**
+	 * `detail` is a message key: it comes from `p2p.js`, which cannot translate.
+	 *
+	 * @typedef {{ status: 'stable' | 'dropped', detail: string, detailValues?: any, remotePeer: string | null, remoteAddr: string }} ManualConnectResult
+	 */
 
 	// #38: no automatic Aleph discovery on page load. The dropdown starts with
 	// the pre-validated build-time snapshot so the page is immediately usable;
@@ -132,13 +137,13 @@
 		const address = (useCustomMultiaddr ? customMultiaddr : selectedMultiaddr).trim();
 
 		if (!address) {
-			errorMessage = 'Enter a multiaddress to connect to a peer.';
+			errorMessage = $_('manual.customHint');
 			statusMessage = null;
 			return;
 		}
 
 		if (!address.startsWith('/')) {
-			errorMessage = 'A multiaddress must start with "/".';
+			errorMessage = $_('manual.mustStartWithSlash');
 			statusMessage = null;
 			return;
 		}
@@ -146,8 +151,8 @@
 		errorMessage = null;
 		statusMessage = {
 			tone: 'info',
-			title: 'Dialing peer',
-			detail: 'Opening the websocket and completing the libp2p handshake...'
+			title: $_('manual.dialing'),
+			detail: $_('manual.handshake')
 		};
 		isConnecting = true;
 
@@ -159,13 +164,13 @@
 				result.status === 'stable'
 					? {
 							tone: 'success',
-							title: 'Connection stable',
-							detail: result.detail
+							title: $_('manual.stable'),
+							detail: $_(result.detail, { values: result.detailValues })
 						}
 					: {
 							tone: 'warning',
-							title: 'Connection dropped',
-							detail: result.detail
+							title: $_('manual.dropped'),
+							detail: $_(result.detail, { values: result.detailValues })
 						};
 			dispatch('connected', result);
 			if (result.status === 'stable') {
@@ -198,10 +203,10 @@
 	<div class:mb-4={!compact} class:mb-2={compact} class="flex items-start justify-between gap-4">
 		<div>
 			<h2 class:text-xl={!compact} class:text-sm={compact} class="font-semibold">
-				Connect to relay
+				{$_('manual.heading')}
 			</h2>
 			<p class="mt-1 text-xs text-faint">
-				Choose a current browser-reachable relay discovered through Aleph.
+				{$_('manual.discoveredHint')}
 			</p>
 		</div>
 	</div>
@@ -216,9 +221,7 @@
 			>
 				{#if discoveredMultiaddrs.length === 0}
 					<option value=""
-						>{isDiscovering
-							? 'Discovering and pinging Aleph relays…'
-							: 'No relay addresses discovered'}</option
+						>{isDiscovering ? $_('manual.discovering') : $_('manual.noneDiscovered')}</option
 					>
 				{:else}
 					{#each discoveredMultiaddrs as address (address)}
@@ -247,7 +250,7 @@
 				bind:checked={useCustomMultiaddr}
 				disabled={disabled || isConnecting}
 			/>
-			Use a custom multiaddress
+			{$_('manual.customToggle')}
 		</label>
 
 		{#if useCustomMultiaddr}
@@ -263,17 +266,17 @@
 
 		{#if discoveryError}
 			<ErrorAlert
-				error={`Aleph relay discovery failed: ${discoveryError}`}
+				error={$_('manual.discoveryFailed', { values: { reason: discoveryError } })}
 				type="warning"
-				title="Relay discovery unavailable"
+				title={$_('manual.discoveryUnavailable')}
 				{compact}
 			/>
 		{:else if !isDiscovering && discoveredMultiaddrs.length === 0}
 			<p class="text-sm text-data-700">
 				{discoveredAddressCount > 0
-					? `None of the ${discoveredAddressCount} discovered relay addresses answered a libp2p ping.`
-					: 'No relays in the build-time snapshot.'}
-				Refresh or enter a custom multiaddress.
+					? $_('manual.noneAnswered', { values: { count: discoveredAddressCount } })
+					: $_('manual.noSnapshot')}
+				{$_('manual.refreshHint')}
 			</p>
 		{/if}
 

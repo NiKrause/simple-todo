@@ -1,0 +1,191 @@
+{
+	"app": {
+		"title": "Simple-Todo",
+		"tagline": "A local-first peer-to-peer PWA",
+		"description": "A simple local-first peer-to-peer TODO list app using OrbitDB, IPFS and libp2p"
+	},
+	"common": {
+		"copy": "Copy to clipboard",
+		"copied": "Copied!",
+		"copiedNotice": "Copied to clipboard!",
+		"dismiss": "Dismiss",
+		"reopenIntro": "Show the introduction again",
+		"toLightMode": "Switch to light mode",
+		"toDarkMode": "Switch to dark mode",
+		"lightMode": "Light mode",
+		"darkMode": "Dark mode"
+	},
+	"error": {
+		"prefix": "Error:"
+	},
+	"todo": {
+		"addHeading": "Add New TODO",
+		"placeholder": "What needs to be done?",
+		"addButton": "Add TODO",
+		"listTitle": "TODO Items",
+		"empty": "No TODOs yet. Add one above!",
+		"delete": "Delete",
+		"assignedTo": "Assigned to:",
+		"unassigned": "Unassigned",
+		"createdBy": "Created by:",
+		"replicationLabel": "Relay replication:",
+		"replication": {
+			"pending": "Waiting for this OrbitDB entry to be replicated by the relay.",
+			"pinned": "The relay confirmed that this exact OrbitDB entry was replicated and stored locally.",
+			"unavailable": "No exact relay replication proof is currently available for this entry.",
+			"unknown": "Relay replication status was not observed for this existing entry."
+		}
+	},
+	"toast": {
+		"added": "✅ Todo added successfully!",
+		"addFailed": "❌ Failed to add todo",
+		"deleted": "🗑️ Todo deleted successfully!",
+		"deleteFailed": "❌ Failed to delete todo",
+		"updated": "✅ Todo status updated!",
+		"updateFailed": "❌ Failed to update todo",
+		"connected": "🔗 Connected to {peer}",
+		"dropped": "⚠️ {peer} closed the connection shortly after connect"
+	},
+	"status": {
+		"aria": "P2P initialization and connection status",
+		"details": "Network details",
+		"relayConnected": "Relay connected",
+		"webrtcConnected": "WebRTC connected",
+		"ready": "P2P network ready",
+		"connectingRelay": "Connecting to relay",
+		"waitingWebrtc": "Waiting for WebRTC connection",
+		"preparing": "Preparing P2P network",
+		"step": {
+			"networkConfig": {
+				"label": "Network config",
+				"description": "Validates the configured browser-reachable relay addresses and prepares the libp2p transports and services."
+			},
+			"libp2p": {
+				"label": "libp2p",
+				"description": "Creates and starts the libp2p node, including its peer identity, discovery, relay, WebSocket and WebRTC support."
+			},
+			"helia": {
+				"label": "Helia",
+				"description": "Starts the Helia IPFS node on top of libp2p and enables block exchange and HTTP retrieval."
+			},
+			"orbitdb": {
+				"label": "OrbitDB",
+				"description": "Loads or creates the persistent OrbitDB identity and initializes OrbitDB using the Helia node."
+			},
+			"database": {
+				"label": "Database + sync",
+				"description": "Opens the shared todo database, loads its local operation log and starts OrbitDB pubsub synchronization."
+			},
+			"localTodos": {
+				"label": "Local todos",
+				"description": "Connects the local todo store and starts hydrating it from OrbitDB in the background without blocking the application."
+			},
+			"relay": {
+				"label": "Relay connected"
+			},
+			"webrtc": {
+				"label": "WebRTC connected",
+				"description": "A live libp2p connection using WebRTC is available. This normally appears after another browser peer has been discovered."
+			}
+		},
+		"relay": {
+			"base": "A live WebSocket connection to a relay/bootstrap peer is available for discovery, pubsub and circuit relay traffic.",
+			"none": "No relay is connected yet.",
+			"noHealthUrl": "No HTTPS health URL can be derived from the connected relay address.",
+			"loading": "Reading the OrbitDB relay version from {origin}/health…",
+			"verifiedVersion": "OrbitDB relay version {version}; health and peer ID verified at {origin}/health.",
+			"verifiedNoVersion": "Health and peer ID verified at {origin}/health. This relay does not expose its OrbitDB relay version.",
+			"unverified": "{origin}/health could not be verified, so its OrbitDB relay version is unavailable."
+		},
+		"failedToInitialize": "Failed to initialize {step}",
+		"initializing": "Initializing {step}",
+		"peerCount": "{count, plural, one {1 peer} other {# peers}}",
+		"relayIdMismatch": "Relay peer ID does not match"
+	},
+	"peers": {
+		"heading": "Connected Peers",
+		"empty": "No peers connected yet.",
+		"disconnect": "Disconnect peer"
+	},
+	"peerId": {
+		"heading": "My Peer ID",
+		"description": "Share this ID with others to assign TODOs to you."
+	},
+	"multiaddrs": {
+		"heading": "My Multiaddresses",
+		"description": "Copy an address to connect another browser directly.",
+		"waiting": "Waiting for a dialable address…",
+		"copied": "Multiaddress copied to clipboard."
+	},
+	"qr": {
+		"lead": "Create an invite, or scan the code they are showing you.",
+		"createInvite": "Create invite",
+		"scanCode": "Scan their code",
+		"connectByInvite": "Connect by invite",
+		"scanConnectSdp": "Scan Connect SDP",
+		"showCode": "Show this code, or send the text. Then scan their reply.",
+		"showReply": "Show this reply back to them.",
+		"pasteHere": "Or paste their invite or reply here",
+		"copyLink": "Copy invite link",
+		"linkCopied": "Link copied",
+		"linkCopiedHint": "Link copied. Send it to them — opening it connects their browser to yours.",
+		"use": "Use this",
+		"received": "Invite received. Waiting for this peer to start…",
+		"peerStarting": "The peer is still starting",
+		"neverStarted": "Invite received, but this peer never finished starting. Reload to try again.",
+		"copyFailed": "Could not copy: {reason}. Copy the invite text below instead.",
+		"createFailed": "Could not create an invite: {reason}",
+		"connectedTo": "Connected to {peer}…",
+		"rejected": "That payload was rejected: {reason}",
+		"cameraFailed": "Camera failed: {reason}"
+	},
+	"manual": {
+		"heading": "Connect to relay",
+		"discoveredHint": "Choose a current browser-reachable relay discovered through Aleph.",
+		"customToggle": "Use a custom multiaddress",
+		"customHint": "Enter a multiaddress to connect to a peer.",
+		"discovering": "Discovering and pinging Aleph relays…",
+		"noneDiscovered": "No relay addresses discovered",
+		"discoveryUnavailable": "Relay discovery unavailable",
+		"noSnapshot": "No relays in the build-time snapshot.",
+		"dialing": "Dialing peer",
+		"handshake": "Opening the websocket and completing the libp2p handshake...",
+		"stable": "Connection stable",
+		"dropped": "Connection dropped",
+		"discoveryFailed": "Aleph relay discovery failed: {reason}",
+		"noneAnswered": "None of the {count} discovered relay addresses answered a libp2p ping.",
+		"refreshHint": "Refresh or enter a custom multiaddress.",
+		"mustStartWithSlash": "A multiaddress must start with \"/\".",
+		"detail": {
+			"nodeGone": "P2P node is no longer available.",
+			"handshakeDropped": "Handshake succeeded, but the remote peer closed the connection during relay or protocol setup.",
+			"stayedOpen": "Connection stayed open for {seconds} seconds."
+		}
+	},
+	"consent": {
+		"warningHeading": "Early days",
+		"warningBody": "This is a working demonstration rather than a finished product. It does what it says, and the format may still change - so keep anything you would be sorry to lose somewhere else as well.",
+		"accept": "I have read this and accept it",
+		"proceed": "Proceed to Test the App",
+		"proceedDisabled": "Please accept to continue",
+		"remember": "Don't show this again on this device",
+		"technical": "Technical",
+		"simple": "Simple",
+		"storageLegend": "Where your todos are stored",
+		"storageMemoryLabel": "In Memory Only",
+		"storageMemoryHint": "Todos are stored in a shared, unencrypted OrbitDB database in memory and will be deleted on app reload or on exit.",
+		"storagePersistentLabel": "IndexedDB",
+		"storagePersistentHint": "I understand todos are stored in a shared, unencrypted OrbitDB database in the browser's IndexedDB and will persist between app restarts or after app exit.",
+		"relayLabel": "Connect to the public libp2p relay network",
+		"relayHint": "On: peers find each other automatically through public relay and bootstrap nodes. Off: this browser connects only to peers you invite yourself with a QR code or a copied invite — nothing announces you, and nobody can find you.",
+		"clause": {
+			"noServer": "We run no server, and no copy of your list exists anywhere we control.",
+			"gateway": "The app itself is delivered through a public IPFS gateway, which sees that you loaded it. Your own Kubo node, or the IPFS Companion extension, fetches it from the network instead.",
+			"relayOn": "Relay and bootstrap nodes introduce peers to each other, and may cache or replicate this demo data so another device can collect it later.",
+			"relayOff": "No relay is contacted. Without one, the other device has to be reachable from this network.",
+			"persistent": "Your todos are kept in this browser and survive a restart, in a shared and unencrypted database.",
+			"memory": "Your todos live in memory only and are gone when this page reloads. The database is shared and unencrypted either way.",
+			"cookies": "No tracking cookies are used. If you tick \"don't show this again\", that choice is the only thing saved on this device."
+		}
+	}
+}

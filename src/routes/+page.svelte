@@ -13,6 +13,8 @@
 	import { todosStore, addTodo, deleteTodo, toggleTodoComplete } from '$lib/db-actions.js';
 	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
+	import { _ } from '$lib/i18n/index.js';
+	import LanguageSwitcher from '$lib/LanguageSwitcher.svelte';
 	import ThemeToggle from '$lib/ThemeToggle.svelte';
 	import LeSpaceLogo from '$lib/LeSpaceLogo.svelte';
 	import ToastNotification from '$lib/ToastNotification.svelte';
@@ -45,7 +47,6 @@
 
 	// Modal state
 	let showModal = true;
-	const reopenLabel = 'Show the notice again';
 	let rememberDecision = false;
 
 	// Empty outside a checkout; the header then omits it entirely.
@@ -189,9 +190,9 @@
 	const handleAddTodo = async (event) => {
 		const success = await addTodo(event.detail.text);
 		if (success) {
-			showToast('✅ Todo added successfully!', 'success');
+			showToast($_('toast.added'), 'success');
 		} else {
-			showToast('❌ Failed to add todo', 'error');
+			showToast($_('toast.addFailed'), 'error');
 		}
 	};
 
@@ -201,9 +202,9 @@
 	const handleDelete = async (event) => {
 		const success = await deleteTodo(event.detail.key);
 		if (success) {
-			showToast('🗑️ Todo deleted successfully!', 'success');
+			showToast($_('toast.deleted'), 'success');
 		} else {
-			showToast('❌ Failed to delete todo', 'error');
+			showToast($_('toast.deleteFailed'), 'error');
 		}
 	};
 
@@ -213,9 +214,9 @@
 	const handleToggleComplete = async (event) => {
 		const success = await toggleTodoComplete(event.detail.key);
 		if (success) {
-			showToast('✅ Todo status updated!', 'success');
+			showToast($_('toast.updated'), 'success');
 		} else {
-			showToast('❌ Failed to update todo', 'error');
+			showToast($_('toast.updateFailed'), 'error');
 		}
 	};
 
@@ -226,11 +227,11 @@
 		const peerTarget = event.detail.remotePeer || event.detail.remoteAddr;
 
 		if (event.detail.status === 'stable') {
-			showToast(`🔗 Connected to ${peerTarget}`, 'success');
+			showToast($_('toast.connected', { values: { peer: peerTarget } }), 'success');
 			return;
 		}
 
-		showToast(`⚠️ ${peerTarget} closed the connection shortly after connect`, 'warning');
+		showToast($_('toast.dropped', { values: { peer: peerTarget } }), 'warning');
 	};
 
 	// Subscribe to the peerIdStore
@@ -244,23 +245,16 @@
 <svelte:head>
 	<title>Simple-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<meta
-		name="description"
-		content="A simple local-first peer-to-peer TODO list app using OrbitDB, IPFS and libp2p"
-	/>
+	<meta name="description" content={$_('app.description')} />
 </svelte:head>
 
 <!-- Only render the modal when needed -->
 {#if showModal}
 	<ConsentModal
 		bind:show={showModal}
-		title="Simple-Todo"
 		bind:persistentStorageEnabled
 		bind:relayNetworkEnabled
 		bind:rememberDecision
-		rememberLabel="Don't show this again on this device"
-		proceedButtonText="Proceed to Test the App"
-		disabledButtonText="Please accept to continue"
 		on:proceed={handleModalClose}
 	/>
 {/if}
@@ -271,9 +265,9 @@
 		<div class="flex flex-1 items-center gap-3">
 			<LeSpaceLogo size={52} />
 			<div>
-				<h1 class="text-2xl font-bold text-heading sm:text-3xl">Simple-Todo</h1>
+				<h1 class="text-2xl font-bold text-heading sm:text-3xl">{$_('app.title')}</h1>
 				<p class="mt-1 text-sm text-faint">
-					A local-first peer-to-peer PWA · {formatVersions({
+					{$_('app.tagline')} · {formatVersions({
 						appName: 'Simple-Todo'
 					})} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'}{buildCommit
 						? ` @${buildCommit}`
@@ -293,12 +287,13 @@
 				type="button"
 				on:click={() => (showModal = true)}
 				data-testid="intro-reopen"
-				title={reopenLabel}
-				aria-label={reopenLabel}
+				title={$_('common.reopenIntro')}
+				aria-label={$_('common.reopenIntro')}
 				class="rounded-md border border-border px-2 py-1 text-xs text-faint hover:text-text"
 			>
 				?
 			</button>
+			<LanguageSwitcher />
 			<ThemeToggle />
 			<SocialIcons size="w-5 h-5" className="" />
 		</div>

@@ -1,0 +1,191 @@
+{
+	"app": {
+		"title": "Simple-Todo",
+		"tagline": "Eine Local-First-PWA von Gerät zu Gerät",
+		"description": "Eine schlichte Local-First-Aufgabenliste von Gerät zu Gerät, gebaut mit OrbitDB, IPFS und libp2p"
+	},
+	"common": {
+		"copy": "In die Zwischenablage kopieren",
+		"copied": "Kopiert!",
+		"copiedNotice": "In die Zwischenablage kopiert.",
+		"dismiss": "Schließen",
+		"reopenIntro": "Die Erklärung erneut anzeigen",
+		"toLightMode": "Zur hellen Ansicht wechseln",
+		"toDarkMode": "Zur dunklen Ansicht wechseln",
+		"lightMode": "Helle Ansicht",
+		"darkMode": "Dunkle Ansicht"
+	},
+	"error": {
+		"prefix": "Fehler:"
+	},
+	"todo": {
+		"addHeading": "Neue Aufgabe",
+		"placeholder": "Was ist zu tun?",
+		"addButton": "Hinzufügen",
+		"listTitle": "Aufgaben",
+		"empty": "Noch nichts da. Legen Sie oben etwas an.",
+		"delete": "Löschen",
+		"assignedTo": "Zugewiesen an:",
+		"unassigned": "Niemandem zugewiesen",
+		"createdBy": "Angelegt von:",
+		"replicationLabel": "Relay-Replikation:",
+		"replication": {
+			"pending": "Wartet darauf, dass das Relay diesen OrbitDB-Eintrag repliziert.",
+			"pinned": "Das Relay hat bestätigt, dass genau dieser OrbitDB-Eintrag repliziert und lokal gespeichert wurde.",
+			"unavailable": "Für diesen Eintrag liegt derzeit kein exakter Replikationsnachweis des Relays vor.",
+			"unknown": "Für diesen bestehenden Eintrag wurde der Replikationsstand nie beobachtet."
+		}
+	},
+	"toast": {
+		"added": "✅ Aufgabe angelegt.",
+		"addFailed": "❌ Aufgabe konnte nicht angelegt werden.",
+		"deleted": "🗑️ Aufgabe gelöscht.",
+		"deleteFailed": "❌ Aufgabe konnte nicht gelöscht werden.",
+		"updated": "✅ Status geändert.",
+		"updateFailed": "❌ Status konnte nicht geändert werden.",
+		"connected": "🔗 Verbunden mit {peer}",
+		"dropped": "⚠️ {peer} hat die Verbindung kurz nach dem Aufbau geschlossen."
+	},
+	"status": {
+		"aria": "Stand von P2P-Initialisierung und Verbindung",
+		"details": "Netzwerkdetails",
+		"relayConnected": "Relay verbunden",
+		"webrtcConnected": "WebRTC verbunden",
+		"ready": "P2P-Netz bereit",
+		"connectingRelay": "Verbindung zum Relay",
+		"waitingWebrtc": "Wartet auf die WebRTC-Verbindung",
+		"preparing": "P2P-Netz wird vorbereitet",
+		"step": {
+			"networkConfig": {
+				"label": "Netzwerkkonfiguration",
+				"description": "Prüft die konfigurierten, aus dem Browser erreichbaren Relay-Adressen und bereitet die libp2p-Transporte und -Dienste vor."
+			},
+			"libp2p": {
+				"label": "libp2p",
+				"description": "Erzeugt und startet den libp2p-Knoten samt Peer-Identität, Discovery, Relay sowie WebSocket- und WebRTC-Unterstützung."
+			},
+			"helia": {
+				"label": "Helia",
+				"description": "Startet den Helia-IPFS-Knoten auf libp2p und aktiviert Blockaustausch und HTTP-Abruf."
+			},
+			"orbitdb": {
+				"label": "OrbitDB",
+				"description": "Lädt oder erzeugt die dauerhafte OrbitDB-Identität und initialisiert OrbitDB mit dem Helia-Knoten."
+			},
+			"database": {
+				"label": "Datenbank + Sync",
+				"description": "Öffnet die geteilte Aufgaben-Datenbank, lädt ihr lokales Operationslog und startet die OrbitDB-Pubsub-Synchronisation."
+			},
+			"localTodos": {
+				"label": "Lokale Aufgaben",
+				"description": "Verbindet den lokalen Aufgabenspeicher und füllt ihn im Hintergrund aus OrbitDB, ohne die App zu blockieren."
+			},
+			"relay": {
+				"label": "Relay verbunden"
+			},
+			"webrtc": {
+				"label": "WebRTC verbunden",
+				"description": "Eine laufende libp2p-Verbindung über WebRTC steht. Sie erscheint normalerweise, nachdem ein anderer Browser gefunden wurde."
+			}
+		},
+		"relay": {
+			"base": "Eine laufende WebSocket-Verbindung zu einem Relay- bzw. Bootstrap-Knoten steht für Discovery, Pubsub und Circuit-Relay-Verkehr bereit.",
+			"none": "Es ist noch kein Relay verbunden.",
+			"noHealthUrl": "Aus der verbundenen Relay-Adresse lässt sich keine HTTPS-Health-URL ableiten.",
+			"loading": "Die OrbitDB-Relay-Version wird von {origin}/health gelesen …",
+			"verifiedVersion": "OrbitDB-Relay-Version {version}; Health und Peer-ID unter {origin}/health bestätigt.",
+			"verifiedNoVersion": "Health und Peer-ID unter {origin}/health bestätigt. Dieses Relay nennt seine OrbitDB-Relay-Version nicht.",
+			"unverified": "{origin}/health ließ sich nicht bestätigen, daher ist die OrbitDB-Relay-Version unbekannt."
+		},
+		"failedToInitialize": "{step} konnte nicht initialisiert werden",
+		"initializing": "{step} wird initialisiert",
+		"peerCount": "{count, plural, one {1 Gerät} other {# Geräte}}",
+		"relayIdMismatch": "Peer-ID des Relays passt nicht"
+	},
+	"peers": {
+		"heading": "Verbundene Geräte",
+		"empty": "Noch ist niemand verbunden.",
+		"disconnect": "Verbindung trennen"
+	},
+	"peerId": {
+		"heading": "Meine Peer-ID",
+		"description": "Geben Sie diese ID weiter, damit andere Ihnen Aufgaben zuweisen können."
+	},
+	"multiaddrs": {
+		"heading": "Meine Multiadressen",
+		"description": "Kopieren Sie eine Adresse, um einen anderen Browser direkt zu verbinden.",
+		"waiting": "Wartet auf eine erreichbare Adresse…",
+		"copied": "Multiadresse in die Zwischenablage kopiert."
+	},
+	"qr": {
+		"lead": "Legen Sie eine Einladung an oder scannen Sie den Code, den die Gegenseite zeigt.",
+		"createInvite": "Einladung anlegen",
+		"scanCode": "Code der Gegenseite scannen",
+		"connectByInvite": "Per Einladung verbinden",
+		"scanConnectSdp": "Connect-SDP scannen",
+		"showCode": "Zeigen Sie diesen Code oder schicken Sie den Text. Scannen Sie dann die Antwort.",
+		"showReply": "Zeigen Sie diese Antwort zurück.",
+		"pasteHere": "Oder fügen Sie hier die Einladung bzw. die Antwort ein",
+		"copyLink": "Einladungslink kopieren",
+		"linkCopied": "Link kopiert",
+		"linkCopiedHint": "Link kopiert. Schicken Sie ihn weiter — wer ihn öffnet, verbindet seinen Browser mit Ihrem.",
+		"use": "Diese verwenden",
+		"received": "Einladung erhalten. Wartet darauf, dass dieses Gerät startet…",
+		"peerStarting": "Das andere Gerät startet noch",
+		"neverStarted": "Einladung erhalten, aber dieses Gerät hat den Start nie abgeschlossen. Laden Sie die Seite neu.",
+		"copyFailed": "Kopieren nicht möglich: {reason}. Nehmen Sie stattdessen den Einladungstext unten.",
+		"createFailed": "Einladung konnte nicht angelegt werden: {reason}",
+		"connectedTo": "Verbunden mit {peer}…",
+		"rejected": "Diese Nutzlast wurde abgelehnt: {reason}",
+		"cameraFailed": "Kamera fehlgeschlagen: {reason}"
+	},
+	"manual": {
+		"heading": "Mit einem Relay verbinden",
+		"discoveredHint": "Wählen Sie ein aktuelles, aus dem Browser erreichbares Relay, das über Aleph gefunden wurde.",
+		"customToggle": "Eigene Multiadresse verwenden",
+		"customHint": "Geben Sie eine Multiadresse ein, um ein Gerät zu verbinden.",
+		"discovering": "Aleph-Relays werden gesucht und angepingt…",
+		"noneDiscovered": "Keine Relay-Adressen gefunden",
+		"discoveryUnavailable": "Relay-Suche nicht verfügbar",
+		"noSnapshot": "Keine Relays im eingebackenen Stand.",
+		"dialing": "Gerät wird angewählt",
+		"handshake": "WebSocket wird geöffnet und der libp2p-Handshake abgeschlossen …",
+		"stable": "Verbindung steht",
+		"dropped": "Verbindung abgebrochen",
+		"discoveryFailed": "Aleph-Relay-Suche fehlgeschlagen: {reason}",
+		"noneAnswered": "Keine der {count} gefundenen Relay-Adressen hat auf einen libp2p-Ping geantwortet.",
+		"refreshHint": "Laden Sie neu oder geben Sie eine eigene Multiadresse ein.",
+		"mustStartWithSlash": "Eine Multiadresse muss mit „/“ beginnen.",
+		"detail": {
+			"nodeGone": "Der P2P-Knoten steht nicht mehr zur Verfügung.",
+			"handshakeDropped": "Der Handshake gelang, aber die Gegenseite hat die Verbindung während des Relay- oder Protokollaufbaus geschlossen.",
+			"stayedOpen": "Die Verbindung blieb {seconds} Sekunden offen."
+		}
+	},
+	"consent": {
+		"warningHeading": "Noch früh",
+		"warningBody": "Das hier ist eine lauffähige Demonstration, kein fertiges Produkt. Es tut, was es sagt, und das Format kann sich noch ändern — bewahren Sie also alles, dessen Verlust Sie ärgern würde, zusätzlich woanders auf.",
+		"accept": "Ich habe das gelesen und bin einverstanden",
+		"proceed": "Weiter zur App",
+		"proceedDisabled": "Bitte zustimmen, um fortzufahren",
+		"remember": "Auf diesem Gerät nicht mehr anzeigen",
+		"technical": "Technisch",
+		"simple": "Einfach",
+		"storageLegend": "Wo Ihre Aufgaben liegen",
+		"storageMemoryLabel": "Nur im Arbeitsspeicher",
+		"storageMemoryHint": "Die Aufgaben liegen in einer geteilten, unverschlüsselten OrbitDB-Datenbank im Arbeitsspeicher und sind beim Neuladen oder Beenden weg.",
+		"storagePersistentLabel": "IndexedDB",
+		"storagePersistentHint": "Mir ist klar, dass die Aufgaben in einer geteilten, unverschlüsselten OrbitDB-Datenbank in der IndexedDB des Browsers liegen und einen Neustart überdauern.",
+		"relayLabel": "Mit dem öffentlichen libp2p-Relay-Netz verbinden",
+		"relayHint": "An: Geräte finden einander automatisch über öffentliche Relay- und Bootstrap-Knoten. Aus: Dieser Browser verbindet sich nur mit Geräten, die Sie selbst per QR-Code oder kopierter Einladung dazuholen — nichts kündigt Sie an, und niemand kann Sie finden.",
+		"clause": {
+			"noServer": "Wir betreiben keinen Server, und nirgends existiert eine Kopie Ihrer Liste, über die wir verfügen.",
+			"gateway": "Die App selbst kommt über ein öffentliches IPFS-Gateway, das sieht, dass Sie sie geladen haben. Mit einem eigenen Kubo-Knoten oder der IPFS-Companion-Erweiterung holen Sie sie stattdessen direkt aus dem Netz.",
+			"relayOn": "Relay- und Bootstrap-Knoten stellen die Geräte einander vor und können diese Demo-Daten zwischenspeichern oder replizieren, damit ein anderes Gerät sie später abholen kann.",
+			"relayOff": "Es wird kein Relay kontaktiert. Ohne eines muss das andere Gerät aus diesem Netz erreichbar sein.",
+			"persistent": "Ihre Aufgaben bleiben in diesem Browser und überstehen einen Neustart — in einer geteilten, unverschlüsselten Datenbank.",
+			"memory": "Ihre Aufgaben liegen nur im Arbeitsspeicher und sind beim Neuladen weg. Die Datenbank ist so oder so geteilt und unverschlüsselt.",
+			"cookies": "Es werden keine Tracking-Cookies verwendet. Wenn Sie „Nicht mehr anzeigen“ anhaken, ist genau diese Entscheidung das Einzige, was auf diesem Gerät gespeichert wird."
+		}
+	}
+}

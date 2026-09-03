@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	/**
 	 * Light/dark theme toggle. Flips a `.dark` class on <html>, persists the
 	 * choice to localStorage, and keeps the browser <meta name="theme-color"> in
@@ -30,8 +31,8 @@
 	type="button"
 	onclick={() => apply(!dark)}
 	class="rounded-full p-2 text-text transition hover:bg-surface hover:text-coral focus:ring-2 focus:ring-cyan focus:outline-none"
-	aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
-	title={dark ? 'Light mode' : 'Dark mode'}
+	aria-label={dark ? $_('common.toLightMode') : $_('common.toDarkMode')}
+	title={dark ? $_('common.lightMode') : $_('common.darkMode')}
 >
 	{#if dark}
 		<!-- sun -->
