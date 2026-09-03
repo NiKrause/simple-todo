@@ -1,3 +1,5 @@
+import { passConsent } from '../consent.mjs';
+
 const DEFAULT_TIMEOUT = 120_000;
 
 /** Timestamped live progress line so CI logs show what remote runs are doing. */
@@ -49,14 +51,14 @@ export class TodoBrowserAgent {
 		remoteProgress(`[${this.name}] opening ${this.appUrl}...`);
 		await this.page.goto(this.appUrl, { waitUntil: 'domcontentloaded', timeout: this.timeout });
 
-		const modal = this.page.locator('div.fixed.inset-0.z-50');
-		await modal.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
-		if (await modal.isVisible()) {
-			for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-				await checkbox.check();
-			}
-			await this.page.getByRole('button', { name: 'Proceed to Test the App' }).click();
-		}
+		// The consent screen is a `qr-intro` element since #298, and its controls
+		// live in a shadow tree. The markup this used to reach for
+		// (`div.fixed.inset-0.z-50`, "Proceed to Test the App") stopped matching,
+		// so the dialog was never dismissed, the app never initialised, and the
+		// wait below timed out after two minutes with nothing in the log to say
+		// why. The specs share one helper for this walk; so does this, which is
+		// how it stays fixed the next time the dialog is rearranged.
+		await passConsent(this.page);
 
 		await this.todoInput().waitFor({ state: 'visible', timeout: this.timeout });
 		await this.page.waitForFunction(
