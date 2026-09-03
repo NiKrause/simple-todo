@@ -93,7 +93,14 @@ async function startPreview({ env, relayInfo }) {
 	await runCommand('pnpm', ['run', 'build'], { env });
 	previewProcess = spawn(
 		'pnpm',
-		['run', 'preview', '--', '--host', '127.0.0.1', '--port', previewPort],
+		// `pnpm exec vite preview`, not `pnpm run preview -- --port`: pnpm swallows
+		// the forwarded flags, so vite kept binding 4173 whatever this said.
+		//
+		// `--strictPort` is the half that makes a collision visible. Without it
+		// vite takes the next free port when the requested one is busy, while
+		// Playwright goes on waiting for the one it asked for - and finds the
+		// other checkout's app answering there.
+		['exec', 'vite', 'preview', '--host', '127.0.0.1', '--strictPort', '--port', previewPort],
 		{
 			cwd: rootDir,
 			env,
