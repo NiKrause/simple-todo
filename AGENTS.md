@@ -89,12 +89,22 @@ The e2e hook's `getConnections()` reports `limited`, `encryption`,
 `multiplexer` and `direction` for exactly this reason. `/noise` + `/yamux` is
 relayed; `native` + `/webrtc` is not.
 
-**And the relay's budget is the other half.** `applyDefaultLimit` is `true` by
-default in `@libp2p/circuit-relay-v2`, which grants **128 KiB and two minutes**
-per circuit — and that budget covers everything on it. Measured in ablage: 256
-KiB crosses a circuit whose relay grants 1 GiB and does not cross the same
-circuit at library defaults. So the flag decides whether a protocol *may* use a
-circuit; the relay's limits decide how much it can move.
+**The relay's budget is a second thing that can stop a protocol — but not
+here.** A circuit carries a data and duration allowance, and it covers
+everything on that connection. `@libp2p/circuit-relay-v2` grants **128 KiB and
+two minutes** by default, which is nothing: measured in ablage, 256 KiB does not
+cross a circuit whose relay is left at library defaults.
+
+`orbitdb-relay` is not left at them. `src/config/circuit-relay-env.ts` sets
+**10 GiB and twenty minutes**, deliberately, and says so — *"Defaults are 10× the
+previous hardcoded values"*. So for this project the budget has never been the
+limit, and a reservation without limits (`applyDefaultLimit: false`) would buy
+nothing.
+
+Worth knowing all the same, because the two failures look identical from a
+browser: a protocol refused for want of the flag, and a circuit that ran out of
+allowance, both simply stop carrying. Check which relay is in play before
+concluding either.
 
 **Nothing here tests the relay-only case.** Every collaboration spec waits for
 the connection to become `/webrtc` before asserting — it measures the path that
