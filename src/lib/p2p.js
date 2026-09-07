@@ -27,7 +27,12 @@ import { multiaddr } from '@multiformats/multiaddr';
 import { CID } from 'multiformats/cid';
 import { createLibp2pConfig } from './libp2p-config.js';
 import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions.js';
-import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
+import {
+	getWebRTCEnabled,
+	initializeWebRTCSetting,
+	setWebRTCEnabled,
+	webrtcEnabledStore
+} from './webrtc-settings.js';
 import { getDefaultTodoDatabaseName } from './default-todo-database.js';
 import { normalizeDiscoveredMultiaddrs } from './multiaddr-utils.js';
 
@@ -195,6 +200,20 @@ export async function initializeP2P(options = /** @type {{ todoDbAddress?: strin
 	try {
 		// Set initialization state
 		setInitializationProgress(0);
+
+		// **Read the stored WebRTC choice before the transports are decided.**
+		//
+		// `initializeWebRTCSetting` existed and was called from nowhere, so
+		// `simpleTodo.webrtcEnabled` was written by `setWebRTCEnabled` and never
+		// read back: the module default won every reload. Nothing user-facing
+		// changes - no screen offers this switch - but without the call the
+		// relay-only case cannot be set up at all, which is why no test covers
+		// it. See `AGENTS.md`.
+		//
+		// Here rather than at module load: the transport list is built from
+		// `getWebRTCEnabled()` on the next line, and a setting read afterwards
+		// would be read too late.
+		initializeWebRTCSetting();
 
 		// Create libp2p configuration and node
 		const config = await createLibp2pConfig();
@@ -419,7 +438,21 @@ function getReadOnlyDiagnostics() {
 		getConnections: () =>
 			libp2p?.getConnections?.().map((/** @type {any} */ connection) => ({
 				remotePeer: connection.remotePeer?.toString() ?? null,
-				remoteAddr: connection.remoteAddr?.toString() ?? null
+				remoteAddr: connection.remoteAddr?.toString() ?? null,
+				// **`limits` is what separates relayed from direct, and the address
+				// is not.** A hole-punched connection still reads
+				// `/p2p-circuit/webrtc/…`, so a test that greps the address for
+				// `/p2p-circuit` cannot tell whether the relay is still carrying
+				// anything. Le-Space/ablage spent a day on that distinction.
+				limited: connection.limits != null,
+				// What actually carries it. A relayed connection negotiates
+				// `/noise` and `/yamux`; a WebRTC one reports `native` and
+				// `/webrtc`, because DTLS did the encrypting and the data channel
+				// is the muxer. The only thing that says which is which without
+				// believing the address.
+				encryption: connection.encryption ?? null,
+				multiplexer: connection.multiplexer ?? null,
+				direction: connection.direction ?? null
 			})) ?? [],
 		// Read-only replication introspection, for the failure the gossipsub
 		// getters below could not explain: one browser rendering the whole list
