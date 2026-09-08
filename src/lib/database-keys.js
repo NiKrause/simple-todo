@@ -75,6 +75,75 @@ export function keyForDatabase(databaseKey, deps = {}) {
 	return fresh;
 }
 
+/**
+ * The key this device already has for a database, or null.
+ *
+ * Read-only on purpose, and the difference from `keyForDatabase` matters: it
+ * is what distinguishes a list this browser sealed from somebody else's list
+ * reached by address. Generating one on the way past would seal a guest's list
+ * under a key its owner does not have.
+ *
+ * @param {string} databaseKey
+ * @returns {Uint8Array | null}
+ */
+export function storedDatabaseKey(databaseKey) {
+	let stored = null;
+	try {
+		stored = localStorage.getItem(storageKeyFor(databaseKey));
+	} catch {
+		return null;
+	}
+	if (!stored) return null;
+
+	try {
+		const bytes = fromBase64(stored);
+		if (bytes.length === 32) return bytes;
+	} catch {
+		throw new Error(`The stored key for ${databaseKey} is not readable.`);
+	}
+	throw new Error(`The stored key for ${databaseKey} has the wrong length.`);
+}
+
+/**
+ * Whether a key stored now would still be here after a reload.
+ *
+ * Asked *before* a database is created rather than after: opening one with an
+ * encryptor whose key cannot be written down seals entries that nothing will
+ * ever open again, including this browser. Better to find that out while the
+ * list is still empty.
+ *
+ * @returns {boolean}
+ */
+export function canRememberKeys() {
+	const probe = `${STORAGE_PREFIX}probe`;
+	try {
+		localStorage.setItem(probe, 'probe');
+		localStorage.removeItem(probe);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Write down a key that was generated before its database had an address.
+ *
+ * A list is created under a name and reopened by address, so the address is
+ * the only identifier both paths share — see `encrypted-open.js`.
+ *
+ * @param {string} databaseKey
+ * @param {Uint8Array} key
+ * @returns {boolean} whether it was written down
+ */
+export function rememberDatabaseKey(databaseKey, key) {
+	try {
+		localStorage.setItem(storageKeyFor(databaseKey), toBase64(key));
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 /** @param {string} databaseKey */
 export function forgetDatabaseKey(databaseKey) {
 	try {
