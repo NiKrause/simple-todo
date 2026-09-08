@@ -3,6 +3,7 @@ import { OrbitDBAccessController } from '@orbitdb/core';
 import { peerIdStore } from './p2p-stores.js';
 import { rememberList, listRegistryStore, openListRegistry } from './list-registry.js';
 import { relayHttpStatusStore } from './relay-status.js';
+import { openEncrypted } from './encrypted-open.js';
 
 /**
  * @typedef {{
@@ -180,7 +181,10 @@ export async function loadTodoDatabase(address) {
 	}
 
 	try {
-		const loadedTodoDB = await orbitdb.open(normalizedAddress, {
+		// Sealed only if this device already holds a key for this address, which
+		// is true exactly of a list it created. Somebody else's list opens in the
+		// clear — see `encrypted-open.js`.
+		const loadedTodoDB = await openEncrypted(orbitdb, normalizedAddress, {
 			type: 'keyvalue',
 			sync: true
 		});
@@ -234,7 +238,13 @@ export async function createPrivateTodoList(name = 'private-todos') {
 
 	const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 	const dbName = `${name.trim() || 'private-todos'}-${suffix}`;
-	const privateDB = await orbitdb.open(dbName, {
+	// Sealed, and only here: the access controller already says who may write,
+	// and Phase 1 of #277 adds that what they write is unreadable to anyone
+	// holding the address without the key. The default mnemonic list is
+	// deliberately not touched — it is `write: ['*']` and shared between
+	// browsers, so a device-local key would break the collaboration the earlier
+	// chapters teach rather than protect it.
+	const privateDB = await openEncrypted(orbitdb, dbName, {
 		type: 'keyvalue',
 		create: true,
 		sync: true,
