@@ -1,0 +1,81 @@
+# What a change to this chapter has to survive before it lands.
+#
+# Until now, nothing did. `deploy-acl01.yml` runs on a push to this branch, so
+# the tests ran *after* a pull request was merged; the four most recently merged
+# PRs into this chapter ran exactly one check between them - GitGuardian, a
+# secret scanner. No build, no unit tests, no browser.
+#
+# **Deliberately a separate workflow, not a `pull_request` trigger added to
+# `deploy-acl01.yml`.** That one publishes to Aleph IPFS, moves the live
+# acl01.le-space.de preview domain and provisions a relay VM. A trigger there
+# would do all three on every push to every open branch. A workflow that only
+# tests has none of that to guard.
+name: Tests
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [acl01]
+  workflow_dispatch:
+
+# A pull request pushed to twice does not need the first run to finish.
+concurrency:
+  group: tests-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
+    timeout-minutes: 20
+    steps:
+      - name: Checkout simple-todo
+        uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Static and instant. A preview origin written down by hand makes a spec
+      # browse to whatever is already on that port, so it can pass or fail
+      # against a build nobody asked it to test.
+      - name: No preview origin is written down by hand
+        run: pnpm run check:preview-origin
+
+      # 51 tests in five seconds, and until now they ran in no workflow on any
+      # chapter - `test:unit` and `vitest` appeared nowhere in CI. Cheapest
+      # thing here by two orders of magnitude, so it goes before the browsers.
+      - name: Unit tests
+        run: pnpm run test:unit
+
+      # `acl-permissions` is what `deploy-acl01.yml` gates the deploy on, so a
+      # pull request is now measured against the same bar as the merge.
+      #
+      # The other three ran in no workflow anywhere and were assumed to have
+      # rotted. They have not - measured on this branch, they pass in every
+      # arrangement tried.
+      #
+      # `passkey-identity.spec.js` is deliberately absent. It is flaky here, and
+      # not for the reason it first looked: four runs gave red with default
+      # workers, green alone, green with default workers, red serialised. No
+      # pattern by parallelism, so `--workers=1` would not fix it. A spec that
+      # fails about half the time teaches people to ignore red, which costs more
+      # than the coverage buys.
+      - name: Browser specs
+        run: >-
+          pnpm exec playwright test
+          e2e/acl-permissions.spec.js
+          e2e/consent-screen.spec.js
+          e2e/list-registry.spec.js
+          e2e/private-list-visibility.spec.js
+          --project=chromium
