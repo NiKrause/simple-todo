@@ -52,6 +52,11 @@ jobs:
       # missing from main for a day without a single job going red. Nothing
       # else in CI opens the app without a network or reloads it to see whether
       # the todos are still there.
+      # Cheap, static, and it runs before the browsers so a wrong preview
+      # origin is a sentence rather than twenty minutes of confusing failures.
+      - name: No preview origin is written down by hand
+        run: pnpm run check:preview-origin
+
       - name: Run main E2E
         id: main-e2e
         run: >-
