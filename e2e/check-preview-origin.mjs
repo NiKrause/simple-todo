@@ -48,7 +48,7 @@ const MAY_SAY_A_PORT = new Set([
  */
 const HARDCODED = /(?:localhost|127\.0\.0\.1|\[::1\]):4173/g;
 
-async function* sourceFiles (dir) {
+async function* sourceFiles(dir) {
 	for (const entry of await readdir(dir, { withFileTypes: true })) {
 		if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
 
@@ -119,7 +119,7 @@ for (const [name, actual, wanted] of configSays) {
 if (found.length > 0) {
 	console.error(
 		'❌ A preview origin is written down by hand:\n\n' +
-			found.map(f => `   ${f}`).join('\n') +
+			found.map((f) => `   ${f}`).join('\n') +
 			'\n\n   Import PREVIEW_ORIGIN from ./preview-origin.mjs instead.\n' +
 			'   A hardcoded port makes the spec browse to whatever is already on it,\n' +
 			'   so it can pass or fail against a build nobody asked it to test.\n'
