@@ -34,6 +34,11 @@ jobs:
           node-version: '24.x'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Static and instant, and it runs before the browsers: a preview origin
+      # written down by hand costs a second here instead of a confusing run.
+      - name: No preview origin is written down by hand
+        run: pnpm run check:preview-origin
+
       - name: DID write-permissions two-browser test
         run: pnpm exec playwright test e2e/acl-permissions.spec.js --project=chromium
 
