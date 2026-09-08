@@ -57,6 +57,13 @@ jobs:
       - name: No preview origin is written down by hand
         run: pnpm run check:preview-origin
 
+      # 87 tests in eight seconds, and until now they ran in no workflow on any
+      # chapter - `test:unit` and `vitest` appeared nowhere in CI. They are also
+      # the cheapest thing here by two orders of magnitude, so they go before the
+      # browsers: a broken unit is a broken unit whatever the E2E says.
+      - name: Unit tests
+        run: pnpm run test:unit
+
       - name: Run main E2E
         id: main-e2e
         run: >-
