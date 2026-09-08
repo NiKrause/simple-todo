@@ -4,7 +4,8 @@ import { defineConfig, devices } from '@playwright/test';
 // it moved the preview server without moving what Playwright waited for and
 // what the tests browsed to. Two checkouts of this repo therefore could not run
 // their suites at the same time, and a preview left behind by another branch
-// could end up under test instead (#197).
+// could end up under test instead (#197) — so a suite could pass or fail
+// against an app it never built.
 const previewPort = Number(process.env.E2E_PREVIEW_PORT || 4173);
 
 export default defineConfig({
