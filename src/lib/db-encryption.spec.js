@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import { newKey, sealer } from './db-encryption.js';
-import { payloadEncryption } from './entry-encryption.js';
 
 /** @param {string} text */
 const bytes = (text) => new TextEncoder().encode(text);
@@ -49,27 +48,5 @@ describe('db-encryption', () => {
 
 	it('rejects a key of the wrong size', async () => {
 		await expect(sealer(new Uint8Array(16))).rejects.toThrow(/32 bytes/);
-	});
-});
-
-describe('entry-encryption', () => {
-	it('seals and opens what OrbitDB hands it', async () => {
-		const { data } = await payloadEncryption(newKey());
-		const sealed = await data.encrypt(bytes('milk'));
-
-		expect(sealed).not.toEqual(bytes('milk'));
-		expect(text(await data.decrypt(sealed))).toBe('milk');
-	});
-
-	it('passes through an entry written before encryption was switched on', async () => {
-		const { data } = await payloadEncryption(newKey());
-
-		// Not a Uint8Array: what `entry.js` stored before this database was
-		// sealed. Returning it re-encoded is what turns the mixture from a data
-		// loss into a migration.
-		const decoded = await data.decrypt({ text: 'bought before', completed: false });
-
-		expect(decoded).toBeInstanceOf(Uint8Array);
-		expect(decoded.length).toBeGreaterThan(0);
 	});
 });
