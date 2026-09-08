@@ -93,6 +93,29 @@ if (PREVIEW_ORIGIN !== 'http://localhost:4271') {
 	process.exit(1);
 }
 
+// The config is the third thing that has to agree, and the guard missed it at
+// first. On `collab01` `playwright.config.js` hardcoded both `webServer.port`
+// and `baseURL` - so the preview moved, and Playwright waited for and browsed
+// to 4173 regardless. A guard that only reads the specs calls that healthy.
+const { default: config } = await import(`../playwright.config.js?probe=${Date.now()}`);
+
+const configSays = [
+	['webServer.port', config.webServer?.port, 4271],
+	['use.baseURL', config.use?.baseURL, 'http://localhost:4271']
+];
+
+for (const [name, actual, wanted] of configSays) {
+	if (actual !== wanted) {
+		console.error(
+			`❌ playwright.config.js ignored E2E_PREVIEW_PORT: ${name} is ${JSON.stringify(actual)}, expected ${JSON.stringify(wanted)}\n\n` +
+				'   Derive it from `process.env.E2E_PREVIEW_PORT`. A config that does not\n' +
+				'   move leaves Playwright waiting for - and browsing to - the old port\n' +
+				'   however carefully the server was told otherwise.\n'
+		);
+		process.exit(1);
+	}
+}
+
 if (found.length > 0) {
 	console.error(
 		'❌ A preview origin is written down by hand:\n\n' +
@@ -104,4 +127,6 @@ if (found.length > 0) {
 	process.exit(1);
 }
 
-console.log(`✅ Every preview origin comes from E2E_PREVIEW_PORT (probed: ${PREVIEW_ORIGIN}).`);
+console.log(
+	`✅ Specs, preview-origin.mjs and playwright.config.js all follow E2E_PREVIEW_PORT (probed: ${PREVIEW_ORIGIN}).`
+);
