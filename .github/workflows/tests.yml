@@ -1,0 +1,79 @@
+# What a change to this chapter has to survive before it lands.
+#
+# Until now, nothing did. `deploy-issue33.yml` runs on a push to this branch, so
+# the tests ran *after* a pull request was merged - and it runs one spec. A pull
+# request into this chapter got a secret scanner and nothing else.
+#
+# **Deliberately a separate workflow, not a `pull_request` trigger added to
+# `deploy-issue33.yml`.** That one publishes to Aleph IPFS and moves a live
+# preview domain; a trigger there would do both on every push to every open
+# branch. A workflow that only tests has none of that to guard.
+name: Tests
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches: [collab01]
+  workflow_dispatch:
+
+# A pull request pushed to twice does not need the first run to finish.
+concurrency:
+  group: tests-${{ github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
+    timeout-minutes: 20
+    steps:
+      - name: Checkout simple-todo
+        uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Static and instant, and it matters most on this chapter: all three
+      # preview-origin defects were open here, so a spec could browse to
+      # whatever another checkout had left on 4173.
+      - name: No preview origin is written down by hand
+        run: pnpm run check:preview-origin
+
+      # 51 tests in nine seconds, and until now they ran in no workflow on any
+      # chapter - `test:unit` and `vitest` appeared nowhere in CI.
+      - name: Unit tests
+        run: pnpm run test:unit
+
+      # `shared-list-mnemonic` is what `deploy-issue33.yml` gates the deploy on;
+      # the other three ran nowhere at all.
+      #
+      # `relay-button-provisioning` and `remote-main-local` are deliberately
+      # absent: the first needs a funded wallet and provisions a real VM, the
+      # second drives a remote scenario. Neither belongs on a pull request.
+      #
+      # One caveat worth knowing before trusting a red run here.
+      # `default-database-collaboration` failed once in four local runs and
+      # could not be made to fail again - green alone twice, green in a second
+      # group run of the same four. That one red coincided with a second test
+      # suite running on the same laptop, which is not a clean measurement. CI
+      # is the honest place to find out; if it turns out to be genuinely
+      # intermittent, take it out rather than teaching people to re-run.
+      - name: Browser specs
+        run: >-
+          pnpm exec playwright test
+          e2e/shared-list-mnemonic.spec.js
+          e2e/default-database-collaboration.spec.js
+          e2e/manual-multiaddr-connection.spec.js
+          e2e/consent-screen.spec.js
+          --project=chromium
