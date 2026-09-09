@@ -12,6 +12,7 @@
 		"accept": "Ich habe das gelesen und bin einverstanden",
 		"proceed": "Geteilte Liste öffnen",
 		"proceedDisabled": "Drei spanische Wörter eingeben, um fortzufahren",
+		"proceedNeedsAccept": "Zuerst den Hinweis bestätigen",
 		"remember": "Auf diesem Gerät nicht mehr anzeigen",
 		"technical": "Technisch",
 		"simple": "Einfach",

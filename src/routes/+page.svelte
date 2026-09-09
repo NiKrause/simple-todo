@@ -68,6 +68,9 @@
 	let rememberDecision = false;
 
 	const handleModalClose = async () => {
+		// The dialog shows this now, so a stale one would accuse the attempt that
+		// is only just starting.
+		error = null;
 		const canonicalMnemonic = normalizeSpanishMnemonic(selectedMnemonic);
 		selectedMnemonic = canonicalMnemonic;
 		try {
@@ -265,6 +268,7 @@
 		bind:rememberDecision
 		canProceed={mnemonicValid}
 		identity={identityMode}
+		{error}
 		on:proceed={handleModalClose}
 	>
 		<svelte:fragment slot="before-confirmation">
@@ -325,7 +329,7 @@
 		</svelte:fragment>
 	</P2PStatusNav>
 
-	{#if error || $initializationStore.error}
+	{#if !showModal && (error || $initializationStore.error)}
 		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
 	{/if}
 

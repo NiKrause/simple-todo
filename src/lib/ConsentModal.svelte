@@ -13,6 +13,18 @@
 	export let canProceed = true;
 	/** @type {'anonymous' | 'create' | 'existing'} */
 	export let identity = 'anonymous';
+	/**
+	 * What went wrong the last time somebody pressed proceed.
+	 *
+	 * It belongs here rather than on the page behind: the dialog reopens on
+	 * every failure, so a message rendered in `<main>` is covered by the very
+	 * dialog that is asking again. Somebody then sees the consent screen
+	 * return with no explanation, which is how "existing passkey" looked like
+	 * a dead button (#337).
+	 *
+	 * @type {string | null}
+	 */
+	export let error = null;
 
 	/** @type {any} */
 	let introEl;
@@ -68,6 +80,20 @@
 		watchAcceptance();
 	}
 	$: if (ready) introEl.choices = { identity };
+
+	/*
+		One label for two different blockers told people to fill in a field that
+		was already filled: the mnemonic is generated and valid on arrival, so
+		what actually holds the button is the acceptance tick further down.
+
+		Named in reading order — the mnemonic sits above the tick, so an invalid
+		one is what to say first.
+	*/
+	$: proceedLabel = !canProceed
+		? $_('consent.proceedDisabled')
+		: !accepted
+			? $_('consent.proceedNeedsAccept')
+			: $_('consent.proceed');
 	$: if (ready && show && !introEl.isOpen) void introEl.open();
 
 	/**
@@ -130,16 +156,26 @@
 	-->
 	<slot name="before-confirmation" />
 
-	<button
-		slot="footer"
-		type="button"
-		disabled={!accepted || !canProceed}
-		on:click={() => introEl.close()}
-		data-testid="consent-proceed"
-		class="rounded-md bg-coral-700 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-800 disabled:cursor-not-allowed disabled:opacity-50"
-	>
-		{accepted && canProceed ? $_('consent.proceed') : $_('consent.proceedDisabled')}
-	</button>
+	<div slot="footer" class="flex flex-col items-stretch gap-2 sm:items-end">
+		{#if error}
+			<p
+				role="alert"
+				data-testid="consent-error"
+				class="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
+			>
+				{error}
+			</p>
+		{/if}
+		<button
+			type="button"
+			disabled={!accepted || !canProceed}
+			on:click={() => introEl.close()}
+			data-testid="consent-proceed"
+			class="rounded-md bg-coral-700 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-800 disabled:cursor-not-allowed disabled:opacity-50"
+		>
+			{proceedLabel}
+		</button>
+	</div>
 </qr-intro>
 
 <style>

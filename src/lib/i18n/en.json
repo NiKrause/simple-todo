@@ -12,6 +12,7 @@
 		"accept": "I have read this and accept it",
 		"proceed": "Open shared list",
 		"proceedDisabled": "Enter three Spanish words to continue",
+		"proceedNeedsAccept": "Confirm the notice first",
 		"remember": "Don't show this again on this device",
 		"technical": "Technical",
 		"simple": "Simple",
