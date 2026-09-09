@@ -13,11 +13,14 @@
 // share, so a newly created list has its key written down once its address
 // exists.
 //
-// What this does *not* do is decide which lists are sealed. That is the
-// caller's, because it depends on whether this device holds the key at all:
-// the list it created, yes; somebody else's list reached by address, no — see
-// `db-actions.js`. Phase 2 turns "the device that created it" into "everyone
-// the access controller admits".
+// A key can arrive two ways. This browser made it, because it made the list;
+// or somebody sealed a copy for this reader when they granted it access, and
+// `findSharedKey` goes and gets it (#277 phase 2). A copy that opens is
+// written down locally, so the second visit costs nothing.
+//
+// What this does *not* do is invent a key for an address. That would seal
+// somebody else's list under a key its owner does not have — a broken list
+// rather than a private one. Inventing happens only where a list is created.
 
 import { canRememberKeys, rememberDatabaseKey, storedDatabaseKey } from './database-keys.js';
 import { newKey } from './db-encryption.js';
@@ -36,7 +39,7 @@ const isAddress = (target) => target.trim().startsWith('/orbitdb/');
  * @param {any} orbitdb
  * @param {string} target an existing `/orbitdb/…` address, or a name to create
  * @param {Record<string, any>} options passed through to `orbitdb.open`
- * @param {{ newKey?: () => Uint8Array }} [deps]
+ * @param {{ newKey?: () => Uint8Array, findSharedKey?: (address: string) => Promise<Uint8Array | null>, closeExisting?: (address: string) => Promise<void> }} [deps]
  * @returns {Promise<any>}
  */
 export async function openEncrypted(orbitdb, target, options = {}, deps = {}) {
@@ -48,7 +51,29 @@ export async function openEncrypted(orbitdb, target, options = {}, deps = {}) {
 		// this is also what decides it, rather than the list registry, which does
 		// not survive a reload in this chapter (see e2e/list-registry.spec.js)
 		// while local storage does.
-		const key = storedDatabaseKey(target.trim());
+		const address = target.trim();
+		let key = storedDatabaseKey(address);
+
+		if (!key) {
+			// Nothing here yet. Somebody may have sealed a copy for this reader
+			// when they granted it access; that is what makes a granted list
+			// readable rather than a wall of sealed bytes.
+			key = (await deps.findSharedKey?.(address)) ?? null;
+			if (key) {
+				// Written down so the next open does not go looking again. Best
+				// effort: a browser without storage still reads this session.
+				rememberDatabaseKey(address, key);
+
+				// And the instance already open for this address has to go first.
+				// `orbitdb.open` returns a cached database when it has one and
+				// ignores the options entirely (`orbitdb.js:121-123`), so a reader
+				// that opened this list before it was admitted would get that
+				// plain instance back — decryptor passed, no decryptor attached,
+				// and the list stays as unreadable as it was.
+				await deps.closeExisting?.(address);
+			}
+		}
+
 		if (!key) return orbitdb.open(target, options);
 
 		return orbitdb.open(target, { ...options, encryption: await payloadEncryption(key) });

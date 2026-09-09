@@ -5,7 +5,7 @@ import { forgetDeviceKeys, importDeviceKey, ownDeviceKeys } from './device-keys.
 import { unwrapKey, wrapKey } from './key-wrapping.js';
 
 /** A reader with its own key pair, the way the directory would hand it over. */
-async function reader(id) {
+async function reader(/** @type {string} */ id) {
 	forgetDeviceKeys(id);
 	const own = await ownDeviceKeys(id);
 	return { ...own, published: await importDeviceKey(own.publicKey) };

@@ -76,7 +76,11 @@ export async function importDeviceKey(value) {
 	return crypto.subtle.importKey('jwk', decode(value), CURVE, true, []);
 }
 
-/** For tests, and for a sign-out that must not leave the next identity this key. */
+/**
+ * For tests, and for a sign-out that must not leave the next identity this key.
+ *
+ * @param {string} identityId
+ */
 export function forgetDeviceKeys(identityId) {
 	cache.delete(identityId);
 	try {

@@ -4,7 +4,7 @@
 	// own replicated keyvalue store, so the DB address never changes and peers
 	// pick up permission changes live.
 	import { onDestroy } from 'svelte';
-	import { todoDBStore } from './db-actions.js';
+	import { shareActiveListKeyWith, todoDBStore } from './db-actions.js';
 	import { ownDidStore } from './p2p.js';
 
 	/** @type {string[]} */
@@ -63,6 +63,18 @@
 		errorMessage = null;
 		try {
 			await currentDb.access.grant('write', did);
+
+			// Granting write access without handing over the key would leave
+			// somebody able to write to a list they cannot read: in this chapter
+			// a private list is sealed (#277). The outcome is reported rather
+			// than swallowed — a DID that has never opened this chapter has no
+			// published key to seal to, and the person granting has to be told.
+			const shared = await shareActiveListKeyWith(did);
+			if (!shared.shared && shared.reason === 'no-published-key') {
+				errorMessage =
+					'Granted, but this DID has published no encryption key yet, so it cannot read the list. It gets one the first time it opens this chapter — grant again after that.';
+			}
+
 			newDid = '';
 			await refresh();
 		} catch (error) {

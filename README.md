@@ -5,11 +5,12 @@
 
 A basic decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
-> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `passkey01`, `acl01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `acl01` chapter (per-DID write permissions, built on `passkey01`).
+> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `passkey01`, `acl01`, `privacy01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `privacy01` chapter (encrypted private lists, built on `acl01`).
 
 ## 🚀 Live Demo
 
-- **This chapter (acl01)**: https://acl01.le-space.de
+- **This chapter (privacy01)**: https://privacy01.le-space.de
+- **Previous chapter (acl01)**: https://acl01.le-space.de
 - **Main app**: https://simple-todo.le-space.de
 - **IPFS snapshot (Aleph gateway)**: https://ipfs.aleph.im/ipfs/bafybeigo5dip5jl5q6tzyp7xqtnzml25lbbw4y34kvkukgsa7au6qie37y/
 - **IPFS snapshot (dweb.link)**: https://dweb.link/ipfs/bafybeigo5dip5jl5q6tzyp7xqtnzml25lbbw4y34kvkukgsa7au6qie37y/
@@ -17,9 +18,83 @@ A basic decentralized, local-first, peer-to-peer todo application built with **l
 The custom-domain link tracks the current deployment. The immutable CID links above are a snapshot
 of the deployment published on July 11, 2026.
 
-## 🔑 This Chapter: Per-DID Write Permissions (`acl01`)
+## 🔐 This Chapter: Encrypted Private Lists (`privacy01`)
 
-Built on `passkey01`. Passkey identities become *meaningful*: you can grant
+`acl01` answers _who may write_. It cannot answer _who may read_, and that is not
+an oversight in this app — **OrbitDB has no read permission at all.** Whoever holds
+a database address and reaches a peer that has it reads everything in it, forever.
+The address _is_ the permission.
+
+This chapter fixes that where it can be fixed: in the data. A private list is
+**sealed**, so holding the address buys replication and nothing else.
+
+### What is encrypted, and what is not
+
+|                                                    | Sealed?                                |
+| -------------------------------------------------- | -------------------------------------- |
+| A **private list** you create                      | yes — AES-GCM, a fresh nonce per entry |
+| The **shared mnemonic list** (`luna-camino-verde`) | **no**, deliberately                   |
+| Somebody else's list you open by address           | no — you have no key for it            |
+
+The shared list stays in the clear on purpose. It is `write: ['*']` and several
+browsers collaborate on it; a key that never leaves one browser would break the
+collaboration the earlier chapters teach rather than protect it.
+
+### How a second person gets in
+
+Every identity generates an **ECDH P-256 key pair** on first use and publishes the
+public half in a small, public directory. When you grant a DID write access, the
+app also seals a copy of that list's key to that DID's published key — an
+_envelope_. The wrapped copies replicate in the open, because each one opens only
+for its recipient.
+
+```
+your list key K ──AES-GCM──▶ the todos
+       │
+       └──wrapped to Bob's public key──▶ published; only Bob can open it
+```
+
+Two details that are easy to get wrong and are handled here:
+
+- **The directory verifies who wrote an entry.** Anyone may publish into it, so
+  without that check Eve could put _her_ key under Bob's DID and read everything
+  Alice ever grants him. An entry counts only when the identity that signed it is
+  the DID it claims.
+- **A key that arrives is picked up by reopening the list.** `orbitdb.open`
+  returns a database it already has open and ignores the options, so a list you
+  opened before you were admitted has to be closed first — otherwise the
+  decryptor is passed and silently dropped.
+
+### What this does _not_ do
+
+Stated plainly, because encryption invites more confidence than it earns:
+
+- **No revocation.** A key handed over cannot be taken back. Removing a reader
+  means a new key and re-wrapping for everyone else, and everything written under
+  the old key stays readable to whoever kept it. That is what a shared secret is.
+- **The keys sit in local storage in the clear** — the list keys and the device's
+  private half alike, no better protected than anything else in the browser.
+  Binding them to the passkey is the next step (#277 phase 1.5).
+- **Metadata is not hidden.** Who wrote, how often and when stays visible to
+  anyone replicating the list, including a relay. Only the contents are sealed.
+- **Nothing survives a reload yet.** This chapter runs Helia in memory
+  (`createHeliaLight` with no blockstore), so a list created only in this browser
+  does not come back — which is a property of the chapter, not of the encryption.
+- **A relay cannot replicate a sealed list properly.** That needs a _second_ key,
+  for replication rather than content, and it is the subject of `privacy02`
+  (#277 phase 2.5).
+
+### Try it
+
+1. Create a private list and add a todo.
+2. Open the same address in a second browser with its own passkey — the list
+   replicates and the todo is **not** readable.
+3. Grant that browser's DID write access in the permissions panel.
+4. Open the list by address again in the second browser: the todo is there.
+
+## 🔑 Inherited from `acl01`: Per-DID Write Permissions
+
+Built on `passkey01`. Passkey identities become _meaningful_: you can grant
 specific DIDs write access to a list of yours.
 
 - **Public list stays public.** The mnemonic shared list from `collab01`
@@ -35,7 +110,7 @@ specific DIDs write access to a list of yours.
   `/orbitdb/…` address (the "Open a shared list by address" form). Readers
   can replicate immediately; writing needs a grant.
 - **Denied writes fail loudly.** A write from an unauthorized identity is
-  rejected inside OrbitDB's `canAppend` gate *before* anything is appended,
+  rejected inside OrbitDB's `canAppend` gate _before_ anything is appended,
   so nothing ever looks saved — the UI shows a clear "no write permission,
   ask the owner to add your DID" message instead of crashing.
 
@@ -64,17 +139,17 @@ controller's own store will fail.
 ## 🔐 Passkey Identities (from `passkey01`)
 
 The previous chapter (`collab01`) gave every browser a random throwaway
-OrbitDB identity: entries were attributable to *a* peer, but not to *you*.
+OrbitDB identity: entries were attributable to _a_ peer, but not to _you_.
 This chapter replaces that with an opt-in **passkey-backed identity**:
 
-- **Onboarding choice** before the P2P stack starts: *create a passkey*
-  (one name, and it is only a label), *use an existing passkey* (recovery),
-  or *continue without one* (exactly the previous chapter's behaviour).
+- **Onboarding choice** before the P2P stack starts: _create a passkey_
+  (one name, and it is only a label), _use an existing passkey_ (recovery),
+  or _continue without one_ (exactly the previous chapter's behaviour).
 - **Keystore-based DID provider** from
   [`@le-space/orbitdb-identity-provider-webauthn-did`](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did)
   with `encryptKeystore`: an Ed25519 OrbitDB signing key is encrypted at
   rest and unlocked with **one WebAuthn prompt per session**. (The stricter
-  *varsig* variant — a passkey prompt for every single write — exists in the
+  _varsig_ variant — a passkey prompt for every single write — exists in the
   same package and is a good follow-up exercise, but is not used here.)
 - **Create-or-recover flow** (`src/lib/passkey-identity.js`): identity
   metadata is written to the authenticator's `largeBlob` when supported and
@@ -86,7 +161,7 @@ This chapter replaces that with an opt-in **passkey-backed identity**:
   `entry.identity` — the field OrbitDB signs itself, so it cannot be faked
   by writing a different name into the todo payload.
 - **Access control is unchanged** (`write: ['*']`): this chapter is only
-  about *who you are*, not yet about *who may write*. That is the next
+  about _who you are_, not yet about _who may write_. That is the next
   chapter (`acl01`).
 
 ### The name you type is a label, not your identity
@@ -153,7 +228,7 @@ The mnemonic list above stays public. To exercise access control, create a
 1. In browser A (owner), pick **Create a passkey** during onboarding, then
    click **Create private list**. Add a todo and copy the shown
    `/orbitdb/…` address.
-2. In browser B (guest), create a *different* passkey, paste the address into
+2. In browser B (guest), create a _different_ passkey, paste the address into
    **Open a shared list by address**, and open it. You see the owner's todo,
    but adding one is **denied** with a visible error.
 3. In browser A, copy browser B's **Passkey DID** (its header badge) into the

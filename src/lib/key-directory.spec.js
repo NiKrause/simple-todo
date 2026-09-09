@@ -7,7 +7,9 @@ import { lookupKey, publishOwnKey } from './key-directory.js';
  * is. `writtenBy` is the identity that signed the entry — the thing a forged
  * entry cannot get right.
  */
-function fakeDirectory(entries = []) {
+function fakeDirectory(
+	/** @type {{key: string, value: string, writtenBy: string}[]} */ entries = []
+) {
 	const log = entries.map(({ key, value, writtenBy }) => ({
 		identity: `hash-of-${writtenBy}`,
 		payload: { op: 'PUT', key, value }
@@ -16,7 +18,7 @@ function fakeDirectory(entries = []) {
 	return {
 		puts: /** @type {any[]} */ ([]),
 		log: { values: async () => log },
-		async put(key, value) {
+		async put(/** @type {string} */ key, /** @type {string} */ value) {
 			this.puts.push({ key, value });
 			log.push({ identity: 'hash-of-did:key:me', payload: { op: 'PUT', key, value } });
 		}
