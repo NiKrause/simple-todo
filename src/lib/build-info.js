@@ -29,6 +29,35 @@ function stackVersions() {
 }
 
 /**
+ * @param {string} [iso] the baked ISO timestamp
+ * @param {string | string[]} [locales] defaults to the browser's own
+ * @returns {string}
+ */
+export function formatBuildDate(iso, locales = undefined) {
+	if (typeof iso !== 'string' || iso.length === 0) {
+		return 'dev';
+	}
+
+	const parsed = new Date(iso);
+
+	// Anything unparseable is shown as-is rather than swallowed: a build stamped
+	// by an older toolchain is still more useful on screen than "Invalid Date",
+	// and silently blanking it would hide which build someone is looking at.
+	if (Number.isNaN(parsed.getTime())) {
+		return iso;
+	}
+
+	return parsed.toLocaleString(locales, {
+		year: 'numeric',
+		month: '2-digit',
+		day: '2-digit',
+		hour: '2-digit',
+		minute: '2-digit',
+		second: '2-digit'
+	});
+}
+
+/**
  * The versions line shown in the header and on the consent screen.
  *
  * Every number is preceded by the thing it belongs to. The line this replaces
