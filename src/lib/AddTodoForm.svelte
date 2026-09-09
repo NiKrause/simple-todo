@@ -43,7 +43,7 @@
 			<button
 				on:click={handleSubmit}
 				{disabled}
-				class="rounded-md bg-coral-500 px-6 py-2 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-faint"
+				class="rounded-md bg-coral-700 px-6 py-2 font-medium text-white transition-colors hover:bg-coral-800 disabled:cursor-not-allowed disabled:bg-faint"
 			>
 				{buttonText}
 			</button>

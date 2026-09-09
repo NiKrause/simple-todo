@@ -169,6 +169,14 @@ async function expectWebRTCConnection(page, remotePeerId) {
 
 /** @param {import('@playwright/test').Page} page */
 async function expectNetworkReady(page) {
+	// Once every step is green the dots stop saying anything, so they live in
+	// the network details rather than at the top of the page. Same dots, same
+	// tooltips, one disclosure further in.
+	const networkDetails = page.getByTestId('network-details');
+	if ((await networkDetails.getAttribute('open')) === null) {
+		await networkDetails.getByText('Network details', { exact: true }).click();
+	}
+
 	const steps = page.getByTestId('p2p-status-step');
 	await expect(steps).toHaveCount(8);
 	await expect(page.locator('[data-testid="p2p-status-step"][data-status="complete"]')).toHaveCount(

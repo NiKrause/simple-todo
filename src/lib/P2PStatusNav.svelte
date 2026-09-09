@@ -1,4 +1,5 @@
 <script>
+	import P2PStatusSteps from './P2PStatusSteps.svelte';
 	import { onDestroy } from 'svelte';
 	import { relayHttpStatusStore } from './relay-status.js';
 	import { relayHttpOriginForPeer } from './multiaddr-utils.js';
@@ -262,33 +263,15 @@
 		<span>{statusLabel}</span>
 	</div>
 
-	<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
-		{#each allSteps as step}
-			<div
-				class="flex cursor-help items-center gap-2 text-xs whitespace-nowrap text-faint outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
-				aria-label={`${step.label}: ${step.description}`}
-				data-testid="p2p-status-step"
-				data-status={step.status}
-				role="button"
-				tabindex="0"
-				on:mouseenter={() => (tooltipStep = step)}
-				on:mouseleave={() => (tooltipStep = null)}
-				on:focus={() => (tooltipStep = step)}
-				on:blur={() => (tooltipStep = null)}
-			>
-				<span
-					class:animate-pulse={step.status === 'active'}
-					class:bg-cyan-500={step.status === 'active'}
-					class:bg-identity-500={step.status === 'complete'}
-					class:bg-danger-500={step.status === 'error'}
-					class:bg-surface-2={step.status === 'pending'}
-					class="h-2 w-2 rounded-full shadow-sm"
-					aria-hidden="true"
-				></span>
-				<span class:text-text={step.status === 'active'}>{step.label}</span>
-			</div>
-		{/each}
-	</div>
+	<!--
+		While the stack is coming up these eight say what the wait is. Once every
+		one of them is green they say nothing, and they were the first block on
+		the page after the header. So they move into the details that were
+		already there — same dots, same tooltips, one fewer thing to read.
+	-->
+	{#if !allComplete}
+		<P2PStatusSteps steps={allSteps} bind:active={tooltipStep} />
+	{/if}
 
 	{#if tooltipStep}
 		<div
@@ -328,6 +311,11 @@
 					>
 				{/if}
 			</summary>
+			{#if allComplete}
+				<div class="mt-3 border-t border-border pt-3" data-testid="p2p-status-steps">
+					<P2PStatusSteps steps={allSteps} bind:active={tooltipStep} />
+				</div>
+			{/if}
 			<div class="mt-3 grid min-w-0 gap-3 border-t border-border pt-3 lg:grid-cols-3 [&>*]:min-w-0">
 				<slot />
 			</div>

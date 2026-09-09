@@ -401,18 +401,22 @@
 		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
 	{/if}
 
+	<!--
+		Writing a todo is what somebody opens this for, and it used to be the
+		fourth block on the page — behind the connection telemetry, behind
+		creating a private list, behind opening one by address. Those three are
+		the rarer things and they stay, below.
+	-->
+	<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
+
+	<TodoList todos={$todosStore} on:delete={handleDelete} on:toggleComplete={handleToggleComplete} />
+
 	{#if $initializationStore.isInitialized}
 		<NewPrivateListButton />
 		<ListSwitcher />
 		<OpenDatabaseForm />
 		<PermissionsPanel />
 	{/if}
-
-	<!-- Add TODO Form -->
-	<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
-
-	<!-- TODO List -->
-	<TodoList todos={$todosStore} on:delete={handleDelete} on:toggleComplete={handleToggleComplete} />
 </main>
 
 <!-- Floating Relay Button FAB -->
