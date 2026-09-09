@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { passConsent } from './consent.mjs';
 import { privateKeyToAccount } from 'viem/accounts';
 import { mkdir } from 'node:fs/promises';
 import {
@@ -222,13 +223,7 @@ relayTest.describe('Relay Button', () => {
 				// Chapter: pass the consent modal by opening the shared list named by
 				// the mnemonic — this gate must clear before the Relay Button appears.
 				await deploymentPage.goto(APP_URL, { waitUntil: 'domcontentloaded' });
-				const consentModal = deploymentPage.locator('div.fixed.inset-0.z-50');
-				await consentModal.waitFor({ state: 'visible', timeout: 15_000 });
-				for (const checkbox of await consentModal.locator('input[type="checkbox"]').all()) {
-					await checkbox.check();
-				}
-				await consentModal.getByTestId('shared-list-mnemonic-input').fill(sharedMnemonic);
-				await consentModal.getByRole('button', { name: 'Open shared list' }).click();
+				await passConsent(deploymentPage, { mnemonic: sharedMnemonic });
 
 				// Phase 1: Wallet + manifest + provision (deploy → instance → bootstrap).
 				const relay = await relayLifecycle.provision(deploymentPage, {

@@ -1,0 +1,30 @@
+{
+	"app": {
+		"title": "Simple-Todo"
+	},
+	"language": {
+		"de": "Deutsch",
+		"en": "English"
+	},
+	"consent": {
+		"warningHeading": "Noch früh",
+		"warningBody": "Dies ist eine lauffähige Demonstration, kein fertiges Produkt. Es tut, was es sagt, und das Format kann sich noch ändern - bewahren Sie alles, um das es Ihnen leidtäte, also auch woanders auf.",
+		"accept": "Ich habe das gelesen und bin einverstanden",
+		"proceed": "Geteilte Liste öffnen",
+		"proceedDisabled": "Drei spanische Wörter eingeben, um fortzufahren",
+		"remember": "Auf diesem Gerät nicht mehr anzeigen",
+		"technical": "Technisch",
+		"simple": "Einfach",
+		"clause": {
+			"noServer": "Wir betreiben keinen Server, und nirgends bei uns liegt eine Kopie Ihrer Liste.",
+			"gateway": "Die App selbst kommt über ein öffentliches IPFS-Gateway, das sieht, dass Sie sie geladen haben. Mit einem eigenen Kubo-Knoten oder der IPFS-Companion-Erweiterung holen Sie sie stattdessen direkt aus dem Netz.",
+			"relay": "Relay-Knoten machen Geräte miteinander bekannt und behalten unter Umständen eine Kopie der Liste, damit ein anderes Gerät sie später abholen kann.",
+			"sharedList": "Die Liste hinter den drei spanischen Wörtern ist offen: Wer die Wörter hat, kann sie lesen und beschreiben. Die Wörter sind ein Weg, sich zu treffen - kein Passwort.",
+			"readingIsOpen": "Ein Passkey sagt, wer etwas geschrieben hat. Er macht es nicht privat - hier ist nichts verschlüsselt, und wer die drei Wörter hat, liest alles, auch der Relay, der die Liste aufbewahrt.",
+			"identityPasskey": "Ihr Passkey weist Sie gegenüber den anderen Geräten aus und bleibt auf diesem Gerät. Niemand sonst kann in Ihrem Namen schreiben, und wir bekommen ihn nie zu sehen.",
+			"identityAnonymous": "Sie verwenden eine zufällige Identität, die es nur in diesem Browser gibt. Schließen Sie ihn, ist sie weg, und nichts verbindet einen Besuch mit dem nächsten.",
+			"reload": "Auf diesem Gerät wird noch nichts gespeichert: Beim Neuladen fängt dieser Browser von vorn an.",
+			"cookies": "Es werden keine Tracking-Cookies verwendet. Wenn Sie \"nicht mehr anzeigen\" ankreuzen, ist diese Entscheidung das Einzige, was auf diesem Gerät gespeichert wird."
+		}
+	}
+}

@@ -257,12 +257,9 @@
 {#if showModal}
 	<ConsentModal
 		bind:show={showModal}
-		title="Simple-Todo"
 		bind:rememberDecision
-		rememberLabel="Don't show this again on this device"
-		proceedButtonText="Open shared list"
-		disabledButtonText="Please check all boxes to continue"
 		canProceed={mnemonicValid}
+		identity={identityMode}
 		on:proceed={handleModalClose}
 	>
 		<svelte:fragment slot="before-confirmation">

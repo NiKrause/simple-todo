@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { acceptNotice, consentModal, waitForConsent } from './consent.mjs';
 
 // Chapter (passkey01): Alice and Bob each register a WebAuthn passkey in
 // their own browser context (CDP virtual authenticator), write todos into
@@ -94,35 +95,38 @@ async function addVirtualAuthenticator(page) {
  */
 async function openReadyAppWithNewPasskey(page, { label }) {
 	await page.goto(testUrl);
-	const modal = await fillConsentModal(page);
+	await fillConsentModal(page);
 
 	await page.getByTestId('identity-mode-create').check();
 	await page.getByTestId('passkey-label').fill(label);
 
-	await page.getByRole('button', { name: 'Open shared list' }).click();
-	await expect(modal).not.toBeVisible({ timeout: collaborationTimeout });
+	await page.getByTestId('consent-proceed').click();
+	await page.waitForFunction(
+		() => document.querySelector('[data-testid="consent-modal"]')?.isOpen !== true
+	);
 	await expectAppReady(page);
 }
 
 /** @param {import('@playwright/test').Page} page */
 async function proceedWithExistingPasskey(page) {
-	const modal = await fillConsentModal(page);
+	await fillConsentModal(page);
 	// A remembered passkey session preselects "Use an existing passkey".
 	await expect(page.getByTestId('identity-mode-existing')).toBeChecked();
-	await page.getByRole('button', { name: 'Open shared list' }).click();
-	await expect(modal).not.toBeVisible({ timeout: collaborationTimeout });
+	await page.getByTestId('consent-proceed').click();
+	await page.waitForFunction(
+		() => document.querySelector('[data-testid="consent-modal"]')?.isOpen !== true
+	);
 	await expectAppReady(page);
 }
 
 /** @param {import('@playwright/test').Page} page */
 async function fillConsentModal(page) {
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
-	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-		await checkbox.check();
-	}
-	await modal.getByTestId('shared-list-mnemonic-input').fill(sharedMnemonic);
-	return modal;
+	await waitForConsent(page);
+	await consentModal(page).getByTestId('shared-list-mnemonic-input').fill(sharedMnemonic);
+	// Ticked here rather than at the click, so this helper still hands back a
+	// dialog its callers can leave whenever they choose to.
+	await acceptNotice(page);
+	return consentModal(page);
 }
 
 /** @param {import('@playwright/test').Page} page */
@@ -160,9 +164,7 @@ async function addTodo(page, text) {
  * @param {string} expectedDid
  */
 async function expectTodoWithAuthor(page, text, expectedDid) {
-	const row = page
-		.locator('div.flex-1')
-		.filter({ has: page.getByText(text, { exact: true }) });
+	const row = page.locator('div.flex-1').filter({ has: page.getByText(text, { exact: true }) });
 	await expect(row.getByTestId('todo-author')).toHaveAttribute('data-author', expectedDid, {
 		timeout: collaborationTimeout
 	});

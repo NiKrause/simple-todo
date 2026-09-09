@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { acceptNotice, consentModal, waitForConsent } from './consent.mjs';
 
 const testUrl = '/';
 const timeout = 90000;
@@ -51,9 +52,9 @@ test.describe('Spanish mnemonic shared todo lists', () => {
 			for (const details of [aliceDetails, bobDetails, isolatedDetails]) {
 				await expect(details).not.toHaveAttribute('open', '');
 				await expect(details).toBeVisible();
-				await expect(details.locator('xpath=ancestor::nav[@data-testid="p2p-status-nav"]')).toHaveCount(
-					1
-				);
+				await expect(
+					details.locator('xpath=ancestor::nav[@data-testid="p2p-status-nav"]')
+				).toHaveCount(1);
 			}
 			await expect(alice.getByTestId('network-details')).not.toHaveAttribute('open', '');
 			await aliceDetails.getByText('Shared list', { exact: true }).click();
@@ -88,19 +89,20 @@ test.describe('Spanish mnemonic shared todo lists', () => {
 /** @param {import('@playwright/test').Page} page */
 async function openSelection(page) {
 	await page.goto(testUrl);
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
-	await expect(modal.getByTestId('shared-list-mnemonic-input')).toHaveValue(/.+-.+-.+/);
-	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-		await checkbox.check();
-	}
-	return modal;
+	await waitForConsent(page);
+	await expect(consentModal(page).getByTestId('shared-list-mnemonic-input')).toHaveValue(
+		/.+-.+-.+/
+	);
+	await acceptNotice(page);
+	return consentModal(page);
 }
 
 /** @param {import('@playwright/test').Page} page */
 async function openSelectedList(page) {
-	await page.getByRole('button', { name: 'Open shared list' }).click();
-	await expect(page.locator('div.fixed.inset-0.z-50')).not.toBeVisible();
+	await page.getByTestId('consent-proceed').click();
+	await page.waitForFunction(
+		() => document.querySelector('[data-testid="consent-modal"]')?.isOpen !== true
+	);
 	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
 }
 
