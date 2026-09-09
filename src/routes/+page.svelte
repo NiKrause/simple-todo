@@ -1,5 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
+	import { _ } from '$lib/i18n/index.js';
 	import { peerIdStore, initializationStore, ownDidStore } from '$lib/p2p-stores.js';
 	import PasskeyOnboarding from '$lib/PasskeyOnboarding.svelte';
 	import DidBadge from '$lib/DidBadge.svelte';
@@ -58,6 +59,8 @@
 	/** @type {string | null} */
 	let error = null;
 	/** @type {string | null} */
+	let notice = null;
+	/** @type {string | null} */
 	let myPeerId = null;
 	let selectedMnemonic = '';
 	let activeMnemonic = '';
@@ -67,7 +70,47 @@
 	let showModal = true;
 	let rememberDecision = false;
 
+	/**
+	 * A choice the person made that cannot be carried out — no passkey behind
+	 * "use an existing one", an unnamed new one. Separated from a genuine
+	 * startup failure because the two need different words: this one is
+	 * answered by choosing differently, and prefixing it with "P2P" only hides
+	 * that.
+	 */
+	class IdentityChoiceError extends Error {}
+
+	/**
+	 * The passkey binds the identity only as far as the authenticator lets it.
+	 *
+	 * `ensureDerivedSigningKey` derives the OrbitDB signing key from the
+	 * credential's PRF output, which is what makes the same passkey produce the
+	 * same identity document everywhere. Without PRF it is never fatal: the
+	 * keystore generates its own key, the DID stays the same, and the public
+	 * key differs per device — two identity documents under one DID. The
+	 * provider tests that fallback as intended behaviour and logs one debug
+	 * line, so nothing reaches the person it affects. This does.
+	 *
+	 * Once per credential: it describes the authenticator, and the answer will
+	 * not change on the next start.
+	 *
+	 * @param {any} credential
+	 */
+	function warnIfIdentityCannotTravel(credential) {
+		if (!credential || credential.extensionSupport?.prf !== false) return;
+		const seen = `simpleTodo.prfWarned.${credential.credentialId ?? 'unknown'}`;
+		try {
+			if (localStorage.getItem(seen) === 'true') return;
+			localStorage.setItem(seen, 'true');
+		} catch {
+			// No storage: warn every time rather than not at all.
+		}
+		showToast($_('consent.prfMissing'), 'warning', 12_000);
+	}
+
 	const handleModalClose = async () => {
+		// The dialog shows this now, so a stale one would accuse the attempt that
+		// is only just starting.
+		error = null;
 		const canonicalMnemonic = normalizeSpanishMnemonic(selectedMnemonic);
 		selectedMnemonic = canonicalMnemonic;
 		try {
@@ -84,7 +127,7 @@
 			let passkeyCredential = null;
 			if (identityMode === 'create') {
 				if (!passkeyLabel.trim()) {
-					throw new Error('Please enter a name for the new passkey.');
+					throw new IdentityChoiceError($_('consent.errorNeedsLabel'));
 				}
 				// The same label goes into both WebAuthn fields on purpose: they are
 				// the account name and the display name of one credential, and the
@@ -96,9 +139,7 @@
 			} else if (identityMode === 'existing') {
 				passkeyCredential = await recoverPasskeyCredential();
 				if (!passkeyCredential) {
-					throw new Error(
-						'No passkey found for this origin. Create a new one or continue without a passkey.'
-					);
+					throw new IdentityChoiceError($_('consent.errorNoPasskey'));
 				}
 			}
 			try {
@@ -113,9 +154,14 @@
 				await startP2P({ todoDbName: canonicalMnemonic, passkeyCredential });
 			}
 			activeMnemonic = canonicalMnemonic;
+			warnIfIdentityCannotTravel(passkeyCredential);
 		} catch (err) {
 			showModal = true;
-			error = `Failed to initialize P2P: ${err instanceof Error ? err.message : String(err)}`;
+			const reason = err instanceof Error ? err.message : String(err);
+			error =
+				err instanceof IdentityChoiceError
+					? reason
+					: $_('consent.errorStart', { values: { reason } });
 			console.error('P2P initialization failed:', err);
 		}
 	};
@@ -152,7 +198,10 @@
 			if (rememberedIdentityMode === 'passkey') {
 				// A WebAuthn prompt needs a user gesture, so a remembered passkey
 				// session cannot auto-start: preselect recovery and show the modal.
+				// Say so — an unexplained dialog on every start reads as the same
+				// failure as a dialog that came back because something broke.
 				identityMode = 'existing';
+				notice = $_('consent.existingNeedsTap');
 			} else if (localStorage.getItem(CONSENT_KEY) === 'true') {
 				showModal = false;
 				activeMnemonic = normalizeSpanishMnemonic(selectedMnemonic);
@@ -183,12 +232,30 @@
 	 * @param {string} message
 	 * @param {ToastType} [type='default']
 	 */
-	function showToast(message, type = 'default') {
+	/** @type {ReturnType<typeof setTimeout> | null} */
+	let toastTimer = null;
+	let toastDuration = 3000;
+
+	/**
+	 * Three seconds fits "Todo added". It does not fit two sentences about what
+	 * an authenticator cannot do, so the duration is the caller's to say.
+	 *
+	 * @param {string} message
+	 * @param {ToastType} [type]
+	 * @param {number} [duration] milliseconds on screen
+	 */
+	function showToast(message, type = 'default', duration = 3000) {
 		toastMessage = message;
 		toastType = type;
-		setTimeout(() => {
+		// The component auto-hides on its own timer, so it has to hear the same
+		// number — otherwise it disappears after its default three seconds while
+		// this one is still counting.
+		toastDuration = duration;
+		if (toastTimer) clearTimeout(toastTimer);
+		toastTimer = setTimeout(() => {
 			toastMessage = null;
-		}, 3000);
+			toastTimer = null;
+		}, duration);
 	}
 
 	/**
@@ -247,7 +314,7 @@
 	let connectedPeersRef;
 </script>
 
-<ToastNotification message={toastMessage} type={toastType} />
+<ToastNotification message={toastMessage} type={toastType} duration={toastDuration} />
 
 <svelte:head>
 	<title>Simple-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title>
@@ -265,6 +332,8 @@
 		bind:rememberDecision
 		canProceed={mnemonicValid}
 		identity={identityMode}
+		{error}
+		{notice}
 		on:proceed={handleModalClose}
 	>
 		<svelte:fragment slot="before-confirmation">
@@ -281,14 +350,12 @@
 			<LeSpaceLogo size={52} />
 			<div>
 				<h1 class="text-2xl font-bold text-heading sm:text-3xl">Simple-Todo</h1>
-				<p class="mt-1 text-sm text-faint">
-					A local-first peer-to-peer PWA · {formatVersions({
-						appName: 'Simple-Todo'
-					})} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{typeof __BUILD_DATE__ !==
-					'undefined'
-						? __BUILD_DATE__
-						: 'dev'}]
-				</p>
+				<!--
+					Four lines of stack versions and a build timestamp were what the
+					header said about this app. They moved into the network details,
+					where somebody who needs them already goes.
+				-->
+				<p class="mt-1 text-sm text-faint">A local-first peer-to-peer PWA</p>
 			</div>
 		</div>
 		<div class="flex flex-shrink-0 items-center gap-2 self-start sm:self-auto">
@@ -308,6 +375,11 @@
 		<div class="max-w-full min-w-0 space-y-3 overflow-hidden">
 			<PeerIdCard compact peerId={myPeerId} />
 			<OwnMultiaddrs libp2p={$libp2pStore} />
+			<p class="text-xs break-words text-faint" data-testid="build-info">
+				{formatVersions({ appName: 'Simple-Todo' })} · {typeof __APP_BRANCH__ !== 'undefined'
+					? __APP_BRANCH__
+					: 'local'} [{typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]
+			</p>
 		</div>
 		<svelte:fragment slot="shared-list">
 			{#if $initializationStore.isInitialized && activeMnemonic}
@@ -325,9 +397,19 @@
 		</svelte:fragment>
 	</P2PStatusNav>
 
-	{#if error || $initializationStore.error}
+	{#if !showModal && (error || $initializationStore.error)}
 		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
 	{/if}
+
+	<!--
+		Writing a todo is what somebody opens this for, and it used to be the
+		fourth block on the page — behind the connection telemetry, behind
+		creating a private list, behind opening one by address. Those three are
+		the rarer things and they stay, below.
+	-->
+	<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
+
+	<TodoList todos={$todosStore} on:delete={handleDelete} on:toggleComplete={handleToggleComplete} />
 
 	{#if $initializationStore.isInitialized}
 		<NewPrivateListButton />
@@ -335,12 +417,6 @@
 		<OpenDatabaseForm />
 		<PermissionsPanel />
 	{/if}
-
-	<!-- Add TODO Form -->
-	<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
-
-	<!-- TODO List -->
-	<TodoList todos={$todosStore} on:delete={handleDelete} on:toggleComplete={handleToggleComplete} />
 </main>
 
 <!-- Floating Relay Button FAB -->
