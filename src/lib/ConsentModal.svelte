@@ -1,7 +1,7 @@
 <script>
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { get } from 'svelte/store';
-	import { _ } from '$lib/i18n/index.js';
+	import { _, json } from '$lib/i18n/index.js';
 	import LanguageSwitcher from './LanguageSwitcher.svelte';
 	import { formatBuildDate, formatVersions } from './build-info.js';
 
@@ -74,10 +74,30 @@
 			get(_)('consent.clause.cookies')
 		].filter(Boolean);
 
+	/*
+		The element carries 30-odd strings and we used to hand it three, so the
+		other 30 stayed on its English defaults: "I have read this and accept it"
+		sat one line above "Auf diesem Gerät nicht mehr anzeigen".
+
+		`consent.element` mirrors the element's own keys, which means an element
+		release that adds one leaves a hole here — `consent-screen.spec.js`
+		compares the two sets in the browser so the hole is a failing test rather
+		than a sentence in the wrong language.
+
+		`technical` is deliberately absent: the element's own bullets are about
+		networks, and this chapter replaces them with its own.
+	*/
 	$: strings = {
+		...$json('consent.element'),
 		title: $_('app.title'),
 		close: $_('consent.proceed'),
-		dontShow: $_('consent.remember')
+		dontShow: $_('consent.remember'),
+		// Two of the element's strings are functions of a count, so they cannot
+		// travel in the plain map above.
+		relayReachable: (/** @type {number} */ count) =>
+			$_('consent.relayReachable', { values: { count } }),
+		relayDiscovered: (/** @type {number} */ count) =>
+			$_('consent.relayDiscovered', { values: { count } })
 	};
 
 	$: if (ready) introEl.strings = strings;

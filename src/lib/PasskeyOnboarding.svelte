@@ -24,14 +24,14 @@
 	$: options = [
 		{
 			value: 'create',
-			label: 'Create a passkey',
+			label: $_('consent.identityCreate'),
 			hint: hasStoredPasskey
-				? 'Register another WebAuthn passkey — a second identity alongside the one already on this device.'
-				: 'Register a new WebAuthn passkey and derive your OrbitDB identity (DID) from it.'
+				? $_('consent.identityCreateHintAnother')
+				: $_('consent.identityCreateHint')
 		},
 		{
 			value: 'existing',
-			label: 'Use an existing passkey',
+			label: $_('consent.identityExisting'),
 			// The second half used to promise recovery "from a passkey created
 			// earlier on this origin", which is more than this can do:
 			// `recoverPasskeyCredential()` reads the authenticator's largeBlob
@@ -46,14 +46,14 @@
 		},
 		{
 			value: 'anonymous',
-			label: 'Continue without a passkey',
-			hint: 'Use a random per-browser identity, exactly like the previous chapter.'
+			label: $_('consent.identityAnonymous'),
+			hint: $_('consent.identityAnonymousHint')
 		}
 	];
 </script>
 
 <fieldset class="mb-4 rounded-lg border border-gray-200 p-3" data-testid="passkey-onboarding">
-	<legend class="px-1 text-sm font-semibold">Your identity</legend>
+	<legend class="px-1 text-sm font-semibold">{$_('consent.identityLegend')}</legend>
 	<div class="space-y-2">
 		{#each options as option (option.value)}
 			<label class="flex cursor-pointer items-start gap-2 text-sm">
@@ -78,7 +78,7 @@
 			<input
 				type="text"
 				bind:value={label}
-				placeholder="name for this passkey (e.g. Alice)"
+				placeholder={$_('consent.identityLabelPlaceholder')}
 				data-testid="passkey-label"
 				class="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
 			/>

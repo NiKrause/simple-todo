@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { test, expect } from '@playwright/test';
 import {
 	acceptNotice,
@@ -20,6 +23,11 @@ const clauses = (page) =>
 			(item) => item.textContent?.trim() ?? ''
 		)
 	);
+
+/** The English catalogue, which mirrors the element's own defaults. */
+const en = JSON.parse(
+	readFileSync(fileURLToPath(new URL('../src/lib/i18n/en.json', import.meta.url)), 'utf8')
+);
 
 test.describe('Consent screen', () => {
 	test('will not let you out until the statement is accepted', async ({ page }) => {
@@ -82,6 +90,50 @@ test.describe('Consent screen', () => {
 			return el === hit || el.contains(hit);
 		});
 		expect(onTop).toBe(true);
+	});
+
+	test('hands the element every string it has, in the language on screen', async ({ browser }) => {
+		// The app used to pass three of the element's thirty-four strings, so the
+		// rest stayed on its English defaults and the dialog mixed languages in
+		// adjacent lines. Two failures are possible and both are silent, so both
+		// are asserted: a key the element grew that this app does not translate,
+		// and a key whose German is missing — `svelte-i18n` then falls back to
+		// English, which looks like a decision rather than a hole.
+		const context = await browser.newContext({ locale: 'de-DE' });
+		const page = await context.newPage();
+		await page.goto('/');
+		await waitForConsent(page);
+
+		const keys = await page.evaluate(
+			() => Object.keys(document.querySelector('[data-testid="consent-modal"]').strings)
+		);
+
+		const supplied = new Set([
+			...Object.keys(en.consent.element),
+			// Renamed on the way in, because this app already had names for them.
+			'title',
+			'close',
+			'dontShow',
+			// Functions of a count, so they cannot travel in the plain map.
+			'relayReachable',
+			'relayDiscovered',
+			// The element's own bullets are about networks; this chapter has its
+			// own technical view and does not translate them.
+			'technical'
+		]);
+		expect(keys.filter((key) => !supplied.has(key))).toEqual([]);
+
+		const stillEnglish = await page.evaluate((defaults) => {
+			const host = document.querySelector('[data-testid="consent-modal"]');
+			const shown = `${host.shadowRoot?.textContent ?? ''} ${document.body.textContent ?? ''}`;
+			return Object.entries(defaults)
+				.filter(([, value]) => typeof value === 'string' && value.length > 20)
+				.filter(([, value]) => shown.includes(value))
+				.map(([key]) => key);
+		}, en.consent.element);
+		expect(stillEnglish).toEqual([]);
+
+		await context.close();
 	});
 
 	test('says what this chapter does to your data, in plain words', async ({ page }) => {
