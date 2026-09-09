@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { passConsent } from './consent.mjs';
 
 // Chapter (delegation01): a list stays owner-only, but the owner may hand ONE
 // todo to another DID. That delegate may complete or rename exactly that todo
@@ -407,15 +408,7 @@ async function addVirtualAuthenticator(page) {
  */
 async function openReadyAppWithNewPasskey(page, { label }) {
 	await page.goto(testUrl);
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
-	for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-		await checkbox.check();
-	}
-	await page.getByTestId('identity-mode-create').check();
-	await page.getByTestId('passkey-label').fill(label);
-	await page.getByRole('button', { name: 'Open shared list' }).click();
-	await expect(modal).not.toBeVisible({ timeout });
+	await passConsent(page, { identity: 'create', label });
 	await expect(todoInput(page)).toBeEnabled({ timeout });
 }
 
