@@ -3,6 +3,11 @@ import { OrbitDBAccessController } from '@orbitdb/core';
 import { peerIdStore } from './p2p-stores.js';
 import { rememberList, listRegistryStore, openListRegistry } from './list-registry.js';
 import { relayHttpStatusStore } from './relay-status.js';
+import { openEncrypted } from './encrypted-open.js';
+import { ownDeviceKeys } from './device-keys.js';
+import { openKeyDirectory, publishOwnKey } from './key-directory.js';
+import { keyForRecipient, openSharedKeys, shareKeyWith } from './shared-keys.js';
+import { storedDatabaseKey } from './database-keys.js';
 
 /**
  * @typedef {{
@@ -155,6 +160,95 @@ export async function initializeDatabase(orbitdb, todoDB) {
 	void openListRegistry(orbitdb).catch((error) => {
 		console.warn('List registry unavailable:', error);
 	});
+
+	// The two public databases the envelope needs (#277 phase 2): where readers
+	// publish the key others seal to, and where the sealed copies are kept.
+	// Opened at startup for the same reason the registry is: a granted list
+	// opened on a fresh load has to be able to find its copy, and nothing else
+	// would have opened these by then.
+	void openKeySharing(orbitdb).catch((error) => {
+		console.warn('Key sharing unavailable:', error);
+	});
+}
+
+/** @type {any} */
+let keyDirectory = null;
+/** @type {any} */
+let sharedKeys = null;
+
+/**
+ * Open the directory and the store of wrapped copies, and publish this
+ * identity's encryption key so somebody can seal to it.
+ *
+ * @param {any} orbitdb
+ */
+export async function openKeySharing(orbitdb) {
+	keyDirectory = await openKeyDirectory(orbitdb);
+	sharedKeys = await openSharedKeys(orbitdb);
+	await publishOwnKey(orbitdb, keyDirectory);
+}
+
+/**
+ * The key for a list somebody granted this reader, if a copy was sealed for it.
+ *
+ * @param {string} address
+ * @returns {Promise<Uint8Array | null>}
+ */
+async function findSharedKey(address) {
+	const orbitdb = get(orbitdbStore);
+	if (!sharedKeys || !orbitdb) return null;
+
+	const did = orbitdb.identity.id;
+	const { privateKey } = await ownDeviceKeys(did);
+	return keyForRecipient(sharedKeys, { listAddress: address, did, privateKey });
+}
+
+/**
+ * Let go of a database this browser already has open at that address.
+ *
+ * Only ever called when a key has just arrived for it, which is the one case
+ * where the cached instance is the wrong one to keep.
+ *
+ * @param {string} address
+ */
+async function closeExisting(address) {
+	const open = get(todoDBStore);
+	if (!open || getDatabaseAddress(open) !== address) return;
+
+	try {
+		await /** @type {any} */ (open).close();
+	} catch (error) {
+		console.warn('Could not close the list before reopening it sealed:', error);
+	}
+}
+
+/**
+ * Seal the active list's key for a DID that was just granted write access.
+ *
+ * Granting write access without this leaves somebody able to write to a list
+ * they cannot read — which is what `acl01`'s two grant scenarios measure, and
+ * what phase 1 alone broke.
+ *
+ * @param {string} did
+ * @returns {Promise<{ shared: boolean, reason?: string }>}
+ */
+export async function shareActiveListKeyWith(did) {
+	const orbitdb = get(orbitdbStore);
+	const address = get(todoDBAddressStore);
+	if (!orbitdb || !sharedKeys || !keyDirectory || !address) {
+		return { shared: false, reason: 'not-ready' };
+	}
+
+	const databaseKey = storedDatabaseKey(address);
+	// An unsealed list has no key to share, and that is not a failure: the
+	// default mnemonic list is deliberately in the clear.
+	if (!databaseKey) return { shared: false, reason: 'list-not-sealed' };
+
+	return shareKeyWith(
+		orbitdb,
+		{ directory: keyDirectory, store: sharedKeys },
+		{ listAddress: address, recipientDid: did, databaseKey }
+	);
 }
 
 /**
@@ -180,10 +274,15 @@ export async function loadTodoDatabase(address) {
 	}
 
 	try {
-		const loadedTodoDB = await orbitdb.open(normalizedAddress, {
-			type: 'keyvalue',
-			sync: true
-		});
+		// Sealed only if this device already holds a key for this address, which
+		// is true exactly of a list it created. Somebody else's list opens in the
+		// clear — see `encrypted-open.js`.
+		const loadedTodoDB = await openEncrypted(
+			orbitdb,
+			normalizedAddress,
+			{ type: 'keyvalue', sync: true },
+			{ findSharedKey, closeExisting }
+		);
 
 		// Prefer what the registry already knows: a list you created is yours even
 		// when you reach it through the switcher, and its friendly name is not the
@@ -234,7 +333,13 @@ export async function createPrivateTodoList(name = 'private-todos') {
 
 	const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 	const dbName = `${name.trim() || 'private-todos'}-${suffix}`;
-	const privateDB = await orbitdb.open(dbName, {
+	// Sealed, and only here: the access controller already says who may write,
+	// and Phase 1 of #277 adds that what they write is unreadable to anyone
+	// holding the address without the key. The default mnemonic list is
+	// deliberately not touched — it is `write: ['*']` and shared between
+	// browsers, so a device-local key would break the collaboration the earlier
+	// chapters teach rather than protect it.
+	const privateDB = await openEncrypted(orbitdb, dbName, {
 		type: 'keyvalue',
 		create: true,
 		sync: true,

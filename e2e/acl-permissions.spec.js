@@ -49,18 +49,32 @@ async function runGrantScenario(browser, { ownerName, guestName }) {
 			return getOwnDid(guest);
 		})();
 
-		// 3. Guest sees the owner's todo.
-		await expectTodo(guest, ownerTodo);
+		// 3. The guest does NOT see the owner's todo, and this is where this
+		//    chapter departs from `acl01`. There it read "guest sees the owner's
+		//    todo", because OrbitDB has no read permission: the address is the
+		//    permission. `privacy01` seals a private list (#277), so holding the
+		//    address now buys replication and nothing else — the entries are
+		//    there and unreadable.
+		await expectNoTodo(guest, ownerTodo);
 
 		// 4. Guest write MUST fail; UI shows an error; the list stays unchanged.
 		await addTodoExpectDenied(guest, guestTodo);
 		await expectNoTodo(guest, guestTodo);
 		await expectNoTodo(owner, guestTodo);
 
-		// 5. Owner grants the guest's DID write access.
+		// 5. Owner grants the guest's DID write access — which in this chapter
+		//    also seals a copy of the list's key for that DID, because write
+		//    access to a list nobody can read is not access to anything.
 		await grantWriteAccess(owner, guestDid);
 
-		// 6. Guest retries → success; both see both todos.
+		// 6. The guest opens the list again. The copy is waiting for it now, and
+		//    the open picks it up; the instance already on screen was opened
+		//    before the key existed and has no decryptor attached to it.
+		await openListByAddress(guest, dbAddress);
+
+		// 7. Now the guest reads what was sealed before it was admitted — the
+		//    envelope, end to end — and can write.
+		await expectTodo(guest, ownerTodo);
 		await addTodoOk(guest, guestTodo);
 		for (const page of [owner, guest]) {
 			await expectTodo(page, ownerTodo);
