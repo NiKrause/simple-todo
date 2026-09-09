@@ -79,7 +79,15 @@
 			"relayNone": "Kein Relay hat geantwortet. Einen Code zu scannen geht weiterhin.",
 			"privacyHeading": "Was das für Ihre Daten bedeutet",
 			"privacyEmpty": "Was hier steht, entscheiden die Angaben oben.",
-			"privacyAccept": "Ich habe das gelesen und bin einverstanden"
+			"privacyAccept": "Ich habe das gelesen und bin einverstanden",
+			"technical": [
+				"Identität: Mit Passkey ist Ihr DID der P-256-Schlüssel des Credentials selbst — Multicodec 0x1200 über den unkomprimierten Punkt, base58btc, daher did:key:z4oJ8…. Die did:key-Spezifikation verlangt die komprimierte Form; fremde Resolver lösen diese DIDs deshalb nicht auf. Ohne Passkey gibt es gar keinen DID, nur eine zufällige Kennung für diesen Browser.",
+				"Signieren: OrbitDB signiert Einträge mit einem secp256k1-Schlüssel aus dem Keystore, der nicht zufällig erzeugt, sondern aus dem Passkey abgeleitet wird — HKDF-SHA256 über die WebAuthn-PRF-Ausgabe, domänengetrennt über den DID. Derselbe Passkey ergibt damit auf jedem Gerät dasselbe Identitätsdokument. Ein Authenticator ohne PRF fällt auf einen erzeugten Schlüssel zurück, und diese Identität bleibt auf einem Gerät.",
+				"Der Keystore im Ruhezustand: Der private Schlüssel liegt AES-GCM-256-verschlüsselt; der Schlüssel dafür stammt per HKDF-SHA256 aus derselben PRF-Ausgabe. Entschlüsselt wird einmal pro Sitzung in den Arbeitsspeicher, nachdem der Passkey ihn freigegeben hat. Wo PRF fehlt, dienen largeBlob und hmac-secret als Rückfall.",
+				"Listeninhalte: AES-GCM-256 unter einem 32-Byte-Schlüssel je Liste, mit frischer 12-Byte-Nonce je Eintrag. Verschlüsselt wird nur die Nutzlast — Autor, Signatur und Listenadresse bleiben lesbar. Eingeschränkt ist damit das Lesen, nicht die Replikation.",
+				"Wo die Schlüssel liegen: der Listenschlüssel base64 in diesem Browser unter privacy01.dbKey.<Adresse>, der Geräteschlüssel als ECDH-P-256-JWK unter privacy01.deviceKey.<did>. Wer den Speicher dieses Browsers löscht, verliert beide.",
+				"Einen Schlüssel weitergeben: pro Umschlag ein frisches flüchtiges ECDH-P-256-Paar, HKDF-SHA256 über das gemeinsame Geheimnis (info privacy01/database-key-wrap/1), darum AES-GCM-256 um den Listenschlüssel. Die verpackte Kopie reist durch einen öffentlichen Speicher — ohne den privaten Geräteschlüssel des Empfängers ist sie Rauschen. Die öffentlichen Schlüssel kommen aus einem Verzeichnis, dessen Abfragen die schreibende Identität gegen den behaupteten DID prüfen."
+			]
 		},
 		"relayReachable": "{count} bekannte Relays haben geantwortet. Es wurde kein Verzeichnis abgefragt.",
 		"relayDiscovered": "{count} Relays im Verzeichnis gefunden — die mit dieser App ausgelieferten blieben stumm."

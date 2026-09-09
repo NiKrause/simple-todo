@@ -79,7 +79,15 @@
 			"relayNone": "No relay answered. Scanning a code still works.",
 			"privacyHeading": "What this means for your data",
 			"privacyEmpty": "The choices above decide what goes here.",
-			"privacyAccept": "I have read this and accept it"
+			"privacyAccept": "I have read this and accept it",
+			"technical": [
+				"Identity: with a passkey your DID is the credential’s own P-256 public key — multicodec 0x1200 over the uncompressed point, base58btc, so it reads did:key:z4oJ8…. The did:key spec asks for the compressed form, so foreign resolvers will not resolve these. Without a passkey there is no DID at all, only a random per-browser id.",
+				"Signing: OrbitDB signs entries with a secp256k1 keystore key that is derived from the passkey, not generated at random — HKDF-SHA256 over the WebAuthn PRF output, domain-separated by the DID. The same passkey therefore yields the same identity document on every device. An authenticator without PRF falls back to a generated key, and that identity stays on one device.",
+				"The keystore at rest: the private key is encrypted with AES-GCM-256, the key for it derived by HKDF-SHA256 from the PRF output. It is decrypted into memory once per session, after the passkey unlocks it. largeBlob and hmac-secret are the fallbacks where PRF is missing.",
+				"List contents: AES-GCM-256 under a 32-byte key per list, a fresh 12-byte nonce per entry. It covers the entry payload only — author, signature and the list address stay readable, so replication is not restricted, only reading is.",
+				"Where the keys live: the list key sits base64 in this browser under privacy01.dbKey.<address>, the device key as an ECDH P-256 JWK under privacy01.deviceKey.<did>. Clearing this browser’s storage loses both.",
+				"Handing a key over: a fresh ephemeral ECDH P-256 pair per envelope, HKDF-SHA256 over the shared secret (info privacy01/database-key-wrap/1), AES-GCM-256 around the list key. The wrapped copy travels through a public store — without the recipient’s private device key it is noise. Public keys come from a directory whose lookups verify the writing identity against the DID it claims."
+			]
 		},
 		"relayReachable": "{count} known relays answered. No directory was queried.",
 		"relayDiscovered": "{count} relays found in the directory - the ones shipped with this app stayed silent."

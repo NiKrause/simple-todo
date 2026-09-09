@@ -117,8 +117,6 @@ test.describe('Consent screen', () => {
 			// Functions of a count, so they cannot travel in the plain map.
 			'relayReachable',
 			'relayDiscovered',
-			// The element's own bullets are about networks; this chapter has its
-			// own technical view and does not translate them.
 			'technical'
 		]);
 		expect(keys.filter((key) => !supplied.has(key))).toEqual([]);
@@ -174,6 +172,31 @@ test.describe('Consent screen', () => {
 		expect(await isTechnical()).toBe(false);
 		await page.getByTestId('consent-technical').click();
 		await expect.poll(isTechnical).toBe(true);
+	});
+
+	test('the technical view answers about this chapter, not about NAT', async ({ page }) => {
+		// The switch used to reveal the element's own four bullets — phones
+		// closing invites, Chrome on Android and IPv6, carrier NAT, VPNs. All
+		// true, all about whether two browsers can reach each other, and none of
+		// it what somebody flips this switch to find out here.
+		await page.goto('/');
+		await waitForConsent(page);
+		await page.getByTestId('consent-technical').click();
+
+		const bullets = await page.$eval('[data-testid="consent-modal"]', (el) =>
+			[...(el.shadowRoot?.querySelectorAll('.tech li') ?? [])].map((li) => li.textContent ?? '')
+		);
+		const chapter = bullets.join(' ');
+
+		// The four questions this chapter is actually asked about.
+		expect(chapter).toContain('did:key');
+		expect(chapter).toContain('AES-GCM-256');
+		expect(chapter).toContain('ECDH P-256');
+		expect(chapter).toContain('privacy01.dbKey');
+
+		// And the element's network bullets are gone from it.
+		expect(chapter).not.toContain('carrier NAT');
+		expect(chapter).not.toContain('Chrome on Android');
 	});
 
 	test('speaks German to a German browser', async ({ browser }) => {

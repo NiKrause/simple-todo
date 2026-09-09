@@ -84,8 +84,11 @@
 		compares the two sets in the browser so the hole is a failing test rather
 		than a sentence in the wrong language.
 
-		`technical` is deliberately absent: the element's own bullets are about
-		networks, and this chapter replaces them with its own.
+		`technical` carries this chapter's own bullets, not the element's: its
+		four are about NAT, IPv6 and VPNs, which answer whether two browsers can
+		reach each other — a different question from the one somebody flips this
+		switch to ask here. The element's ICE candidate table stays below them,
+		because that part of the network view is still worth having.
 	*/
 	$: strings = {
 		...$json('consent.element'),
