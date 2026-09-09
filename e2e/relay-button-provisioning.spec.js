@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { consentModal, passConsent } from './consent.mjs';
+import { isConsentOpen, passConsent } from './consent.mjs';
 import { privateKeyToAccount } from 'viem/accounts';
 import { mkdir } from 'node:fs/promises';
 import { PREVIEW_ORIGIN } from './preview-origin.mjs';
@@ -55,10 +55,27 @@ const REPLICATION_TIMEOUT = 3 * 60_000;
  * @param {import('@playwright/test').Page} page
  */
 async function acceptConsent(page) {
-	// The dialog may already have been dismissed on a previous load.
-	const modal = consentModal(page);
-	await modal.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
-	if (!(await modal.isVisible())) return;
+	// Asked of the *element*, not measured — which is the whole point.
+	// `consent.mjs` says why: the host is a custom element whose dialog lives in
+	// the shadow tree and is positioned by the browser, so the host measures
+	// 0x0 whether it is showing or not, and `isVisible()` answers a different
+	// question than the one being asked.
+	//
+	// This bailed out on `isVisible()` before, and that is a race rather than a
+	// constant. Measured against the deployed app:
+	//
+	//   t≈250ms   isVisible=true   isOpen=false   element not yet upgraded
+	//   t≈500ms+  isVisible=false  isOpen=true    upgraded, host is 0x0
+	//
+	// Before the custom element upgrades, its light-DOM children render inline
+	// and the host has a box; afterwards the content moves into the shadow
+	// dialog and the host collapses. So `isVisible()` is true only while the
+	// dialog is *not* open yet, and false once it is — wrong in both directions.
+	// The wait above lands after the upgrade, so this returned early: consent
+	// was never given, the app never initialised, no relay was discovered, and
+	// the spec polled an empty deploy page for 1.3 hours before failing. Seven
+	// runs in a row on `main` since the dialog moved (#298).
+	if (!(await isConsentOpen(page))) return;
 
 	await passConsent(page);
 }
