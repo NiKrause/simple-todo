@@ -56,6 +56,23 @@
 		}
 	}
 
+	/**
+	 * What to say when write access was granted but the key was not handed over.
+	 *
+	 * Write access to a list nobody can read is access to nothing, so each of
+	 * these is a half-finished grant and has to be visible as one.
+	 */
+	/** @type {Record<string, string>} */
+	const GRANT_NOTICE = {
+		'no-published-key':
+			'Granted, but this DID has published no encryption key yet, so it cannot read the list. A device publishes one the first time it opens this chapter, and it has to reach you before you can seal a copy for it — grant again in a moment.',
+		'list-not-sealed':
+			'Granted. This list is not encrypted, so there is no key to hand over — anyone with its address can already read it.',
+		'not-ready':
+			'Granted, but the key could not be handed over yet: this browser is still opening the databases that carry it. Grant again in a moment.',
+		unknown: 'Granted, but the key could not be handed over. Try granting again.'
+	};
+
 	async function grant() {
 		const did = newDid.trim();
 		if (!did) return;
@@ -70,9 +87,19 @@
 			// than swallowed — a DID that has never opened this chapter has no
 			// published key to seal to, and the person granting has to be told.
 			const shared = await shareActiveListKeyWith(did);
-			if (!shared.shared && shared.reason === 'no-published-key') {
-				errorMessage =
-					'Granted, but this DID has published no encryption key yet, so it cannot read the list. It gets one the first time it opens this chapter — grant again after that.';
+			if (!shared.shared) {
+				// Every reason, not just the one I happened to think of first.
+				// Reporting only `no-published-key` left the two other outcomes
+				// silent, and silence here looks exactly like success: the list is
+				// granted, the panel says nothing, and the person who was let in
+				// sees an empty screen with no idea why.
+				//
+				// `no-published-key` is also a race rather than a permanent state.
+				// The directory is a database that has to replicate between the two
+				// browsers, so granting somebody who has just opened the app can
+				// arrive before their key does. Saying "grant again" is the honest
+				// instruction, because that is what fixes it.
+				errorMessage = GRANT_NOTICE[shared.reason ?? 'unknown'] ?? GRANT_NOTICE.unknown;
 			}
 
 			newDid = '';

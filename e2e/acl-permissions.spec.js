@@ -158,11 +158,33 @@ async function openListByAddress(page, address) {
  * @param {string} did
  */
 async function grantWriteAccess(page, did) {
-	await page.getByTestId('permission-did-input').fill(did);
-	await page.getByTestId('permission-add').click();
-	await expect(page.locator(`[data-testid="permission-entry"][data-did="${did}"]`)).toBeVisible({
-		timeout
-	});
+	// Granted once, then again while the app says the key did not go with it.
+	//
+	// This is not a retry papering over flakiness. In this chapter a grant also
+	// seals a copy of the list key for the DID being admitted, and to do that it
+	// has to *find* that DID's published key — which lives in a database that
+	// replicates between the two browsers like any other. Granting somebody who
+	// has just arrived can therefore land before their key does, and the app
+	// says so in as many words rather than pretending the grant was complete.
+	//
+	// So this does what the panel tells a person to do, and it fails for real if
+	// the message never clears: a wait would hide the difference between "the
+	// key arrived late" and "the key never arrives".
+	for (let attempt = 1; attempt <= 5; attempt++) {
+		await page.getByTestId('permission-did-input').fill(did);
+		await page.getByTestId('permission-add').click();
+		await expect(page.locator(`[data-testid="permission-entry"][data-did="${did}"]`)).toBeVisible({
+			timeout
+		});
+
+		const notice = page.getByTestId('permission-error');
+		if ((await notice.count()) === 0) return;
+		if (!/published no encryption key yet/.test((await notice.textContent()) ?? '')) return;
+
+		await page.waitForTimeout(3000);
+	}
+
+	throw new Error(`granting ${did} never handed over the list key`);
 }
 
 /**
