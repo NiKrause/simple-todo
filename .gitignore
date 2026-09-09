@@ -32,3 +32,7 @@ vite.config.ts.timestamp-*
 # Local-only pnpm config. It has no `packages:` field, so committing it makes
 # every CI job fail at `pnpm store path` in setup-node before install runs.
 pnpm-workspace.yaml
+
+# Vitest browser-mode writes these when an assertion fails. Two of them were
+# committed with #315: evidence of a failing run, not something to keep.
+**/__screenshots__/
