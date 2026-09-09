@@ -19,7 +19,11 @@
 		'Todos are local-first in your browser session and synchronize through Helia, OrbitDB, and libp2p.',
 		'The browser connects to relay/bootstrap nodes and other peers for discovery, connectivity, and replication.',
 		'Relay or peer nodes may cache, pin, or replicate demo todo data so collaborators can sync.',
-		'The demo uses a shared, unencrypted OrbitDB database. Do not enter private or sensitive data.',
+		// Two sentences, because this chapter has two kinds of list and saying
+		// only one of them would be false either way. The shared list really is
+		// unencrypted; a private list really is sealed (#277).
+		'The shared list named by the three Spanish words is unencrypted: anyone who knows the words can read and write it.',
+		'A private list you create is encrypted. Its entries are sealed with a key kept in this browser, so holding its address is not enough to read it — but the key is only as protected as anything else in this browser, and a key you hand to somebody cannot be taken back.',
 		'The app may be served through IPFS/IPNS or an HTTP gateway, depending on how you open it.'
 	];
 	/** @type {{
@@ -40,7 +44,7 @@
 		},
 		globalDatabase: {
 			label:
-				'I understand todos are stored in a shared, unencrypted OrbitDB database and should not contain private data.',
+				'I understand the shared list is unencrypted and readable by anyone with its three words, and that a private list is encrypted but its key lives in this browser.',
 			checked: false
 		},
 		replicationTesting: {
@@ -104,8 +108,15 @@
 
 					{#each Object.entries(checkboxes) as [key, item] (key)}
 						<label class="flex cursor-pointer items-start space-x-3">
+							<!--
+								Named, so a spec does not have to find this by reading its
+								label. Three tests broke the moment the wording changed to
+								stop claiming a private list is unencrypted — the sentence is
+								prose that will keep changing, and it is the wrong handle.
+							-->
 							<input
 								type="checkbox"
+								data-testid="consent-{key}"
 								checked={item.checked}
 								on:click={(e) => {
 									const target = e.target;

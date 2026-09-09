@@ -22,12 +22,10 @@ test.describe('Consent Screen', () => {
 			.locator('label')
 			.filter({ hasText: /I understand relay or peer nodes may cache/ })
 			.locator('input[type="checkbox"]');
-		const globalDatabaseCheckbox = page
-			.locator('label')
-			.filter({
-				hasText: /I understand todos are stored in a shared, unencrypted OrbitDB database/
-			})
-			.locator('input[type="checkbox"]');
+		// By name, not by reading its label. The three checkboxes above still
+		// match on prose and are one rewording away from the same break: this one
+		// broke when the wording stopped claiming a private list is unencrypted.
+		const globalDatabaseCheckbox = page.getByTestId('consent-globalDatabase');
 		const replicationTestingCheckbox = page
 			.locator('label')
 			.filter({ hasText: /I understand collaboration requires another browser or device/ })
@@ -97,12 +95,10 @@ test.describe('Consent Screen', () => {
 			.locator('label')
 			.filter({ hasText: /I understand relay or peer nodes may cache/ })
 			.locator('input[type="checkbox"]');
-		const globalDatabaseCheckbox = page
-			.locator('label')
-			.filter({
-				hasText: /I understand todos are stored in a shared, unencrypted OrbitDB database/
-			})
-			.locator('input[type="checkbox"]');
+		// By name, not by reading its label. The three checkboxes above still
+		// match on prose and are one rewording away from the same break: this one
+		// broke when the wording stopped claiming a private list is unencrypted.
+		const globalDatabaseCheckbox = page.getByTestId('consent-globalDatabase');
 		const replicationTestingCheckbox = page
 			.locator('label')
 			.filter({ hasText: /I understand collaboration requires another browser or device/ })
@@ -154,7 +150,11 @@ test.describe('Consent Screen', () => {
 			'Helia, OrbitDB, and libp2p',
 			'connects to relay/bootstrap nodes and other peers',
 			'cache, pin, or replicate demo todo data',
-			'shared, unencrypted OrbitDB database',
+			// Both halves, because this chapter has both kinds of list and a
+			// screen that named only one of them would be false either way.
+			'shared list named by the three Spanish words is unencrypted',
+			'A private list you create is encrypted',
+			'cannot be taken back',
 			'IPFS/IPNS or an HTTP gateway'
 		];
 
