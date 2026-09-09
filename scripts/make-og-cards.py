@@ -27,6 +27,8 @@ CHAPTERS = {
     'collab01': ('collab01', 'One list, shared between two browsers.'),
     'passkey01': ('passkey01', 'A passkey signs everything you write.'),
     'acl01': ('acl01', 'You decide who is allowed to write.'),
+    'privacy01': ('privacy01', 'Sealed on the way in, opened only by you.'),
+    'delegation01': ('delegation01', 'Hand one todo to someone, and take it back.'),
     'qr01': ('qr01', 'Hand a list over with a code. No internet.'),
     'qr02': ('qr02', 'Hand a list over with a code. No internet.'),
 }

@@ -1,6 +1,14 @@
 import { writable, derived, get } from 'svelte/store';
-import { OrbitDBAccessController } from '@orbitdb/core';
 import { peerIdStore } from './p2p-stores.js';
+import { DelegatedListAccessController, supportsDelegation } from './delegated-access.js';
+import {
+	applyDelegationActions,
+	buildDelegationAction,
+	buildDelegationActionKey,
+	isDelegationActionKey,
+	isDelegationActiveFor
+} from './delegation.js';
+import { confirmDelegatedWrite } from './delegated-write-auth.js';
 import { rememberList, listRegistryStore, openListRegistry } from './list-registry.js';
 import { relayHttpStatusStore } from './relay-status.js';
 
@@ -9,6 +17,9 @@ import { relayHttpStatusStore } from './relay-status.js';
  *   text: string
  *   completed: boolean
  *   createdBy: string
+ *   createdByIdentity?: string | null
+ *   delegation?: import('./delegation.js').Delegation | null
+ *   updatedBy?: string
  *   assignee: string | null
  *   createdAt: string
  *   updatedAt: string
@@ -68,6 +79,16 @@ function unwrapTodoValue(record) {
 export const orbitdbStore = writable(/** @type {any} */ (null));
 export const todoDBStore = writable(/** @type {TodoDatabase | null} */ (null));
 export const todoDBAddressStore = writable('');
+
+/**
+ * The OrbitDB identity id this session writes with: the passkey DID, or the
+ * anonymous identity's public key. Ownership of a todo (delegation01) is
+ * decided against this, not against the peer id, which changes on reload.
+ */
+export const ownIdentityIdStore = derived(
+	orbitdbStore,
+	($orbitdb) => $orbitdb?.identity?.id ?? null
+);
 
 /**
  * Which list is currently open, and how the user got to it. Before this the UI
@@ -220,10 +241,14 @@ export async function loadTodoDatabase(address) {
 }
 
 /**
- * Create a NEW private todo list: an OrbitDBAccessController database whose
+ * Create a NEW private todo list: an access-controlled database whose
  * initial write set is only the creator's own identity. Grants/revokes then
  * happen at runtime through the permissions panel without changing the
  * address (acl01). The new list becomes the active list.
+ *
+ * delegation01: the controller is the delegated-todo one, which is the
+ * acl01 controller plus one extra rule — a DID a single todo was delegated
+ * to may complete or rename that todo without being in the write set.
  *
  * @param {string} [name] optional human name; a unique suffix is always added
  * @returns {Promise<{ address: string, name: string }>}
@@ -238,7 +263,7 @@ export async function createPrivateTodoList(name = 'private-todos') {
 		type: 'keyvalue',
 		create: true,
 		sync: true,
-		AccessController: OrbitDBAccessController({ write: [orbitdb.identity.id] })
+		AccessController: DelegatedListAccessController({ write: [orbitdb.identity.id] })
 	});
 
 	const listName = name.trim() || 'private-todos';
@@ -286,13 +311,21 @@ async function loadTodosSnapshot() {
 		const allTodos = await readRecentTodos(todoDB);
 		if (get(todoDBStore) !== todoDB) return;
 
-		const todosArray = allTodos.map((/** @type {TodoRecord} */ todo) => ({
-			id: todo.hash,
-			key: todo.key,
-			...todo.value
-		}));
+		/** @type {TodoItem[]} */
+		const todosArray = [];
+		/** @type {any[]} */
+		const delegationActions = [];
+		for (const record of /** @type {TodoRecord[]} */ (allTodos)) {
+			if (isDelegationActionKey(record.key)) {
+				delegationActions.push(record.value);
+				continue;
+			}
+			todosArray.push({ id: record.hash, key: record.key, ...record.value });
+		}
 
-		todosStore.set(sortTodos(todosArray));
+		// Delegates never touch a todo's own entry; their completions and
+		// renames sit beside it as actions and are folded in here (delegation01).
+		todosStore.set(sortTodos(applyDelegationActions(todosArray, delegationActions)));
 		const pendingEntries = todoEntriesReceivedDuringLoad;
 		todoEntriesReceivedDuringLoad = [];
 		for (const entry of pendingEntries) applyTodoEntry(entry, false);
@@ -387,6 +420,10 @@ async function annotateTodoAuthors() {
 function applyTodoEntry(entry, trackDuringLoad = true) {
 	const { op, key, value } = entry?.payload ?? {};
 	if (!key || (op !== 'PUT' && op !== 'DEL')) return false;
+	// A delegation action changes a *different* key's todo. Rather than merge
+	// one action incrementally, let the caller re-read the log, where all of
+	// them are folded in together and in order.
+	if (isDelegationActionKey(key)) return false;
 	if (trackDuringLoad && pendingTodosLoad) todoEntriesReceivedDuringLoad.push(entry);
 
 	todosStore.update((todos) => {
@@ -396,6 +433,10 @@ function applyTodoEntry(entry, trackDuringLoad = true) {
 		return sortTodos([...withoutPreviousValue, { id: entry.hash, key, ...value }]);
 	});
 	void resolveAuthor(entry?.identity).then((author) => patchTodoAuthor(key, author));
+	// The raw entry just replaced a todo that may have had delegate actions
+	// folded in; a re-read puts the surviving ones back (or drops them, if
+	// this write revoked the delegation).
+	if (value?.delegation) void loadTodos();
 	return true;
 }
 
@@ -430,14 +471,48 @@ function setupDatabaseListeners(todoDB) {
 	});
 }
 
+/**
+ * @typedef {{ delegateDid?: string | null, expiresAt?: string | null }} DelegationRequest
+ */
+
+/**
+ * @param {DelegationRequest | null | undefined} request
+ * @param {string | null} grantedBy
+ * @param {import('./delegation.js').Delegation | null} [previous] kept `grantedAt` when re-delegating to the same DID
+ * @returns {import('./delegation.js').Delegation | null}
+ */
+function buildDelegation(request, grantedBy, previous = null) {
+	const delegateDid = request?.delegateDid?.trim();
+	if (!delegateDid) return null;
+	return {
+		delegateDid,
+		grantedBy,
+		grantedAt:
+			previous?.delegateDid === delegateDid && previous?.grantedAt
+				? previous.grantedAt
+				: new Date().toISOString(),
+		expiresAt: request?.expiresAt || null,
+		revokedAt: null
+	};
+}
+
+/** @param {unknown} error */
+function describeWriteError(error) {
+	const message = error instanceof Error ? error.message : String(error);
+	const denied = /not allowed to write|does not have write access|access denied/i.test(message);
+	return { denied, message };
+}
+
 // Add a new todo
 /**
  * @param {string} text
  * @param {string | null} [assignee=null]
+ * @param {DelegationRequest | null} [delegation=null] delegation01: hand this todo to a DID on creation
  */
-export async function addTodo(text, assignee = null) {
+export async function addTodo(text, assignee = null, delegation = null) {
 	const todoDB = get(todoDBStore);
 	const myPeerId = get(peerIdStore);
+	const myIdentityId = get(ownIdentityIdStore);
 
 	if (!todoDB || !myPeerId) {
 		console.error('❌ Database or peer ID not available');
@@ -449,6 +524,13 @@ export async function addTodo(text, assignee = null) {
 		return { ok: false, error: 'Todo text cannot be empty.' };
 	}
 
+	if (delegation?.delegateDid?.trim() && !supportsDelegation(todoDB)) {
+		return {
+			ok: false,
+			error: 'This list does not support delegation. Create a private list to delegate todos.'
+		};
+	}
+
 	try {
 		const todoId = `todo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 		/** @type {TodoValue} */
@@ -456,6 +538,10 @@ export async function addTodo(text, assignee = null) {
 			text: text.trim(),
 			completed: false,
 			createdBy: myPeerId,
+			// Ownership for delegation is by identity, which survives a reload;
+			// the peer id above does not.
+			createdByIdentity: myIdentityId,
+			delegation: buildDelegation(delegation, myIdentityId),
 			assignee: assignee,
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
@@ -469,8 +555,7 @@ export async function addTodo(text, assignee = null) {
 		// A denied write throws inside OrbitDB's canAppend gate BEFORE anything
 		// is appended locally, so nothing shows up as "saved" — surface why.
 		console.error('❌ Error adding todo:', error);
-		const message = error instanceof Error ? error.message : String(error);
-		const denied = /not allowed to write|does not have write access|access denied/i.test(message);
+		const { denied, message } = describeWriteError(error);
 		return {
 			ok: false,
 			error: denied
@@ -636,58 +721,217 @@ export async function deleteTodo(todoId) {
 	}
 }
 
+/**
+ * Who the caller is to a given todo (delegation01).
+ *
+ * A todo written before this chapter has no `createdByIdentity`; it keeps the
+ * acl01 behaviour, where anyone with write access may change it.
+ *
+ * @param {TodoValue} todoData
+ * @param {string | null} identityId
+ * @returns {'owner' | 'delegate' | 'none'}
+ */
+function roleFor(todoData, identityId) {
+	const owner = todoData.createdByIdentity || null;
+	if (!owner || owner === identityId) return 'owner';
+	if (isDelegationActiveFor(todoData, identityId)) return 'delegate';
+	return 'none';
+}
+
+/**
+ * @param {string} todoKey
+ * @returns {Promise<{ todoDB: TodoDatabase, todoData: TodoValue } | { error: string }>}
+ */
+async function readTodoForWrite(todoKey) {
+	const todoDB = get(todoDBStore);
+	if (!todoDB) return { error: 'Database is not ready yet.' };
+	const existing = await todoDB.get(todoKey);
+	if (!existing) return { error: 'Todo not found.' };
+	return { todoDB, todoData: unwrapTodoValue(existing) };
+}
+
+/**
+ * Write a delegate's change as a delegation action beside the todo. The
+ * todo's own entry is never touched by a delegate — the access controller
+ * would refuse it — and the passkey is asked to confirm first.
+ *
+ * @param {TodoDatabase} todoDB
+ * @param {string} todoKey
+ * @param {TodoValue} todoData
+ * @param {string} delegateDid
+ * @param {{ setCompleted: boolean } | { patch: { text?: string } }} change
+ */
+async function writeDelegationAction(todoDB, todoKey, todoData, delegateDid, change) {
+	const actionName = 'setCompleted' in change ? 'set-completed' : 'patch-fields';
+	if (!(await confirmDelegatedWrite(actionName))) {
+		return { ok: false, error: 'Passkey confirmation was cancelled; nothing was written.' };
+	}
+	const key = buildDelegationActionKey(todoKey, delegateDid);
+	const action = buildDelegationAction(
+		{ taskKey: todoKey, delegateDid, expiresAt: todoData.delegation?.expiresAt ?? null },
+		change
+	);
+	const entryHash = String(await todoDB.put(key, /** @type {any} */ (action)));
+	scheduleRelayReplicationProof(key, entryHash, getDatabaseAddress(todoDB));
+	await loadTodos();
+	console.log(`✅ Delegated ${actionName} written:`, key);
+	return { ok: true };
+}
+
+const NOT_ALLOWED = 'Only the owner of this todo, or the DID it was delegated to, can change it.';
+
 // Toggle todo completion status
 /**
- * @param {string | number} todoId
+ * @param {string} todoKey
+ * @returns {Promise<{ ok: boolean, error?: string }>}
  */
-export async function toggleTodoComplete(todoId) {
-	const todoDB = get(todoDBStore);
-
-	if (!todoDB) {
-		console.error('❌ Database not available');
-		return false;
-	}
-
+export async function toggleTodoComplete(todoKey) {
 	try {
-		console.log('🔍 Attempting to toggle todo with ID:', todoId); // Add this debug log
+		const read = await readTodoForWrite(String(todoKey));
+		if ('error' in read) return { ok: false, error: read.error };
+		const { todoDB, todoData } = read;
+		const myIdentityId = get(ownIdentityIdStore);
+		const role = roleFor(todoData, myIdentityId);
+		if (role === 'none') return { ok: false, error: NOT_ALLOWED };
 
-		// If todoId is numeric (array index), we need to find the actual database key
-		let actualTodoId = todoId;
-		if (typeof todoId === 'number' || !isNaN(parseInt(String(todoId), 10))) {
-			const todo = get(todosStore)[parseInt(String(todoId), 10)];
-			if (todo?.key) {
-				actualTodoId = todo.key;
-			}
+		const nextCompleted = !(todoData.completed || false);
+		if (role === 'delegate' && myIdentityId) {
+			return writeDelegationAction(todoDB, String(todoKey), todoData, myIdentityId, {
+				setCompleted: nextCompleted
+			});
 		}
-
-		const existingTodo = await todoDB.get(String(actualTodoId));
-
-		if (!existingTodo) {
-			console.error('❌ Todo not found:', todoId, 'actual ID:', actualTodoId);
-			return false;
-		}
-
-		// Access the nested value property for the todo data
-		const todoData = unwrapTodoValue(existingTodo);
-		const currentCompleted = todoData.completed || false;
 
 		const updatedTodo = {
 			...todoData,
-			completed: !currentCompleted,
+			completed: nextCompleted,
 			updatedAt: new Date().toISOString()
 		};
-
-		const entryHash = String(await todoDB.put(String(actualTodoId), updatedTodo));
+		const entryHash = String(await todoDB.put(String(todoKey), updatedTodo));
 		todoReplicationStatusStore.update((statuses) => ({
 			...statuses,
-			[String(actualTodoId)]: 'pending'
+			[String(todoKey)]: 'pending'
 		}));
-		void verifyRelayReplication(String(actualTodoId), entryHash, getDatabaseAddress(todoDB));
-		console.log('✅ Todo toggled:', todoId, updatedTodo.completed);
-		return true;
+		void verifyRelayReplication(String(todoKey), entryHash, getDatabaseAddress(todoDB));
+		console.log('✅ Todo toggled:', todoKey, updatedTodo.completed);
+		return { ok: true };
 	} catch (error) {
 		console.error('❌ Error toggling todo:', error);
-		return false;
+		const { denied, message } = describeWriteError(error);
+		return { ok: false, error: denied ? NOT_ALLOWED : `Failed to update todo: ${message}` };
+	}
+}
+
+/**
+ * Rename a todo. Owners rewrite the todo; a delegate writes a `patch-fields`
+ * action, the second of the two things the access controller lets them do.
+ *
+ * @param {string} todoKey
+ * @param {string} text
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+export async function updateTodoText(todoKey, text) {
+	const nextText = text.trim();
+	if (!nextText) return { ok: false, error: 'Todo text cannot be empty.' };
+	try {
+		const read = await readTodoForWrite(todoKey);
+		if ('error' in read) return { ok: false, error: read.error };
+		const { todoDB, todoData } = read;
+		const myIdentityId = get(ownIdentityIdStore);
+		const role = roleFor(todoData, myIdentityId);
+		if (role === 'none') return { ok: false, error: NOT_ALLOWED };
+
+		if (role === 'delegate' && myIdentityId) {
+			return writeDelegationAction(todoDB, todoKey, todoData, myIdentityId, {
+				patch: { text: nextText }
+			});
+		}
+
+		const updatedTodo = { ...todoData, text: nextText, updatedAt: new Date().toISOString() };
+		const entryHash = String(await todoDB.put(todoKey, updatedTodo));
+		scheduleRelayReplicationProof(todoKey, entryHash, getDatabaseAddress(todoDB));
+		return { ok: true };
+	} catch (error) {
+		console.error('❌ Error renaming todo:', error);
+		const { denied, message } = describeWriteError(error);
+		return { ok: false, error: denied ? NOT_ALLOWED : `Failed to rename todo: ${message}` };
+	}
+}
+
+/**
+ * Hand a todo to another DID, or re-delegate it (delegation01). Owner only:
+ * the delegation lives inside the todo's own entry, which only the write set
+ * may rewrite.
+ *
+ * @param {string} todoKey
+ * @param {DelegationRequest} request
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+export async function delegateTodo(todoKey, request) {
+	if (!request?.delegateDid?.trim()) return { ok: false, error: 'Enter the DID to delegate to.' };
+	try {
+		const read = await readTodoForWrite(todoKey);
+		if ('error' in read) return { ok: false, error: read.error };
+		const { todoDB, todoData } = read;
+		if (!supportsDelegation(todoDB)) {
+			return { ok: false, error: 'This list does not support delegation.' };
+		}
+		const myIdentityId = get(ownIdentityIdStore);
+		if (roleFor(todoData, myIdentityId) !== 'owner') {
+			return { ok: false, error: 'Only the owner of a todo can delegate it.' };
+		}
+		if (request.delegateDid.trim() === myIdentityId) {
+			return { ok: false, error: 'You already own this todo; delegate it to someone else.' };
+		}
+		const updatedTodo = {
+			...todoData,
+			delegation: buildDelegation(request, myIdentityId, todoData.delegation ?? null),
+			updatedAt: new Date().toISOString()
+		};
+		const entryHash = String(await todoDB.put(todoKey, updatedTodo));
+		scheduleRelayReplicationProof(todoKey, entryHash, getDatabaseAddress(todoDB));
+		await loadTodos();
+		return { ok: true };
+	} catch (error) {
+		console.error('❌ Error delegating todo:', error);
+		const { message } = describeWriteError(error);
+		return { ok: false, error: `Failed to delegate todo: ${message}` };
+	}
+}
+
+/**
+ * Take a delegation back. The delegate's earlier actions stop applying the
+ * moment this entry replicates — see applyDelegationActions — and any they
+ * write afterwards are ignored on read.
+ *
+ * @param {string} todoKey
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+export async function revokeTodoDelegation(todoKey) {
+	try {
+		const read = await readTodoForWrite(todoKey);
+		if ('error' in read) return { ok: false, error: read.error };
+		const { todoDB, todoData } = read;
+		if (!todoData.delegation?.delegateDid) {
+			return { ok: false, error: 'This todo is not delegated.' };
+		}
+		const myIdentityId = get(ownIdentityIdStore);
+		if (roleFor(todoData, myIdentityId) !== 'owner') {
+			return { ok: false, error: 'Only the owner of a todo can revoke its delegation.' };
+		}
+		const now = new Date().toISOString();
+		const updatedTodo = {
+			...todoData,
+			delegation: { ...todoData.delegation, revokedAt: now, revokedBy: myIdentityId },
+			updatedAt: now
+		};
+		const entryHash = String(await todoDB.put(todoKey, updatedTodo));
+		scheduleRelayReplicationProof(todoKey, entryHash, getDatabaseAddress(todoDB));
+		await loadTodos();
+		return { ok: true };
+	} catch (error) {
+		console.error('❌ Error revoking delegation:', error);
+		const { message } = describeWriteError(error);
+		return { ok: false, error: `Failed to revoke delegation: ${message}` };
 	}
 }
 

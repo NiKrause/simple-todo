@@ -1,16 +1,9 @@
 # What a change to this chapter has to survive before it lands.
 #
-# Until now, nothing did — and here that is literal. `acl01` and `collab01` at
-# least ran their tests *after* a merge, through their deploy workflow. This
-# chapter has no workflow of its own at all: no `deploy-privacy01.yml`, and no
-# other file names this branch. Every pull request into `privacy01` so far ran
-# exactly one check, GitGuardian, a secret scanner. The encryption this chapter
-# is about was merged three times without a single test being executed by
-# anything but a person running them by hand.
-#
-# Ported from the same file on `acl01`, which this chapter is branched from,
-# rather than written again — the difference between the chapters should be
-# what they teach, not how they are tested.
+# Ported from `privacy01`, which this chapter is branched from — the
+# difference between the chapters should be what they teach, not how they
+# are tested. This chapter adds one spec of its own, `delegation.spec.js`,
+# and the unit tests for the delegation rules in `src/lib/delegation.spec.js`.
 name: Tests
 
 permissions:
@@ -18,7 +11,7 @@ permissions:
 
 on:
   pull_request:
-    branches: [privacy01]
+    branches: [delegation01]
   workflow_dispatch:
 
 # A pull request pushed to twice does not need the first run to finish.
@@ -53,19 +46,18 @@ jobs:
       - name: No preview origin is written down by hand
         run: pnpm run check:preview-origin
 
-      # The chapter's own proofs live here: the sealer and the passthrough that
-      # keeps entries written before encryption readable. Seconds, so they go
-      # first.
+      # The chapter's own rules — who may act on a delegated todo, and how
+      # revoke and expiry fold a delegate's actions back out — plus the
+      # privacy01 sealer tests this branch inherits. Seconds, so they go first.
       - name: Unit tests
         run: pnpm run test:unit
 
-      # The four inherited from `acl01`. They matter more here than there:
-      # `private-list-visibility` and `acl-permissions` both exercise a private
-      # list, which is exactly what this chapter is about to seal — so they are
-      # the measurement that says whether switching encryption on breaks the
-      # chapter it is switched on in. Run against this branch they pass, and
-      # against the branch that switches it on two of them do not. That is the
-      # finding this workflow exists to surface.
+      # `delegation.spec.js` is this chapter: three passkey identities, one
+      # delegated todo, and the revoke and expiry paths. The four after it are
+      # inherited from `acl01`/`privacy01`; `acl-permissions` and
+      # `private-list-visibility` matter most, because the delegation
+      # controller now stands in for the built-in one on every private list
+      # and must leave owner-only writes and grants exactly as they were.
       #
       # `passkey-identity.spec.js` is deliberately absent, as on `acl01`: it
       # fails about half the time there regardless of parallelism, and a spec
@@ -73,6 +65,7 @@ jobs:
       - name: Browser specs
         run: >-
           pnpm exec playwright test
+          e2e/delegation.spec.js
           e2e/acl-permissions.spec.js
           e2e/consent-screen.spec.js
           e2e/list-registry.spec.js

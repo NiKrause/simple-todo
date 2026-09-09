@@ -57,6 +57,23 @@ pnpm run test:e2e:local-relay-src
 `E2E_RELAY_HTTP_ORIGIN` is required when a pinning proof calls
 `/pinning/sync` and `/pinning/databases`.
 
+## Per-todo delegation (`delegation01`)
+
+The chapter's rules — who may act on a delegated todo, and how revoke and
+expiry fold a delegate's actions back out — are pure functions in
+`src/lib/delegation.js`, covered by `src/lib/delegation.spec.js`
+(`pnpm run test:unit`, runs in a headless Chromium through vitest).
+
+The browser proof is `e2e/delegation.spec.js`: three passkey identities
+(Alice, Bob, Mallory) in separate contexts with virtual authenticators. It
+checks that only the delegate's row is writable, that a delegated completion
+and rename replicate to the owner, that the passkey prompt happened (the
+`delegated-auth-state` badge), and the revoke and expiry paths.
+
+```bash
+pnpm exec playwright test e2e/delegation.spec.js --project=chromium
+```
+
 ## Debugging
 
 Open Playwright UI mode:

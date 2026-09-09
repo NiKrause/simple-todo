@@ -5,19 +5,118 @@
 
 A basic decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
-> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `passkey01`, `acl01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `acl01` chapter (per-DID write permissions, built on `passkey01`).
+> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `passkey01`, `acl01`, `privacy01`, `delegation01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `delegation01` chapter (per-todo delegation, built on `acl01` via `privacy01`).
 
 ## 🚀 Live Demo
 
-- **This chapter (acl01)**: https://acl01.le-space.de
+- **This chapter (delegation01)**: https://delegation01.le-space.de
+- **Previous chapter (acl01)**: https://acl01.le-space.de
 - **Main app**: https://simple-todo.le-space.de
-- **IPFS snapshot (Aleph gateway)**: https://ipfs.aleph.im/ipfs/bafybeigo5dip5jl5q6tzyp7xqtnzml25lbbw4y34kvkukgsa7au6qie37y/
-- **IPFS snapshot (dweb.link)**: https://dweb.link/ipfs/bafybeigo5dip5jl5q6tzyp7xqtnzml25lbbw4y34kvkukgsa7au6qie37y/
 
-The custom-domain link tracks the current deployment. The immutable CID links above are a snapshot
-of the deployment published on July 11, 2026.
+The custom-domain links track the current deployment of each branch.
 
-## 🔑 This Chapter: Per-DID Write Permissions (`acl01`)
+## 🤝 This Chapter: Per-Todo Delegation (`delegation01`)
+
+Built on `acl01`. A private list is still owner-only — but the owner can now
+hand **one todo** to another DID. That delegate may complete or rename
+exactly that todo, and nothing else, until the owner revokes it or the
+delegation expires. This is the delegation half of
+[de2do](https://github.com/NiKrause/de2do) (the escrow half, where the todo
+is backed by funds in a smart contract, is a later chapter), ported onto the
+`acl01` foundation: sharing is still by address, permissions still live in
+the panel, and the mnemonic list stays public.
+
+- **A delegation is a field on the todo.** The owner writes
+  `delegation: { delegateDid, grantedAt, expiresAt, revokedAt }` into the
+  todo's own entry — on creation, or later from the row's **Delegate**
+  button. Only the owner can, because only the write set may rewrite that
+  entry. **Revoke** sets `revokedAt` the same way.
+- **A delegate never rewrites the todo.** Their change goes in as a separate
+  *delegation action*, keyed `delegation-action/<todoKey>/<delegateDid>/…`,
+  signed by the delegate: either `set-completed` or `patch-fields`
+  (`text`/`description`). Readers fold these into the todo they name
+  (`src/lib/delegation.js`).
+- **The access controller admits exactly those.** Private lists now open on
+  [`@le-space/orbitdb-access-controller-delegated-todo`](https://www.npmjs.com/package/@le-space/orbitdb-access-controller-delegated-todo),
+  the same package de2do and `orbitdb-relay` use. It wraps the `acl01`
+  controller — the write set, grant/revoke and the permissions panel are
+  unchanged — and additionally lets an entry through when it is a
+  well-formed delegation action whose *signer* is the DID in its key.
+  Anything else from a non-writer is refused, as before.
+- **Revoke and expiry are decided on read, not in the controller.** The
+  controller checks the action's shape and signature; it does not look the
+  todo up. Whether the todo *currently* delegates to that signer is decided
+  by the reader: an action is ignored unless the todo's delegation names its
+  signer, is not revoked, and has not expired. So revoking also takes back
+  what the delegate already did, and a revoked delegate's later actions are
+  accepted into the log but change nothing. This is a client-side rule — a
+  peer running different code could keep applying them. Say so in your own
+  app; de2do makes the same trade.
+- **The owner's later write wins.** An action older than the todo's own
+  `updatedAt` is dropped, so an owner can re-open a todo a delegate
+  completed. (de2do re-applied every action forever; this is the one place
+  the port departs from it.)
+- **Every delegated write asks for the passkey again.** The identity's
+  signing key is unlocked once per session; a delegate changing someone
+  else's todo is the one thing this identity may do on a list it does not
+  own, and it should not happen by accident. The header badge shows the
+  prompt happen (`src/lib/delegated-write-auth.js`).
+
+### The controller's type is not part of the address
+
+The delegated controller reports `type: 'todo-delegation'`, but the address
+it writes into the list's manifest is its wrapped base controller's,
+`/orbitdb/<hash>`. OrbitDB picks the controller for a list opened **by
+address** from that prefix — so a guest who opens a shared list by address,
+which is how every list in this tutorial is shared, would get the plain
+`orbitdb` controller, and a delegate's write would be refused on their own
+machine before it was ever signed.
+
+de2do sidesteps this by opening every list **by name** with the controller
+passed explicitly, which works because its names are derivable
+(`<ownerDid>_projects`). Here, lists are shared by address, so this chapter
+takes the other route: the delegated controller is registered **as the
+`orbitdb` type** (`src/lib/delegated-access.js`). Every `/orbitdb/…`
+controller this build opens then checks the delegation rules, and the
+manifest stays one that other builds and the relay can still open.
+
+### ⚠️ What the relay makes of a delegate's entries
+
+`orbitdb-relay` registers `todo-delegation` — but for the reason above it
+never sees that type in a manifest, so it opens these lists with its built-in
+`orbitdb` controller and **rejects delegation actions when it replicates**.
+Alice and Bob exchange them directly (that is what the E2E test proves); the
+relay pins the owner's entries only. If Alice is offline while Bob
+completes, and they only ever meet through the relay, Bob's completion waits
+until they are online together. A relay that accepts these entries needs a
+controller whose *address* carries its type — a change to the controller
+package, and a good follow-up exercise.
+
+### From `privacy01`, switched off
+
+This branch is cut from `privacy01`, so it also carries the per-entry
+sealing machinery from that chapter (`src/lib/db-encryption.js`,
+`entry-encryption.js`, `database-keys.js`, with their unit tests). Nothing
+imports it; lists here are as unencrypted as on `acl01`.
+
+### Alice ↔ Bob ↔ Mallory walkthrough
+
+1. Alice creates a private list, adds a todo and ticks **Delegate this todo
+   to another DID**, pasting Bob's DID (optionally with an expiry). She
+   copies the list's `/orbitdb/…` address.
+2. Bob and Mallory open that address. Both see the todo; both are refused
+   when they try to add one. Bob's row is marked *delegate* and its checkbox
+   is enabled; Mallory's is not.
+3. Bob ticks the todo. His passkey asks for confirmation, the header badge
+   shows *Delegated write signed*, and Alice's row shows *completed* with
+   *Last changed by delegate*. Bob may also **Rename** it. Anything else on
+   the list is still Alice's alone.
+4. Alice clicks **Revoke**. Bob's completion disappears on both sides — the
+   action still sits in the log, but no reader applies it — and his checkbox
+   is disabled again. From the row she can **Re-delegate**, with or without
+   an expiry.
+
+## 🔑 Per-DID Write Permissions (from `acl01`)
 
 Built on `passkey01`. Passkey identities become *meaningful*: you can grant
 specific DIDs write access to a list of yours.
@@ -53,13 +152,12 @@ specific DIDs write access to a list of yours.
 
 The chosen access-controller type must be known to the relay/pinner that
 replicates the list. `orbitdb-relay` registers `orbitdb`,
-`orbitdb-deferred` and `todo-delegation`; this chapter uses the built-in
-`orbitdb` type, so no extra relay configuration is needed. If you switch to
-a custom controller such as
+`orbitdb-deferred` and `todo-delegation`; `acl01` used the built-in
+`orbitdb` type, so no extra relay configuration was needed. `delegation01`
+switches to
 [`@le-space/orbitdb-access-controller-delegated-todo`](https://www.npmjs.com/package/@le-space/orbitdb-access-controller-delegated-todo)
-(a token-delegation controller, a good follow-up exercise), keep its
-version in sync between the app and the relay, or replication of the
-controller's own store will fail.
+— see the chapter section above for what that does and does not change
+about replication through the relay.
 
 ## 🔐 Passkey Identities (from `passkey01`)
 
@@ -145,7 +243,28 @@ This branch extends the basic `main` tutorial with a three-word Spanish shared-l
 5. **Wait for Connection** - The app will automatically discover and connect peers
 6. **Add Todos** - Create todos in one browser and watch them appear in the other
 
-### Try this chapter (per-DID write permissions)
+### Try this chapter (per-todo delegation)
+
+You need three passkeys — three browsers, or three profiles of one:
+
+1. In browser A (Alice), pick **Create a passkey** during onboarding, click
+   **Create private list**, type a todo, tick **Delegate this todo to
+   another DID** and paste browser B's **Passkey DID** (its header badge).
+   Add it, then copy the `/orbitdb/…` address.
+2. In browsers B (Bob) and C (Mallory), each with its own passkey, paste the
+   address into **Open a shared list by address**. Both see the todo and
+   both are refused when adding one. Only B's checkbox is enabled.
+3. In B, tick the todo: the passkey prompt appears, the header shows
+   *Delegated write signed*, and A's row updates. Click **Rename** on the
+   row in B and watch the new name arrive in A and C.
+4. In A, click **Revoke** on the row. The tick disappears in A and B, and
+   B's checkbox is disabled. **Re-delegate** from the row to hand it back,
+   this time with an expiry a minute ahead, and watch it turn *expired*.
+
+`pnpm exec playwright test e2e/delegation.spec.js` runs this with three
+virtual authenticators.
+
+### Try the previous chapter (per-DID write permissions)
 
 The mnemonic list above stays public. To exercise access control, create a
 **private list** and share it by address:

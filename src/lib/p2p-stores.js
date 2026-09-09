@@ -21,6 +21,13 @@ export const peerIdStore = writable(/** @type {string | null} */ (null));
 /** The DID of the passkey-backed identity, or null for the anonymous one. */
 export const ownDidStore = writable(/** @type {string | null} */ (null));
 
+/**
+ * The WebAuthn credential behind `ownDidStore`, or null for the anonymous
+ * identity. Kept here so a delegated write can ask the same passkey to
+ * confirm it (delegation01) without reaching into `p2p.js`.
+ */
+export const passkeyCredentialStore = writable(/** @type {any} */ (null));
+
 /** @typedef {'pending' | 'active' | 'complete' | 'error'} InitializationStepStatus */
 /** @typedef {{ label: string, description: string, status: InitializationStepStatus }} InitializationStep */
 

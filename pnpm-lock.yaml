@@ -37,6 +37,9 @@ importers:
       '@le-space/aleph-bootstrap':
         specifier: 0.7.0
         version: 0.7.0(typescript@5.9.2)
+      '@le-space/orbitdb-access-controller-delegated-todo':
+        specifier: 0.1.0
+        version: 0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.5.1(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)
       '@le-space/orbitdb-identity-provider-webauthn-did':
         specifier: 0.5.1
         version: 0.5.1(@orbitdb/core@4.0.0)

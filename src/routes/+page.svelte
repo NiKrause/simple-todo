@@ -6,12 +6,19 @@
 	import { createPasskeyCredential, recoverPasskeyCredential } from '$lib/passkey-identity.js';
 	import {
 		todosStore,
+		todoDBStore,
 		todoDBAddressStore,
 		activeListStore,
+		ownIdentityIdStore,
 		addTodo,
 		deleteTodo,
-		toggleTodoComplete
+		toggleTodoComplete,
+		updateTodoText,
+		delegateTodo,
+		revokeTodoDelegation
 	} from '$lib/db-actions.js';
+	import { supportsDelegation } from '$lib/delegated-access.js';
+	import DelegatedAuthBadge from '$lib/DelegatedAuthBadge.svelte';
 	import { formatVersions } from '$lib/build-info.js';
 	import ConsentModal from '$lib/ConsentModal.svelte';
 	import SocialIcons from '$lib/SocialIcons.svelte';
@@ -41,8 +48,10 @@
 	import { libp2pStore } from '$lib/p2p-stores.js';
 
 	/** @typedef {'default' | 'success' | 'error' | 'warning'} ToastType */
-	/** @typedef {{ detail: { text: string } }} AddTodoEvent */
+	/** @typedef {{ detail: { text: string, delegateDid?: string | null, delegationExpiresAt?: string | null } }} AddTodoEvent */
 	/** @typedef {{ detail: { key: string } }} TodoActionEvent */
+	/** @typedef {{ detail: { key: string, text: string } }} UpdateTextEvent */
+	/** @typedef {{ detail: { key: string, delegateDid: string, expiresAt: string | null } }} DelegateEvent */
 
 	const CONSENT_KEY = `consentAccepted@${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}`;
 	const IDENTITY_MODE_KEY = 'simpleTodo.identityMode';
@@ -195,9 +204,16 @@
 	 * @param {AddTodoEvent} event
 	 */
 	const handleAddTodo = async (event) => {
-		const result = await addTodo(event.detail.text);
+		const { text, delegateDid, delegationExpiresAt } = event.detail;
+		const result = await addTodo(text, null, {
+			delegateDid: delegateDid ?? null,
+			expiresAt: delegationExpiresAt ?? null
+		});
 		if (result.ok) {
-			showToast('✅ Todo added successfully!', 'success');
+			showToast(
+				delegateDid ? '✅ Todo added and delegated!' : '✅ Todo added successfully!',
+				'success'
+			);
 		} else {
 			showToast(`❌ ${result.error ?? 'Failed to add todo'}`, 'error');
 		}
@@ -219,13 +235,45 @@
 	 * @param {TodoActionEvent} event
 	 */
 	const handleToggleComplete = async (event) => {
-		const success = await toggleTodoComplete(event.detail.key);
-		if (success) {
+		const result = await toggleTodoComplete(event.detail.key);
+		if (result.ok) {
 			showToast('✅ Todo status updated!', 'success');
 		} else {
-			showToast('❌ Failed to update todo', 'error');
+			showToast(`❌ ${result.error ?? 'Failed to update todo'}`, 'error');
 		}
 	};
+
+	/** @param {UpdateTextEvent} event */
+	const handleUpdateText = async (event) => {
+		const result = await updateTodoText(event.detail.key, event.detail.text);
+		showToast(
+			result.ok ? '✅ Todo renamed!' : `❌ ${result.error ?? 'Failed to rename todo'}`,
+			result.ok ? 'success' : 'error'
+		);
+	};
+
+	/** @param {DelegateEvent} event */
+	const handleDelegate = async (event) => {
+		const { key, delegateDid, expiresAt } = event.detail;
+		const result = await delegateTodo(key, { delegateDid, expiresAt });
+		showToast(
+			result.ok ? '🤝 Todo delegated!' : `❌ ${result.error ?? 'Failed to delegate todo'}`,
+			result.ok ? 'success' : 'error'
+		);
+	};
+
+	/** @param {TodoActionEvent} event */
+	const handleRevokeDelegation = async (event) => {
+		const result = await revokeTodoDelegation(event.detail.key);
+		showToast(
+			result.ok ? '↩️ Delegation revoked' : `❌ ${result.error ?? 'Failed to revoke delegation'}`,
+			result.ok ? 'success' : 'error'
+		);
+	};
+
+	// delegation01: the shared mnemonic list (IPFS controller) cannot take
+	// delegations; private lists and lists opened by address can.
+	$: delegationEnabled = supportsDelegation($todoDBStore);
 
 	/**
 	 * @param {{ detail: { status: 'stable' | 'dropped', detail: string, remotePeer: string | null, remoteAddr: string } }} event
@@ -296,6 +344,7 @@
 		</div>
 		<div class="flex flex-shrink-0 items-center gap-2 self-start sm:self-auto">
 			<DidBadge did={$ownDidStore ?? ''} />
+			<DelegatedAuthBadge />
 			<ThemeToggle />
 			<SocialIcons size="w-5 h-5" className="" />
 		</div>
@@ -340,10 +389,23 @@
 	{/if}
 
 	<!-- Add TODO Form -->
-	<AddTodoForm on:add={handleAddTodo} disabled={!$initializationStore.isInitialized} />
+	<AddTodoForm
+		on:add={handleAddTodo}
+		disabled={!$initializationStore.isInitialized}
+		{delegationEnabled}
+	/>
 
 	<!-- TODO List -->
-	<TodoList todos={$todosStore} on:delete={handleDelete} on:toggleComplete={handleToggleComplete} />
+	<TodoList
+		todos={$todosStore}
+		currentIdentityId={$ownIdentityIdStore}
+		{delegationEnabled}
+		on:delete={handleDelete}
+		on:toggleComplete={handleToggleComplete}
+		on:updateText={handleUpdateText}
+		on:delegate={handleDelegate}
+		on:revokeDelegation={handleRevokeDelegation}
+	/>
 </main>
 
 <!-- Floating Relay Button FAB -->

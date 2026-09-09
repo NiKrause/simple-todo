@@ -1,5 +1,11 @@
 import { get } from 'svelte/store';
-import { libp2pStore, peerIdStore, ownDidStore, initializationStore } from './p2p-stores.js';
+import {
+	libp2pStore,
+	peerIdStore,
+	ownDidStore,
+	passkeyCredentialStore,
+	initializationStore
+} from './p2p-stores.js';
 
 import { createLibp2p } from 'libp2p';
 import { createHeliaLight } from 'helia';
@@ -12,6 +18,7 @@ import {
 	useIdentityProvider
 } from '@orbitdb/core';
 import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-identity-provider-webauthn-did';
+import { registerDelegatedAccessController } from './delegated-access.js';
 import * as dagCbor from '@ipld/dag-cbor';
 import * as dagJson from '@ipld/dag-json';
 import * as json from 'multiformats/codecs/json';
@@ -240,6 +247,7 @@ async function stopP2P() {
 	libp2pStore.set(null);
 	peerIdStore.set(null);
 	ownDidStore.set(null);
+	passkeyCredentialStore.set(null);
 	peerId = null;
 	activeTodoDatabaseName = '';
 	stopDiscoveryDialRetryInterval();
@@ -295,6 +303,10 @@ async function openInitialTodoDatabase(address, databaseName) {
  * @param {any} heliaNode
  */
 async function createOrbitDBInstance(heliaNode) {
+	// delegation01: every `/orbitdb/…` controller this app opens checks the
+	// delegation rules — see delegated-access.js for why it is the base type.
+	registerDelegatedAccessController();
+	passkeyCredentialStore.set(activePasskeyCredential);
 	if (!activePasskeyCredential) {
 		ownDidStore.set(null);
 		return createOrbitDB({ ipfs: heliaNode, id: getOrCreateOrbitDBIdentityId() });
