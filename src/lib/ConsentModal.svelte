@@ -1,162 +1,150 @@
 <script>
-	import { createEventDispatcher } from 'svelte';
-	import { formatVersions } from './build-info.js';
+	import { createEventDispatcher, onMount } from 'svelte';
+	import { get } from 'svelte/store';
+	import { _ } from '$lib/i18n/index.js';
+	import LanguageSwitcher from './LanguageSwitcher.svelte';
+	import { formatBuildDate, formatVersions } from './build-info.js';
 
 	const dispatch = createEventDispatcher();
-	// No app name in front of the version here: `title` already renders it
-	// directly above this line. The stack versions follow the app's own, the
-	// same way the page header states them, so the dependencies this screen
-	// asks the reader to consent to are named with the numbers that shipped.
-	const fallbackVersions = formatVersions();
-	const fallbackBuildDate = typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev';
 
 	export let show = true;
-	export let title = 'Simple-Todo';
-	export let version = `${fallbackVersions} [${fallbackBuildDate}]`;
-	export let description = 'Before joining this local-first P2P demo, please note:';
-	export let features = [
-		'No tracking cookies are used. If you choose "remember this device", only that consent choice is saved locally.',
-		'Todos are local-first in your browser session and synchronize through Helia, OrbitDB, and libp2p.',
-		'The browser connects to relay/bootstrap nodes and other peers for discovery, connectivity, and replication.',
-		'Relay or peer nodes may cache, pin, or replicate demo todo data so collaborators can sync.',
-		// Two sentences, because this chapter has two kinds of list and saying
-		// only one of them would be false either way. The shared list really is
-		// unencrypted; a private list really is sealed (#277).
-		'The shared list named by the three Spanish words is unencrypted: anyone who knows the words can read and write it.',
-		'A private list you create is encrypted. Its entries are sealed with a key kept in this browser, so holding its address is not enough to read it — but the key is only as protected as anything else in this browser, and a key you hand to somebody cannot be taken back.',
-		'The app may be served through IPFS/IPNS or an HTTP gateway, depending on how you open it.'
-	];
-	/** @type {{
-	 *   relayConnection: { label: string, checked: boolean },
-	 *   dataVisibility: { label: string, checked: boolean },
-	 *   globalDatabase: { label: string, checked: boolean },
-	 *   replicationTesting: { label: string, checked: boolean }
-	 * }} */
-	export let checkboxes = {
-		relayConnection: {
-			label:
-				'I understand this app uses libp2p peer-to-peer networking and may connect to relay/bootstrap nodes and other peers.',
-			checked: false
-		},
-		dataVisibility: {
-			label: 'I understand relay or peer nodes may cache, pin, or replicate demo todo data.',
-			checked: false
-		},
-		globalDatabase: {
-			label:
-				'I understand the shared list is unencrypted and readable by anyone with its three words, and that a private list is encrypted but its key lives in this browser.',
-			checked: false
-		},
-		replicationTesting: {
-			label:
-				'I understand collaboration requires another browser or device using the same app and database address.',
-			checked: false
-		}
-	};
-	export let confirmationLabel = 'Please confirm:';
-	export let proceedButtonText = 'Start P2P Demo';
-	export let disabledButtonText = 'Please check all boxes to continue';
-	export let canProceed = true;
-
 	export let rememberDecision = false;
-	export let rememberLabel = "Don't show this again on this device";
+	/** Whether the app's own gate is satisfied — here, a valid mnemonic. */
+	export let canProceed = true;
+	/** @type {'anonymous' | 'create' | 'existing'} */
+	export let identity = 'anonymous';
 
-	$: allCheckboxesChecked = Object.values(checkboxes).every((item) => item.checked);
-	$: readyToProceed = allCheckboxesChecked && canProceed;
+	/** @type {any} */
+	let introEl;
+	let ready = false;
+	let technical = false;
+	let accepted = false;
 
-	const handleProceed = () => {
-		if (readyToProceed) {
-			show = false;
-			dispatch('proceed');
-		}
-	};
+	const version = `${formatVersions()} [${formatBuildDate(
+		typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : ''
+	)}]`;
 
 	/**
-	 * @param {'relayConnection' | 'dataVisibility' | 'globalDatabase' | 'replicationTesting'} key
-	 * @param {boolean} checked
+	 * The statement in plain words, assembled from what is actually configured.
+	 *
+	 * This is the "simple" half of the dialog; the element's technical view is
+	 * the other, and it renders itself. Written for somebody who does not work
+	 * in security and still has to decide something: what exists where, who can
+	 * read it, and what cannot be undone. No stack names, no protocol names —
+	 * those are one button away in the technical view for anyone who wants them.
+	 *
+	 * A function rather than a list, because two of these sentences depend on
+	 * the identity chosen three inches above; the element re-reads them whenever
+	 * `choices` changes.
+	 *
+	 * @param {any} state
 	 */
-	const handleCheckboxChange = (key, checked) => {
-		if (checkboxes[key]) {
-			checkboxes[key].checked = checked;
-			checkboxes = { ...checkboxes };
-		}
+	const clauses = (state) =>
+		[
+			get(_)('consent.clause.noServer'),
+			get(_)('consent.clause.gateway'),
+			get(_)('consent.clause.relay'),
+			get(_)('consent.clause.sharedList'),
+			get(_)('consent.clause.privateList'),
+			get(_)('consent.clause.keyStaysHere'),
+			get(_)('consent.clause.keyIsForever'),
+			state.identity === 'anonymous'
+				? get(_)('consent.clause.identityAnonymous')
+				: get(_)('consent.clause.identityPasskey'),
+			get(_)('consent.clause.reload'),
+			get(_)('consent.clause.cookies')
+		].filter(Boolean);
+
+	$: strings = {
+		title: $_('app.title'),
+		close: $_('consent.proceed'),
+		dontShow: $_('consent.remember')
 	};
+
+	$: if (ready) introEl.strings = strings;
+	$: if (ready) introEl.technical = technical;
+	$: if (ready) {
+		introEl.privacy = { accept: true, clauses };
+		watchAcceptance();
+	}
+	$: if (ready) introEl.choices = { identity };
+	$: if (ready && show && !introEl.isOpen) void introEl.open();
+
+	/**
+	 * The element disables its own close control; the proceed button below is
+	 * ours and has to know whether the statement was accepted. Idempotent,
+	 * because the reactive block above runs again on every choice.
+	 */
+	function watchAcceptance() {
+		const box = introEl?.shadowRoot?.querySelector('input[part=accept]');
+		if (!box || box.dataset.watched === 'true') return;
+		box.dataset.watched = 'true';
+		accepted = box.checked === true;
+		box.addEventListener('change', () => (accepted = box.checked === true));
+	}
+
+	onMount(async () => {
+		await import('@le-space/libp2p-webrtc-qr/elements');
+		introEl.strings = strings;
+
+		introEl.addEventListener('close', (/** @type {any} */ event) => {
+			rememberDecision = event.detail?.remember === true;
+			show = false;
+			dispatch('proceed');
+		});
+		ready = true;
+	});
 </script>
 
-{#if show}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-		<div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-surface shadow-xl">
-			<div class="p-6">
-				<h1 class="text-center text-2xl font-bold text-heading">{title}</h1>
-				{#if version}
-					<p class="mt-2 text-center text-sm text-faint">{version}</p>
-				{/if}
-
-				<div class="mb-6 space-y-4">
-					<p class="text-text">{description}</p>
-					<ul class="ml-4 list-inside list-disc space-y-2 text-text">
-						{#each features as feature, index (index)}
-							<li>{feature}</li>
-						{/each}
-					</ul>
-				</div>
-
-				<slot name="before-confirmation" />
-
-				<div class="mb-6 space-y-4">
-					<p class="font-medium text-text">{confirmationLabel}</p>
-
-					{#each Object.entries(checkboxes) as [key, item] (key)}
-						<label class="flex cursor-pointer items-start space-x-3">
-							<!--
-								Named, so a spec does not have to find this by reading its
-								label. Three tests broke the moment the wording changed to
-								stop claiming a private list is unencrypted — the sentence is
-								prose that will keep changing, and it is the wrong handle.
-							-->
-							<input
-								type="checkbox"
-								data-testid="consent-{key}"
-								checked={item.checked}
-								on:click={(e) => {
-									const target = e.target;
-									if (target && target instanceof HTMLInputElement) {
-										handleCheckboxChange(
-											/** @type {'relayConnection' | 'dataVisibility' | 'globalDatabase' | 'replicationTesting'} */ (
-												key
-											),
-											target.checked
-										);
-									}
-								}}
-								class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
-							/>
-							<span class="text-text">{item.label}</span>
-						</label>
-					{/each}
-				</div>
-
-				<div class="mt-6 border-t border-border pt-4">
-					<label class="flex cursor-pointer items-start space-x-3">
-						<input
-							type="checkbox"
-							bind:checked={rememberDecision}
-							class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
-						/>
-						<span class="text-text">{rememberLabel}</span>
-					</label>
-				</div>
-
-				<div class="mt-6 flex justify-center">
-					<button
-						on:click={handleProceed}
-						disabled={!readyToProceed}
-						class="rounded-md bg-coral-500 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-surface-2 disabled:hover:bg-surface-2"
-					>
-						{readyToProceed ? proceedButtonText : disabledButtonText}
-					</button>
-				</div>
-			</div>
-		</div>
+<qr-intro bind:this={introEl} data-testid="consent-modal">
+	<!--
+		The language switch belongs in here rather than in the page header: this
+		dialog is the first thing anybody sees, and sending somebody to the header
+		to change the language of the screen they are currently failing to read
+		would be a poor joke.
+	-->
+	<div slot="header" class="flex shrink-0 items-center gap-2">
+		<LanguageSwitcher />
+		<button
+			type="button"
+			on:click={() => (technical = !technical)}
+			data-testid="consent-technical"
+			class="rounded-md border border-border px-2 py-1 text-xs text-faint hover:text-text"
+		>
+			{technical ? $_('consent.simple') : $_('consent.technical')}
+		</button>
 	</div>
-{/if}
+
+	<p class="text-xs text-faint">{version}</p>
+
+	<div class="my-4 rounded-md border border-border p-3 text-sm" data-testid="consent-warning">
+		<span class="font-medium text-heading">{$_('consent.warningHeading')}</span>
+		<span class="text-text">{$_('consent.warningBody')}</span>
+	</div>
+
+	<!--
+		The chapter's own controls: the shared-list mnemonic and the identity
+		choice. They stay the app's markup in the element's story slot, which is
+		the split the element is built around — it knows about dialogs, not about
+		this app.
+	-->
+	<slot name="before-confirmation" />
+
+	<button
+		slot="footer"
+		type="button"
+		disabled={!accepted || !canProceed}
+		on:click={() => introEl.close()}
+		data-testid="consent-proceed"
+		class="rounded-md bg-coral-500 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:opacity-50"
+	>
+		{accepted && canProceed ? $_('consent.proceed') : $_('consent.proceedDisabled')}
+	</button>
+</qr-intro>
+
+<style>
+	qr-intro {
+		--qr-intro-background: var(--surface);
+		--qr-intro-text: var(--text);
+	}
+</style>

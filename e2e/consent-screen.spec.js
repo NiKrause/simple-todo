@@ -1,169 +1,128 @@
 import { test, expect } from '@playwright/test';
+import {
+	acceptNotice,
+	consentModal,
+	isConsentOpen,
+	passConsent,
+	waitForConsent
+} from './consent.mjs';
 
-test.describe('Consent Screen', () => {
-	test('should display consent modal and allow proceeding after checking all boxes', async ({
-		page
-	}) => {
+const timeout = 30000;
+
+/**
+ * The statement the dialog assembles, read from the element's shadow tree.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+const clauses = (page) =>
+	page.$$eval('[data-testid="consent-modal"]', (els) =>
+		[...(els[0].shadowRoot?.querySelectorAll('.privacy ul li') ?? [])].map(
+			(item) => item.textContent?.trim() ?? ''
+		)
+	);
+
+test.describe('Consent screen', () => {
+	test('will not let you out until the statement is accepted', async ({ page }) => {
 		await page.goto('/');
+		await waitForConsent(page);
 
-		// Check that the consent modal is visible
-		const modal = page.locator('div.fixed.inset-0.z-50');
-		await expect(modal).toBeVisible();
+		const proceed = page.getByTestId('consent-proceed');
+		await expect(proceed).toBeDisabled();
 
-		// Check that the title is present in the modal
-		await expect(modal.locator('h1').filter({ hasText: 'Simple-Todo' })).toBeVisible();
+		await acceptNotice(page);
+		await expect(proceed).toBeEnabled();
 
-		// Check that all required checkboxes are present and initially unchecked
-		const relayConnectionCheckbox = page
-			.locator('label')
-			.filter({ hasText: /I understand this app uses libp2p peer-to-peer networking/ })
-			.locator('input[type="checkbox"]');
-		const dataVisibilityCheckbox = page
-			.locator('label')
-			.filter({ hasText: /I understand relay or peer nodes may cache/ })
-			.locator('input[type="checkbox"]');
-		// By name, not by reading its label. The three checkboxes above still
-		// match on prose and are one rewording away from the same break: this one
-		// broke when the wording stopped claiming a private list is unencrypted.
-		const globalDatabaseCheckbox = page.getByTestId('consent-globalDatabase');
-		const replicationTestingCheckbox = page
-			.locator('label')
-			.filter({ hasText: /I understand collaboration requires another browser or device/ })
-			.locator('input[type="checkbox"]');
-
-		// Verify all checkboxes are unchecked initially
-		await expect(relayConnectionCheckbox).not.toBeChecked();
-		await expect(dataVisibilityCheckbox).not.toBeChecked();
-		await expect(globalDatabaseCheckbox).not.toBeChecked();
-		await expect(replicationTestingCheckbox).not.toBeChecked();
-
-		// Check that the proceed button is disabled initially
-		const proceedButton = page
-			.locator('button')
-			.filter({ hasText: /Please check all boxes to continue/ });
-		await expect(proceedButton).toBeDisabled();
-
-		// Check each required checkbox
-		await relayConnectionCheckbox.check();
-		await dataVisibilityCheckbox.check();
-		await globalDatabaseCheckbox.check();
-		await replicationTestingCheckbox.check();
-
-		// Verify all checkboxes are now checked
-		await expect(relayConnectionCheckbox).toBeChecked();
-		await expect(dataVisibilityCheckbox).toBeChecked();
-		await expect(globalDatabaseCheckbox).toBeChecked();
-		await expect(replicationTestingCheckbox).toBeChecked();
-
-		// Check that the proceed button is now enabled and text changed
-		const enabledProceedButton = page.locator('button').filter({ hasText: /Open shared list/ });
-		await expect(enabledProceedButton).toBeEnabled();
-
-		// Click the proceed button
-		await enabledProceedButton.click();
-
-		// Wait for modal to close and main app to be visible
-		await expect(modal).not.toBeVisible();
-
-		// Check that the main app content is now visible (outside the modal)
-		await expect(page.locator('main h1').filter({ hasText: 'Simple-Todo' })).toBeVisible();
-
-		// Check for the loading spinner or main app content
-		const loadingSpinner = page.locator('text=Initializing P2P connection');
-		const addTodoForm = page.getByRole('textbox', { name: 'What needs to be done?' });
-
-		// Either loading spinner should be visible, or the todo form should be visible
-		await expect(loadingSpinner.or(addTodoForm)).toBeVisible();
+		await proceed.click();
+		expect(await isConsentOpen(page)).toBe(false);
+		await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
 	});
 
-	test('should remember consent decision when checkbox is checked', async ({ page }) => {
+	test('says what this chapter does to your data, in plain words', async ({ page }) => {
 		await page.goto('/');
+		await waitForConsent(page);
 
-		// Check the "Don't show this again" checkbox
-		const rememberCheckbox = page
-			.locator('label')
-			.filter({ hasText: /Don't show this again/ })
-			.locator('input[type="checkbox"]');
-		await rememberCheckbox.check();
+		const statement = (await clauses(page)).join(' ');
 
-		// Check all required consent checkboxes
-		const relayConnectionCheckbox = page
-			.locator('label')
-			.filter({ hasText: /I understand this app uses libp2p peer-to-peer networking/ })
-			.locator('input[type="checkbox"]');
-		const dataVisibilityCheckbox = page
-			.locator('label')
-			.filter({ hasText: /I understand relay or peer nodes may cache/ })
-			.locator('input[type="checkbox"]');
-		// By name, not by reading its label. The three checkboxes above still
-		// match on prose and are one rewording away from the same break: this one
-		// broke when the wording stopped claiming a private list is unencrypted.
-		const globalDatabaseCheckbox = page.getByTestId('consent-globalDatabase');
-		const replicationTestingCheckbox = page
-			.locator('label')
-			.filter({ hasText: /I understand collaboration requires another browser or device/ })
-			.locator('input[type="checkbox"]');
+		// Both kinds of list, because naming only one would be false either way.
+		expect(statement).toContain('three Spanish words');
+		expect(statement).toContain('encrypted');
 
-		await relayConnectionCheckbox.check();
-		await dataVisibilityCheckbox.check();
-		await globalDatabaseCheckbox.check();
-		await replicationTestingCheckbox.check();
+		// And the two limits that matter more than the reassurance: where the key
+		// lives, and that handing it over cannot be undone. A consent screen that
+		// says "encrypted" and stops there promises more than this chapter keeps.
+		expect(statement).toContain('kept in this browser');
+		expect(statement).toContain('cannot be taken back');
+	});
 
-		// Click proceed
-		const proceedButton = page.locator('button').filter({ hasText: /Open shared list/ });
-		await proceedButton.click();
+	test('rewrites the line a choice changes, and only that line', async ({ page }) => {
+		await page.goto('/');
+		await waitForConsent(page);
+
+		const before = await clauses(page);
+		await page.getByTestId('identity-mode-create').check();
+		await expect
+			.poll(async () => (await clauses(page)).filter((c, i) => c !== before[i]).length)
+			.toBe(1);
+	});
+
+	test('offers the technical view beside the plain one', async ({ page }) => {
+		await page.goto('/');
+		await waitForConsent(page);
+
+		const isTechnical = () =>
+			page.$eval('[data-testid="consent-modal"]', (el) => el.technical === true);
+
+		expect(await isTechnical()).toBe(false);
+		await page.getByTestId('consent-technical').click();
+		await expect.poll(isTechnical).toBe(true);
+	});
+
+	test('speaks German to a German browser', async ({ browser }) => {
+		const context = await browser.newContext({ locale: 'de-DE' });
+		const page = await context.newPage();
+
+		try {
+			await page.goto('/');
+			await waitForConsent(page);
+
+			const statement = (await clauses(page)).join(' ');
+			expect(statement).toContain('Wir betreiben keinen Server');
+			expect(statement).toContain('verschlüsselt');
+			// Not a single English clause left behind: a half-translated statement
+			// reads as a decision rather than an omission.
+			expect(statement).not.toContain('We run no server');
+		} finally {
+			await context.close();
+		}
+	});
+
+	test('remembers the decision when asked to', async ({ page }) => {
+		await page.goto('/');
+		await passConsent(page, { remember: true });
+
 		const savedMnemonic = await page.evaluate(() =>
 			localStorage.getItem('simpleTodo.sharedListMnemonic.v1')
 		);
 		expect(savedMnemonic).toMatch(/^.+-.+-.+$/);
 
-		// Wait for the app to load
-		await page.waitForTimeout(2000);
-
-		// Reload the page
+		await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
 		await page.reload();
 
-		// The consent modal should not appear again
-		const modal = page.locator('div.fixed.inset-0.z-50');
-		await expect(modal).not.toBeVisible({ timeout: 5000 });
+		// The dialog is asked, not measured: the host is 0x0 once it upgrades.
+		await page.waitForTimeout(3000);
+		expect(await isConsentOpen(page)).toBe(false);
+
 		const sharedListDetails = page.getByTestId('shared-list-details');
-		await expect(sharedListDetails).toBeVisible({ timeout: 30000 });
+		await expect(sharedListDetails).toBeVisible({ timeout });
 		await sharedListDetails.getByText('Shared list', { exact: true }).click();
 		await expect(sharedListDetails.getByTestId('active-shared-list-name')).toHaveText(
 			savedMnemonic ?? ''
 		);
 
-		// Clean up localStorage for next test
-		await page.evaluate(() => {
-			localStorage.clear();
-		});
-	});
-
-	test('should display all required consent information', async ({ page }) => {
-		await page.goto('/');
-
-		// Check that all expected features are listed
-		const expectedFeatures = [
-			'No tracking cookies are used',
-			'only that consent choice is saved locally',
-			'local-first in your browser session',
-			'Helia, OrbitDB, and libp2p',
-			'connects to relay/bootstrap nodes and other peers',
-			'cache, pin, or replicate demo todo data',
-			// Both halves, because this chapter has both kinds of list and a
-			// screen that named only one of them would be false either way.
-			'shared list named by the three Spanish words is unencrypted',
-			'A private list you create is encrypted',
-			'cannot be taken back',
-			'IPFS/IPNS or an HTTP gateway'
-		];
-
-		for (const feature of expectedFeatures) {
-			await expect(
-				page
-					.locator('li')
-					.filter({ hasText: new RegExp(feature.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') })
-			).toBeVisible();
-		}
+		await page.evaluate(() => localStorage.clear());
 	});
 });
+
+// `consentModal` is exported for specs that need the host itself; referenced
+// here so the import stays honest about what this file uses.
+void consentModal;
