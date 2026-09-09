@@ -80,9 +80,17 @@ Stated plainly, because encryption invites more confidence than it earns:
 - **Nothing survives a reload yet.** This chapter runs Helia in memory
   (`createHeliaLight` with no blockstore), so a list created only in this browser
   does not come back — which is a property of the chapter, not of the encryption.
-- **A relay cannot replicate a sealed list properly.** That needs a _second_ key,
-  for replication rather than content, and it is the subject of `privacy02`
-  (#277 phase 2.5).
+- **Replication is not restricted, only reading is.** Only the payload is sealed
+  (OrbitDB's `encryption.data`); the log, its entries, their signatures and their
+  links stay in the clear, so any peer — a second browser, a relay — replicates a
+  private list normally and holds every entry it cannot read. That is by design
+  here: it is what lets a granted reader catch up on everything written before it
+  was admitted. Restricting _who may hold the list at all_ needs OrbitDB's second
+  encryptor, `encryption.replication`, which seals the whole encoded entry so a
+  peer without that key cannot even traverse the log. That turns "may hold" into
+  a permission of its own, separate from "may read", and it is what `privacy02`
+  is about (#277 phase 2.5) — for handing a paid relay the one and never the
+  other.
 
 ### Try it
 
