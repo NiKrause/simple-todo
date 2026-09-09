@@ -174,6 +174,52 @@ test.describe('Consent screen', () => {
 		await expect.poll(isTechnical).toBe(true);
 	});
 
+	test('on a phone, the acceptance tick is reachable from the foot', async ({ browser }) => {
+		// The dialog's body scrolls and its foot does not, so the tick that the
+		// button names can sit a screen and a half above the fold while the
+		// button naming it is in view.
+		const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+		const page = await context.newPage();
+		await page.goto('/');
+		await waitForConsent(page);
+
+		const tickBox = () =>
+			page.$eval('[data-testid="consent-modal"]', (el) => {
+				const tick = el.shadowRoot?.querySelector('input[part=accept]');
+				const box = tick.getBoundingClientRect();
+				return { top: box.top, onScreen: box.top >= 0 && box.bottom <= window.innerHeight };
+			});
+
+		expect((await tickBox()).onScreen).toBe(false);
+		await page.getByTestId('consent-show-notice').click();
+		await expect.poll(async () => (await tickBox()).onScreen).toBe(true);
+
+		await context.close();
+	});
+
+	test('the close control that does nothing is not on screen', async ({ page }) => {
+		// The element disables its own close on purpose — this dialog is a
+		// decision, not something to dismiss. A visible cross that does nothing,
+		// in the corner people reach for to get out, is worse than no cross.
+		await page.goto('/');
+		await waitForConsent(page);
+
+		const dead = await page.$eval('[data-testid="consent-modal"]', (el) => {
+			const control = el.shadowRoot?.querySelector('button[disabled]');
+			return control ? { hidden: control.hidden, aria: control.getAttribute('aria-hidden') } : null;
+		});
+		expect(dead).toEqual({ hidden: true, aria: 'true' });
+	});
+
+	test('build metadata waits in the technical view', async ({ page }) => {
+		await page.goto('/');
+		await waitForConsent(page);
+
+		await expect(page.getByTestId('consent-version')).toHaveCount(0);
+		await page.getByTestId('consent-technical').click();
+		await expect(page.getByTestId('consent-version')).toBeVisible();
+	});
+
 	test('the technical view answers about this chapter, not about NAT', async ({ page }) => {
 		// The switch used to reveal the element's own four bullets — phones
 		// closing invites, Chrome on Android and IPv6, carrier NAT, VPNs. All

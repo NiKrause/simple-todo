@@ -108,6 +108,7 @@
 	$: if (ready) {
 		introEl.privacy = { accept: true, clauses };
 		watchAcceptance();
+		hideDeadCloseControl();
 	}
 	$: if (ready) introEl.choices = { identity };
 
@@ -131,6 +132,27 @@
 	 * ours and has to know whether the statement was accepted. Idempotent,
 	 * because the reactive block above runs again on every choice.
 	 */
+	/** Bring the acceptance tick into view and put the cursor on it. */
+	function revealAcceptance() {
+		const box = introEl?.shadowRoot?.querySelector('input[part=accept]');
+		if (!(box instanceof HTMLElement)) return;
+		box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+		box.focus();
+	}
+
+	/**
+	 * The element ships a close control and disables it — deliberately, since
+	 * this dialog is a decision rather than something to dismiss. A visible
+	 * cross that does nothing is worse than no cross, and it sits in the corner
+	 * where people reach to get out.
+	 */
+	function hideDeadCloseControl() {
+		const close = introEl?.shadowRoot?.querySelector('button[disabled]');
+		if (!(close instanceof HTMLElement)) return;
+		close.hidden = true;
+		close.setAttribute('aria-hidden', 'true');
+	}
+
 	function watchAcceptance() {
 		const box = introEl?.shadowRoot?.querySelector('input[part=accept]');
 		if (!box || box.dataset.watched === 'true') return;
@@ -171,7 +193,13 @@
 		</button>
 	</div>
 
-	<p class="text-xs text-faint">{version}</p>
+	<!--
+		Build metadata was the second line of the first screen anybody sees. It
+		belongs where somebody goes looking for it.
+	-->
+	{#if technical}
+		<p class="text-xs text-faint" data-testid="consent-version">{version}</p>
+	{/if}
 
 	<div class="my-4 rounded-md border border-border p-3 text-sm" data-testid="consent-warning">
 		<span class="font-medium text-heading">{$_('consent.warningHeading')}</span>
@@ -204,7 +232,23 @@
 				{error}
 			</p>
 		{/if}
-		<button
+		<div class="flex flex-wrap items-center justify-end gap-2">
+			{#if canProceed && !accepted}
+				<!--
+					The dialog's body scrolls and its foot does not, so on a phone the
+					acceptance tick can sit above the fold while the button naming it
+					is in view. This is the way back to it.
+				-->
+				<button
+					type="button"
+					on:click={revealAcceptance}
+					data-testid="consent-show-notice"
+					class="rounded-md px-2 py-1 text-sm text-text underline underline-offset-2 hover:text-heading"
+				>
+					{$_('consent.showNotice')}
+				</button>
+			{/if}
+			<button
 			type="button"
 			disabled={!accepted || !canProceed}
 			on:click={() => introEl.close()}
@@ -212,7 +256,8 @@
 			class="rounded-md bg-coral-700 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-800 disabled:cursor-not-allowed disabled:opacity-50"
 		>
 			{proceedLabel}
-		</button>
+			</button>
+		</div>
 	</div>
 </qr-intro>
 

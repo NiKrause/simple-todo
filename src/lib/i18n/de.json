@@ -90,6 +90,7 @@
 			]
 		},
 		"relayReachable": "{count} bekannte Relays haben geantwortet. Es wurde kein Verzeichnis abgefragt.",
-		"relayDiscovered": "{count} Relays im Verzeichnis gefunden — die mit dieser App ausgelieferten blieben stumm."
+		"relayDiscovered": "{count} Relays im Verzeichnis gefunden — die mit dieser App ausgelieferten blieben stumm.",
+		"showNotice": "Hinweis anzeigen"
 	}
 }

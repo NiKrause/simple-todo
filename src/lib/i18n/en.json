@@ -90,6 +90,7 @@
 			]
 		},
 		"relayReachable": "{count} known relays answered. No directory was queried.",
-		"relayDiscovered": "{count} relays found in the directory - the ones shipped with this app stayed silent."
+		"relayDiscovered": "{count} relays found in the directory - the ones shipped with this app stayed silent.",
+		"showNotice": "Show the notice"
 	}
 }
