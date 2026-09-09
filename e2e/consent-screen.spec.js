@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { test, expect } from '@playwright/test';
 import {
 	acceptNotice,
@@ -7,7 +10,75 @@ import {
 	waitForConsent
 } from './consent.mjs';
 
+/** The English catalogue, which mirrors the element's own defaults. */
+const en = JSON.parse(
+	readFileSync(fileURLToPath(new URL('../src/lib/i18n/en.json', import.meta.url)), 'utf8')
+);
+
 test.describe('Consent Screen', () => {
+	test('hands the element every string it has, in the language on screen', async ({ browser }) => {
+		// The element carries thirty-odd strings and was handed three, so the
+		// rest stayed English inside an otherwise German dialog. Two failures
+		// are possible and both are silent, so both are asserted: a key the
+		// element grew that this app does not supply, and a key whose German is
+		// missing, where `svelte-i18n` falls back to English and the hole looks
+		// like a decision.
+		const context = await browser.newContext({ locale: 'de-DE' });
+		const page = await context.newPage();
+		await page.goto('/');
+		await waitForConsent(page);
+
+		const keys = await page.evaluate(
+			() => Object.keys(document.querySelector('[data-testid="consent-modal"]').strings)
+		);
+		const supplied = new Set([
+			...Object.keys(en.consent.element),
+			// Renamed on the way in, because this app already had names for them.
+			'title',
+			'close',
+			'dontShow',
+			// Functions of a count, so they cannot travel in the plain map.
+			'relayReachable',
+			'relayDiscovered'
+		]);
+		expect(keys.filter((key) => !supplied.has(key))).toEqual([]);
+
+		const stillEnglish = await page.evaluate((defaults) => {
+			const host = document.querySelector('[data-testid="consent-modal"]');
+			const shown = `${host.shadowRoot?.textContent ?? ''} ${document.body.textContent ?? ''}`;
+			return Object.entries(defaults)
+				.filter(([, value]) => typeof value === 'string' && value.length > 20)
+				.filter(([, value]) => shown.includes(value))
+				.map(([key]) => key);
+		}, en.consent.element);
+		expect(stillEnglish).toEqual([]);
+
+		await context.close();
+	});
+
+	test('the close control that does nothing is not on screen', async ({ page }) => {
+		// The element disables its own close on purpose — this dialog is a
+		// decision, not something to dismiss. A visible cross that does nothing,
+		// in the corner people reach for to get out, is worse than no cross.
+		await page.goto('/');
+		await waitForConsent(page);
+
+		const dead = await page.$eval('[data-testid="consent-modal"]', (el) => {
+			const control = el.shadowRoot?.querySelector('button[disabled]');
+			return control ? { hidden: control.hidden, aria: control.getAttribute('aria-hidden') } : null;
+		});
+		expect(dead).toEqual({ hidden: true, aria: 'true' });
+	});
+
+	test('build metadata waits in the technical view', async ({ page }) => {
+		await page.goto('/');
+		await waitForConsent(page);
+
+		await expect(page.getByTestId('consent-version')).toHaveCount(0);
+		await page.getByTestId('consent-technical').click();
+		await expect(page.getByTestId('consent-version')).toBeVisible();
+	});
+
 	test('should display consent modal and allow proceeding after checking all boxes', async ({
 		page
 	}) => {

@@ -1,7 +1,7 @@
 <script>
 	import { createEventDispatcher, onMount } from 'svelte';
 	import { get } from 'svelte/store';
-	import { _ } from '$lib/i18n/index.js';
+	import { _, json } from '$lib/i18n/index.js';
 	import LanguageSwitcher from './LanguageSwitcher.svelte';
 	import { formatBuildDate, formatVersions } from './build-info.js';
 
@@ -106,10 +106,26 @@
 			get(_)('consent.clause.cookies')
 		].filter(Boolean);
 
+	/*
+		The element carries thirty-odd strings and was handed three, so the rest
+		stayed on its English defaults — "I have read this and accept it" and
+		"What this means for your data" sat in a dialog that is otherwise German.
+
+		`consent.element` mirrors the element's own key names. That namespace is
+		not cosmetic: this chapter already has `consent.relayLabel` for its own
+		relay checkbox, and the element has a `relayLabel` of its own meaning
+		something else. Flat, one would have silently overwritten the other.
+	*/
 	$: strings = {
+		...$json('consent.element'),
 		title: $_('app.title'),
 		close: $_('consent.proceed'),
-		dontShow: $_('consent.remember')
+		dontShow: $_('consent.remember'),
+		// Two of them are functions of a count and cannot travel in the map.
+		relayReachable: (/** @type {number} */ count) =>
+			$_('consent.relayReachable', { values: { count } }),
+		relayDiscovered: (/** @type {number} */ count) =>
+			$_('consent.relayDiscovered', { values: { count } })
 	};
 
 	$: if (ready) introEl.strings = strings;
@@ -117,6 +133,7 @@
 	$: if (ready) {
 		introEl.privacy = { accept: true, clauses };
 		watchAcceptance();
+		hideDeadCloseControl();
 	}
 	$: if (ready) {
 		introEl.choices = { relay: relayNetworkEnabled, persistent: persistentStorageEnabled };
@@ -199,6 +216,19 @@
 	 * proceed button below is ours, and looked ready while `close()` declined.
 	 * Idempotent, because the reactive block above runs again on every choice.
 	 */
+	/**
+	 * The element ships a close control and disables it — deliberately, since
+	 * this dialog is a decision rather than something to dismiss. A visible
+	 * cross that does nothing is worse than no cross, and it sits in the corner
+	 * where people reach to get out.
+	 */
+	function hideDeadCloseControl() {
+		const close = introEl?.shadowRoot?.querySelector('button[disabled]');
+		if (!(close instanceof HTMLElement)) return;
+		close.hidden = true;
+		close.setAttribute('aria-hidden', 'true');
+	}
+
 	function watchAcceptance() {
 		const box = introEl?.shadowRoot?.querySelector('input[part=accept]');
 		if (!box || box.dataset.watched === 'true') return;
@@ -252,8 +282,12 @@
 		</button>
 	</div>
 
-	{#if version}
-		<p class="mb-3 text-xs text-faint">{version}</p>
+	<!--
+		Build metadata was the second line of the first screen anybody sees. It
+		belongs where somebody goes looking for it.
+	-->
+	{#if version && technical}
+		<p class="mb-3 text-xs text-faint" data-testid="consent-version">{version}</p>
 	{/if}
 
 	<!--
@@ -324,7 +358,7 @@
 		on:click={() => introEl.close()}
 		data-testid="consent-proceed"
 		title={accepted ? undefined : $_('consent.accept')}
-		class="rounded-md bg-coral-500 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:opacity-50"
+		class="rounded-md bg-coral-700 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-800 disabled:cursor-not-allowed disabled:opacity-50"
 	>
 		{accepted ? $_('consent.proceed') : $_('consent.proceedDisabled')}
 	</button>
