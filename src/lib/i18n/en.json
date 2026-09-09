@@ -1,0 +1,31 @@
+{
+	"app": {
+		"title": "Simple-Todo"
+	},
+	"language": {
+		"de": "Deutsch",
+		"en": "English"
+	},
+	"consent": {
+		"warningHeading": "Early days",
+		"warningBody": "This is a working demonstration rather than a finished product. It does what it says, and the format may still change - so keep anything you would be sorry to lose somewhere else as well.",
+		"accept": "I have read this and accept it",
+		"proceed": "Open shared list",
+		"proceedDisabled": "Enter three Spanish words to continue",
+		"remember": "Don't show this again on this device",
+		"technical": "Technical",
+		"simple": "Simple",
+		"clause": {
+			"noServer": "We run no server, and no copy of your lists exists anywhere we control.",
+			"gateway": "The app itself is delivered through a public IPFS gateway, which sees that you loaded it. Your own Kubo node, or the IPFS Companion extension, fetches it from the network instead.",
+			"relay": "Relay nodes introduce devices to each other and may keep a copy of a list so another device can collect it later.",
+			"sharedList": "The list named by the three Spanish words is open: anyone who has those words can read it and write to it. Treat the words as a way to meet, not as a password.",
+			"privateList": "A list you create yourself decides who may write to it - you, and anyone you let in. It does not decide who may read it.",
+			"readingIsOpen": "Nothing here is encrypted. Anyone who has a list's address can read everything in it, including the relay that stores it. Do not put anything private in a todo.",
+			"identityPasskey": "Your passkey identifies you to the other devices. Nobody else can write as you.",
+			"identityAnonymous": "You are using a random identity that exists only in this browser. Close it and it is gone.",
+			"reload": "Nothing is stored on this device yet: reload the page and this browser starts over.",
+			"cookies": "No tracking cookies are used. If you tick \"don't show this again\", that choice is the only thing saved on this device."
+		}
+	}
+}
