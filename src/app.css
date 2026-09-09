@@ -73,6 +73,7 @@
 	--color-coral-500: #ff6b5b;
 	--color-coral-600: #ef5443;
 	--color-coral-700: #cf3f30;
+	--color-coral-800: #b03d30; /* weiß darauf: 5.91:1 — der Hover des CTA bleibt AA */
 
 	--color-identity-200: #b7f0d8;
 	--color-identity-500: #3edc97;

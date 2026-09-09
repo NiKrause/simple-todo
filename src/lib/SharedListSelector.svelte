@@ -1,4 +1,5 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	import { generateSpanishMnemonic, normalizeSpanishMnemonic } from './spanish-mnemonic.js';
 
 	export let value = '';
@@ -39,11 +40,10 @@
 	data-testid="shared-list-selector"
 >
 	<label for="shared-list-mnemonic" class="block text-sm font-semibold text-heading">
-		Shared list mnemonic
+		{$_('consent.mnemonicLabel')}
 	</label>
 	<p id="shared-list-help" class="mt-1 text-xs leading-relaxed text-text">
-		Share these three Spanish words to join the same public writable OrbitDB list. This is a share
-		code, not a password or encryption key.
+		{$_('consent.mnemonicHelp')}
 	</p>
 	<input
 		id="shared-list-mnemonic"
@@ -54,12 +54,12 @@
 		aria-describedby="shared-list-help shared-list-error"
 		aria-invalid={validation.error ? 'true' : 'false'}
 		class="mt-3 w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm focus:border-transparent focus:ring-2 focus:ring-cyan-500 disabled:bg-surface-2"
-		placeholder="luna-camino-verde"
+		placeholder={$_('consent.mnemonicPlaceholder')}
 	/>
 	{#if validation.error && touched}
 		<p id="shared-list-error" role="alert" class="mt-1 text-xs text-danger-700">{validation.error}</p>
 	{:else}
-		<p id="shared-list-error" class="sr-only">Enter exactly three valid Spanish words.</p>
+		<p id="shared-list-error" class="sr-only">{$_('consent.mnemonicSrError')}</p>
 	{/if}
 	<div class="mt-3 flex flex-wrap gap-2">
 		<button
@@ -68,7 +68,7 @@
 			{disabled}
 			class="rounded-md border border-cyan-300 bg-surface px-3 py-1.5 text-xs font-medium text-cyan-800 hover:bg-cyan-100 disabled:opacity-50"
 		>
-			Generate new
+			{$_('consent.mnemonicGenerate')}
 		</button>
 		<button
 			type="button"
@@ -76,7 +76,7 @@
 			disabled={disabled || !validation.canonical}
 			class="rounded-md border border-cyan-300 bg-surface px-3 py-1.5 text-xs font-medium text-cyan-800 hover:bg-cyan-100 disabled:opacity-50"
 		>
-			{copied ? 'Copied!' : 'Copy'}
+			{copied ? $_('consent.mnemonicCopied') : $_('consent.mnemonicCopy')}
 		</button>
 	</div>
 </section>
