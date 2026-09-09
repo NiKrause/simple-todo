@@ -136,15 +136,32 @@
 		disabled={!accepted || !canProceed}
 		on:click={() => introEl.close()}
 		data-testid="consent-proceed"
-		class="rounded-md bg-coral-500 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:opacity-50"
+		class="rounded-md bg-coral-700 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-800 disabled:cursor-not-allowed disabled:opacity-50"
 	>
 		{accepted && canProceed ? $_('consent.proceed') : $_('consent.proceedDisabled')}
 	</button>
 </qr-intro>
 
 <style>
+	/*
+		The element ships a dark-first palette and reads it from `--qr-intro-*`.
+		Every name it does not find falls back to that dark default, and the
+		fallback is silent — which is how `--qr-intro-text` (a name the element
+		never reads; it is `--qr-intro-color`) left the dialog with #e8ecf3 text
+		on the white `--surface` we did set: 1.18:1, with the identity choice as
+		the casualty. So map the whole set, not the two that seemed to matter.
+
+		Mapping to the app tokens rather than to literals also carries the dark
+		theme for free: `.dark` redefines them on :root and the dialog follows.
+	*/
 	qr-intro {
 		--qr-intro-background: var(--surface);
-		--qr-intro-text: var(--text);
+		--qr-intro-color: var(--text);
+		--qr-intro-muted: var(--faint);
+		--qr-intro-border: var(--border);
+		--qr-intro-accent: var(--identity);
+		--qr-intro-panel-background: var(--surface-2);
+		--qr-intro-panel-border: var(--border);
+		--qr-intro-panel-color: var(--text);
 	}
 </style>
