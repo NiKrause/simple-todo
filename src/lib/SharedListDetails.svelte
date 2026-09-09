@@ -1,5 +1,6 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
+	import { storedDatabaseKey } from './database-keys.js';
 
 	export let mnemonic = '';
 	export let databaseAddress = '';
@@ -15,6 +16,23 @@
 	const LABELS = { shared: 'Shared list', private: 'Private list', guest: 'Opened list' };
 	$: heading = LABELS[activeList?.kind] ?? LABELS.shared;
 	$: subtitle = activeList?.kind === 'shared' ? mnemonic : activeList?.name;
+
+	/**
+	 * Whether this browser can read what it is looking at.
+	 *
+	 * Asked of the key store rather than inferred from the kind: a list somebody
+	 * else shared is readable exactly when a key for it has arrived here, and
+	 * "private" alone cannot tell those two apart.
+	 */
+	$: sealed = (() => {
+		if (!databaseAddress) return false;
+		try {
+			return storedDatabaseKey(databaseAddress) !== null;
+		} catch {
+			// A stored key that cannot be read is still a key that exists.
+			return true;
+		}
+	})();
 
 	let copied = false;
 	const dispatch = createEventDispatcher();
@@ -67,10 +85,30 @@
 	<div class="mt-3 border-t border-border pt-3">
 		{#if activeList?.kind !== 'shared'}
 			<p class="mb-2 text-xs text-data-700" data-testid="active-list-note">
-				You are writing to <strong>{activeList.name}</strong>. The mnemonic below still refers to the
-				public shared list.
+				You are writing to <strong>{activeList.name}</strong>. The mnemonic below still refers to
+				the public shared list.
 			</p>
 		{/if}
+
+		<!--
+			Said where the list is, rather than left in a README or behind a help
+			button. Somebody who opens two browsers on the public list sees
+			everything and reasonably concludes the encryption does not work — the
+			difference between the two kinds of list is invisible until it is
+			written down next to the one they are actually looking at.
+		-->
+		<p class="mb-2 text-xs text-faint" data-testid="active-list-privacy">
+			{#if activeList?.kind === 'shared'}
+				Open: anyone with these three words reads and writes it, and nothing here is encrypted.
+			{:else if sealed}
+				Encrypted. The key is in this browser — granting a DID hands them a copy, and it cannot be
+				taken back.
+			{:else}
+				Encrypted, and no key for it has reached this browser. You hold the entries and can read
+				none of them until the owner grants your DID; open the list again afterwards to pick the key
+				up.
+			{/if}
+		</p>
 		<p class="text-xs text-faint">Public mnemonic / OrbitDB database name</p>
 		<div class="mt-1 flex items-center gap-2 rounded-md bg-cyan-50 p-2">
 			<code class="min-w-0 flex-1 font-mono text-xs break-all" data-testid="active-shared-list-name"
@@ -95,8 +133,8 @@
 			Anyone who knows this share code can open the same public database and edit it once connected.
 		</p>
 		<p class="mt-1 text-xs text-faint">
-			The mnemonic selects the same database. Live replication also requires a connection to
-			another browser peer.
+			The mnemonic selects the same database. Live replication also requires a connection to another
+			browser peer.
 		</p>
 		<button
 			type="button"

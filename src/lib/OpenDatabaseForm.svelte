@@ -29,8 +29,9 @@
 >
 	<h2 class="text-lg font-semibold text-heading">Open a shared list by address</h2>
 	<p class="mt-1 text-xs text-faint">
-		Paste the full OrbitDB address someone shared with you. You can read it right away — writing
-		needs a permission grant from the owner.
+		Paste the full OrbitDB address someone shared with you. A private list arrives encrypted: you
+		hold every entry and can read none of them until its owner grants your DID — then open it here
+		again to pick the key up. The public shared list is not encrypted and opens straight away.
 	</p>
 	<div class="mt-3 flex gap-2">
 		<input

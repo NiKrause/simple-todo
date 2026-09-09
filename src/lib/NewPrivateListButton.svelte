@@ -42,7 +42,9 @@
 >
 	<h2 class="text-lg font-semibold text-heading">Create a private list</h2>
 	<p class="mt-1 text-xs text-faint">
-		Only your identity can write to it. Share its address and grant other DIDs below.
+		Only your identity can write to it, and its entries are encrypted with a key kept in this
+		browser. Share its address and grant other DIDs below — granting hands them that key, and it
+		cannot be taken back afterwards.
 	</p>
 	<div class="mt-3 flex gap-2">
 		<input
