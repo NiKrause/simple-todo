@@ -47,7 +47,7 @@ In this app:
 | --- | --- |
 | gossipsub — `libp2p-config.js` sets `runOnLimitedConnection: true` | **yes** |
 | OrbitDB's heads sync — `dialProtocol(headsSyncAddress)`, flag set **nowhere** in `@orbitdb/core` | no |
-| bitswap — does not set it, and cannot be made to (ipfs/helia#1124) | no |
+| bitswap — sets it on `handle`, drops it on the dial, and never asks to hear about limited peers; the documented option reaches neither site, in any published version (ipfs/helia#1124 — `Le-Space/ablage` carries a two-line patch) | no |
 
 ### Why replication appears to work anyway
 
@@ -96,8 +96,21 @@ KiB crosses a circuit whose relay grants 1 GiB and does not cross the same
 circuit at library defaults. So the flag decides whether a protocol *may* use a
 circuit; the relay's limits decide how much it can move.
 
-**Nothing here tests the relay-only case.** Every collaboration spec waits for
-the connection to become `/webrtc` before asserting — it measures the path that
-works. `initializeWebRTCSetting()` in `webrtc-settings.js` is never called, so
-the stored `simpleTodo.webrtcEnabled` value is not read at startup and the case
-cannot currently be set up at all.
+**The relay-only case is measured, in `e2e/replication-without-webrtc.spec.js`.**
+Every collaboration spec waits for the connection to become `/webrtc` before
+asserting — they measure the path that works. That one holds two browsers on a
+circuit, **refuses to proceed if any unlimited connection exists**
+(`some(c => c.webrtc || c.limited === false)` must be false, or it is measuring
+the wrong thing), and then asks what actually replicated — including whether
+the relay was a *participant* rather than a route, since `orbitdb-relay` pins
+what it sees and offers no switch to stop.
+
+What crossed was a **live update over gossipsub**, which sets the flag. The
+relay had not pinned it yet, so it did not come from the relay — and it did not
+come by bitswap either. That distinction is the whole of the section above, and
+it is the one that keeps getting argued about: data crossing a circuit is not
+evidence that bitswap does.
+
+`initializeWebRTCSetting()` is called at startup (`p2p.js:216`), so
+`simpleTodo.webrtcEnabled` is read and the case can be set up. This paragraph
+claimed the opposite until #309.
