@@ -20,6 +20,9 @@
 		'The browser connects to relay/bootstrap nodes and other peers for discovery, connectivity, and replication.',
 		'Relay or peer nodes may cache, pin, or replicate demo todo data so collaborators can sync.',
 		'The demo uses a shared, unencrypted OrbitDB database. Do not enter private or sensitive data.',
+		// The storage choice above decides which of these two a session gets, and
+		// until it existed this chapter was always the first without saying so.
+		'You choose above whether todos stay in memory or are kept in this browser. Kept ones are not encrypted there, and in-memory ones are gone when the page reloads.',
 		'The app may be served through IPFS/IPNS or an HTTP gateway, depending on how you open it.'
 	];
 	/** @type {{

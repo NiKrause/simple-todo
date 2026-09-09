@@ -11,6 +11,7 @@ import {
 import { confirmDelegatedWrite } from './delegated-write-auth.js';
 import { rememberList, listRegistryStore, openListRegistry } from './list-registry.js';
 import { relayHttpStatusStore } from './relay-status.js';
+import { createLogStorages } from './storage-mode.js';
 
 /**
  * @typedef {{
@@ -203,7 +204,8 @@ export async function loadTodoDatabase(address) {
 	try {
 		const loadedTodoDB = await orbitdb.open(normalizedAddress, {
 			type: 'keyvalue',
-			sync: true
+			sync: true,
+			...(await createLogStorages())
 		});
 
 		// Prefer what the registry already knows: a list you created is yours even
@@ -263,7 +265,8 @@ export async function createPrivateTodoList(name = 'private-todos') {
 		type: 'keyvalue',
 		create: true,
 		sync: true,
-		AccessController: DelegatedListAccessController({ write: [orbitdb.identity.id] })
+		AccessController: DelegatedListAccessController({ write: [orbitdb.identity.id] }),
+		...(await createLogStorages())
 	});
 
 	const listName = name.trim() || 'private-todos';
