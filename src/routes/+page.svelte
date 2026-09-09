@@ -33,6 +33,7 @@
 	import PeerIdCard from '$lib/PeerIdCard.svelte';
 	import OwnMultiaddrs from '$lib/OwnMultiaddrs.svelte';
 	import SharedListSelector from '$lib/SharedListSelector.svelte';
+	import StorageModeSelector from '$lib/StorageModeSelector.svelte';
 	import SharedListDetails from '$lib/SharedListDetails.svelte';
 	import PermissionsPanel from '$lib/PermissionsPanel.svelte';
 	import OpenDatabaseForm from '$lib/OpenDatabaseForm.svelte';
@@ -319,6 +320,7 @@
 		on:proceed={handleModalClose}
 	>
 		<svelte:fragment slot="before-confirmation">
+			<StorageModeSelector />
 			<SharedListSelector bind:value={selectedMnemonic} />
 			<PasskeyOnboarding bind:mode={identityMode} bind:label={passkeyLabel} />
 		</svelte:fragment>
