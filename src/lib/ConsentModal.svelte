@@ -25,6 +25,13 @@
 	 * @type {string | null}
 	 */
 	export let error = null;
+	/**
+	 * Something the person should know before they press proceed, which is not
+	 * a failure — a passkey session that needs its tap, for instance.
+	 *
+	 * @type {string | null}
+	 */
+	export let notice = null;
 
 	/** @type {any} */
 	let introEl;
@@ -157,6 +164,14 @@
 	<slot name="before-confirmation" />
 
 	<div slot="footer" class="flex flex-col items-stretch gap-2 sm:items-end">
+		{#if notice && !error}
+			<p
+				data-testid="consent-notice"
+				class="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text"
+			>
+				{notice}
+			</p>
+		{/if}
 		{#if error}
 			<p
 				role="alert"

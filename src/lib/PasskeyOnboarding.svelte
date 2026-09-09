@@ -4,6 +4,7 @@
 	// (new or recovered) or the anonymous throwaway identity from the previous
 	// chapters. The actual WebAuthn calls happen in +page.svelte on proceed —
 	// they need the button click's user gesture.
+	import { _ } from '$lib/i18n/index.js';
 	import { hasStoredPasskeyCredential } from './passkey-identity.js';
 
 	/** @type {'create' | 'existing' | 'anonymous'} */
@@ -20,7 +21,7 @@
 
 	const hasStoredPasskey = hasStoredPasskeyCredential();
 
-	const options = [
+	$: options = [
 		{
 			value: 'create',
 			label: 'Create a passkey',
@@ -31,9 +32,17 @@
 		{
 			value: 'existing',
 			label: 'Use an existing passkey',
+			// The second half used to promise recovery "from a passkey created
+			// earlier on this origin", which is more than this can do:
+			// `recoverPasskeyCredential()` reads the authenticator's largeBlob
+			// and otherwise falls back to this browser's localStorage. A passkey
+			// that exists in the operating system but carries no largeBlob, in a
+			// browser whose storage was cleared, cannot be found — and the option
+			// stays selectable, because a largeBlob-carrying passkey genuinely is
+			// recoverable here and disabling it would take that away.
 			hint: hasStoredPasskey
-				? 'A passkey from an earlier session was found on this device.'
-				: 'Recover your identity from a passkey created earlier on this origin.'
+				? $_('consent.identityExistingFound')
+				: $_('consent.identityExistingNone')
 		},
 		{
 			value: 'anonymous',

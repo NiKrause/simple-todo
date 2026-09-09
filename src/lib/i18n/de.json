@@ -28,6 +28,13 @@
 			"identityAnonymous": "Sie verwenden eine zufällige Identität, die es nur in diesem Browser gibt. Schließen Sie ihn, ist sie weg.",
 			"reload": "Auf diesem Gerät wird noch nichts gespeichert: Beim Neuladen fängt dieser Browser von vorn an.",
 			"cookies": "Es werden keine Tracking-Cookies verwendet. Wenn Sie \"nicht mehr anzeigen\" ankreuzen, ist diese Entscheidung das Einzige, was auf diesem Gerät gespeichert wird."
-		}
+		},
+		"errorNoPasskey": "In diesem Browser ist kein Passkey hinterlegt, und Ihr Authenticator hat keinen herausgegeben. Legen Sie einen neuen an oder fahren Sie ohne fort.",
+		"errorNeedsLabel": "Bitte geben Sie dem neuen Passkey einen Namen.",
+		"errorStart": "Der Start ist fehlgeschlagen: {reason}",
+		"existingNeedsTap": "Ihr Passkey verlangt bei jedem Start eine Bestätigung. Deshalb ist dieser Dialog wieder da — es ist nichts schiefgegangen.",
+		"identityExistingFound": "Auf diesem Gerät liegt ein Passkey aus einer früheren Sitzung.",
+		"identityExistingNone": "In diesem Browser ist nichts gespeichert. Wir fragen Ihren Authenticator — das gelingt nur, wenn der Passkey seine Angaben selbst mitführt.",
+		"prfMissing": "Dieser Authenticator kann Ihre Identität nicht auf ein zweites Gerät tragen (kein PRF). Mit demselben Passkey entsteht dort eine eigene Identität."
 	}
 }

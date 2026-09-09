@@ -37,6 +37,53 @@ test.describe('Consent screen', () => {
 		await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
 	});
 
+	test('names the requirement that is actually holding the button', async ({ page }) => {
+		// One label for two blockers sent people to a field that was already
+		// filled: the mnemonic arrives generated and valid, so what holds the
+		// button is the tick further down.
+		await page.goto('/');
+		await waitForConsent(page);
+
+		const proceed = page.getByTestId('consent-proceed');
+		await expect(proceed).toHaveText('Confirm the notice first');
+
+		await page.getByTestId('shared-list-mnemonic-input').fill('not a mnemonic at all');
+		await expect(proceed).toHaveText('Enter three Spanish words to continue');
+
+		await page.getByTestId('shared-list-mnemonic-input').fill('brisa-arena-sal');
+		await acceptNotice(page);
+		await expect(proceed).toHaveText('Open shared list');
+		await expect(proceed).toBeEnabled();
+	});
+
+	test('a failed start is readable, not hidden behind the dialog it reopens', async ({ page }) => {
+		// Every failure in the proceed handler reopens the dialog, and the alert
+		// it sets renders in <main> — behind it. The consent screen coming back
+		// with nothing to read was the app's whole failure signal.
+		await page.goto('/');
+		await waitForConsent(page);
+
+		// Nothing was ever registered in this profile, so recovery cannot succeed.
+		await page.getByTestId('identity-mode-existing').check();
+		await acceptNotice(page);
+		await page.getByTestId('consent-proceed').click();
+
+		const alert = page.getByTestId('consent-error');
+		await expect(alert).toBeVisible({ timeout });
+		await expect(alert).toContainText('No passkey is stored in this browser');
+		// The message a person can act on, not the one about the network stack.
+		await expect(alert).not.toContainText('P2P');
+		expect(await isConsentOpen(page)).toBe(true);
+
+		// And it is on top of the dialog, not merely present in the document.
+		const onTop = await alert.evaluate((el) => {
+			const box = el.getBoundingClientRect();
+			const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+			return el === hit || el.contains(hit);
+		});
+		expect(onTop).toBe(true);
+	});
+
 	test('says what this chapter does to your data, in plain words', async ({ page }) => {
 		await page.goto('/');
 		await waitForConsent(page);

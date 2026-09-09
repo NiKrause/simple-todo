@@ -28,6 +28,13 @@
 			"identityAnonymous": "You are using a random identity that exists only in this browser. Close it and it is gone.",
 			"reload": "Nothing is stored on this device yet: reload the page and this browser starts over.",
 			"cookies": "No tracking cookies are used. If you tick \"don't show this again\", that choice is the only thing saved on this device."
-		}
+		},
+		"errorNoPasskey": "No passkey is stored in this browser, and your authenticator did not hand one over. Create a new one, or continue without one.",
+		"errorNeedsLabel": "Please give the new passkey a name.",
+		"errorStart": "Startup failed: {reason}",
+		"existingNeedsTap": "Your passkey asks for a tap on every start. That is why this dialog is back — nothing went wrong.",
+		"identityExistingFound": "A passkey from an earlier session is stored on this device.",
+		"identityExistingNone": "Nothing is stored in this browser. We will ask your authenticator, which only works if the passkey carries its own details.",
+		"prfMissing": "This authenticator cannot carry your identity to a second device (no PRF). The same passkey produces a separate identity there."
 	}
 }
