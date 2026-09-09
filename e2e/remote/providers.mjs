@@ -1,8 +1,5 @@
 import { chromium } from 'playwright';
-export {
-	ALEPH_API_HOSTS,
-	sanitizeAlephApiHosts
-} from './aleph-provider-contract.mjs';
+export { ALEPH_API_HOSTS, sanitizeAlephApiHosts } from './aleph-provider-contract.mjs';
 
 export { PLAYWRIGHT_VERSION } from './aleph-provider-contract.mjs';
 

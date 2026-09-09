@@ -1,0 +1,31 @@
+{
+	"app": {
+		"title": "Simple-Todo"
+	},
+	"language": {
+		"de": "Deutsch",
+		"en": "English"
+	},
+	"consent": {
+		"warningHeading": "Noch früh",
+		"warningBody": "Dies ist eine lauffähige Demonstration, kein fertiges Produkt. Es tut, was es sagt, und das Format kann sich noch ändern - bewahren Sie alles, um das es Ihnen leidtäte, also auch woanders auf.",
+		"accept": "Ich habe das gelesen und bin einverstanden",
+		"proceed": "Geteilte Liste öffnen",
+		"proceedDisabled": "Drei spanische Wörter eingeben, um fortzufahren",
+		"remember": "Auf diesem Gerät nicht mehr anzeigen",
+		"technical": "Technisch",
+		"simple": "Einfach",
+		"clause": {
+			"noServer": "Wir betreiben keinen Server, und nirgends bei uns liegt eine Kopie Ihrer Listen.",
+			"gateway": "Die App selbst kommt über ein öffentliches IPFS-Gateway, das sieht, dass Sie sie geladen haben. Mit einem eigenen Kubo-Knoten oder der IPFS-Companion-Erweiterung holen Sie sie stattdessen direkt aus dem Netz.",
+			"relay": "Relay-Knoten machen Geräte miteinander bekannt und behalten unter Umständen eine Kopie einer Liste, damit ein anderes Gerät sie später abholen kann.",
+			"sharedList": "Die Liste hinter den drei spanischen Wörtern ist offen: Wer die Wörter hat, kann sie lesen und beschreiben. Die Wörter sind ein Weg, sich zu treffen - kein Passwort.",
+			"privateList": "Eine Liste, die Sie selbst anlegen, bestimmt, wer hineinschreiben darf - Sie und wen Sie hineinlassen. Sie bestimmt nicht, wer sie lesen darf.",
+			"readingIsOpen": "Hier ist nichts verschlüsselt. Wer die Adresse einer Liste hat, kann alles darin lesen, auch der Relay, der sie aufbewahrt. Schreiben Sie nichts Privates in ein Todo.",
+			"identityPasskey": "Ihr Passkey weist Sie gegenüber den anderen Geräten aus. Niemand sonst kann in Ihrem Namen schreiben.",
+			"identityAnonymous": "Sie verwenden eine zufällige Identität, die es nur in diesem Browser gibt. Schließen Sie ihn, ist sie weg.",
+			"reload": "Auf diesem Gerät wird noch nichts gespeichert: Beim Neuladen fängt dieser Browser von vorn an.",
+			"cookies": "Es werden keine Tracking-Cookies verwendet. Wenn Sie \"nicht mehr anzeigen\" ankreuzen, ist diese Entscheidung das Einzige, was auf diesem Gerät gespeichert wird."
+		}
+	}
+}
