@@ -167,6 +167,176 @@ test.describe('Per-todo delegation', () => {
 			await Promise.all([alice.close(), bob.close()]);
 		}
 	});
+	// The three above put Alice and Bob in front of each other. These put the
+	// relay between them — and all three are `fixme`, because what they assert
+	// is wanted and does not happen yet, and because the *reason* is not
+	// established.
+	//
+	// What is measured: with the writer's context closed outright and the
+	// reader demonstrably reconnected, neither a delegation nor a revocation
+	// reaches the reader.
+	//
+	// What is NOT established is why, and four instruments produced plausible
+	// wrong answers on the way here, so the bar is high:
+	//
+	//   · a reload — this chapter keeps nothing across one (Helia is in memory),
+	//     so it measured that gap instead of the relay
+	//   · the peer count in the panel — counts something other than
+	//     `getConnections()` and stayed at 1 long after the last had gone
+	//   · `setOffline` — cuts the WebSocket to the relay within ten seconds and
+	//     leaves an established `/webrtc/p2p/…` to the other browser standing
+	//     indefinitely, which is the wrong way round for this question
+	//   · `entryCount` from `/pinning/databases` — reported 0 for every list
+	//     including one the relay had demonstrably received, because the relay
+	//     falls back to `db.all()` there. `/pinning/has-entry` is the endpoint
+	//     the app itself trusts
+	//
+	// The relay does receive entries: `default-database-collaboration.spec.js`
+	// requires an exact relay-side replication proof and passes. So "the relay
+	// has nothing" is ruled out, and the open question is narrower — whether a
+	// private list ever asks for that proof the way the shared list does.
+	// at no point after the write is made are both online,
+	// so anything that arrives came out of the relay and not off the other
+	// browser. That is the case the README makes a claim about, and a claim
+	// nothing measured until now.
+	test.fixme(
+		'a delegation made while the delegate is offline arrives from the relay',
+		async ({ browser }) => {
+			test.setTimeout(timeout * 6);
+			const alice = await newIdentity(browser, 'Alice', { webrtc: false });
+			const bob = await newIdentity(browser, 'Bob', { webrtc: false });
+			const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+			const todo = `offline-delegated-${runId}`;
+
+			try {
+				step('Alice creates the list; Bob opens it, then drops off the network');
+				await createPrivateList(alice.page);
+				await addTodoOk(alice.page, todo);
+				const address = await getActiveDatabaseAddress(alice.page);
+				await openListByAddress(bob.page, address);
+				await expectTodo(bob.page, todo);
+				await goOffline(bob.page);
+
+				step('Alice delegates to a Bob who cannot hear it, then goes offline herself');
+				await rowFor(alice.page, todo).getByTestId('todo-delegate-open').click();
+				await rowFor(alice.page, todo).getByTestId('todo-delegate-did-input').fill(bob.did);
+				await rowFor(alice.page, todo).getByTestId('todo-delegate-save').click();
+				await expect(rowFor(alice.page, todo).getByTestId('todo-delegation-status')).toHaveText(
+					'active',
+					{ timeout }
+				);
+				// Nothing reached Bob directly — if it had, what arrives after Alice
+				// is gone would prove nothing about the relay.
+				await expect(rowFor(bob.page, todo)).toHaveAttribute('data-role', 'none');
+
+				step('Alice leaves entirely; only the relay still holds it');
+				await alice.close();
+
+				step('Bob comes back with nobody but the relay to ask');
+				await comeBackOnline(bob.page);
+
+				// The delegation is the owner's own entry, so a relay that pins her
+				// writes has it — this is the half the README says works.
+				await expect(rowFor(bob.page, todo)).toHaveAttribute('data-role', 'delegate', { timeout });
+			} finally {
+				await Promise.allSettled([alice.close(), bob.close()]); // idempotent
+			}
+		}
+	);
+
+	test.fixme(
+		'a revocation made while the delegate is offline arrives from the relay',
+		async ({ browser }) => {
+			test.setTimeout(timeout * 6);
+			const alice = await newIdentity(browser, 'Alice', { webrtc: false });
+			const bob = await newIdentity(browser, 'Bob', { webrtc: false });
+			const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+			const todo = `offline-revoked-${runId}`;
+
+			try {
+				step('Alice delegates while both are present');
+				await createPrivateList(alice.page);
+				await addTodoOk(alice.page, todo, { delegateDid: bob.did });
+				const address = await getActiveDatabaseAddress(alice.page);
+				await openListByAddress(bob.page, address);
+				await expect(rowFor(bob.page, todo)).toHaveAttribute('data-role', 'delegate', { timeout });
+
+				step('Bob drops off; Alice revokes and goes offline too');
+				await goOffline(bob.page);
+				await rowFor(alice.page, todo).getByTestId('todo-revoke-delegation').click();
+				await expect(rowFor(alice.page, todo).getByTestId('todo-delegation-status')).toHaveText(
+					'revoked',
+					{ timeout }
+				);
+				await expect(rowFor(bob.page, todo).getByTestId('todo-delegation-status')).toHaveText(
+					'active'
+				);
+
+				step('Alice leaves entirely; only the relay still holds the revocation');
+				await alice.close();
+
+				step('Bob returns and must learn he no longer holds it');
+				await comeBackOnline(bob.page);
+
+				// A revocation that does not travel is the dangerous half: Bob would
+				// go on believing the todo is his, and act on it.
+				await expect(rowFor(bob.page, todo).getByTestId('todo-delegation-status')).toHaveText(
+					'revoked',
+					{ timeout }
+				);
+				await expect(checkbox(bob.page, todo)).toBeDisabled();
+			} finally {
+				await Promise.allSettled([alice.close(), bob.close()]); // idempotent
+			}
+		}
+	);
+
+	// This one cannot even be staged: with the direct connection surviving
+	// `setOffline`, "the owner is offline" is not a state this harness can
+	// produce once the two have met. The run that exposed it failed on the
+	// *setup* assertion — Alice's todo was already ticked while she was
+	// supposedly offline.
+	test.fixme(
+		"a delegate's completion made while the owner is offline arrives from the relay",
+		async ({ browser }) => {
+			test.setTimeout(timeout * 6);
+			const alice = await newIdentity(browser, 'Alice', { webrtc: false });
+			const bob = await newIdentity(browser, 'Bob', { webrtc: false });
+			const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+			const todo = `offline-completed-${runId}`;
+
+			try {
+				step('Alice delegates to Bob while both are present, then goes offline');
+				await createPrivateList(alice.page);
+				await addTodoOk(alice.page, todo, { delegateDid: bob.did });
+				const address = await getActiveDatabaseAddress(alice.page);
+				await openListByAddress(bob.page, address);
+				await expect(rowFor(bob.page, todo)).toHaveAttribute('data-role', 'delegate', { timeout });
+				await goOffline(alice.page);
+
+				step('Bob completes it with nobody but the relay listening');
+				await checkbox(bob.page, todo).click();
+				await expectDelegatedWriteSigned(bob.page, 'set-completed');
+				await expect(checkbox(bob.page, todo)).toBeChecked({ timeout });
+				await expect(checkbox(alice.page, todo)).not.toBeChecked();
+
+				step('Bob leaves entirely; only the relay could still carry it');
+				await bob.close();
+
+				step('Alice returns and must find it done');
+				await comeBackOnline(alice.page);
+
+				// This is the half the README says does not work: the relay opens the
+				// list with its built-in `orbitdb` controller, which knows nothing of
+				// delegation, and refuses a delegate's entry. Asserted as the
+				// behaviour we want rather than the behaviour we have — if it passes,
+				// the README is wrong and should be corrected.
+				await expect(checkbox(alice.page, todo)).toBeChecked({ timeout });
+			} finally {
+				await Promise.allSettled([alice.close(), bob.close()]); // idempotent
+			}
+		}
+	);
 });
 
 // ---------------------------------------------------------------------------
@@ -178,8 +348,25 @@ test.describe('Per-todo delegation', () => {
  * @param {import('@playwright/test').Browser} browser
  * @param {string} label
  */
-async function newIdentity(browser, label) {
+async function newIdentity(browser, label, { webrtc = true } = {}) {
 	const context = await browser.newContext();
+
+	// Relay-only, for the tests that have to prove something arrived *through*
+	// the relay. Measured: Playwright's `setOffline` cuts the WebSocket to the
+	// relay after a few seconds but leaves an established `/webrtc/p2p/…`
+	// connection to the other browser standing indefinitely — WebRTC does not
+	// go through the stack it emulates. So "offline" without this switch
+	// removes the relay and keeps the direct path, which is the wrong way round
+	// for the question being asked.
+	if (!webrtc) {
+		await context.addInitScript(() => {
+			try {
+				localStorage.setItem('simpleTodo.webrtcEnabled', 'false');
+			} catch {
+				// Storage blocked; the test will fail on the peer count instead.
+			}
+		});
+	}
 	const page = await context.newPage();
 	// Browser-side failures are otherwise invisible in a CI log; a refused
 	// write or a failed passkey prompt shows up here, tagged with who saw it.
@@ -402,4 +589,44 @@ function todoInput(page) {
 function toDatetimeLocal(date) {
 	const pad = (/** @type {number} */ n) => String(n).padStart(2, '0');
 	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/**
+ * Take this browser off the network and give libp2p time to notice.
+ *
+ * Deliberately not asserting that every connection has gone. Measured:
+ * `setOffline` drops the WebSocket to the relay after a few seconds and leaves
+ * an established `/webrtc/p2p/…` to the other browser standing indefinitely —
+ * WebRTC does not travel through the stack Playwright emulates. Waiting for
+ * zero therefore never returns.
+ *
+ * The tests below do not need it to. They prove the direct path delivered
+ * nothing by *checking* that it delivered nothing, and then close the other
+ * browser outright before asking again — a context that no longer exists
+ * cannot be the source of what arrives next.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+async function goOffline(page) {
+	await page.context().setOffline(true);
+	await page.waitForTimeout(12000);
+}
+
+/**
+ * Back on the network, and connected to something again.
+ *
+ * Without this the two tests above cannot be read: a delegate who never
+ * reconnected would receive nothing whether the relay had it or not, and the
+ * absence would look like a refusal.
+ *
+ * @param {import('@playwright/test').Page} page
+ */
+async function comeBackOnline(page) {
+	await page.context().setOffline(false);
+	await expect
+		.poll(
+			() => page.evaluate(() => (window.__simpleTodoDiagnostics?.getConnections?.() ?? []).length),
+			{ timeout, message: 'waiting to be connected again' }
+		)
+		.toBeGreaterThan(0);
 }
