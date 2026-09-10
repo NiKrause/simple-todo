@@ -10,6 +10,11 @@ import { acceptNotice, consentModal, waitForConsent } from './consent.mjs';
 const testUrl = '/';
 const collaborationTimeout = 90000;
 const sharedMnemonic = 'bosque-coral-brisa';
+const DERIVATION_LOG = 'orbitdb-identity-provider-webauthn-did:derived-key';
+
+/** How many times this page seeded its keystore with a PRF-derived Ed25519 key. */
+const ed25519Derivations = (lines) =>
+	lines.filter((line) => line.includes('PRF-derived') && line.includes('Ed25519')).length;
 
 test.describe('Passkey identities', () => {
 	test('Alice and Bob write with passkey DIDs and recovery keeps the DID stable', async ({
@@ -19,8 +24,19 @@ test.describe('Passkey identities', () => {
 
 		const aliceContext = await browser.newContext();
 		const bobContext = await browser.newContext();
+		// The provider logs where each signing key came from. Collected per page,
+		// so the test can say which key signed — not only that something did.
+		for (const context of [aliceContext, bobContext]) {
+			await context.addInitScript(
+				(namespace) => localStorage.setItem('debug', namespace),
+				DERIVATION_LOG
+			);
+		}
 		const alice = await aliceContext.newPage();
 		const bob = await bobContext.newPage();
+		const logs = { alice: [], bob: [] };
+		alice.on('console', (message) => logs.alice.push(message.text()));
+		bob.on('console', (message) => logs.bob.push(message.text()));
 
 		const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 		const aliceTodo = `alice-${runId}-passkey-todo`;
@@ -45,6 +61,11 @@ test.describe('Passkey identities', () => {
 			expect(bobDid).toMatch(/^did:/);
 			expect(aliceDid).not.toBe(bobDid);
 
+			// Each browser derived its signing key from the passkey, as Ed25519.
+			expect(ed25519Derivations(logs.alice), logs.alice.join('\n')).toBeGreaterThan(0);
+			expect(ed25519Derivations(logs.bob), logs.bob.join('\n')).toBeGreaterThan(0);
+			const aliceDerivations = ed25519Derivations(logs.alice);
+
 			await addTodo(alice, aliceTodo);
 			await addTodo(bob, bobTodo);
 
@@ -59,6 +80,8 @@ test.describe('Passkey identities', () => {
 			await proceedWithExistingPasskey(alice);
 			const recoveredDid = await getOwnDid(alice);
 			expect(recoveredDid).toBe(aliceDid);
+			// Nothing was kept on disk, so the recovered session derived the key again.
+			expect(ed25519Derivations(logs.alice)).toBeGreaterThan(aliceDerivations);
 			await expectTodoWithAuthor(alice, aliceTodo, aliceDid);
 		} finally {
 			await bobContext.close();
@@ -68,8 +91,9 @@ test.describe('Passkey identities', () => {
 });
 
 /**
- * Attach a CTAP2.1 virtual authenticator (resident keys + largeBlob) so
- * WebAuthn ceremonies run without any OS dialog.
+ * Attach a CTAP2.1 virtual authenticator (resident keys, largeBlob, PRF) so
+ * WebAuthn ceremonies run without any OS dialog. PRF is what lets the signing
+ * key be derived from the passkey instead of generated for the session.
  * @param {import('@playwright/test').Page} page
  */
 async function addVirtualAuthenticator(page) {
@@ -84,6 +108,7 @@ async function addVirtualAuthenticator(page) {
 			hasUserVerification: true,
 			isUserVerified: true,
 			hasLargeBlob: true,
+			hasPrf: true,
 			automaticPresenceSimulation: true
 		}
 	});
