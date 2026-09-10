@@ -1,154 +1,293 @@
 <script>
-	import { createEventDispatcher } from 'svelte';
-	import { formatVersions } from './build-info.js';
+	import { createEventDispatcher, onMount } from 'svelte';
+	import { get } from 'svelte/store';
+	import { _, json } from '$lib/i18n/index.js';
+	import LanguageSwitcher from './LanguageSwitcher.svelte';
+	import { formatBuildDate, formatVersions } from './build-info.js';
 
 	const dispatch = createEventDispatcher();
-	// No app name in front of the version here: `title` already renders it
-	// directly above this line. The stack versions follow the app's own, the
-	// same way the page header states them, so the dependencies this screen
-	// asks the reader to consent to are named with the numbers that shipped.
-	const fallbackVersions = formatVersions();
-	const fallbackBuildDate = typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev';
 
 	export let show = true;
-	export let title = 'Simple-Todo';
-	export let version = `${fallbackVersions} [${fallbackBuildDate}]`;
-	export let description = 'Before joining this local-first P2P demo, please note:';
-	export let features = [
-		'No tracking cookies are used. If you choose "remember this device", only that consent choice is saved locally.',
-		'Todos are local-first in your browser session and synchronize through Helia, OrbitDB, and libp2p.',
-		'The browser connects to relay/bootstrap nodes and other peers for discovery, connectivity, and replication.',
-		'Relay or peer nodes may cache, pin, or replicate demo todo data so collaborators can sync.',
-		'The demo uses a shared, unencrypted OrbitDB database. Do not enter private or sensitive data.',
-		// The storage choice above decides which of these two a session gets, and
-		// until it existed this chapter was always the first without saying so.
-		'You choose above whether todos stay in memory or are kept in this browser. Kept ones are not encrypted there, and in-memory ones are gone when the page reloads.',
-		'The app may be served through IPFS/IPNS or an HTTP gateway, depending on how you open it.'
-	];
-	/** @type {{
-	 *   relayConnection: { label: string, checked: boolean },
-	 *   dataVisibility: { label: string, checked: boolean },
-	 *   globalDatabase: { label: string, checked: boolean },
-	 *   replicationTesting: { label: string, checked: boolean }
-	 * }} */
-	export let checkboxes = {
-		relayConnection: {
-			label:
-				'I understand this app uses libp2p peer-to-peer networking and may connect to relay/bootstrap nodes and other peers.',
-			checked: false
-		},
-		dataVisibility: {
-			label: 'I understand relay or peer nodes may cache, pin, or replicate demo todo data.',
-			checked: false
-		},
-		globalDatabase: {
-			label:
-				'I understand todos are stored in a shared, unencrypted OrbitDB database and should not contain private data.',
-			checked: false
-		},
-		replicationTesting: {
-			label:
-				'I understand collaboration requires another browser or device using the same app and database address.',
-			checked: false
-		}
-	};
-	export let confirmationLabel = 'Please confirm:';
-	export let proceedButtonText = 'Start P2P Demo';
-	export let disabledButtonText = 'Please check all boxes to continue';
-	export let canProceed = true;
-
 	export let rememberDecision = false;
-	export let rememberLabel = "Don't show this again on this device";
+	/** Whether the app's own gate is satisfied — here, a valid mnemonic. */
+	export let canProceed = true;
+	/** @type {'anonymous' | 'create' | 'existing'} */
+	export let identity = 'anonymous';
+	/** @type {'memory' | 'indexeddb'} */
+	export let storage = 'memory';
+	/**
+	 * What went wrong the last time somebody pressed proceed.
+	 *
+	 * It belongs here rather than on the page behind: the dialog reopens on
+	 * every failure, so a message rendered in `<main>` is covered by the very
+	 * dialog that is asking again. Somebody then sees the consent screen
+	 * return with no explanation, which is how "existing passkey" looked like
+	 * a dead button (#337).
+	 *
+	 * @type {string | null}
+	 */
+	export let error = null;
+	/**
+	 * Something the person should know before they press proceed, which is not
+	 * a failure — a passkey session that needs its tap, for instance.
+	 *
+	 * @type {string | null}
+	 */
+	export let notice = null;
 
-	$: allCheckboxesChecked = Object.values(checkboxes).every((item) => item.checked);
-	$: readyToProceed = allCheckboxesChecked && canProceed;
+	/** @type {any} */
+	let introEl;
+	let ready = false;
+	let technical = false;
+	let accepted = false;
 
-	const handleProceed = () => {
-		if (readyToProceed) {
-			show = false;
-			dispatch('proceed');
-		}
-	};
+	const version = `${formatVersions()} [${formatBuildDate(
+		typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : ''
+	)}]`;
 
 	/**
-	 * @param {'relayConnection' | 'dataVisibility' | 'globalDatabase' | 'replicationTesting'} key
-	 * @param {boolean} checked
+	 * The statement in plain words, assembled from what is actually configured.
+	 *
+	 * This is the "simple" half of the dialog; the element's technical view is
+	 * the other, and it renders itself. Written for somebody who does not work
+	 * in security and still has to decide something: what exists where, who can
+	 * read it, and what cannot be undone. No stack names, no protocol names —
+	 * those are one button away in the technical view for anyone who wants them.
+	 *
+	 * A function rather than a list, because two of these sentences depend on
+	 * the identity chosen three inches above; the element re-reads them whenever
+	 * `choices` changes.
+	 *
+	 * @param {any} state
 	 */
-	const handleCheckboxChange = (key, checked) => {
-		if (checkboxes[key]) {
-			checkboxes[key].checked = checked;
-			checkboxes = { ...checkboxes };
-		}
+	const clauses = (state) =>
+		[
+			get(_)('consent.clause.noServer'),
+			get(_)('consent.clause.gateway'),
+			get(_)('consent.clause.relay'),
+			get(_)('consent.clause.sharedList'),
+			get(_)('consent.clause.privateList'),
+			get(_)('consent.clause.readingIsOpen'),
+			// This chapter's own sentence: a grant can be taken back, which is
+			// the whole difference between delegating write access and handing
+			// somebody a key.
+			get(_)('consent.clause.delegation'),
+			state.identity === 'anonymous'
+				? get(_)('consent.clause.identityAnonymous')
+				: get(_)('consent.clause.identityPasskey'),
+			// The storage choice is the one decision here that changes what the
+			// app does rather than what has been read, so the statement names
+			// the consequence of the option actually selected.
+			state.storage === 'indexeddb'
+				? get(_)('consent.clause.storagePersistent')
+				: get(_)('consent.clause.storageMemory'),
+			get(_)('consent.clause.cookies')
+		].filter(Boolean);
+
+	/*
+		The element carries 30-odd strings and we used to hand it three, so the
+		other 30 stayed on its English defaults: "I have read this and accept it"
+		sat one line above "Auf diesem Gerät nicht mehr anzeigen".
+
+		`consent.element` mirrors the element's own keys, which means an element
+		release that adds one leaves a hole here — `consent-screen.spec.js`
+		compares the two sets in the browser so the hole is a failing test rather
+		than a sentence in the wrong language.
+
+		`technical` is deliberately absent: the element's own bullets are about
+		networks, and this chapter replaces them with its own.
+	*/
+	$: strings = {
+		...$json('consent.element'),
+		title: $_('app.title'),
+		close: $_('consent.proceed'),
+		dontShow: $_('consent.remember'),
+		// Two of the element's strings are functions of a count, so they cannot
+		// travel in the plain map above.
+		relayReachable: (/** @type {number} */ count) =>
+			$_('consent.relayReachable', { values: { count } }),
+		relayDiscovered: (/** @type {number} */ count) =>
+			$_('consent.relayDiscovered', { values: { count } })
 	};
+
+	$: if (ready) introEl.strings = strings;
+	$: if (ready) introEl.technical = technical;
+	$: if (ready) {
+		introEl.privacy = { accept: true, clauses };
+		watchAcceptance();
+		hideDeadCloseControl();
+	}
+	$: if (ready) introEl.choices = { identity, storage };
+
+	/*
+		One label for two different blockers told people to fill in a field that
+		was already filled: the mnemonic is generated and valid on arrival, so
+		what actually holds the button is the acceptance tick further down.
+
+		Named in reading order — the mnemonic sits above the tick, so an invalid
+		one is what to say first.
+	*/
+	$: proceedLabel = !canProceed
+		? $_('consent.proceedDisabled')
+		: !accepted
+			? $_('consent.proceedNeedsAccept')
+			: $_('consent.proceed');
+	$: if (ready && show && !introEl.isOpen) void introEl.open();
+
+	/**
+	 * The element disables its own close control; the proceed button below is
+	 * ours and has to know whether the statement was accepted. Idempotent,
+	 * because the reactive block above runs again on every choice.
+	 */
+	/** Bring the acceptance tick into view and put the cursor on it. */
+	function revealAcceptance() {
+		const box = introEl?.shadowRoot?.querySelector('input[part=accept]');
+		if (!(box instanceof HTMLElement)) return;
+		box.scrollIntoView({ block: 'center', behavior: 'smooth' });
+		box.focus();
+	}
+
+	/**
+	 * The element ships a close control and disables it — deliberately, since
+	 * this dialog is a decision rather than something to dismiss. A visible
+	 * cross that does nothing is worse than no cross, and it sits in the corner
+	 * where people reach to get out.
+	 */
+	function hideDeadCloseControl() {
+		const close = introEl?.shadowRoot?.querySelector('button[disabled]');
+		if (!(close instanceof HTMLElement)) return;
+		close.hidden = true;
+		close.setAttribute('aria-hidden', 'true');
+	}
+
+	function watchAcceptance() {
+		const box = introEl?.shadowRoot?.querySelector('input[part=accept]');
+		if (!box || box.dataset.watched === 'true') return;
+		box.dataset.watched = 'true';
+		accepted = box.checked === true;
+		box.addEventListener('change', () => (accepted = box.checked === true));
+	}
+
+	onMount(async () => {
+		await import('@le-space/libp2p-webrtc-qr/elements');
+		introEl.strings = strings;
+
+		introEl.addEventListener('close', (/** @type {any} */ event) => {
+			rememberDecision = event.detail?.remember === true;
+			show = false;
+			dispatch('proceed');
+		});
+		ready = true;
+	});
 </script>
 
-{#if show}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-		<div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-surface shadow-xl">
-			<div class="p-6">
-				<h1 class="text-center text-2xl font-bold text-heading">{title}</h1>
-				{#if version}
-					<p class="mt-2 text-center text-sm text-faint">{version}</p>
-				{/if}
+<qr-intro bind:this={introEl} data-testid="consent-modal">
+	<!--
+		The language switch belongs in here rather than in the page header: this
+		dialog is the first thing anybody sees, and sending somebody to the header
+		to change the language of the screen they are currently failing to read
+		would be a poor joke.
+	-->
+	<div slot="header" class="flex shrink-0 items-center gap-2">
+		<LanguageSwitcher />
+		<button
+			type="button"
+			on:click={() => (technical = !technical)}
+			data-testid="consent-technical"
+			class="rounded-md border border-border px-2 py-1 text-xs text-faint hover:text-text"
+		>
+			{technical ? $_('consent.simple') : $_('consent.technical')}
+		</button>
+	</div>
 
-				<div class="mb-6 space-y-4">
-					<p class="text-text">{description}</p>
-					<ul class="ml-4 list-inside list-disc space-y-2 text-text">
-						{#each features as feature, index (index)}
-							<li>{feature}</li>
-						{/each}
-					</ul>
-				</div>
+	<!--
+		Build metadata was the second line of the first screen anybody sees. It
+		belongs where somebody goes looking for it.
+	-->
+	{#if technical}
+		<p class="text-xs text-faint" data-testid="consent-version">{version}</p>
+	{/if}
 
-				<slot name="before-confirmation" />
+	<div class="my-4 rounded-md border border-border p-3 text-sm" data-testid="consent-warning">
+		<span class="font-medium text-heading">{$_('consent.warningHeading')}</span>
+		<span class="text-text">{$_('consent.warningBody')}</span>
+	</div>
 
-				<div class="mb-6 space-y-4">
-					<p class="font-medium text-text">{confirmationLabel}</p>
+	<!--
+		The chapter's own controls: the shared-list mnemonic and the identity
+		choice. They stay the app's markup in the element's story slot, which is
+		the split the element is built around — it knows about dialogs, not about
+		this app.
+	-->
+	<slot name="before-confirmation" />
 
-					{#each Object.entries(checkboxes) as [key, item] (key)}
-						<label class="flex cursor-pointer items-start space-x-3">
-							<input
-								type="checkbox"
-								checked={item.checked}
-								on:click={(e) => {
-									const target = e.target;
-									if (target && target instanceof HTMLInputElement) {
-										handleCheckboxChange(
-											/** @type {'relayConnection' | 'dataVisibility' | 'globalDatabase' | 'replicationTesting'} */ (
-												key
-											),
-											target.checked
-										);
-									}
-								}}
-								class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
-							/>
-							<span class="text-text">{item.label}</span>
-						</label>
-					{/each}
-				</div>
-
-				<div class="mt-6 border-t border-border pt-4">
-					<label class="flex cursor-pointer items-start space-x-3">
-						<input
-							type="checkbox"
-							bind:checked={rememberDecision}
-							class="mt-1 h-4 w-4 rounded text-cyan-600 focus:ring-cyan-500"
-						/>
-						<span class="text-text">{rememberLabel}</span>
-					</label>
-				</div>
-
-				<div class="mt-6 flex justify-center">
-					<button
-						on:click={handleProceed}
-						disabled={!readyToProceed}
-						class="rounded-md bg-coral-500 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-surface-2 disabled:hover:bg-surface-2"
-					>
-						{readyToProceed ? proceedButtonText : disabledButtonText}
-					</button>
-				</div>
-			</div>
+	<div slot="footer" class="flex flex-col items-stretch gap-2 sm:items-end">
+		{#if notice && !error}
+			<p
+				data-testid="consent-notice"
+				class="rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-text"
+			>
+				{notice}
+			</p>
+		{/if}
+		{#if error}
+			<p
+				role="alert"
+				data-testid="consent-error"
+				class="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger"
+			>
+				{error}
+			</p>
+		{/if}
+		<div class="flex flex-wrap items-center justify-end gap-2">
+			{#if canProceed && !accepted}
+				<!--
+					The dialog's body scrolls and its foot does not, so on a phone the
+					acceptance tick can sit above the fold while the button naming it
+					is in view. This is the way back to it.
+				-->
+				<button
+					type="button"
+					on:click={revealAcceptance}
+					data-testid="consent-show-notice"
+					class="rounded-md px-2 py-1 text-sm text-text underline underline-offset-2 hover:text-heading"
+				>
+					{$_('consent.showNotice')}
+				</button>
+			{/if}
+			<button
+			type="button"
+			disabled={!accepted || !canProceed}
+			on:click={() => introEl.close()}
+			data-testid="consent-proceed"
+			class="rounded-md bg-coral-700 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-800 disabled:cursor-not-allowed disabled:opacity-50"
+		>
+			{proceedLabel}
+			</button>
 		</div>
 	</div>
-{/if}
+</qr-intro>
+
+<style>
+	/*
+		The element ships a dark-first palette and reads it from `--qr-intro-*`.
+		Every name it does not find falls back to that dark default, and the
+		fallback is silent — which is how `--qr-intro-text` (a name the element
+		never reads; it is `--qr-intro-color`) left the dialog with #e8ecf3 text
+		on the white `--surface` we did set: 1.18:1, with the identity choice as
+		the casualty. So map the whole set, not the two that seemed to matter.
+
+		Mapping to the app tokens rather than to literals also carries the dark
+		theme for free: `.dark` redefines them on :root and the dialog follows.
+	*/
+	qr-intro {
+		--qr-intro-background: var(--surface);
+		--qr-intro-color: var(--text);
+		--qr-intro-muted: var(--faint);
+		--qr-intro-border: var(--border);
+		--qr-intro-accent: var(--identity);
+		--qr-intro-panel-background: var(--surface-2);
+		--qr-intro-panel-border: var(--border);
+		--qr-intro-panel-color: var(--text);
+	}
+</style>

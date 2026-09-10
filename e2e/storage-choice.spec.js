@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { isConsentOpen, passConsent, waitForConsent } from './consent.mjs';
 
 const timeout = 90000;
 
@@ -12,28 +13,27 @@ const timeout = 90000;
  */
 async function openWith(page, mode) {
 	await page.goto('/');
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await expect(modal).toBeVisible();
+	await waitForConsent(page);
 	await page.getByTestId(`storage-mode-${mode}`).check();
-	for (const box of await modal.locator('input[type="checkbox"]').all()) await box.check();
-	await page.getByRole('button', { name: 'Open shared list' }).click();
-	await expect(modal).not.toBeVisible({ timeout });
+	await passConsent(page);
 	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
 }
 
 async function reopen(page) {
 	await page.reload();
 
-	// The dialog may not come back at all: `openWith` ticks every box in it,
-	// and one of those is "don't show this again". Waiting for it to reappear
-	// is what made this fail the first time — on the helper, not on storage.
-	const modal = page.locator('div.fixed.inset-0.z-50');
-	await modal.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-	if (await modal.isVisible()) {
-		for (const box of await modal.locator('input[type="checkbox"]').all()) await box.check();
-		await page.getByRole('button', { name: 'Open shared list' }).click();
-		await expect(modal).not.toBeVisible({ timeout });
-	}
+	// The dialog may not come back at all — whether it does is the app's
+	// business, not this test's. Waiting for it to reappear is what made this
+	// fail the first time: on the helper, not on storage. Asked of the element
+	// rather than measured, because the host is 0x0 once it upgrades.
+	await page
+		.waitForFunction(
+			() => document.querySelector('[data-testid="consent-modal"]')?.isOpen === true,
+			undefined,
+			{ timeout: 10_000 }
+		)
+		.catch(() => {});
+	if (await isConsentOpen(page)) await passConsent(page);
 
 	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });
 }

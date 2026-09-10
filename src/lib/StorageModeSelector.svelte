@@ -11,15 +11,26 @@
 	 * since the storage mode existed. This chapter has been in-memory only and
 	 * never said so, which is why a reload silently emptied everything.
 	 */
+	import { _ } from '$lib/i18n/index.js';
 	import { getPersistentStorageEnabled, setPersistentStorageEnabled } from './storage-mode.js';
 
-	let persistent = getPersistentStorageEnabled();
+	/**
+	 * Exposed so the consent statement can name the consequence of the option
+	 * actually selected, rather than describing both and leaving the reader to
+	 * work out which one applies to them.
+	 *
+	 * @type {'memory' | 'indexeddb'}
+	 */
+	export let mode = getPersistentStorageEnabled() ? 'indexeddb' : 'memory';
+
+	let persistent = mode === 'indexeddb';
 
 	$: setPersistentStorageEnabled(persistent);
+	$: mode = persistent ? 'indexeddb' : 'memory';
 </script>
 
 <fieldset class="mb-4 rounded-md border border-border p-3" data-testid="storage-mode">
-	<legend class="px-1 text-xs font-medium text-heading">Where your todos are stored</legend>
+	<legend class="px-1 text-xs font-medium text-heading">{$_('consent.storageLegend')}</legend>
 
 	<label class="flex cursor-pointer items-start gap-2 text-sm">
 		<input
@@ -30,10 +41,9 @@
 			class="mt-1"
 		/>
 		<span>
-			<span class="text-text">In memory only</span>
+			<span class="text-text">{$_('consent.storageMemoryLabel')}</span>
 			<span class="mt-0.5 block text-xs text-faint">
-				Nothing is written to this device. Reload the page and this browser starts over — the lists
-				come back only from another device or the relay.
+				{$_('consent.storageMemoryHint')}
 			</span>
 		</span>
 	</label>
@@ -47,10 +57,9 @@
 			class="mt-1"
 		/>
 		<span>
-			<span class="text-text">Keep them in this browser</span>
+			<span class="text-text">{$_('consent.storagePersistentLabel')}</span>
 			<span class="mt-0.5 block text-xs text-faint">
-				Todos are stored in the browser's IndexedDB and survive a restart. They are not encrypted
-				there, so anyone who can read this browser's storage can read them.
+				{$_('consent.storagePersistentHint')}
 			</span>
 		</span>
 	</label>

@@ -1,5 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
+	import { _ } from '$lib/i18n/index.js';
 	import { peerIdStore, initializationStore, ownDidStore } from '$lib/p2p-stores.js';
 	import PasskeyOnboarding from '$lib/PasskeyOnboarding.svelte';
 	import DidBadge from '$lib/DidBadge.svelte';
@@ -34,6 +35,7 @@
 	import OwnMultiaddrs from '$lib/OwnMultiaddrs.svelte';
 	import SharedListSelector from '$lib/SharedListSelector.svelte';
 	import StorageModeSelector from '$lib/StorageModeSelector.svelte';
+	import { getPersistentStorageEnabled } from '$lib/storage-mode.js';
 	import SharedListDetails from '$lib/SharedListDetails.svelte';
 	import PermissionsPanel from '$lib/PermissionsPanel.svelte';
 	import OpenDatabaseForm from '$lib/OpenDatabaseForm.svelte';
@@ -68,6 +70,17 @@
 	/** @type {string | null} */
 	let error = null;
 	/** @type {string | null} */
+	let notice = null;
+	/*
+		Seeded from the stored preference, not from a literal. With `bind:mode`
+		the parent's initial value wins, so a hard-coded 'memory' here overwrote
+		what the person chose last time — and the selector's reactive write then
+		persisted that overwrite. A reload silently moved everyone back to
+		in-memory, which is exactly the failure the storage choice exists to fix.
+	*/
+	/** @type {'memory' | 'indexeddb'} */
+	let storageMode = getPersistentStorageEnabled() ? 'indexeddb' : 'memory';
+	/** @type {string | null} */
 	let myPeerId = null;
 	let selectedMnemonic = '';
 	let activeMnemonic = '';
@@ -77,7 +90,43 @@
 	let showModal = true;
 	let rememberDecision = false;
 
+	/**
+	 * A choice the person made that cannot be carried out — no passkey behind
+	 * "use an existing one", an unnamed new one. Separated from a genuine
+	 * startup failure because the two need different words: this one is
+	 * answered by choosing differently, and prefixing it with "P2P" only hides
+	 * that.
+	 */
+	class IdentityChoiceError extends Error {}
+
+	/**
+	 * The passkey binds the identity only as far as the authenticator lets it.
+	 *
+	 * `ensureDerivedSigningKey` derives the OrbitDB signing key from the
+	 * credential's PRF output, which is what makes the same passkey produce the
+	 * same identity document everywhere. Without PRF it is never fatal: the
+	 * keystore generates its own key, the DID stays the same, and the public
+	 * key differs per device. The provider logs one debug line, so nothing
+	 * reaches the person it affects. This does.
+	 *
+	 * @param {any} credential
+	 */
+	function warnIfIdentityCannotTravel(credential) {
+		if (!credential || credential.extensionSupport?.prf !== false) return;
+		const seen = `simpleTodo.prfWarned.${credential.credentialId ?? 'unknown'}`;
+		try {
+			if (localStorage.getItem(seen) === 'true') return;
+			localStorage.setItem(seen, 'true');
+		} catch {
+			// No storage: warn every time rather than not at all.
+		}
+		showToast($_('consent.prfMissing'), 'warning', 12_000);
+	}
+
 	const handleModalClose = async () => {
+		// The dialog shows this now, so a stale one would accuse the attempt that
+		// is only just starting.
+		error = null;
 		const canonicalMnemonic = normalizeSpanishMnemonic(selectedMnemonic);
 		selectedMnemonic = canonicalMnemonic;
 		try {
@@ -94,7 +143,7 @@
 			let passkeyCredential = null;
 			if (identityMode === 'create') {
 				if (!passkeyLabel.trim()) {
-					throw new Error('Please enter a name for the new passkey.');
+					throw new IdentityChoiceError($_('consent.errorNeedsLabel'));
 				}
 				// The same label goes into both WebAuthn fields on purpose: they are
 				// the account name and the display name of one credential, and the
@@ -106,9 +155,7 @@
 			} else if (identityMode === 'existing') {
 				passkeyCredential = await recoverPasskeyCredential();
 				if (!passkeyCredential) {
-					throw new Error(
-						'No passkey found for this origin. Create a new one or continue without a passkey.'
-					);
+					throw new IdentityChoiceError($_('consent.errorNoPasskey'));
 				}
 			}
 			try {
@@ -123,9 +170,14 @@
 				await startP2P({ todoDbName: canonicalMnemonic, passkeyCredential });
 			}
 			activeMnemonic = canonicalMnemonic;
+			warnIfIdentityCannotTravel(passkeyCredential);
 		} catch (err) {
 			showModal = true;
-			error = `Failed to initialize P2P: ${err instanceof Error ? err.message : String(err)}`;
+			const reason = err instanceof Error ? err.message : String(err);
+			error =
+				err instanceof IdentityChoiceError
+					? reason
+					: $_('consent.errorStart', { values: { reason } });
 			console.error('P2P initialization failed:', err);
 		}
 	};
@@ -163,6 +215,7 @@
 				// A WebAuthn prompt needs a user gesture, so a remembered passkey
 				// session cannot auto-start: preselect recovery and show the modal.
 				identityMode = 'existing';
+				notice = $_('consent.existingNeedsTap');
 			} else if (localStorage.getItem(CONSENT_KEY) === 'true') {
 				showModal = false;
 				activeMnemonic = normalizeSpanishMnemonic(selectedMnemonic);
@@ -193,12 +246,29 @@
 	 * @param {string} message
 	 * @param {ToastType} [type='default']
 	 */
-	function showToast(message, type = 'default') {
+	/** @type {ReturnType<typeof setTimeout> | null} */
+	let toastTimer = null;
+	let toastDuration = 3000;
+
+	/**
+	 * Three seconds fits "Todo added". It does not fit two sentences about what
+	 * an authenticator cannot do, so the duration is the caller's to say.
+	 *
+	 * @param {string} message
+	 * @param {ToastType} [type]
+	 * @param {number} [duration] milliseconds on screen
+	 */
+	function showToast(message, type = 'default', duration = 3000) {
 		toastMessage = message;
 		toastType = type;
-		setTimeout(() => {
+		// The component auto-hides on its own timer, so it has to hear the same
+		// number — otherwise it disappears after its default three seconds.
+		toastDuration = duration;
+		if (toastTimer) clearTimeout(toastTimer);
+		toastTimer = setTimeout(() => {
 			toastMessage = null;
-		}, 3000);
+			toastTimer = null;
+		}, duration);
 	}
 
 	/**
@@ -296,7 +366,7 @@
 	let connectedPeersRef;
 </script>
 
-<ToastNotification message={toastMessage} type={toastType} />
+<ToastNotification message={toastMessage} type={toastType} duration={toastDuration} />
 
 <svelte:head>
 	<title>Simple-Todo {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0'}</title>
@@ -311,16 +381,16 @@
 {#if showModal}
 	<ConsentModal
 		bind:show={showModal}
-		title="Simple-Todo"
 		bind:rememberDecision
-		rememberLabel="Don't show this again on this device"
-		proceedButtonText="Open shared list"
-		disabledButtonText="Please check all boxes to continue"
 		canProceed={mnemonicValid}
+		identity={identityMode}
+		storage={storageMode}
+		{error}
+		{notice}
 		on:proceed={handleModalClose}
 	>
 		<svelte:fragment slot="before-confirmation">
-			<StorageModeSelector />
+			<StorageModeSelector bind:mode={storageMode} />
 			<SharedListSelector bind:value={selectedMnemonic} />
 			<PasskeyOnboarding bind:mode={identityMode} bind:label={passkeyLabel} />
 		</svelte:fragment>
@@ -379,7 +449,7 @@
 		</svelte:fragment>
 	</P2PStatusNav>
 
-	{#if error || $initializationStore.error}
+	{#if !showModal && (error || $initializationStore.error)}
 		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
 	{/if}
 

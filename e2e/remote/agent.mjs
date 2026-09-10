@@ -1,3 +1,5 @@
+import { passConsent } from '../consent.mjs';
+
 const DEFAULT_TIMEOUT = 120_000;
 
 /** Timestamped live progress line so CI logs show what remote runs are doing. */
@@ -44,18 +46,17 @@ export class TodoBrowserAgent {
 		remoteProgress(`[${this.name}] opening ${this.appUrl}...`);
 		await this.page.goto(this.appUrl, { waitUntil: 'domcontentloaded', timeout: this.timeout });
 
-		const modal = this.page.locator('div.fixed.inset-0.z-50');
-		await modal.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
-		if (await modal.isVisible()) {
-			for (const checkbox of await modal.locator('input[type="checkbox"]').all()) {
-				await checkbox.check();
-			}
-			// Chapter-specific: collab01 replicates a Spanish-mnemonic-named shared
-			// OrbitDB list, so open that list by its mnemonic instead of the plain
-			// "Proceed to Test the App" flow.
-			await modal.getByTestId('shared-list-mnemonic-input').fill(mnemonic);
-			await this.page.getByRole('button', { name: 'Open shared list' }).click();
-		}
+		// The consent screen is a `qr-intro` element now, and its controls live in
+		// a shadow tree. This looked for the markup that replaced — a
+		// `div.fixed.inset-0.z-50` and a button by its label — found neither, and
+		// because a missing dialog was treated as "nothing to do", skipped the
+		// consent walk in silence. The app then never initialised and the wait
+		// below burned its full timeout with nothing in the log to say why.
+		//
+		// The chapter's specs were moved onto `consent.mjs` when the dialog
+		// moved; this file was not, because it is not a `*.spec.js` and the sweep
+		// went by that name. Same mistake as #302 on `main`, one directory over.
+		await passConsent(this.page, { mnemonic });
 
 		await this.todoInput().waitFor({ state: 'visible', timeout: this.timeout });
 		await this.page.waitForFunction(
