@@ -309,8 +309,16 @@ async function createOrbitDBInstance(heliaNode) {
 	const identity = await identities.createIdentity({
 		provider: OrbitDBWebAuthnIdentityProviderFunction({
 			webauthnCredential: activePasskeyCredential,
-			// One WebAuthn prompt per session: the Ed25519 keystore key is
-			// encrypted at rest and unlocked once through the passkey.
+			// One WebAuthn prompt per session: the keystore key is encrypted at
+			// rest and unlocked once through the passkey.
+			//
+			// secp256k1, not Ed25519 — `keystoreKeyType` defaults to secp256k1
+			// and this call does not override it. The key is not random either:
+			// the provider seeds the keystore from the passkey's PRF output
+			// (HKDF-SHA256, domain-separated by the DID) before OrbitDB asks for
+			// it, which is what makes one passkey yield one identity document on
+			// every device. Without PRF it silently falls back to a generated
+			// key — see `warnIfIdentityCannotTravel` in +page.svelte.
 			encryptKeystore: true
 		})
 	});
