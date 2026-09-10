@@ -217,6 +217,14 @@ relayTest.describe('Sponsor Relay button', () => {
 			const instanceName = evidence.instanceName;
 			const startedAt = Date.now();
 			const deploymentContext = await browser.newContext();
+			// Bounded, unlike the rest of this spec. Everything on this page that is
+			// meant to take long — the manifest check, the deployment, the
+			// registration — carries its own timeout inside @le-space/playwright;
+			// what inherits this default is only the driver's clicks and fills. Without
+			// it, a click that can never land (a modal over the launcher, #323) waits
+			// out the whole 75-minute test and fails as "Test timeout", naming nothing.
+			// With it, that is a two-minute failure that says which locator it was.
+			deploymentContext.setDefaultTimeout(2 * 60_000);
 			await installEip1193WalletMock(deploymentContext, account);
 			// Enable @le-space/ui controller tracing so deploy-phase diagnostics
 			// (CRN selection, allocation notify, failover) reach the browser
