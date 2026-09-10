@@ -91,7 +91,7 @@
 		because that part of the network view is still worth having.
 	*/
 	$: strings = {
-		...$json('consent.element'),
+		.../** @type {Record<string, string>} */ ($json('consent.element')),
 		title: $_('app.title'),
 		close: $_('consent.proceed'),
 		dontShow: $_('consent.remember'),
@@ -249,13 +249,13 @@
 				</button>
 			{/if}
 			<button
-			type="button"
-			disabled={!accepted || !canProceed}
-			on:click={() => introEl.close()}
-			data-testid="consent-proceed"
-			class="rounded-md bg-coral-700 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-800 disabled:cursor-not-allowed disabled:opacity-50"
-		>
-			{proceedLabel}
+				type="button"
+				disabled={!accepted || !canProceed}
+				on:click={() => introEl.close()}
+				data-testid="consent-proceed"
+				class="rounded-md bg-coral-700 px-6 py-3 font-medium text-white transition-colors hover:bg-coral-800 disabled:cursor-not-allowed disabled:opacity-50"
+			>
+				{proceedLabel}
 			</button>
 		</div>
 	</div>

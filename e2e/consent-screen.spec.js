@@ -104,8 +104,8 @@ test.describe('Consent screen', () => {
 		await page.goto('/');
 		await waitForConsent(page);
 
-		const keys = await page.evaluate(
-			() => Object.keys(document.querySelector('[data-testid="consent-modal"]').strings)
+		const keys = await page.evaluate(() =>
+			Object.keys(document.querySelector('[data-testid="consent-modal"]').strings)
 		);
 
 		const supplied = new Set([
