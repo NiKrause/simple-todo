@@ -60,7 +60,7 @@
 	},
 	"pnpm": {
 		"overrides": {
-			"@le-space/orbitdb-identity-provider-webauthn-did": "0.5.0",
+			"@le-space/orbitdb-identity-provider-webauthn-did": "0.5.2",
 			"orbitdb-relay>@orbitdb/core": "4.0.0",
 			"react": "19.2.6",
 			"react-dom": "19.2.6",
@@ -70,7 +70,7 @@
 		},
 		"peerDependencyRules": {
 			"allowedVersions": {
-				"@le-space/orbitdb-access-controller-delegated-todo>@le-space/orbitdb-identity-provider-webauthn-did": "0.5.0",
+				"@le-space/orbitdb-access-controller-delegated-todo>@le-space/orbitdb-identity-provider-webauthn-did": "0.5.2",
 				"@le-space/orbitdb-access-controller-delegated-todo>@orbitdb/core": "4.0.0"
 			}
 		},
@@ -89,7 +89,7 @@
 		"@le-space/aleph-bootstrap": "0.9.4",
 		"@libp2p/peer-id": "^6.0.12",
 		"@le-space/libp2p-webrtc-qr": "0.13.1",
-		"@le-space/orbitdb-identity-provider-webauthn-did": "0.5.0",
+		"@le-space/orbitdb-identity-provider-webauthn-did": "0.5.2",
 		"@le-space/ui": "0.9.4",
 		"@libp2p/autonat": "^3.0.24",
 		"@libp2p/bootstrap": "^12.0.27",
