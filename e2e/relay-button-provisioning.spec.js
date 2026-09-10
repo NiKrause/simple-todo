@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { isConsentOpen, passConsent } from './consent.mjs';
+import { isConsentOpen, passConsent, waitForConsent } from './consent.mjs';
 import { privateKeyToAccount } from 'viem/accounts';
 import { mkdir } from 'node:fs/promises';
 import { PREVIEW_ORIGIN } from './preview-origin.mjs';
@@ -55,26 +55,24 @@ const REPLICATION_TIMEOUT = 3 * 60_000;
  * @param {import('@playwright/test').Page} page
  */
 async function acceptConsent(page) {
-	// Asked of the *element*, not measured — which is the whole point.
-	// `consent.mjs` says why: the host is a custom element whose dialog lives in
-	// the shadow tree and is positioned by the browser, so the host measures
-	// 0x0 whether it is showing or not, and `isVisible()` answers a different
-	// question than the one being asked.
+	// Asked of the *element*, not measured: the host is a custom element whose
+	// dialog lives in its shadow tree, so it measures 0x0 whether it is showing
+	// or not — `consent.mjs` says why.
 	//
-	// This bailed out on `isVisible()` before, and that is a race rather than a
-	// constant. Measured against the deployed app:
+	// But asked *once it can answer*. `goto` returns at domcontentloaded and the
+	// element upgrades a few hundred milliseconds later; until then `isOpen` is
+	// false for a dialog that is about to open. Measured against a local build,
+	// five loads out of five:
 	//
-	//   t≈250ms   isVisible=true   isOpen=false   element not yet upgraded
-	//   t≈500ms+  isVisible=false  isOpen=true    upgraded, host is 0x0
+	//   +41 ms    isOpen=false   not yet upgraded
+	//   +300 ms   isOpen=true    upgraded, dialog open
 	//
-	// Before the custom element upgrades, its light-DOM children render inline
-	// and the host has a box; afterwards the content moves into the shadow
-	// dialog and the host collapses. So `isVisible()` is true only while the
-	// dialog is *not* open yet, and false once it is — wrong in both directions.
-	// The wait above lands after the upgrade, so this returned early: consent
-	// was never given, the app never initialised, no relay was discovered, and
-	// the spec polled an empty deploy page for 1.3 hours before failing. Seven
-	// runs in a row on `main` since the dialog moved (#298).
+	// #323 swapped the measurement for the right question and dropped the wait
+	// along with it. So this returned before the dialog existed, consent was
+	// never given, and the relay button's controls sat under a modal dialog
+	// until the 75-minute test timeout — every run on `main` since. Bounded,
+	// because a remembered decision means the dialog never opens at all.
+	await waitForConsent(page, { timeout: 15_000 }).catch(() => {});
 	if (!(await isConsentOpen(page))) return;
 
 	await passConsent(page);
@@ -219,6 +217,14 @@ relayTest.describe('Sponsor Relay button', () => {
 			const instanceName = evidence.instanceName;
 			const startedAt = Date.now();
 			const deploymentContext = await browser.newContext();
+			// Bounded, unlike the rest of this spec. Everything on this page that is
+			// meant to take long — the manifest check, the deployment, the
+			// registration — carries its own timeout inside @le-space/playwright;
+			// what inherits this default is only the driver's clicks and fills. Without
+			// it, a click that can never land (a modal over the launcher, #323) waits
+			// out the whole 75-minute test and fails as "Test timeout", naming nothing.
+			// With it, that is a two-minute failure that says which locator it was.
+			deploymentContext.setDefaultTimeout(2 * 60_000);
 			await installEip1193WalletMock(deploymentContext, account);
 			// Enable @le-space/ui controller tracing so deploy-phase diagnostics
 			// (CRN selection, allocation notify, failover) reach the browser
@@ -372,6 +378,13 @@ relayTest.describe('Sponsor Relay button', () => {
 				// Consent first: until it is accepted the app never initialises, and
 				// nothing on the page below it can be clicked.
 				await acceptConsent(deploymentPage);
+				// Checked rather than assumed. This line used to be logged whether or
+				// not consent had been given, and for ten runs it had not — the log
+				// said "accepted" 100 ms after the start while the dialog stayed open.
+				expect(
+					await isConsentOpen(deploymentPage),
+					'the consent dialog is still open on the deployment page'
+				).toBe(false);
 				progress('consent accepted on the deployment page');
 
 				// The Relay Button no longer floats over the app; it sits inside the
