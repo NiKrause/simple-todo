@@ -9,7 +9,9 @@ import {
 	createOrbitDB,
 	IPFSAccessController,
 	Identities,
-	useIdentityProvider
+	useIdentityProvider,
+	KeyStore,
+	MemoryStorage
 } from '@orbitdb/core';
 import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-identity-provider-webauthn-did';
 import * as dagCbor from '@ipld/dag-cbor';
@@ -308,21 +310,22 @@ async function createOrbitDBInstance(heliaNode) {
 		// Already registered — fine.
 	}
 
-	const identities = await Identities({ ipfs: heliaNode });
+	// The signing key never touches disk. This keystore lives in memory only,
+	// and the provider fills it before OrbitDB asks: an Ed25519 key derived
+	// from the passkey's PRF output (HKDF-SHA256, domain-separated by the DID
+	// and the key type), again every time a session starts. One passkey still
+	// yields one identity document on every device, and a closed tab leaves no
+	// key behind. Without PRF the keystore generates a key for this session
+	// only — see `warnIfIdentityCannotTravel` in +page.svelte.
+	//
+	// No `encryptKeystore`: it encrypted a separate key pair that signed
+	// nothing, and cost a passkey prompt to unlock it.
+	const keystore = await KeyStore({ storage: await MemoryStorage() });
+	const identities = await Identities({ ipfs: heliaNode, keystore });
 	const identity = await identities.createIdentity({
 		provider: OrbitDBWebAuthnIdentityProviderFunction({
 			webauthnCredential: activePasskeyCredential,
-			// One WebAuthn prompt per session: the keystore key is encrypted at
-			// rest and unlocked once through the passkey.
-			//
-			// secp256k1, not Ed25519 — `keystoreKeyType` defaults to secp256k1
-			// and this call does not override it. The key is not random either:
-			// the provider seeds the keystore from the passkey's PRF output
-			// (HKDF-SHA256, domain-separated by the DID) before OrbitDB asks for
-			// it, which is what makes one passkey yield one identity document on
-			// every device. Without PRF it silently falls back to a generated
-			// key — see `warnIfIdentityCannotTravel` in +page.svelte.
-			encryptKeystore: true
+			signingKeyType: 'Ed25519'
 		})
 	});
 	ownDidStore.set(identity.id);

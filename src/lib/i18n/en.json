@@ -35,7 +35,7 @@
 		"existingNeedsTap": "Your passkey asks for a tap on every start. That is why this dialog is back — nothing went wrong.",
 		"identityExistingFound": "A passkey from an earlier session is stored on this device.",
 		"identityExistingNone": "Nothing is stored in this browser. We will ask your authenticator, which only works if the passkey carries its own details.",
-		"prfMissing": "This authenticator cannot carry your identity to a second device (no PRF). The same passkey produces a separate identity there.",
+		"prfMissing": "This authenticator has no PRF, so your signing key cannot be derived from the passkey. Each session gets a fresh one instead: the same DID, but a new identity document every time, and a second device gets its own.",
 		"mnemonicLabel": "Shared list mnemonic",
 		"mnemonicHelp": "Share these three Spanish words to join the same public writable OrbitDB list. This is a share code, not a password or encryption key.",
 		"mnemonicPlaceholder": "luna-camino-verde",
@@ -82,8 +82,8 @@
 			"privacyAccept": "I have read this and accept it",
 			"technical": [
 				"Identity: with a passkey your DID is the credential’s own P-256 public key — multicodec 0x1200 over the uncompressed point, base58btc, so it reads did:key:z4oJ8…. The did:key spec asks for the compressed form, so foreign resolvers will not resolve these. Without a passkey there is no DID at all, only a random per-browser id.",
-				"Signing: OrbitDB signs entries with a secp256k1 keystore key that is derived from the passkey, not generated at random — HKDF-SHA256 over the WebAuthn PRF output, domain-separated by the DID. The same passkey therefore yields the same identity document on every device. An authenticator without PRF falls back to a generated key, and that identity stays on one device.",
-				"The keystore at rest: the private key is encrypted with AES-GCM-256, the key for it derived by HKDF-SHA256 from the PRF output. It is decrypted into memory once per session, after the passkey unlocks it. largeBlob and hmac-secret are the fallbacks where PRF is missing.",
+				"Signing: OrbitDB signs entries with an Ed25519 key that is derived from the passkey, not generated at random — HKDF-SHA256 over the WebAuthn PRF output, domain-separated by the DID and the key type. The same passkey therefore yields the same identity document on every device. Without PRF the key is generated for the session instead, and each session writes under a new identity document; the DID stays the same.",
+				"At rest there is no signing key to find: it lives in memory for the session only — derived from the passkey when the session starts, never written to IndexedDB or anywhere else — and is gone when the tab closes.",
 				"List contents: AES-GCM-256 under a 32-byte key per list, a fresh 12-byte nonce per entry. It covers the entry payload only — author, signature and the list address stay readable, so replication is not restricted, only reading is.",
 				"Where the keys live: the list key sits base64 in this browser under privacy01.dbKey.<address>, the device key as an ECDH P-256 JWK under privacy01.deviceKey.<did>. Clearing this browser’s storage loses both.",
 				"Handing a key over: a fresh ephemeral ECDH P-256 pair per envelope, HKDF-SHA256 over the shared secret (info privacy01/database-key-wrap/1), AES-GCM-256 around the list key. The wrapped copy travels through a public store — without the recipient’s private device key it is noise. Public keys come from a directory whose lookups verify the writing identity against the DID it claims."
