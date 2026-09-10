@@ -186,6 +186,44 @@
 			"persistent": "Ihre Aufgaben bleiben in diesem Browser und überstehen einen Neustart — in einer geteilten, unverschlüsselten Datenbank.",
 			"memory": "Ihre Aufgaben liegen nur im Arbeitsspeicher und sind beim Neuladen weg. Die Datenbank ist so oder so geteilt und unverschlüsselt.",
 			"cookies": "Es werden keine Tracking-Cookies verwendet. Wenn Sie „Nicht mehr anzeigen“ anhaken, ist genau diese Entscheidung das Einzige, was auf diesem Gerät gespeichert wird."
-		}
+		},
+		"element": {
+			"checkHeading": "Dieser Browser, in diesem Netz",
+			"checking": "Prüfe, was dieses Netz zulässt…",
+			"ok": "Eine direkte Verbindung aus diesem Netz heraus sieht möglich aus.",
+			"unreliable": "Dieses Netz vergibt pro Ziel einen neuen Port und bietet kein IPv6. Eine direkte Verbindung gelingt deshalb meist nur zu jemandem im selben Netz.",
+			"none": "Aus diesem Netz heraus wurde kein Weg gefunden. Zu jemandem im selben Netz können Sie sich trotzdem verbinden.",
+			"sameNetwork": "Zwei Geräte im selben WLAN verbinden sich unabhängig von alldem.",
+			"details": "Die Adressen zeigen, die diese Prüfung gefunden hat",
+			"detailsHint": "Was einem Gegenüber als Weg zu diesem Gerät angeboten würde. Schalten Sie ein VPN ein oder aus und prüfen Sie erneut — was sich ändert, ändert sich hier.",
+			"detailsDecides": "Nur die Zeilen „von außen gesehen“ entscheiden über das Urteil oben. Der Rest sind die eigenen Adressen dieses Geräts; die gibt es, ob etwas hinausgelangt oder nicht.",
+			"recheck": "Erneut prüfen",
+			"detailsEmpty": "Es wurden keine Kandidaten gesammelt.",
+			"candidateHost": "dieses Gerät",
+			"candidateSrflx": "von außen gesehen",
+			"candidateRelay": "über einen Relay",
+			"candidatePrflx": "während der Verbindung entdeckt",
+			"candidateMdns": "Adressen, die auf .local enden, sind Platzhalter, die der Browser anstelle der echten Adresse dieses Geräts einsetzt, damit eine Webseite sie nicht lesen kann. Sie sind kein Fehler und nicht das VPN.",
+			"candidateNew": "neu",
+			"candidateGone": "weg",
+			"technicalHeading": "Gut zu wissen",
+			"waysHeading": "Wie das andere Gerät hereinkommt",
+			"wayQr": "Per Kamera: Sie halten einen Code hin, das andere Gerät scannt ihn. Dabei verlässt nichts dieses Netz.",
+			"relayLabel": "Über einen Relay verbinden",
+			"relayHint": "Für den Fall, dass das andere Gerät Ihren Code nicht scannen kann — über einen Messenger etwa. Aus, solange Sie es nicht verlangen.",
+			"relayChecking": "Suche einen Relay, der antwortet…",
+			"relayNone": "Kein Relay hat geantwortet. Einen Code zu scannen geht weiterhin.",
+			"privacyHeading": "Was das für Ihre Daten bedeutet",
+			"privacyEmpty": "Was hier steht, entscheiden die Angaben oben.",
+			"privacyAccept": "Ich habe das gelesen und bin einverstanden",
+			"technical": [
+				"Ein Telefon schließt eine wartende Einladung wenige Sekunden nachdem Sie die App verlassen. Nur DuckDuckGo und Safari halten sie beobachtet etwa zehn.",
+				"Chrome auf Android meldet kein IPv6, wo Firefox und DuckDuckGo auf demselben Telefon im selben WLAN eines melden. Ein Urteil beschreibt diesen Browser, nicht das Netz.",
+				"Im Mobilfunk blockiert das Carrier-NAT eine direkte Verbindung nach außen meist.",
+				"Ein VPN verlegt beide Enden woandershin. Das kann ein blockiertes Netz retten und ein funktionierendes zerstören."
+			]
+		},
+		"relayReachable": "{count} bekannte Relays haben geantwortet. Es wurde kein Verzeichnis abgefragt.",
+		"relayDiscovered": "{count} Relays im Verzeichnis gefunden — die mit dieser App ausgelieferten blieben stumm."
 	}
 }

@@ -78,4 +78,4 @@ init({
 	initialLocale: initialLocale()
 });
 
-export { _, locale } from 'svelte-i18n';
+export { _, json, locale } from 'svelte-i18n';
