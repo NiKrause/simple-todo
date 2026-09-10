@@ -117,7 +117,7 @@
 		something else. Flat, one would have silently overwritten the other.
 	*/
 	$: strings = {
-		...$json('consent.element'),
+		.../** @type {Record<string, string>} */ ($json('consent.element')),
 		title: $_('app.title'),
 		close: $_('consent.proceed'),
 		dontShow: $_('consent.remember'),
