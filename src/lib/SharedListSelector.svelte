@@ -57,7 +57,9 @@
 		placeholder={$_('consent.mnemonicPlaceholder')}
 	/>
 	{#if validation.error && touched}
-		<p id="shared-list-error" role="alert" class="mt-1 text-xs text-danger-700">{validation.error}</p>
+		<p id="shared-list-error" role="alert" class="mt-1 text-xs text-danger-700">
+			{validation.error}
+		</p>
 	{:else}
 		<p id="shared-list-error" class="sr-only">{$_('consent.mnemonicSrError')}</p>
 	{/if}
