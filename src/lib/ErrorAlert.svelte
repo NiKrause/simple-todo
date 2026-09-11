@@ -24,11 +24,11 @@
 
 		switch (type) {
 			case 'warning':
-				return `${baseClasses} bg-data-100 border-data-400 text-data-700`;
+				return `${baseClasses} bg-data-100 border-data-400 text-data-700 dark:bg-data/10 dark:border-data/40 dark:text-data`;
 			case 'info':
-				return `${baseClasses} bg-cyan-100 border-cyan-400 text-cyan-700`;
+				return `${baseClasses} bg-cyan-100 border-cyan-400 text-cyan-700 dark:bg-cyan/10 dark:border-cyan/40 dark:text-cyan`;
 			default: // error
-				return `${baseClasses} bg-danger-100 border-danger-400 text-danger-700`;
+				return `${baseClasses} bg-danger-100 border-danger-400 text-danger-700 dark:bg-danger/10 dark:border-danger/40 dark:text-danger`;
 		}
 	}
 

@@ -135,14 +135,14 @@
 	{#if addresses.length > 0}
 		<ul class="max-h-28 space-y-1 overflow-y-auto pr-1" data-testid="own-multiaddr-list">
 			{#each addresses as address, index (address)}
-				<li class="flex items-center gap-1 rounded-md bg-cyan-50 p-1.5">
+				<li class="flex items-center gap-1 rounded-md bg-cyan-50 p-1.5 dark:bg-cyan/10">
 					<code class="min-w-0 flex-1 truncate font-mono text-[11px]" title={address}
 						>{address}</code
 					>
 					<button
 						type="button"
 						on:click={() => copyAddress(address)}
-						class="shrink-0 rounded p-1 text-text transition-colors hover:bg-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-500"
+						class="shrink-0 rounded p-1 text-text transition-colors hover:bg-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-500 dark:hover:bg-cyan/20"
 						aria-label={`Copy multiaddress ${index + 1}`}
 						title={copiedAddress === address ? $_('common.copied') : $_('common.copy')}
 						data-testid="copy-own-multiaddr"
