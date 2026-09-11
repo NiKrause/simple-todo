@@ -54,14 +54,14 @@
 	</summary>
 	<div class="mt-3 border-t border-border pt-3">
 		<p class="text-xs text-faint">Public mnemonic / OrbitDB database name</p>
-		<div class="mt-1 flex items-center gap-2 rounded-md bg-cyan-50 p-2">
+		<div class="mt-1 flex items-center gap-2 rounded-md bg-cyan-50 p-2 dark:bg-cyan/10">
 			<code class="min-w-0 flex-1 font-mono text-xs break-all" data-testid="active-shared-list-name"
 				>{mnemonic}</code
 			>
 			<button
 				type="button"
 				on:click={copyMnemonic}
-				class="rounded border border-cyan-200 bg-surface px-2 py-1 text-xs"
+				class="rounded border border-cyan-200 bg-surface px-2 py-1 text-xs dark:border-cyan/30"
 			>
 				{copied ? 'Copied!' : 'Copy'}
 			</button>
