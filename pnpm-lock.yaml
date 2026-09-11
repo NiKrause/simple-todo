@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.2
+  '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.4
   orbitdb-relay>@orbitdb/core: 4.0.0
   react: 19.2.6
   react-dom: 19.2.6
@@ -42,10 +42,10 @@ importers:
         version: 0.13.1(@multiformats/multiaddr@13.0.3)(libp2p@3.3.6)
       '@le-space/orbitdb-access-controller-delegated-todo':
         specifier: 0.1.0
-        version: 0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.5.2(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)
+        version: 0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.5.4(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)
       '@le-space/orbitdb-identity-provider-webauthn-did':
-        specifier: 0.5.2
-        version: 0.5.2(@orbitdb/core@4.0.0)
+        specifier: 0.5.4
+        version: 0.5.4(@orbitdb/core@4.0.0)
       '@le-space/ui':
         specifier: 0.7.0
         version: 0.7.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(svelte@5.37.2)(typescript@5.9.2)
@@ -1160,11 +1160,11 @@ packages:
   '@le-space/orbitdb-access-controller-delegated-todo@0.1.0':
     resolution: {integrity: sha512-IYqHNFWlwKWRXYXsxbw2pIdwRVe//YP1Y6VWmMkkl/BulOyDAkiV3Xz+CZRVAbyVscVPm5tQtjxb7fdqaLznKg==}
     peerDependencies:
-      '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.2
+      '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.4
       '@orbitdb/core': ^3.0.0
 
-  '@le-space/orbitdb-identity-provider-webauthn-did@0.5.2':
-    resolution: {integrity: sha512-4PBGwj8My6DZmnG2IRgNKDfQVMV/NTXrAI5dZY1NAAR/VNaPqZZ2PHL7E7pITtOeMAJZJ+fbq/lsPmzF56H0FQ==}
+  '@le-space/orbitdb-identity-provider-webauthn-did@0.5.4':
+    resolution: {integrity: sha512-iFq0CgvQLqd8vUHTlZ8bnurcsdDRzGcegazZ6J1ALdVmq0QJ84DiBVFyzYox0ObLzf0plYfyIwyYXgX6Vg7abg==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@orbitdb/core': ^4.0.0
@@ -2823,6 +2823,7 @@ packages:
   eslint@9.32.0:
     resolution: {integrity: sha512-LSehfdpgMeWcTZkWZVIJl+tkZ2nuSkyyB9C27MZqFWXuph7DvaowgcTvKqxvpLW1JZIk8PN7hFY3Rj9LQ7m7lg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -6742,12 +6743,12 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@le-space/orbitdb-access-controller-delegated-todo@0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.5.2(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)':
+  '@le-space/orbitdb-access-controller-delegated-todo@0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.5.4(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)':
     dependencies:
-      '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.2(@orbitdb/core@4.0.0)
+      '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.4(@orbitdb/core@4.0.0)
       '@orbitdb/core': 4.0.0
 
-  '@le-space/orbitdb-identity-provider-webauthn-did@0.5.2(@orbitdb/core@4.0.0)':
+  '@le-space/orbitdb-identity-provider-webauthn-did@0.5.4(@orbitdb/core@4.0.0)':
     dependencies:
       '@ipld/dag-cbor': 10.0.1
       '@ipld/dag-ucan': 3.4.5
@@ -7230,7 +7231,7 @@ snapshots:
       '@libp2p/interface': 3.2.5
       '@libp2p/peer-id': 6.0.13
       '@libp2p/utils': 7.3.1
-      multiformats: 14.0.4
+      multiformats: 14.0.5
 
   '@libp2p/peer-id@5.1.9':
     dependencies:
@@ -7670,7 +7671,7 @@ snapshots:
 
   '@multiformats/murmur3@2.2.8':
     dependencies:
-      multiformats: 14.0.4
+      multiformats: 14.0.5
 
   '@multiformats/uri-to-multiaddr@10.0.0':
     dependencies:
@@ -9882,7 +9883,7 @@ snapshots:
       it-pipe: 3.0.1
       it-pushable: 3.2.4
       it-to-buffer: 5.0.0
-      multiformats: 14.0.4
+      multiformats: 14.0.5
       p-queue: 9.3.1
       progress-events: 1.1.0
 
@@ -9920,7 +9921,7 @@ snapshots:
       it-batch: 3.0.11
       it-first: 3.0.11
       it-parallel-batch: 3.0.11
-      multiformats: 14.0.4
+      multiformats: 14.0.5
       progress-events: 1.1.0
       rabin-wasm: 0.1.5
       uint8arraylist: 3.0.2
@@ -11031,8 +11032,8 @@ snapshots:
       '@ipld/dag-cbor': 10.0.1
       '@ipld/dag-json': 11.0.0
       '@ipshipyard/libp2p-auto-tls': 1.0.0
-      '@le-space/orbitdb-access-controller-delegated-todo': 0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.5.2(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)
-      '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.2(@orbitdb/core@4.0.0)
+      '@le-space/orbitdb-access-controller-delegated-todo': 0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.5.4(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)
+      '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.4(@orbitdb/core@4.0.0)
       '@libp2p/autonat': 3.0.24
       '@libp2p/bootstrap': 12.0.27
       '@libp2p/circuit-relay-v2': 4.2.9
