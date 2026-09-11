@@ -97,7 +97,7 @@ A tutorial chapter — the fifth. Each one adds a single idea to the one before 
 
 - **The connection** — `@le-space/libp2p-webrtc-qr@0.13.1`  
   A WebRTC session negotiated from a code held up to a camera, with nothing in the middle to arrange it.
-- **Your signature** — `@le-space/orbitdb-identity-provider-webauthn-did@0.5.2`  
+- **Your signature** — `@le-space/orbitdb-identity-provider-webauthn-did@0.5.4`  
   A passkey becomes a DID. An Ed25519 key, encrypted where it rests, signs your entries after a single prompt per session.
 - **Present, and deliberately off** — `@le-space/iso-webauthn-varsig@0.3.0` _(not used)_  
   The stricter variant asks for the passkey on every single write. It ships with the identity provider, and this chapter does not switch it on — which is why it appears in the lockfile and nowhere in the code.
