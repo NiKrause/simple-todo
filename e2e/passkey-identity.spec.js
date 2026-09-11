@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { SPANISH_MNEMONIC_STORAGE_KEY } from '../src/lib/spanish-mnemonic.js';
 import {
 	createPasskey,
+	openReadyApp,
 	restorePasskey as restoreSharedPasskey,
-	seedIntroDismissed
+	todoInput
 } from './open-app.mjs';
 
 // Chapter (passkey01): Alice and Bob each register a WebAuthn passkey in
@@ -97,15 +97,18 @@ async function addVirtualAuthenticator(page) {
  * @param {{ userId: string, displayName: string }} identity
  */
 async function openReadyAppWithNewPasskey(page, { userId, displayName }) {
-	await seedSharedList(page);
-	// Seeded here rather than in a `beforeEach`: this spec builds its own
-	// contexts and pages, so a hook on the `page` fixture would dismiss the
-	// dialog for a page nobody uses and leave the real ones covered by it.
-	await seedIntroDismissed(page);
-	await page.goto(testUrl);
-	// qr01 opens anonymously with no gate, then upgrades on a real click.
-	await expectAppReady(page);
+	// The shared opener, not a copy of it. It pins the list, dismisses the
+	// introduction and consents to the relay before the page runs. The copy that
+	// used to stand here did the first two and never learned the third when the
+	// relay became a choice (#234): Alice and Bob then started with no relay, had
+	// no way to reach each other, and each saw only their own todo.
+	await openReadyApp(page, {
+		url: testUrl,
+		mnemonic: sharedMnemonic,
+		timeout: collaborationTimeout
+	});
 
+	// qr01 opens anonymously with no gate, then upgrades on a real click.
 	// The shared helper does the waiting. A local copy of this used to end with
 	// "wait until the app looks ready", which is satisfied by the stack the
 	// restart is about to tear down — the panels then remount and clear
@@ -118,34 +121,6 @@ async function proceedWithExistingPasskey(page) {
 	// Nothing is preselected any more: a reloaded session is anonymous until
 	// the passkey is restored, which is what this click does.
 	await restoreSharedPasskey(page, { timeout: collaborationTimeout });
-}
-
-/**
- * Pin the shared list before the page runs.
- *
- * The mnemonic used to be typed into the consent modal. With no modal, the app
- * reads it from storage on mount, so the test writes it there instead of
- * opening one list and restarting onto another.
- *
- * @param {import('@playwright/test').Page} page
- */
-async function seedSharedList(page) {
-	await page.addInitScript(
-		([key, value]) => {
-			try {
-				localStorage.setItem(key, value);
-			} catch {
-				// Storage blocked; the assertion that needs this list will say so.
-			}
-		},
-		[SPANISH_MNEMONIC_STORAGE_KEY, sharedMnemonic]
-	);
-}
-
-/** @param {import('@playwright/test').Page} page */
-async function expectAppReady(page) {
-	await expect(getTodoInput(page)).toBeVisible();
-	await expect(getTodoInput(page)).toBeEnabled({ timeout: collaborationTimeout });
 }
 
 /** @param {import('@playwright/test').Page} page */
@@ -162,7 +137,7 @@ async function getOwnDid(page) {
  * @param {string} text
  */
 async function addTodo(page, text) {
-	await getTodoInput(page).fill(text);
+	await todoInput(page).fill(text);
 	await page.getByTestId('todo-add').click();
 	await expect(page.getByText(text, { exact: true })).toBeVisible({
 		timeout: collaborationTimeout
@@ -181,9 +156,4 @@ async function expectTodoWithAuthor(page, text, expectedDid) {
 	await expect(row.getByTestId('todo-author')).toHaveAttribute('data-author', expectedDid, {
 		timeout: collaborationTimeout
 	});
-}
-
-/** @param {import('@playwright/test').Page} page */
-function getTodoInput(page) {
-	return page.getByTestId('todo-input');
 }
