@@ -71,14 +71,18 @@
 		{title}
 	</h2>
 	{#if peerId}
-		<div class="relative rounded-md bg-cyan-50" class:p-3={!compact} class:p-2={compact}>
+		<div
+			class="relative rounded-md bg-cyan-50 dark:bg-cyan/10"
+			class:p-3={!compact}
+			class:p-2={compact}
+		>
 			<code class="block truncate pr-7 font-mono text-xs select-all" title={peerId}
 				>{formatPeerId(peerId)}</code
 			>
 			{#if copyable}
 				<button
 					on:click={copyToClipboard}
-					class="absolute top-2 right-2 rounded p-1 transition-colors hover:bg-cyan-200"
+					class="absolute top-2 right-2 rounded p-1 transition-colors hover:bg-cyan-200 dark:hover:bg-cyan/20"
 					title={copied ? $_('tech.copied') : 'Copy to clipboard'}
 				>
 					{#if copied}
