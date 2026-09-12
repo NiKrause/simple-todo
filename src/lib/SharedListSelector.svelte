@@ -35,7 +35,7 @@
 </script>
 
 <section
-	class="rounded-lg border border-cyan-200 bg-cyan-50 p-4"
+	class="rounded-lg border border-cyan-200 bg-cyan-50 p-4 dark:border-cyan/30 dark:bg-cyan/10"
 	data-testid="shared-list-selector"
 >
 	<label for="shared-list-mnemonic" class="block text-sm font-semibold text-heading">
@@ -57,7 +57,7 @@
 		placeholder="luna-camino-verde"
 	/>
 	{#if validation.error && touched}
-		<p id="shared-list-error" role="alert" class="mt-1 text-xs text-danger-700">
+		<p id="shared-list-error" role="alert" class="mt-1 text-xs text-danger-700 dark:text-danger">
 			{validation.error}
 		</p>
 	{:else}
@@ -68,7 +68,7 @@
 			type="button"
 			on:click={generateNew}
 			{disabled}
-			class="rounded-md border border-cyan-300 bg-surface px-3 py-1.5 text-xs font-medium text-cyan-800 hover:bg-cyan-100 disabled:opacity-50"
+			class="rounded-md border border-cyan-300 bg-surface px-3 py-1.5 text-xs font-medium text-cyan-800 hover:bg-cyan-100 disabled:opacity-50 dark:border-cyan/40 dark:text-cyan dark:hover:bg-cyan/15"
 		>
 			Generate new
 		</button>
@@ -76,7 +76,7 @@
 			type="button"
 			on:click={copyMnemonic}
 			disabled={disabled || !validation.canonical}
-			class="rounded-md border border-cyan-300 bg-surface px-3 py-1.5 text-xs font-medium text-cyan-800 hover:bg-cyan-100 disabled:opacity-50"
+			class="rounded-md border border-cyan-300 bg-surface px-3 py-1.5 text-xs font-medium text-cyan-800 hover:bg-cyan-100 disabled:opacity-50 dark:border-cyan/40 dark:text-cyan dark:hover:bg-cyan/15"
 		>
 			{copied ? 'Copied!' : 'Copy'}
 		</button>
