@@ -138,7 +138,7 @@
 		>
 			{#each addresses as address, index}
 				<li
-					class="flex max-w-full min-w-0 items-center gap-1 overflow-hidden rounded-md bg-cyan-50 p-1.5"
+					class="flex max-w-full min-w-0 items-center gap-1 overflow-hidden rounded-md bg-cyan-50 p-1.5 dark:bg-cyan/10"
 				>
 					<code class="w-0 min-w-0 flex-1 truncate font-mono text-[11px]" title={address}
 						>{address}</code
@@ -146,7 +146,7 @@
 					<button
 						type="button"
 						on:click={() => copyAddress(address)}
-						class="shrink-0 rounded p-1 text-text transition-colors hover:bg-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-500"
+						class="shrink-0 rounded p-1 text-text transition-colors hover:bg-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-500 dark:hover:bg-cyan/20"
 						aria-label={`Copy multiaddress ${index + 1}`}
 						title={copiedAddress === address ? 'Copied!' : 'Copy to clipboard'}
 						data-testid="copy-own-multiaddr"
