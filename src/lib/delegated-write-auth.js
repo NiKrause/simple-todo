@@ -1,9 +1,10 @@
 /**
  * A passkey prompt before every delegated write (delegation01).
  *
- * The passkey identity unlocks its signing key once per session
- * (`encryptKeystore`), so a delegate's writes would otherwise go out with no
- * further interaction. de2do asks the authenticator again for each delegated
+ * The passkey identity's signing key sits in OrbitDB's keystore, unencrypted
+ * in IndexedDB, so signing never asks for the passkey and a delegate's writes
+ * would otherwise go out with no interaction at all. de2do asks the
+ * authenticator again for each delegated
  * action — completing or renaming someone else's todo is the one thing this
  * identity may do on a list it does not own, and it should not happen by
  * accident. That is reproduced here: a fresh WebAuthn assertion, scoped to
