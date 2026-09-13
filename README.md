@@ -70,12 +70,18 @@ This chapter replaces that with an opt-in **passkey-backed identity**:
 - **Onboarding choice** before the P2P stack starts: *create a passkey*
   (one name, and it is only a label), *use an existing passkey* (recovery),
   or *continue without one* (exactly the previous chapter's behaviour).
-- **Keystore-based DID provider** from
-  [`@le-space/orbitdb-identity-provider-webauthn-did`](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did)
-  with `encryptKeystore`: an Ed25519 OrbitDB signing key is encrypted at
-  rest and unlocked with **one WebAuthn prompt per session**. (The stricter
-  *varsig* variant — a passkey prompt for every single write — exists in the
-  same package and is a good follow-up exercise, but is not used here.)
+- **WebAuthn DID provider** from
+  [`@le-space/orbitdb-identity-provider-webauthn-did`](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did):
+  the DID is the passkey's own P-256 key, and OrbitDB signs entries with a
+  **secp256k1 key derived from the passkey** (PRF → HKDF-SHA256; without PRF
+  the keystore generates one instead). That key is **not encrypted**: it
+  sits in OrbitDB's keystore in this browser's IndexedDB, where anyone who
+  can read the browser's storage can read it. Creating a passkey costs four
+  WebAuthn prompts (register, `largeBlob` write, PRF, identity proof); after
+  a reload the only prompt is the `largeBlob` read of the recovery below, and
+  signing never asks. (The stricter *varsig* variant — a passkey prompt for
+  every single write — exists in the same package and is a good follow-up
+  exercise, but is not used here.)
 - **Create-or-recover flow** (`src/lib/passkey-identity.js`): identity
   metadata is written to the authenticator's `largeBlob` when supported and
   always to `localStorage` as fallback; recovery tries `largeBlob` first.
