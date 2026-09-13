@@ -243,7 +243,7 @@
 				},
 				"identity": {
 					"label": "Ihre Unterschrift",
-					"text": "Ein Passkey wird zur DID. Ein Ed25519-Schlüssel, im Ruhezustand verschlüsselt, signiert Ihre Einträge nach einer einzigen Abfrage pro Sitzung."
+					"text": "Ein Passkey wird zur DID. Ein secp256k1-Schlüssel signiert Ihre Einträge; er liegt unverschlüsselt in diesem Browser, deshalb fragt nach der Einrichtung nichts mehr nach dem Passkey."
 				},
 				"varsig": {
 					"label": "Vorhanden und bewusst aus",

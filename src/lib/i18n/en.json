@@ -243,7 +243,7 @@
 				},
 				"identity": {
 					"label": "Your signature",
-					"text": "A passkey becomes a DID. An Ed25519 key, encrypted where it rests, signs your entries after a single prompt per session."
+					"text": "A passkey becomes a DID. A secp256k1 key signs your entries; it is kept unencrypted in this browser, so once it is set up nothing asks for the passkey again."
 				},
 				"varsig": {
 					"label": "Present, and deliberately off",

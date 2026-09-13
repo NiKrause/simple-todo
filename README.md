@@ -98,7 +98,7 @@ A tutorial chapter — the fifth. Each one adds a single idea to the one before 
 - **The connection** — `@le-space/libp2p-webrtc-qr@0.13.1`  
   A WebRTC session negotiated from a code held up to a camera, with nothing in the middle to arrange it.
 - **Your signature** — `@le-space/orbitdb-identity-provider-webauthn-did@0.5.4`  
-  A passkey becomes a DID. An Ed25519 key, encrypted where it rests, signs your entries after a single prompt per session.
+  A passkey becomes a DID. A secp256k1 key signs your entries; it is kept unencrypted in this browser, so once it is set up nothing asks for the passkey again.
 - **Present, and deliberately off** — `@le-space/iso-webauthn-varsig@0.3.0` _(not used)_  
   The stricter variant asks for the passkey on every single write. It ships with the identity provider, and this chapter does not switch it on — which is why it appears in the lockfile and nowhere in the code.
 - **Who may write** — `@orbitdb/core@^4.0.0`  
@@ -183,12 +183,17 @@ This chapter replaces that with an opt-in **passkey-backed identity**:
 - **Onboarding choice** before the P2P stack starts: _create a passkey_
   (user id + display name), _use an existing passkey_ (recovery), or
   _continue without one_ (exactly the previous chapter's behaviour).
-- **Keystore-based DID provider** from
-  [`@le-space/orbitdb-identity-provider-webauthn-did`](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did)
-  with `encryptKeystore`: an Ed25519 OrbitDB signing key is encrypted at
-  rest and unlocked with **one WebAuthn prompt per session**. (The stricter
-  _varsig_ variant — a passkey prompt for every single write — exists in the
-  same package and is a good follow-up exercise, but is not used here.)
+- **WebAuthn DID provider** from
+  [`@le-space/orbitdb-identity-provider-webauthn-did`](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did):
+  the DID is the passkey's own P-256 key, and OrbitDB signs entries with a
+  **secp256k1 key derived from the passkey** (PRF → HKDF-SHA256; without PRF
+  the keystore generates one instead). That key is **not encrypted**: it
+  sits in OrbitDB's keystore in this browser's IndexedDB, where anyone who
+  can read the browser's storage can read it. Creating a passkey costs three
+  WebAuthn prompts (register, PRF, identity proof); restoring it after a
+  reload costs none. (The stricter _varsig_ variant — a passkey prompt for
+  every single write — exists in the same package and is a good follow-up
+  exercise, but is not used here.)
 - **Create-or-recover flow** (`src/lib/passkey-identity.js`): identity
   metadata is written to the authenticator's `largeBlob` when supported and
   always to `localStorage` as fallback; recovery tries `largeBlob` first.
