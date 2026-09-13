@@ -358,13 +358,23 @@ async function createOrbitDBInstance(heliaNode) {
 		// Already registered — fine.
 	}
 
+	// The DID is the passkey's own P-256 key. OrbitDB signs entries with a
+	// separate secp256k1 key (the provider's default `signingKeyType`), which
+	// the provider derives from the passkey's PRF output before OrbitDB asks
+	// for it, so one passkey yields one identity document on every device.
+	// Without PRF the keystore generates that key instead — see
+	// `warnIfIdentityCannotTravel` in +page.svelte.
+	//
+	// The key stays in OrbitDB's default keystore, unencrypted in this
+	// browser's IndexedDB, and later sessions sign with it without asking for
+	// the passkey. An `encryptKeystore: true` used to sit here: the provider
+	// reads it only together with `useKeystoreDID`, so it encrypted nothing.
+	// `privacy01` keeps the key in memory instead; it did so only after this
+	// branch was cut from it.
 	const identities = await Identities({ ipfs: heliaNode });
 	const identity = await identities.createIdentity({
 		provider: OrbitDBWebAuthnIdentityProviderFunction({
-			webauthnCredential: activePasskeyCredential,
-			// One WebAuthn prompt per session: the Ed25519 keystore key is
-			// encrypted at rest and unlocked once through the passkey.
-			encryptKeystore: true
+			webauthnCredential: activePasskeyCredential
 		})
 	});
 	ownDidStore.set(identity.id);

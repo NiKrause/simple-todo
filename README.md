@@ -56,11 +56,12 @@ the panel, and the mnemonic list stays public.
   `updatedAt` is dropped, so an owner can re-open a todo a delegate
   completed. (de2do re-applied every action forever; this is the one place
   the port departs from it.)
-- **Every delegated write asks for the passkey again.** The identity's
-  signing key is unlocked once per session; a delegate changing someone
-  else's todo is the one thing this identity may do on a list it does not
-  own, and it should not happen by accident. The header badge shows the
-  prompt happen (`src/lib/delegated-write-auth.js`).
+- **Every delegated write asks for the passkey again.** Ordinary writes
+  never do: the identity's signing key sits in the keystore, unencrypted
+  (see *Passkey Identities* below). A delegate changing someone else's todo
+  is the one thing this identity may do on a list it does not own, and it
+  should not happen by accident. The header badge shows the prompt happen
+  (`src/lib/delegated-write-auth.js`).
 
 ### The controller's type is not part of the address
 
@@ -98,6 +99,11 @@ This branch is cut from `privacy01`, so it also carries the per-entry
 sealing machinery from that chapter (`src/lib/db-encryption.js`,
 `entry-encryption.js`, `database-keys.js`, with their unit tests). Nothing
 imports it; lists here are as unencrypted as on `acl01`.
+
+The same goes for the signing key. `privacy01` later moved its passkey
+identity to a key that lives in memory only; that change came after this
+branch was cut, so the identity here is still `acl01`'s — its key sits in
+IndexedDB, unencrypted.
 
 ### Alice ↔ Bob ↔ Mallory walkthrough
 
@@ -168,12 +174,18 @@ This chapter replaces that with an opt-in **passkey-backed identity**:
 - **Onboarding choice** before the P2P stack starts: *create a passkey*
   (one name, and it is only a label), *use an existing passkey* (recovery),
   or *continue without one* (exactly the previous chapter's behaviour).
-- **Keystore-based DID provider** from
-  [`@le-space/orbitdb-identity-provider-webauthn-did`](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did)
-  with `encryptKeystore`: an Ed25519 OrbitDB signing key is encrypted at
-  rest and unlocked with **one WebAuthn prompt per session**. (The stricter
-  *varsig* variant — a passkey prompt for every single write — exists in the
-  same package and is a good follow-up exercise, but is not used here.)
+- **WebAuthn DID provider** from
+  [`@le-space/orbitdb-identity-provider-webauthn-did`](https://github.com/Le-Space/orbitdb-identity-provider-webauthn-did):
+  the DID is the passkey's own P-256 key, and OrbitDB signs entries with a
+  **secp256k1 key derived from the passkey** (PRF → HKDF-SHA256; without PRF
+  the keystore generates one instead). That key is **not encrypted**: it
+  sits in OrbitDB's keystore in this browser's IndexedDB, where anyone who
+  can read the browser's storage can read it. Creating a passkey costs four
+  WebAuthn prompts (register, `largeBlob` write, PRF, identity proof); after
+  a reload the only prompt is the `largeBlob` read of the recovery below, and
+  signing never asks. (The stricter *varsig* variant — a passkey prompt for
+  every single write — exists in the same package and is a good follow-up
+  exercise, but is not used here.)
 - **Create-or-recover flow** (`src/lib/passkey-identity.js`): identity
   metadata is written to the authenticator's `largeBlob` when supported and
   always to `localStorage` as fallback; recovery tries `largeBlob` first.
