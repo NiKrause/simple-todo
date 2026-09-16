@@ -652,11 +652,11 @@
 	explicitly: the component stores nothing unless asked, and the key keeps
 	this chapter's `simpleTodo.` prefix.
 
-	Technical view only (escrow01): it deploys relay infrastructure on Aleph,
-	which is nothing somebody delegating a todo needs to see, and the widget
-	has no way to take this page's language.
+	Shown in both views, as in the other chapters: the Relay Button belongs to
+	the app, not to the plumbing the simple view leaves out. The widget has no
+	way to take this page's language, so its label stays English.
 -->
-{#if SponsorRelayFab && $technicalView}
+{#if SponsorRelayFab}
 	<svelte:component
 		this={SponsorRelayFab}
 		manifestUrl="./rootfs-manifest.json"
