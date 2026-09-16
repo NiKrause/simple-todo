@@ -171,7 +171,20 @@ it in and someone else can start the deployment without seeing it.
 token is a contract, estimates the deployment first so a non-ERC-7984 token or a zero auditor fails
 before any gas is spent, and prints the `hardhat verify` command. The default token is Zama's
 cUSDTMock, `0x4E7B06D78965594eB5EF5414c357ca21E1554491` (6 decimals, rate 1, over USDTMock
-`0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0`, whose `mint` anyone may call). It has not been run yet.
+`0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0`, whose `mint` anyone may call).
+
+### The Sepolia deployment
+
+| | |
+| --- | --- |
+| Escrow | [`0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`](https://sepolia.etherscan.io/address/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429) |
+| Deployed | 2026-09-16, block 11716748, [transaction](https://sepolia.etherscan.io/tx/0xaa01bc53d37c2fdb970ce663c004f58bb5b9ae90571979c24acdfbf3d81cbd60), 950,017 gas |
+| Token | cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491` |
+| Auditor | `0xd81Ad65eF9DdBC6Cf1A81FF2EF21B372EFBf4621`, the deployer's own address, for now. Another auditor means another deployment. |
+
+Its runtime code matches this directory's build (solc 0.8.27) byte for byte outside the seven
+immutable slots, which hold the token (five) and the auditor (two). Its source is not yet verified
+on a block explorer.
 
 Before relying on a deployment:
 
