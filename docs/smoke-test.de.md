@@ -4,10 +4,10 @@
 Treuhand-Vertrag gegen Zamas live laufenden Relayer, die Coprozessoren und das KMS auf Sepolia. Das
 Skript hat zwei Modi:
 
-| Modus | Befehl | Benötigt | Sendet | Zeigt |
-| --- | --- | --- | --- | --- |
-| Probelauf | `npm run smoke:sepolia:dry` | `SEPOLIA_RPC_URL` | nichts, signiert nichts | Chain, Verträge, Verschlüsselung über den Relayer, dass der Treuhand-Vertrag diese Eingabe annimmt, öffentliche Entschlüsselung über das KMS |
-| Vollständiger Lauf | `npm run smoke:sepolia` | zusätzlich `DEPLOYER_PRIVATE_KEY` mit Sepolia-ETH | 4 bis 7 Transaktionen (9 mit `SMOKE_REFUND=1`) | eine echte Sperre, den von Ersteller und Begünstigtem zurückgelesenen Betrag, eine ungedeckte Sperre, eine Freigabe |
+| Modus              | Befehl                      | Benötigt                                          | Sendet                                         | Zeigt                                                                                                                                        |
+| ------------------ | --------------------------- | ------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Probelauf          | `npm run smoke:sepolia:dry` | `SEPOLIA_RPC_URL`                                 | nichts, signiert nichts                        | Chain, Verträge, Verschlüsselung über den Relayer, dass der Treuhand-Vertrag diese Eingabe annimmt, öffentliche Entschlüsselung über das KMS |
+| Vollständiger Lauf | `npm run smoke:sepolia`     | zusätzlich `DEPLOYER_PRIVATE_KEY` mit Sepolia-ETH | 4 bis 7 Transaktionen (9 mit `SMOKE_REFUND=1`) | eine echte Sperre, den von Ersteller und Begünstigtem zurückgelesenen Betrag, eine ungedeckte Sperre, eine Freigabe                          |
 
 Beide laufen in `contracts/` (zu Einrichtung und Fehlerbehebung siehe
 [contracts/README.md](../contracts/README.md#smoke-test)). Diese Seite erklärt jeden Schritt zweimal,
@@ -38,9 +38,10 @@ Form, einschließlich der Events von Zamas Host-Verträgen. Dadurch wird Folgend
 Einen Betrag innerhalb des vertraulichen Tokens zeigt Etherscan nie: nicht den gesperrten Betrag,
 kein Guthaben und nicht, ob eine Sperre ungedeckt war. Verschlüsselung, Nutzer-Entschlüsselung und
 öffentliche Entschlüsselung sind Relayer-Anfragen und hinterlassen auf Sepolia überhaupt keine
-Transaktion. Entschlüsselungsanfragen werden allerdings zu Transaktionen auf Zamas Gateway-Chain,
-gesendet vom Relayer, deren Events die Handles, den anfragenden Nutzer und den öffentlichen
-Transport-Schlüssel nennen (siehe [security.de.md](security.de.md#was-sichtbar-wird-technisch)).
+Transaktion. Anfragen zur Nutzer-Entschlüsselung werden allerdings zu Transaktionen auf Zamas
+Gateway-Chain, gesendet vom Relayer, deren Events die Handles, den anfragenden Nutzer und den
+öffentlichen Transport-Schlüssel nennen; für diese Chain betreibt Zama einen öffentlichen Explorer
+(siehe [security.de.md](security.de.md#was-sichtbar-wird-technisch)).
 
 ## Probelauf
 
@@ -136,34 +137,34 @@ Gaspreis. Am 2026-09-16 bei 1,18 gwei: 1,9 bis 2,4 M Gas, 0,0023 bis 0,0028 ETH.
 
 Aufbau:
 
-| | |
-| --- | --- |
-| Ersteller und Prüfstelle | `0xd81Ad65eF9DdBC6Cf1A81FF2EF21B372EFBf4621` (der Deployer-Schlüssel) |
-| Begünstigter | `0x3e715fAc356AcB5b7A7383e6cbde865bCeF596BB`, eine für diesen Lauf im Arbeitsspeicher erzeugte Wallet; sie hat keine Transaktion gesendet und hält kein ETH |
-| Treuhand-Vertrag | `0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`, bereitgestellt in Block 11716748 |
-| Token | cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491`, nicht pausiert, keine Observer |
-| Zugrunde liegender Token | USDTMock `0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0` |
-| SDK | `@zama-fhe/sdk` 3.6.0 auf `@fhevm/sdk` 0.13.2 |
-| Betrag | `SMOKE_AMOUNT` 1 (1.000.000 Basiseinheiten); kein `SMOKE_REFUND` |
+|                          |                                                                                                                                                             |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ersteller und Prüfstelle | `0xd81Ad65eF9DdBC6Cf1A81FF2EF21B372EFBf4621` (der Deployer-Schlüssel)                                                                                       |
+| Begünstigter             | `0x3e715fAc356AcB5b7A7383e6cbde865bCeF596BB`, eine für diesen Lauf im Arbeitsspeicher erzeugte Wallet; sie hat keine Transaktion gesendet und hält kein ETH |
+| Treuhand-Vertrag         | `0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`, bereitgestellt in Block 11716748                                                                              |
+| Token                    | cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491`, nicht pausiert, keine Observer                                                                      |
+| Zugrunde liegender Token | USDTMock `0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0`                                                                                                       |
+| SDK                      | `@zama-fhe/sdk` 3.6.0 auf `@fhevm/sdk` 0.13.2                                                                                                               |
+| Betrag                   | `SMOKE_AMOUNT` 1 (1.000.000 Basiseinheiten); kein `SMOKE_REFUND`                                                                                            |
 
 Ergebnisse. Die Zeiten sind die Schrittzeiten des Skripts, wie sie im Terminal ausgegeben wurden; sie
 enthalten das Warten auf eine Bestätigung, oder auf zwei, wo das Ergebnis als Nächstes entschlüsselt
 wird. Block, Gas und Gebühr stammen aus den Receipts. Jeder Relayer-Schritt dauerte weniger als die
 10 s, die das Skript vor einem erneuten Versuch wartet, also gelang jeder beim ersten Versuch.
 
-| Schritt | Zeit | Transaktion | Block (UTC) | Verbrauchtes Gas | Gebühr (ETH) |
-| --- | ---: | --- | --- | ---: | ---: |
-| 1 1,0 USDTMock prägen | 8,4 s | [`0xe9e177db…`](https://sepolia.etherscan.io/tx/0xe9e177db627ff3d769af661b5724ac2777d57883803e1c7bcd3a1a2af2b1288c) | 11717333 (14:30:00) | 51.760 | 0,0000540343 |
-| 1 genehmigen | 12,5 s | [`0x41630980…`](https://sepolia.etherscan.io/tx/0x416309800691580524f8d9a2bbe2130c31651e1939a1cb258b0f520c1ac15d79) | 11717334 (14:30:12) | 46.600 | 0,0000468603 |
-| 1 in 1,0 cUSDTMock verpacken | 24,8 s | [`0x567d87cb…`](https://sepolia.etherscan.io/tx/0x567d87cb57e9b868db726e61f1924c8c227fcba10356b3b95150a0428a9186de) | 11717336 (14:30:36) | 367.250 | 0,0003831529 |
-| 2 `setOperator(escrow, now + 1 h)` | 24,9 s | [`0x79a1a622…`](https://sepolia.etherscan.io/tx/0x79a1a622a864129daa23d887d9c56fee578066222065dab6514c5cbe830c4b51) | 11717338 (14:31:00) | 51.129 | 0,0000570340 |
-| 3 1,0 verschlüsseln | 9,6 s | – | – | – | – |
-| 3 sperren, 2 Bestätigungen | 37,0 s | [`0x04259275…`](https://sepolia.etherscan.io/tx/0x04259275f7a6b3a669e196ae6f16bfc9679bee932a3114fdc2507417cc116065) | 11717341 (14:31:36) | 682.630 | 0,0007529838 |
-| 4 als Ersteller entschlüsseln | 2,8 s | – | – | – | – |
-| 4 als Begünstigter entschlüsseln | 2,3 s | – | – | – | – |
-| 5 2^64 - 1 verschlüsseln | 4,5 s | – | – | – | – |
-| 5 sperren (ungedeckt) | nicht im Auszug | [`0xfbe2cd1e…`](https://sepolia.etherscan.io/tx/0xfbe2cd1ed19e4f0c11fd00d5fbcdb80d848b46f700c307656f88879649aeded6) | 11717345 (14:32:24) | 657.529 | 0,0006839568 |
-| 6 freigeben | nicht im Auszug | [`0xd9d123e6…`](https://sepolia.etherscan.io/tx/0xd9d123e6f75de8415e88dd0b7343c1b7656c33e797b67ac0fa0f89759d65022c) | 11717348 (14:33:00) | 412.902 | 0,0004424626 |
+| Schritt                            |            Zeit | Transaktion                                                                                                         | Block (UTC)         | Verbrauchtes Gas | Gebühr (ETH) |
+| ---------------------------------- | --------------: | ------------------------------------------------------------------------------------------------------------------- | ------------------- | ---------------: | -----------: |
+| 1 1,0 USDTMock prägen              |           8,4 s | [`0xe9e177db…`](https://sepolia.etherscan.io/tx/0xe9e177db627ff3d769af661b5724ac2777d57883803e1c7bcd3a1a2af2b1288c) | 11717333 (14:30:00) |           51.760 | 0,0000540343 |
+| 1 genehmigen                       |          12,5 s | [`0x41630980…`](https://sepolia.etherscan.io/tx/0x416309800691580524f8d9a2bbe2130c31651e1939a1cb258b0f520c1ac15d79) | 11717334 (14:30:12) |           46.600 | 0,0000468603 |
+| 1 in 1,0 cUSDTMock verpacken       |          24,8 s | [`0x567d87cb…`](https://sepolia.etherscan.io/tx/0x567d87cb57e9b868db726e61f1924c8c227fcba10356b3b95150a0428a9186de) | 11717336 (14:30:36) |          367.250 | 0,0003831529 |
+| 2 `setOperator(escrow, now + 1 h)` |          24,9 s | [`0x79a1a622…`](https://sepolia.etherscan.io/tx/0x79a1a622a864129daa23d887d9c56fee578066222065dab6514c5cbe830c4b51) | 11717338 (14:31:00) |           51.129 | 0,0000570340 |
+| 3 1,0 verschlüsseln                |           9,6 s | –                                                                                                                   | –                   |                – |            – |
+| 3 sperren, 2 Bestätigungen         |          37,0 s | [`0x04259275…`](https://sepolia.etherscan.io/tx/0x04259275f7a6b3a669e196ae6f16bfc9679bee932a3114fdc2507417cc116065) | 11717341 (14:31:36) |          682.630 | 0,0007529838 |
+| 4 als Ersteller entschlüsseln      |           2,8 s | –                                                                                                                   | –                   |                – |            – |
+| 4 als Begünstigter entschlüsseln   |           2,3 s | –                                                                                                                   | –                   |                – |            – |
+| 5 2^64 - 1 verschlüsseln           |           4,5 s | –                                                                                                                   | –                   |                – |            – |
+| 5 sperren (ungedeckt)              | nicht im Auszug | [`0xfbe2cd1e…`](https://sepolia.etherscan.io/tx/0xfbe2cd1ed19e4f0c11fd00d5fbcdb80d848b46f700c307656f88879649aeded6) | 11717345 (14:32:24) |          657.529 | 0,0006839568 |
+| 6 freigeben                        | nicht im Auszug | [`0xd9d123e6…`](https://sepolia.etherscan.io/tx/0xd9d123e6f75de8415e88dd0b7343c1b7656c33e797b67ac0fa0f89759d65022c) | 11717348 (14:33:00) |          412.902 | 0,0004424626 |
 
 Die für diese Seite verfügbare Terminal-Ausgabe endet nach `escrowOf` der ungedeckten Sperre. Die
 Freigabe und alles danach wurden stattdessen auf der Chain geprüft; die Entschlüsselung des
@@ -214,7 +215,7 @@ Etherscan zeigt "Approve 1 ERC20 … for Trade on 0x4E7B06D7…". Öffentlich: B
    Handle `0xc2918d87…56ff0000000000aa36a70500`;
 6. vier `Allowed`-Events für das neue Guthaben und den geprägten Betrag (Ersteller und Token);
 7. `ConfidentialTransfer(0x0, creator, 0x9a042cde…)` und `Wrap(creator, roundedAmount = 1000000,
-   encryptedWrappedAmount = 0x9a042cde…)`.
+encryptedWrappedAmount = 0x9a042cde…)`.
 
 Etherscan zeigt den Betrag viermal: in der dekodierten Calldata, als "ERC-20 Tokens Transferred: 1
 USDTMock", als `pt` von `TrivialEncrypt` und als `roundedAmount` von `Wrap`. Das daraus resultierende
@@ -261,17 +262,17 @@ Calldata 452 Bytes: Selektor `0x7f50daed`, fünf Head-Words, die Proof-Länge (2
 
 Events, in Reihenfolge (21):
 
-| # | Vertrag | Event | Bedeutung |
-| --- | --- | --- | --- |
-| 35 | FHEVMExecutor | `VerifyInput(escrow, 0x4a47…, creator, <proof>, 5, 0x4a47…)` | Proof für (Treuhand, Ersteller) angenommen |
-| 36-38 | FHEVMExecutor | `FheGe`, `FheSub`, `FheIfThenElse` | Guthaben des Erstellers `0xc2918d…` ≥ Betrag?, neues Guthaben `0xb3cebb…` |
-| 39-40 | ACL | `Allowed` ×2 | neues Guthaben des Erstellers für Token und Ersteller |
-| 41-42 | FHEVMExecutor | `TrivialEncrypt(0)`, `FheIfThenElse` | `transferred = select(ok, 0x4a47…, 0)` = `0x506d80…` |
-| 43-44 | FHEVMExecutor | `TrivialEncrypt(0)`, `FheAdd` | erstes Guthaben des Treuhand-Vertrags `0x258ba0…` |
-| 45-49 | ACL | `Allowed` ×5 | Treuhand-Guthaben für Token und Treuhand; `transferred` für Ersteller, Treuhand, Token |
-| 50 | cUSDTMock | `ConfidentialTransfer(creator, escrow, 0x506d80…)` | das Handle dessen, was angekommen ist |
-| 51-54 | ACL | `Allowed` ×4 durch den Treuhand-Vertrag | `0x506d80…` für Treuhand, Ersteller, Begünstigten, Prüfstelle |
-| 55 | Treuhand | `Locked(creator, todoRef, beneficiary, 1789655472)` | |
+| #     | Vertrag       | Event                                                        | Bedeutung                                                                              |
+| ----- | ------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| 35    | FHEVMExecutor | `VerifyInput(escrow, 0x4a47…, creator, <proof>, 5, 0x4a47…)` | Proof für (Treuhand, Ersteller) angenommen                                             |
+| 36-38 | FHEVMExecutor | `FheGe`, `FheSub`, `FheIfThenElse`                           | Guthaben des Erstellers `0xc2918d…` ≥ Betrag?, neues Guthaben `0xb3cebb…`              |
+| 39-40 | ACL           | `Allowed` ×2                                                 | neues Guthaben des Erstellers für Token und Ersteller                                  |
+| 41-42 | FHEVMExecutor | `TrivialEncrypt(0)`, `FheIfThenElse`                         | `transferred = select(ok, 0x4a47…, 0)` = `0x506d80…`                                   |
+| 43-44 | FHEVMExecutor | `TrivialEncrypt(0)`, `FheAdd`                                | erstes Guthaben des Treuhand-Vertrags `0x258ba0…`                                      |
+| 45-49 | ACL           | `Allowed` ×5                                                 | Treuhand-Guthaben für Token und Treuhand; `transferred` für Ersteller, Treuhand, Token |
+| 50    | cUSDTMock     | `ConfidentialTransfer(creator, escrow, 0x506d80…)`           | das Handle dessen, was angekommen ist                                                  |
+| 51-54 | ACL           | `Allowed` ×4 durch den Treuhand-Vertrag                      | `0x506d80…` für Treuhand, Ersteller, Begünstigten, Prüfstelle                          |
+| 55    | Treuhand      | `Locked(creator, todoRef, beneficiary, 1789655472)`          |                                                                                        |
 
 Storage danach: Der Eintrag des Treuhand-Vertrags für (Ersteller, todoRef) hält Begünstigten, Frist,
 Status `Locked` und Betrag `0x506d80703a79c87b91a050038fb7baf8bb1e70c1e4ff0000000000aa36a70500`; der
@@ -283,7 +284,8 @@ HCU-Preistabelle kosten die Operationen des Tokens 586.064 HCU; HCULimit emittie
 nichts, deshalb steht diese Zahl nicht auf Etherscan.
 
 Bei Zama: keine Relayer-Anfrage. Die Coprozessoren greifen die Executor-Events auf, berechnen die
-Ciphertexte und replizieren die `Allowed`-Events zum Gateway.
+Ciphertexte und committen laut Zamas Coprozessor-Dokumentation Digests der Ciphertexte auf dem
+Gateway, wenn sie die `Allowed`-Events verarbeiten.
 
 Etherscan zeigt: "Call Lock Function by 0xd81Ad65e… on 0x6Ee3Fa9d…", die dekodierten Argumente
 einschließlich des Handles und des vollständigen Proofs, 21 dekodierte Events mit jedem Handle und
@@ -293,7 +295,7 @@ Guthaben und ob das Guthaben des Erstellers ausreichte.
 ### Schritt 4: Prüfen, einfach
 
 Das Skript liest die Treuhand zurück und entschlüsselt den gesperrten Betrag zweimal: einmal als
-Ersteller, einmal als Begünstigter. Beide sehen 1,0. Zum Lesen ist keine Transaktion nötig.
+Ersteller, einmal als Begünstigter. Beide sehen 1,0. Keiner der beiden sendet eine Transaktion.
 
 ### Schritt 4: Prüfen, technisch
 

@@ -376,7 +376,7 @@ beneficiary's balance handle is non-zero. The seven transactions used 2,269,800 
 - A full run sends 4 transactions when the creator already holds the amount in cUSDTMock
   (`setOperator`, two locks, the release) and 7 when it wraps first; `SMOKE_REFUND` adds a lock and a
   refund. That is about 1.9 M gas, 2.4 M with wrapping and 1.1 M more with the refund. A lock takes
-  about 0.7 M (`eth_estimateGas` on Sepolia), a wrap 0.35 M, mint, approve and `setOperator` 35 to
+  about 0.7 M (`eth_estimateGas` on Sepolia), a wrap 0.35 M, mint, approve and `setOperator` 25 to
   52 k each (as mined on Sepolia); release and refund take 0.35 and 0.33 M in the FHEVM mock, which
   prices a lock at 0.53 M. At the 1 to 2 gwei of 2026-09-16 a run costs 0.002 to 0.007 ETH, and prints
   what it paid.
@@ -394,9 +394,10 @@ beneficiary's balance handle is non-zero. The seven transactions used 2,269,800 
   data in part of the relayer ([community.zama.org/t/4643](https://community.zama.org/t/4643)). The
   script waits two confirmations and retries; when all attempts fail, rerun later before suspecting the
   escrow.
-- **`Gao decoding failure: Allowed at most 0 errors ... n=13, deg=4, #shares=9`**: the client got the
-  9-share quorum of the 13 KMS nodes, one share was inconsistent, and the value could not be
-  reconstructed ([community.zama.org/t/4653](https://community.zama.org/t/4653), also in t/4643).
+- **`Gao decoding failure: Allowed at most 0 errors ... n=13, deg=4, #shares=9`**: the client got 9
+  shares from the 13 KMS nodes, and the reconstruction found one inconsistent share with no room left
+  to correct it, as the reporter reads the message
+  ([community.zama.org/t/4653](https://community.zama.org/t/4653), also in t/4643).
   fhevm v0.13.4 (2026-09-04) lets the relayer wait for extra shares, which tolerates a bad one;
   whether Sepolia's relayer runs it cannot be seen from outside. It is not the escrow: retry later.
 - **`NotEntitledError`, `is not authorized to decrypt handle`**: the SDK reads the ACL through

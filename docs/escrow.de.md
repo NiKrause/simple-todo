@@ -30,12 +30,12 @@ Jeder Abschnitt hat eine einfache Erklärung und eine technische.
 
 ## Rollen
 
-| Rolle | Einfach | Technisch |
-| --- | --- | --- |
-| Ersteller | Besitzt die Aufgabe, zahlt das Geld ein und entscheidet, wann es ausgezahlt wird. | Der `msg.sender` von `lock`. Treuhand-Vorgänge werden als `_escrows[creator][todoRef]` gespeichert, daher kann nur der Ersteller `release` oder `refund` ausführen (das Nachschlagen verwendet `msg.sender`). |
-| Begünstigter | Die Person, an die die Aufgabe delegiert ist; erhält das Geld bei der Freigabe. | Eine an `lock` übergebene Adresse. Sie darf weder `address(0)` noch die Treuhand selbst sein; der Vertrag verbietet die eigene Adresse des Erstellers nicht, die App schon. Der Begünstigte hat keine Funktion, die er aufrufen könnte, und keinen Anspruch on-chain. |
-| Prüfstelle | Kann jeden in dieser Treuhand gesperrten Betrag lesen, und sonst nichts. | Eine im Konstruktor festgelegte Adresse (`immutable`). `lock` gewährt ihr dauerhaften ACL-Zugriff auf jeden gespeicherten Betrag. Sie kann keine Mittel bewegen. Sie zu ändern bedeutet, eine neue Treuhand bereitzustellen. In der Sepolia-Bereitstellung ist sie die eigene Adresse des Deployers. |
-| Token | Das vertrauliche Geld selbst. | Ein ERC-7984-Token, im Konstruktor festgelegt und über ERC-165 geprüft. Auf Sepolia: Zamas cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491`. |
+| Rolle        | Einfach                                                                           | Technisch                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ersteller    | Besitzt die Aufgabe, zahlt das Geld ein und entscheidet, wann es ausgezahlt wird. | Der `msg.sender` von `lock`. Treuhand-Vorgänge werden als `_escrows[creator][todoRef]` gespeichert, daher kann nur der Ersteller `release` oder `refund` ausführen (das Nachschlagen verwendet `msg.sender`).                                                                                                                                                                                                                               |
+| Begünstigter | Die Person, an die die Aufgabe delegiert ist; erhält das Geld bei der Freigabe.   | Eine an `lock` übergebene Adresse. Sie darf weder `address(0)` noch die Treuhand selbst sein; der Vertrag verbietet die eigene Adresse des Erstellers nicht, die App schon. Der Begünstigte hat keine Funktion, die er aufrufen könnte, und keinen Anspruch on-chain.                                                                                                                                                                       |
+| Prüfstelle   | Kann jeden in dieser Treuhand gesperrten Betrag lesen, aber kein Geld bewegen.    | Eine im Konstruktor festgelegte Adresse (`immutable`). `lock` gewährt ihr dauerhaften ACL-Zugriff auf jeden gespeicherten Betrag. Sie kann keine Mittel bewegen; wie Ersteller und Begünstigter kann sie einen gespeicherten Betrag über `requestDiscloseEncryptedAmount` des Tokens öffentlich machen. Sie zu ändern bedeutet, eine neue Treuhand bereitzustellen. In der Sepolia-Bereitstellung ist sie die eigene Adresse des Deployers. |
+| Token        | Das vertrauliche Geld selbst.                                                     | Ein ERC-7984-Token, im Konstruktor festgelegt und über ERC-165 geprüft. Auf Sepolia: Zamas cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491`.                                                                                                                                                                                                                                                                                          |
 
 Die Treuhand hat keinen Eigentümer, keine Gebühr, keinen Upgrade-Pfad und außer `release` und
 `refund` keine Funktion, die einen gesperrten Betrag bewegt.
@@ -74,7 +74,7 @@ Der Aufruf lautet
 2. Begünstigter, Frist und Status `Locked` werden vor jedem externen Aufruf in den Storage
    geschrieben.
 3. `FHE.fromExternal(encAmount, inputProof)` ruft `FHEVMExecutor.verifyInput(handle, msg.sender,
-   inputProof, euint64)` auf. Der Executor übergibt die Treuhand als Vertrag und den Ersteller als
+inputProof, euint64)` auf. Der Executor übergibt die Treuhand als Vertrag und den Ersteller als
    Nutzer an `InputVerifier`, der die Coprozessor-Signaturen prüft. Ein Proof, der für einen anderen
    Vertrag oder einen anderen Nutzer erstellt wurde, scheitert mit `InvalidSigner`. Bei Erfolg
    erhalten die Treuhand und der Ersteller für diese Transaktion eine transiente ACL-Berechtigung auf
@@ -139,12 +139,12 @@ aus, was der vollständige Lauf vom 2026-09-16 nicht verwendet hat.
 
 ### Zustände
 
-| Status | Erreicht durch | Danach erlaubt |
-| --- | --- | --- |
-| `None` | nichts unter `(creator, todoRef)` gesperrt | `lock` |
-| `Locked` | `lock` | `release`, oder `refund` nach der Frist |
-| `Released` | `release` | nichts |
-| `Refunded` | `refund` | nichts |
+| Status     | Erreicht durch                             | Danach erlaubt                          |
+| ---------- | ------------------------------------------ | --------------------------------------- |
+| `None`     | nichts unter `(creator, todoRef)` gesperrt | `lock`                                  |
+| `Locked`   | `lock`                                     | `release`, oder `refund` nach der Frist |
+| `Released` | `release`                                  | nichts                                  |
+| `Refunded` | `refund`                                   | nichts                                  |
 
 `escrowOf(creator, todoRef)` gibt jedem `(beneficiary, deadline, status, amount)` zurück; `amount`
 ist ein Handle. Nach einer Freigabe oder Rückzahlung bleibt das Handle für den Ersteller, den
@@ -166,11 +166,11 @@ ist. Die Dokumentation des Vertrags empfiehlt `keccak256(abi.encode(todoId, salt
 Bytes Salt, die bei der Aufgabe aufbewahrt und mit dem Begünstigten geteilt werden. Implementierungen
 in diesem Repository:
 
-| Ort | Berechnung | Salt aufbewahrt? |
-| --- | --- | --- |
-| Hardhat-Tests | `keccak256(abi.encode(string todoId, bytes32 salt))` | nein |
-| Smoke-Test | `keccak256(abi.encode(string "smoke-<unix time>", bytes32 salt))` | nein |
-| App-Attrappe (`createTodoRef`) | `sha256("<todoKey>:<64 hex chars of random bytes>")` | nein |
+| Ort                            | Berechnung                                                        | Salt aufbewahrt? |
+| ------------------------------ | ----------------------------------------------------------------- | ---------------- |
+| Hardhat-Tests                  | `keccak256(abi.encode(string todoId, bytes32 salt))`              | nein             |
+| Smoke-Test                     | `keccak256(abi.encode(string "smoke-<unix time>", bytes32 salt))` | nein             |
+| App-Attrappe (`createTodoRef`) | `sha256("<todoKey>:<64 hex chars of random bytes>")`              | nein             |
 
 Die App schreibt den `todoRef` selbst in das Feld `budget` der Aufgabe in OrbitDB, sodass der
 Begünstigte den Treuhand-Vorgang über die Aufgabe findet, nicht über das Salt. Zwei Folgen:
@@ -185,8 +185,9 @@ einer ausstehenden Transaktion kopiert und als Erster darunter sperrt, legt sein
 Treuhand-Vorgang an und blockiert nicht den des Erstellers
 (Test "keeps a creator's todoRef out of reach of someone who locks under it first"). Jeder `todoRef`
 wird pro Ersteller einmal verwendet. Das schließt eine ungedeckte Sperre ein; sie wird in einen Block
-aufgenommen und belegt ihre Referenz, daher erzeugt der erneute Versuch der App einen neuen
-`todoRef` ([`startLock`](../src/lib/budget.js)).
+aufgenommen und belegt ihre Referenz, daher beginnt ein erneuter Versuch in der App mit einem neuen
+`todoRef` ([`prepareLock`](../src/lib/budget-flow.js) erzeugt ihn, und
+[`startLock`](../src/lib/budget.js) weist den alten zurück, sobald seine Sperre auf der Chain war).
 
 ## Warum nur vertrauliche ERC-7984-Token
 
@@ -232,7 +233,7 @@ vor dem Sperren geschehen, und nicht genau mit dem Betrag, der gleich gesperrt w
 ### Verpacken und Entpacken: technisch
 
 `wrap(to, amount)` auf cUSDTMock (Zamas `ConfidentialWrapper`) macht den Betrag an vier Stellen
-öffentlich. Das Verpacken von 1,0 cUSDTMock im Smoke-Test am 2026-09-16
+öffentlich. Das Verpacken von 1,0 USDTMock in cUSDTMock im Smoke-Test am 2026-09-16
 ([`0x567d87cb…`](https://sepolia.etherscan.io/tx/0x567d87cb57e9b868db726e61f1924c8c227fcba10356b3b95150a0428a9186de))
 zeigt sie alle:
 
@@ -302,6 +303,7 @@ von jemandem, der sie lesen darf.
 
 Eine Aufgabe trägt ein Feld `budget` ([`src/lib/budget.js`](../src/lib/budget.js)):
 
+<!-- prettier-ignore -->
 ```js
 { mode: 'zama-confidential', status, token, escrow, todoRef, lockTx, releaseTx, lastError }
 ```
@@ -332,25 +334,25 @@ erscheint als nicht lesbar).
 
 ## Was öffentlich ist und was verschlüsselt
 
-| Element | Auf Sepolia | Wo es sichtbar ist |
-| --- | --- | --- |
-| Adresse des Erstellers | öffentlich | Absender der Transaktion; Topic 1 von `Locked` |
-| Adresse des Begünstigten | öffentlich | Calldata von `lock`; Topic 3 von `Locked`; ACL-Event `Allowed` |
-| Adresse der Prüfstelle | öffentlich | `auditor()`; ACL-Event `Allowed` bei jeder Sperre |
-| Zeitpunkt von Sperre, Freigabe, Rückzahlung | öffentlich | Zeitstempel des Blocks |
-| Aufgerufene Funktion | öffentlich | Methodenselektor; Etherscan zeigt "Lock", "Release" |
-| `todoRef` | öffentlich | Calldata; Topic 2 von `Locked`, `Released`, `Refunded` |
-| Frist | öffentlich | Calldata; Daten von `Locked` |
-| Gas und Gebühr | öffentlich | Transaktionsbeleg |
-| Betrags-Handles | öffentlich | Calldata (Input-Handle), `VerifyInput`, Topic 3 von `ConfidentialTransfer`, `Allowed`, `escrowOf` |
-| Input-Proof (Coprozessor-Signaturen) | öffentlich | Calldata; Daten von `VerifyInput` |
-| Wer ein Handle entschlüsseln darf | öffentlich | ACL-Events `Allowed` |
-| Die Berechnung (welche FHE-Operationen auf welchen Handles) | öffentlich | Events des FHEVMExecutor |
-| Gesperrter, freigegebener oder zurückgezahlter Betrag | verschlüsselt | on-chain steht nur sein Handle |
-| Guthaben | verschlüsselt | on-chain stehen nur ihre Handles |
-| Ob eine Sperre ungedeckt war | verschlüsselt | on-chain nicht unterscheidbar |
-| Beträge beim Verpacken und Entpacken | öffentlich | Calldata, ERC-20-`Transfer`, `TrivialEncrypt`, `Wrap`, `UnwrapFinalized` |
-| Aufgabentext, DID des Delegierten, `todoRef`, Budget-Status | nicht on-chain | OrbitDB, lesbar für jeden mit der Adresse der Liste |
+| Element                                                     | Auf Sepolia    | Wo es sichtbar ist                                                                                |
+| ----------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------- |
+| Adresse des Erstellers                                      | öffentlich     | Absender der Transaktion; Topic 1 von `Locked`                                                    |
+| Adresse des Begünstigten                                    | öffentlich     | Calldata von `lock`; Topic 3 von `Locked`; ACL-Event `Allowed`                                    |
+| Adresse der Prüfstelle                                      | öffentlich     | `auditor()`; ACL-Event `Allowed` bei jeder Sperre                                                 |
+| Zeitpunkt von Sperre, Freigabe, Rückzahlung                 | öffentlich     | Zeitstempel des Blocks                                                                            |
+| Aufgerufene Funktion                                        | öffentlich     | Methodenselektor; Etherscan zeigt "Lock", "Release"                                               |
+| `todoRef`                                                   | öffentlich     | Calldata; Topic 2 von `Locked`, `Released`, `Refunded`                                            |
+| Frist                                                       | öffentlich     | Calldata; Daten von `Locked`                                                                      |
+| Gas und Gebühr                                              | öffentlich     | Transaktionsbeleg                                                                                 |
+| Betrags-Handles                                             | öffentlich     | Calldata (Input-Handle), `VerifyInput`, Topic 3 von `ConfidentialTransfer`, `Allowed`, `escrowOf` |
+| Input-Proof (Coprozessor-Signaturen)                        | öffentlich     | Calldata; Daten von `VerifyInput`                                                                 |
+| Wer ein Handle entschlüsseln darf                           | öffentlich     | ACL-Events `Allowed`                                                                              |
+| Die Berechnung (welche FHE-Operationen auf welchen Handles) | öffentlich     | Events des FHEVMExecutor                                                                          |
+| Gesperrter, freigegebener oder zurückgezahlter Betrag       | verschlüsselt  | on-chain steht nur sein Handle                                                                    |
+| Guthaben                                                    | verschlüsselt  | on-chain stehen nur ihre Handles                                                                  |
+| Ob eine Sperre ungedeckt war                                | verschlüsselt  | on-chain nicht unterscheidbar                                                                     |
+| Beträge beim Verpacken und Entpacken                        | öffentlich     | Calldata, ERC-20-`Transfer`, `TrivialEncrypt`, `Wrap`, `UnwrapFinalized`                          |
+| Aufgabentext, DID des Delegierten, `todoRef`, Budget-Status | nicht on-chain | OrbitDB, lesbar für jeden mit der Adresse der Liste                                               |
 
 ## Quellen
 

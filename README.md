@@ -27,15 +27,15 @@ the escrow half of [de2do](https://github.com/NiKrause/de2do).
 
 - **The contract is live.** [`ConfidentialTodoEscrow`](contracts/src/ConfidentialTodoEscrow.sol) accepts
   one ERC-7984 confidential token (Zama's cUSDTMock on Sepolia) and keeps each escrow under its creator
-  and a salted `todoRef`. It is deployed on Sepolia at
+  and a `todoRef`, meant to be a salted hash. It is deployed on Sepolia at
   [`0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`](https://sepolia.etherscan.io/address/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429#code)
   and verified on Etherscan, Sourcify and Blockscout. A smoke test locked, decrypted and released a
   real amount there on 2026-09-16.
 - **The app's budgets are not on the chain yet.** Adding a delegated todo can lock a budget, the owner
   releases it once the delegate is done, the delegate is told about the payout, and an auditor view
-  lists all escrows. All of this runs against an in-memory fake that encrypts nothing and forgets its
-  escrows on reload; the header says "Demo without a chain". The Zama service with a passkey wallet
-  is planned.
+  lists the escrows with their amounts. All of this runs against an in-memory fake that encrypts
+  nothing and forgets its escrows on reload; the header says "Demo without a chain". The Zama service
+  with a passkey wallet is planned.
 - **OrbitDB stores no amounts.** A todo's `budget` field holds status, token, escrow, `todoRef`,
   transaction hashes and the last error. The chain is the source of truth for what is locked.
 

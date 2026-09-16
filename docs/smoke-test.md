@@ -3,10 +3,10 @@
 [`contracts/scripts/smoke-sepolia.ts`](../contracts/scripts/smoke-sepolia.ts) tests the deployed escrow
 against Zama's live relayer, coprocessors and KMS on Sepolia. It has two modes:
 
-| Mode | Command | Needs | Sends | Shows |
-| --- | --- | --- | --- | --- |
-| Dry run | `npm run smoke:sepolia:dry` | `SEPOLIA_RPC_URL` | nothing, signs nothing | chain, contracts, encryption through the relayer, the escrow accepting that input, public decryption through the KMS |
-| Full run | `npm run smoke:sepolia` | also `DEPLOYER_PRIVATE_KEY` with Sepolia ETH | 4 to 7 transactions (9 with `SMOKE_REFUND=1`) | a real lock, the amount read back by creator and beneficiary, an underfunded lock, a release |
+| Mode     | Command                     | Needs                                        | Sends                                         | Shows                                                                                                                |
+| -------- | --------------------------- | -------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Dry run  | `npm run smoke:sepolia:dry` | `SEPOLIA_RPC_URL`                            | nothing, signs nothing                        | chain, contracts, encryption through the relayer, the escrow accepting that input, public decryption through the KMS |
+| Full run | `npm run smoke:sepolia`     | also `DEPLOYER_PRIVATE_KEY` with Sepolia ETH | 4 to 7 transactions (9 with `SMOKE_REFUND=1`) | a real lock, the amount read back by creator and beneficiary, an underfunded lock, a release                         |
 
 Both run in `contracts/` (see [contracts/README.md](../contracts/README.md#smoke-test) for set-up and
 troubleshooting). This page explains every step twice, simply and technically, and uses the full run
@@ -35,9 +35,10 @@ of Zama's host contracts. That makes these visible:
 
 Etherscan never shows an amount inside the confidential token: not the locked amount, not a balance,
 not whether a lock was underfunded. Encryption, user decryption and public decryption are relayer
-requests and leave no transaction on Sepolia at all. Decryption requests do become transactions on
-Zama's Gateway chain, sent by the relayer, whose events name the handles, the requesting user and
-the transport public key (see [security.md](security.md#leaks-technical)).
+requests and leave no transaction on Sepolia at all. User decryption requests do become transactions
+on Zama's Gateway chain, sent by the relayer, whose events name the handles, the requesting user and
+the transport public key; Zama runs a public explorer for that chain (see
+[security.md](security.md#leaks-technical)).
 
 ## Dry run
 
@@ -125,34 +126,34 @@ gas price. On 2026-09-16 at 1.18 gwei: 1.9 to 2.4 M gas, 0.0023 to 0.0028 ETH.
 
 Set-up:
 
-| | |
-| --- | --- |
-| Creator and auditor | `0xd81Ad65eF9DdBC6Cf1A81FF2EF21B372EFBf4621` (the deployer key) |
-| Beneficiary | `0x3e715fAc356AcB5b7A7383e6cbde865bCeF596BB`, a wallet made in memory for this run; it sent no transaction and holds no ETH |
-| Escrow | `0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`, deployed in block 11716748 |
-| Token | cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491`, not paused, no observers |
-| Underlying | USDTMock `0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0` |
-| SDK | `@zama-fhe/sdk` 3.6.0 on `@fhevm/sdk` 0.13.2 |
-| Amount | `SMOKE_AMOUNT` 1 (1,000,000 base units); no `SMOKE_REFUND` |
+|                     |                                                                                                                             |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Creator and auditor | `0xd81Ad65eF9DdBC6Cf1A81FF2EF21B372EFBf4621` (the deployer key)                                                             |
+| Beneficiary         | `0x3e715fAc356AcB5b7A7383e6cbde865bCeF596BB`, a wallet made in memory for this run; it sent no transaction and holds no ETH |
+| Escrow              | `0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`, deployed in block 11716748                                                    |
+| Token               | cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491`, not paused, no observers                                            |
+| Underlying          | USDTMock `0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0`                                                                       |
+| SDK                 | `@zama-fhe/sdk` 3.6.0 on `@fhevm/sdk` 0.13.2                                                                                |
+| Amount              | `SMOKE_AMOUNT` 1 (1,000,000 base units); no `SMOKE_REFUND`                                                                  |
 
 Results. Times are the script's step times as printed in the terminal; they include waiting for one
 confirmation, or two where the result is decrypted next. Block, gas and fee are from the receipts.
 Every relayer step took less than the 10 s the script waits before a retry, so each succeeded on its
 first attempt.
 
-| Step | Time | Transaction | Block (UTC) | Gas used | Fee (ETH) |
-| --- | ---: | --- | --- | ---: | ---: |
-| 1 mint 1.0 USDTMock | 8.4 s | [`0xe9e177db…`](https://sepolia.etherscan.io/tx/0xe9e177db627ff3d769af661b5724ac2777d57883803e1c7bcd3a1a2af2b1288c) | 11717333 (14:30:00) | 51,760 | 0.0000540343 |
-| 1 approve | 12.5 s | [`0x41630980…`](https://sepolia.etherscan.io/tx/0x416309800691580524f8d9a2bbe2130c31651e1939a1cb258b0f520c1ac15d79) | 11717334 (14:30:12) | 46,600 | 0.0000468603 |
-| 1 wrap into 1.0 cUSDTMock | 24.8 s | [`0x567d87cb…`](https://sepolia.etherscan.io/tx/0x567d87cb57e9b868db726e61f1924c8c227fcba10356b3b95150a0428a9186de) | 11717336 (14:30:36) | 367,250 | 0.0003831529 |
-| 2 `setOperator(escrow, now + 1 h)` | 24.9 s | [`0x79a1a622…`](https://sepolia.etherscan.io/tx/0x79a1a622a864129daa23d887d9c56fee578066222065dab6514c5cbe830c4b51) | 11717338 (14:31:00) | 51,129 | 0.0000570340 |
-| 3 encrypt 1.0 | 9.6 s | – | – | – | – |
-| 3 lock, 2 confirmations | 37.0 s | [`0x04259275…`](https://sepolia.etherscan.io/tx/0x04259275f7a6b3a669e196ae6f16bfc9679bee932a3114fdc2507417cc116065) | 11717341 (14:31:36) | 682,630 | 0.0007529838 |
-| 4 decrypt as creator | 2.8 s | – | – | – | – |
-| 4 decrypt as beneficiary | 2.3 s | – | – | – | – |
-| 5 encrypt 2^64 - 1 | 4.5 s | – | – | – | – |
-| 5 lock (underfunded) | not in the excerpt | [`0xfbe2cd1e…`](https://sepolia.etherscan.io/tx/0xfbe2cd1ed19e4f0c11fd00d5fbcdb80d848b46f700c307656f88879649aeded6) | 11717345 (14:32:24) | 657,529 | 0.0006839568 |
-| 6 release | not in the excerpt | [`0xd9d123e6…`](https://sepolia.etherscan.io/tx/0xd9d123e6f75de8415e88dd0b7343c1b7656c33e797b67ac0fa0f89759d65022c) | 11717348 (14:33:00) | 412,902 | 0.0004424626 |
+| Step                               |               Time | Transaction                                                                                                         | Block (UTC)         | Gas used |    Fee (ETH) |
+| ---------------------------------- | -----------------: | ------------------------------------------------------------------------------------------------------------------- | ------------------- | -------: | -----------: |
+| 1 mint 1.0 USDTMock                |              8.4 s | [`0xe9e177db…`](https://sepolia.etherscan.io/tx/0xe9e177db627ff3d769af661b5724ac2777d57883803e1c7bcd3a1a2af2b1288c) | 11717333 (14:30:00) |   51,760 | 0.0000540343 |
+| 1 approve                          |             12.5 s | [`0x41630980…`](https://sepolia.etherscan.io/tx/0x416309800691580524f8d9a2bbe2130c31651e1939a1cb258b0f520c1ac15d79) | 11717334 (14:30:12) |   46,600 | 0.0000468603 |
+| 1 wrap into 1.0 cUSDTMock          |             24.8 s | [`0x567d87cb…`](https://sepolia.etherscan.io/tx/0x567d87cb57e9b868db726e61f1924c8c227fcba10356b3b95150a0428a9186de) | 11717336 (14:30:36) |  367,250 | 0.0003831529 |
+| 2 `setOperator(escrow, now + 1 h)` |             24.9 s | [`0x79a1a622…`](https://sepolia.etherscan.io/tx/0x79a1a622a864129daa23d887d9c56fee578066222065dab6514c5cbe830c4b51) | 11717338 (14:31:00) |   51,129 | 0.0000570340 |
+| 3 encrypt 1.0                      |              9.6 s | –                                                                                                                   | –                   |        – |            – |
+| 3 lock, 2 confirmations            |             37.0 s | [`0x04259275…`](https://sepolia.etherscan.io/tx/0x04259275f7a6b3a669e196ae6f16bfc9679bee932a3114fdc2507417cc116065) | 11717341 (14:31:36) |  682,630 | 0.0007529838 |
+| 4 decrypt as creator               |              2.8 s | –                                                                                                                   | –                   |        – |            – |
+| 4 decrypt as beneficiary           |              2.3 s | –                                                                                                                   | –                   |        – |            – |
+| 5 encrypt 2^64 - 1                 |              4.5 s | –                                                                                                                   | –                   |        – |            – |
+| 5 lock (underfunded)               | not in the excerpt | [`0xfbe2cd1e…`](https://sepolia.etherscan.io/tx/0xfbe2cd1ed19e4f0c11fd00d5fbcdb80d848b46f700c307656f88879649aeded6) | 11717345 (14:32:24) |  657,529 | 0.0006839568 |
+| 6 release                          | not in the excerpt | [`0xd9d123e6…`](https://sepolia.etherscan.io/tx/0xd9d123e6f75de8415e88dd0b7343c1b7656c33e797b67ac0fa0f89759d65022c) | 11717348 (14:33:00) |  412,902 | 0.0004424626 |
 
 The terminal output available for this page ends after `escrowOf` of the underfunded lock. The
 release and everything after it were checked on the chain instead; the decryption of the underfunded
@@ -200,7 +201,7 @@ Etherscan shows "Approve 1 ERC20 … for Trade on 0x4E7B06D7…". Public: amount
    `0xc2918d87…56ff0000000000aa36a70500`;
 6. four `Allowed` events for the new balance and the minted amount (creator and token);
 7. `ConfidentialTransfer(0x0, creator, 0x9a042cde…)` and `Wrap(creator, roundedAmount = 1000000,
-   encryptedWrappedAmount = 0x9a042cde…)`.
+encryptedWrappedAmount = 0x9a042cde…)`.
 
 Etherscan shows the amount four times: in the decoded calldata, as "ERC-20 Tokens Transferred: 1
 USDTMock", as `pt` of `TrivialEncrypt` and as `roundedAmount` of `Wrap`. It does not show the
@@ -244,17 +245,17 @@ to 256 bytes.
 
 Events, in order (21):
 
-| # | Contract | Event | Meaning |
-| --- | --- | --- | --- |
-| 35 | FHEVMExecutor | `VerifyInput(escrow, 0x4a47…, creator, <proof>, 5, 0x4a47…)` | proof accepted for (escrow, creator) |
-| 36-38 | FHEVMExecutor | `FheGe`, `FheSub`, `FheIfThenElse` | creator's balance `0xc2918d…` ≥ amount?, new balance `0xb3cebb…` |
-| 39-40 | ACL | `Allowed` ×2 | new creator balance for token and creator |
-| 41-42 | FHEVMExecutor | `TrivialEncrypt(0)`, `FheIfThenElse` | `transferred = select(ok, 0x4a47…, 0)` = `0x506d80…` |
-| 43-44 | FHEVMExecutor | `TrivialEncrypt(0)`, `FheAdd` | escrow's first balance `0x258ba0…` |
-| 45-49 | ACL | `Allowed` ×5 | escrow balance for token and escrow; `transferred` for creator, escrow, token |
-| 50 | cUSDTMock | `ConfidentialTransfer(creator, escrow, 0x506d80…)` | the handle of what arrived |
-| 51-54 | ACL | `Allowed` ×4 by the escrow | `0x506d80…` for escrow, creator, beneficiary, auditor |
-| 55 | escrow | `Locked(creator, todoRef, beneficiary, 1789655472)` | |
+| #     | Contract      | Event                                                        | Meaning                                                                       |
+| ----- | ------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| 35    | FHEVMExecutor | `VerifyInput(escrow, 0x4a47…, creator, <proof>, 5, 0x4a47…)` | proof accepted for (escrow, creator)                                          |
+| 36-38 | FHEVMExecutor | `FheGe`, `FheSub`, `FheIfThenElse`                           | creator's balance `0xc2918d…` ≥ amount?, new balance `0xb3cebb…`              |
+| 39-40 | ACL           | `Allowed` ×2                                                 | new creator balance for token and creator                                     |
+| 41-42 | FHEVMExecutor | `TrivialEncrypt(0)`, `FheIfThenElse`                         | `transferred = select(ok, 0x4a47…, 0)` = `0x506d80…`                          |
+| 43-44 | FHEVMExecutor | `TrivialEncrypt(0)`, `FheAdd`                                | escrow's first balance `0x258ba0…`                                            |
+| 45-49 | ACL           | `Allowed` ×5                                                 | escrow balance for token and escrow; `transferred` for creator, escrow, token |
+| 50    | cUSDTMock     | `ConfidentialTransfer(creator, escrow, 0x506d80…)`           | the handle of what arrived                                                    |
+| 51-54 | ACL           | `Allowed` ×4 by the escrow                                   | `0x506d80…` for escrow, creator, beneficiary, auditor                         |
+| 55    | escrow        | `Locked(creator, todoRef, beneficiary, 1789655472)`          |                                                                               |
 
 Storage afterwards: the escrow's record for (creator, todoRef) holds beneficiary, deadline, status
 `Locked` and amount `0x506d80703a79c87b91a050038fb7baf8bb1e70c1e4ff0000000000aa36a70500`; the token holds
@@ -265,7 +266,8 @@ token's operations cost 586,064 HCU; HCULimit emits nothing per operation, so th
 Etherscan.
 
 At Zama: no relayer request. The coprocessors pick up the executor events, compute the ciphertexts
-and replicate the `Allowed` events to the Gateway.
+and, according to Zama's coprocessor documentation, commit ciphertext digests to the Gateway when
+they process the `Allowed` events.
 
 Etherscan shows: "Call Lock Function by 0xd81Ad65e… on 0x6Ee3Fa9d…", the decoded arguments including
 the handle and the full proof, 21 decoded events with every handle and every permitted account, and
@@ -275,7 +277,7 @@ balance was sufficient.
 ### Step 4: Check, simple
 
 The script reads the escrow back and decrypts the locked amount twice: once as the creator, once as
-the beneficiary. Both see 1.0. No transaction is needed to read.
+the beneficiary. Both see 1.0. Neither reader sends a transaction.
 
 ### Step 4: Check, technical
 

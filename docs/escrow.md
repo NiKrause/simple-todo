@@ -30,12 +30,12 @@ Every section has a simple explanation and a technical one.
 
 ## Roles
 
-| Role | Simple | Technical |
-| --- | --- | --- |
-| Creator | Owns the todo, puts the money in, decides when it is paid out. | The `msg.sender` of `lock`. Escrows are stored as `_escrows[creator][todoRef]`, so only the creator can `release` or `refund` (the lookup uses `msg.sender`). |
-| Beneficiary | The person the todo is delegated to; receives the money on release. | An address passed to `lock`. It must not be `address(0)` or the escrow itself; the contract does not forbid the creator's own address, the app does. The beneficiary has no function to call and no on-chain claim. |
-| Auditor | Can read every amount locked in this escrow, and nothing else. | An address fixed in the constructor (`immutable`). `lock` grants it persistent ACL access to each stored amount. It cannot move funds. Changing it means deploying a new escrow. In the Sepolia deployment it is the deployer's own address. |
-| Token | The confidential money itself. | One ERC-7984 token, fixed in the constructor and checked through ERC-165. On Sepolia: Zama's cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491`. |
+| Role        | Simple                                                              | Technical                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Creator     | Owns the todo, puts the money in, decides when it is paid out.      | The `msg.sender` of `lock`. Escrows are stored as `_escrows[creator][todoRef]`, so only the creator can `release` or `refund` (the lookup uses `msg.sender`).                                                                                                                                                                                                               |
+| Beneficiary | The person the todo is delegated to; receives the money on release. | An address passed to `lock`. It must not be `address(0)` or the escrow itself; the contract does not forbid the creator's own address, the app does. The beneficiary has no function to call and no on-chain claim.                                                                                                                                                         |
+| Auditor     | Can read every amount locked in this escrow, but cannot move money. | An address fixed in the constructor (`immutable`). `lock` grants it persistent ACL access to each stored amount. It cannot move funds; like the creator and the beneficiary, it can make a stored amount public through the token's `requestDiscloseEncryptedAmount`. Changing it means deploying a new escrow. In the Sepolia deployment it is the deployer's own address. |
+| Token       | The confidential money itself.                                      | One ERC-7984 token, fixed in the constructor and checked through ERC-165. On Sepolia: Zama's cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491`.                                                                                                                                                                                                                        |
 
 The escrow has no owner, no fee, no upgrade path and no function that moves a locked amount other
 than `release` and `refund`.
@@ -71,7 +71,7 @@ The call is
    `InvalidDeadline` or `EscrowExists`.
 2. Beneficiary, deadline and status `Locked` are written to storage before any external call.
 3. `FHE.fromExternal(encAmount, inputProof)` calls `FHEVMExecutor.verifyInput(handle, msg.sender,
-   inputProof, euint64)`. The executor passes the escrow as the contract and the creator as the user
+inputProof, euint64)`. The executor passes the escrow as the contract and the creator as the user
    to `InputVerifier`, which checks the coprocessor signatures. A proof made for another contract or
    another user fails with `InvalidSigner`. On success the escrow and the creator get a transient ACL
    allowance on the handle for this transaction.
@@ -81,13 +81,13 @@ The call is
    requires `isAllowed(requested, escrow)` and `isOperator(creator, escrow)`, otherwise
    `ERC7984UnauthorizedUseOfEncryptedAmount` or `ERC7984UnauthorizedSpender`. Its `_update` computes,
    all under encryption: `success = balance >= amount`, `newBalance = select(success, balance - amount,
-   balance)`, `transferred = select(success, amount, 0)` and `escrowBalance + transferred`. It grants
+balance)`, `transferred = select(success, amount, 0)` and `escrowBalance + transferred`. It grants
    persistent ACL access to the new balances and to `transferred` (for the creator, the escrow and
    the token itself), emits `ConfidentialTransfer(creator, escrow, transferred)` and returns
    `transferred` with a transient allowance for the escrow.
 6. The escrow grants persistent access to `transferred` for itself, the creator, the beneficiary and
    the auditor, stores it as the escrow's `amount` and emits `Locked(creator, todoRef, beneficiary,
-   deadline)`.
+deadline)`.
 
 Every FHE operation in steps 3 to 6 is symbolic on Ethereum: the FHEVMExecutor returns a new handle
 and emits an event, and Zama's coprocessors compute the ciphertext off-chain. On Sepolia on
@@ -131,12 +131,12 @@ button yet. The Hardhat tests cover refunds; the Sepolia smoke test does one onl
 
 ### States
 
-| Status | Reached by | Allowed next |
-| --- | --- | --- |
-| `None` | nothing locked under `(creator, todoRef)` | `lock` |
-| `Locked` | `lock` | `release`, or `refund` after the deadline |
-| `Released` | `release` | nothing |
-| `Refunded` | `refund` | nothing |
+| Status     | Reached by                                | Allowed next                              |
+| ---------- | ----------------------------------------- | ----------------------------------------- |
+| `None`     | nothing locked under `(creator, todoRef)` | `lock`                                    |
+| `Locked`   | `lock`                                    | `release`, or `refund` after the deadline |
+| `Released` | `release`                                 | nothing                                   |
+| `Refunded` | `refund`                                  | nothing                                   |
 
 `escrowOf(creator, todoRef)` returns `(beneficiary, deadline, status, amount)` to anyone; `amount` is
 a handle. After a release or refund the handle stays decryptable by the creator, the beneficiary and
@@ -156,11 +156,11 @@ computes from the todo and a random value, so the todo's own ID does not lead to
 documentation recommends `keccak256(abi.encode(todoId, salt))` with 32 random bytes of salt kept with
 the todo and shared with the beneficiary. Implementations in this repository:
 
-| Where | Computation | Salt kept? |
-| --- | --- | --- |
-| Hardhat tests | `keccak256(abi.encode(string todoId, bytes32 salt))` | no |
-| Smoke test | `keccak256(abi.encode(string "smoke-<unix time>", bytes32 salt))` | no |
-| App fake (`createTodoRef`) | `sha256("<todoKey>:<64 hex chars of random bytes>")` | no |
+| Where                      | Computation                                                       | Salt kept? |
+| -------------------------- | ----------------------------------------------------------------- | ---------- |
+| Hardhat tests              | `keccak256(abi.encode(string todoId, bytes32 salt))`              | no         |
+| Smoke test                 | `keccak256(abi.encode(string "smoke-<unix time>", bytes32 salt))` | no         |
+| App fake (`createTodoRef`) | `sha256("<todoKey>:<64 hex chars of random bytes>")`              | no         |
 
 The app writes the `todoRef` itself into the todo's `budget` field in OrbitDB, so the beneficiary
 finds the escrow through the todo, not through the salt. Two consequences:
@@ -174,7 +174,8 @@ Escrows are keyed by creator and `todoRef` together. Somebody who copies a `todo
 transaction and locks under it first creates their own escrow and does not block the creator's
 (test "keeps a creator's todoRef out of reach of someone who locks under it first"). Each `todoRef`
 is used once per creator. That includes an underfunded lock: it is mined and occupies its reference,
-so the app's retry creates a new `todoRef` ([`startLock`](../src/lib/budget.js)).
+so a retry in the app starts with a new `todoRef` ([`prepareLock`](../src/lib/budget-flow.js) creates
+one, and [`startLock`](../src/lib/budget.js) refuses the old one once its lock reached the chain).
 
 ## Why only ERC-7984 confidential tokens
 
@@ -197,7 +198,7 @@ The escrow uses the `euint64` overload of `confidentialTransferFrom` and verifie
 itself. Two alternatives fail, and the tests show both:
 
 - Forwarding the external handle and proof to the token's `confidentialTransferFrom(from, to,
-  externalEuint64, bytes)`: the token verifies the proof as if the token were the contract and the
+externalEuint64, bytes)`: the token verifies the proof as if the token were the contract and the
   escrow the user, which is not what the creator encrypted for, so `InputVerifier` reverts with
   `InvalidSigner`.
 - Encrypting for (token, escrow) so that forwarding passes: the proof then names no creator, and
@@ -219,7 +220,7 @@ exactly the amount you are about to lock.
 ### Wrap and unwrap: technical
 
 `wrap(to, amount)` on cUSDTMock (Zama's `ConfidentialWrapper`) makes the amount public in four places.
-The smoke test's wrap of 1.0 cUSDTMock on 2026-09-16
+The smoke test's wrap of 1.0 USDTMock into cUSDTMock on 2026-09-16
 ([`0x567d87cb…`](https://sepolia.etherscan.io/tx/0x567d87cb57e9b868db726e61f1924c8c227fcba10356b3b95150a0428a9186de))
 shows all of them:
 
@@ -282,6 +283,7 @@ them.
 
 A todo carries a `budget` field ([`src/lib/budget.js`](../src/lib/budget.js)):
 
+<!-- prettier-ignore -->
 ```js
 { mode: 'zama-confidential', status, token, escrow, todoRef, lockTx, releaseTx, lastError }
 ```
@@ -309,25 +311,25 @@ amount shows as unreadable).
 
 ## What is public and what is encrypted
 
-| Item | On Sepolia | Where it shows |
-| --- | --- | --- |
-| Creator address | public | transaction sender; `Locked` topic 1 |
-| Beneficiary address | public | `lock` calldata; `Locked` topic 3; ACL `Allowed` event |
-| Auditor address | public | `auditor()`; ACL `Allowed` event in every lock |
-| Time of lock, release, refund | public | block timestamp |
-| Function called | public | method selector; Etherscan shows "Lock", "Release" |
-| `todoRef` | public | calldata; `Locked`, `Released`, `Refunded` topic 2 |
-| Deadline | public | calldata; `Locked` data |
-| Gas and fee | public | receipt |
-| Amount handles | public | calldata (input handle), `VerifyInput`, `ConfidentialTransfer` topic 3, `Allowed`, `escrowOf` |
-| Input proof (coprocessor signatures) | public | calldata; `VerifyInput` data |
-| Who may decrypt a handle | public | ACL `Allowed` events |
-| The computation (which FHE operations on which handles) | public | FHEVMExecutor events |
-| Amount locked, released or refunded | encrypted | only its handle is on chain |
-| Balances | encrypted | only their handles are on chain |
-| Whether a lock was underfunded | encrypted | indistinguishable on chain |
-| Wrap and unwrap amounts | public | calldata, ERC-20 `Transfer`, `TrivialEncrypt`, `Wrap`, `UnwrapFinalized` |
-| Todo text, delegate DID, `todoRef`, budget status | not on chain | OrbitDB, readable by anyone with the list's address |
+| Item                                                    | On Sepolia   | Where it shows                                                                                |
+| ------------------------------------------------------- | ------------ | --------------------------------------------------------------------------------------------- |
+| Creator address                                         | public       | transaction sender; `Locked` topic 1                                                          |
+| Beneficiary address                                     | public       | `lock` calldata; `Locked` topic 3; ACL `Allowed` event                                        |
+| Auditor address                                         | public       | `auditor()`; ACL `Allowed` event in every lock                                                |
+| Time of lock, release, refund                           | public       | block timestamp                                                                               |
+| Function called                                         | public       | method selector; Etherscan shows "Lock", "Release"                                            |
+| `todoRef`                                               | public       | calldata; `Locked`, `Released`, `Refunded` topic 2                                            |
+| Deadline                                                | public       | calldata; `Locked` data                                                                       |
+| Gas and fee                                             | public       | receipt                                                                                       |
+| Amount handles                                          | public       | calldata (input handle), `VerifyInput`, `ConfidentialTransfer` topic 3, `Allowed`, `escrowOf` |
+| Input proof (coprocessor signatures)                    | public       | calldata; `VerifyInput` data                                                                  |
+| Who may decrypt a handle                                | public       | ACL `Allowed` events                                                                          |
+| The computation (which FHE operations on which handles) | public       | FHEVMExecutor events                                                                          |
+| Amount locked, released or refunded                     | encrypted    | only its handle is on chain                                                                   |
+| Balances                                                | encrypted    | only their handles are on chain                                                               |
+| Whether a lock was underfunded                          | encrypted    | indistinguishable on chain                                                                    |
+| Wrap and unwrap amounts                                 | public       | calldata, ERC-20 `Transfer`, `TrivialEncrypt`, `Wrap`, `UnwrapFinalized`                      |
+| Todo text, delegate DID, `todoRef`, budget status       | not on chain | OrbitDB, readable by anyone with the list's address                                           |
 
 ## Sources
 

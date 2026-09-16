@@ -41,17 +41,20 @@ Assets:
 
 Adversaries and what they can do:
 
-| Adversary | Can | Cannot |
-| --- | --- | --- |
-| Chain observer | read every transaction, calldata, event and storage slot on Sepolia, and the events of the Gateway chain | decrypt a handle; tell a full lock from an underfunded one |
-| Front-runner | copy a pending `lock` (`todoRef`, handle, proof) | use the proof for another account or contract; occupy the creator's `todoRef` (escrows are keyed per creator) |
-| Reader of the OrbitDB list | read todo text, delegate DID and `budget` (`todoRef`, transaction hashes, status) | read amounts, which are not in OrbitDB |
-| Beneficiary | read the locked amount and its own balance; check before starting work that the lock is not empty | force a release |
-| Creator | withhold a release and refund after the deadline | release to anyone but the recorded beneficiary; take funds before the deadline without releasing |
-| Auditor | read every amount ever locked in this escrow | move funds |
-| Token owner (Protocol DAO) | upgrade cUSDTMock, add observers who can decrypt, block addresses, appoint a pauser | nothing is excluded by code; see [The token](#token-technical) |
-| Zama operators | see section [Trust assumptions](#trust-technical) | |
-| Compromised browser or key | read whatever that key may decrypt; sign as that account | read amounts it has no ACL permission for |
+| Adversary                  | Can                                                                                                      | Cannot                                                                                                        |
+| -------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Chain observer             | read every transaction, calldata, event and storage slot on Sepolia, and the events of the Gateway chain | decrypt a handle; tell a full lock from an underfunded one                                                    |
+| Front-runner               | copy a pending `lock` (`todoRef`, handle, proof)                                                         | use the proof for another account or contract; occupy the creator's `todoRef` (escrows are keyed per creator) |
+| Reader of the OrbitDB list | read todo text, delegate DID and `budget` (`todoRef`, transaction hashes, status)                        | read amounts, which are not in OrbitDB                                                                        |
+| Beneficiary                | read the locked amount and its own balance; check before starting work that the lock is not empty        | force a release                                                                                               |
+| Creator                    | withhold a release and refund after the deadline                                                         | release to anyone but the recorded beneficiary; take funds before the deadline without releasing              |
+| Auditor                    | read every amount ever locked in this escrow                                                             | move funds                                                                                                    |
+| Token owner (Protocol DAO) | upgrade cUSDTMock, add observers who can decrypt, block addresses, appoint a pauser                      | nothing is excluded by code; see [The token](#token-technical)                                                |
+| Zama operators             | see section [Trust assumptions](#trust-technical)                                                        |                                                                                                               |
+| Compromised browser or key | read whatever that key may decrypt; sign as that account                                                 | read amounts it has no ACL permission for                                                                     |
+
+Creator, beneficiary and auditor can each also make a locked amount public through the token (see
+[The token](#token-technical)).
 
 ## What leaks
 
@@ -66,22 +69,22 @@ which value, and when.
 
 Public on Sepolia (all confirmed in the transactions of the smoke run):
 
-| Leak | Where |
-| --- | --- |
-| Sender (creator) | transaction `from`; `Locked` topic 1 |
-| Recipient (beneficiary) | `lock` calldata; `Locked` topic 3; ACL `Allowed` event; later `ConfidentialTransfer` topic 2 |
-| Auditor address | `auditor()`; an ACL `Allowed` event in every lock |
-| Time | block timestamps of `setOperator`, `lock`, `release`, `refund` |
-| Function | method selector (Etherscan: "Lock", "Release") |
-| `todoRef` | calldata; topic 2 of `Locked`, `Released`, `Refunded` |
-| Deadline | calldata; `Locked` data |
-| Operator window | `setOperator` calldata and `OperatorSet` event |
-| Gas and fee | receipt |
-| Handle identity | calldata, FHEVMExecutor events, `ConfidentialTransfer`, `Allowed`, `escrowOf`, `confidentialBalanceOf` |
-| Computation graph | every FHE operation with its operand and result handles in FHEVMExecutor events |
-| Input proof | calldata; `VerifyInput` event |
-| Amounts at wrap and unwrap | `wrap` calldata, ERC-20 `Transfer`, `TrivialEncrypt(pt)`, `Wrap(roundedAmount)`; `finalizeUnwrap` calldata and `UnwrapFinalized` |
-| Number of escrows and releases per creator | count of `Locked` and `Released` events |
+| Leak                                       | Where                                                                                                                            |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| Sender (creator)                           | transaction `from`; `Locked` topic 1                                                                                             |
+| Recipient (beneficiary)                    | `lock` calldata; `Locked` topic 3; ACL `Allowed` event; later `ConfidentialTransfer` topic 2                                     |
+| Auditor address                            | `auditor()`; an ACL `Allowed` event in every lock                                                                                |
+| Time                                       | block timestamps of `setOperator`, `lock`, `release`, `refund`                                                                   |
+| Function                                   | method selector (Etherscan: "Lock", "Release")                                                                                   |
+| `todoRef`                                  | calldata; topic 2 of `Locked`, `Released`, `Refunded`                                                                            |
+| Deadline                                   | calldata; `Locked` data                                                                                                          |
+| Operator window                            | `setOperator` calldata and `OperatorSet` event                                                                                   |
+| Gas and fee                                | receipt                                                                                                                          |
+| Handle identity                            | calldata, FHEVMExecutor events, `ConfidentialTransfer`, `Allowed`, `escrowOf`, `confidentialBalanceOf`                           |
+| Computation graph                          | every FHE operation with its operand and result handles in FHEVMExecutor events                                                  |
+| Input proof                                | calldata; `VerifyInput` event                                                                                                    |
+| Amounts at wrap and unwrap                 | `wrap` calldata, ERC-20 `Transfer`, `TrivialEncrypt(pt)`, `Wrap(roundedAmount)`; `finalizeUnwrap` calldata and `UnwrapFinalized` |
+| Number of escrows and releases per creator | count of `Locked` and `Released` events                                                                                          |
 
 What handle identity reveals: equal handles denote equal values. A computed handle is a hash of public
 data, and the executor events show which handles feed which operation. Reusing a handle, for example
@@ -96,9 +99,10 @@ Off Sepolia:
 
 - **Gateway chain.** Each user decryption is a Gateway transaction by the relayer that emits
   `UserDecryptionRequest(decryptionId, ciphertext materials including the handles, userAddress,
-  publicKey, extraData)`, followed by one `UserDecryptionResponse` per KMS share. Who asked to read
-  which handle, and when, is therefore public on the Gateway chain; the shares themselves are encrypted
-  to the requester's ML-KEM-512 key. Public decryption results are published there in clear.
+publicKey, extraData)`, followed by one `UserDecryptionResponse` per KMS share. Who asked to read
+  which handle, and when, is therefore public on the Gateway chain, for which Zama runs a public block
+  explorer (`https://explorer.testnet.zama.org` for testnet); the shares themselves are encrypted to
+  the requester's ML-KEM-512 key. Public decryption results are published there in clear.
 - **Relayer.** Sees every request with addresses, handles and transport public keys, and the client's
   IP address.
 - **OrbitDB.** The shared list is unencrypted: anyone with its address reads todo text, delegate DID,
@@ -111,21 +115,22 @@ moved the requested amount or 0.
 
 ### Trust: simple
 
-The secrecy of amounts depends on Zama's key holders not colluding. Being able to read amounts at all
-depends on Zama's relayer, Gateway and key holders being online. The rules of the whole system can be
+The secrecy of amounts depends on Zama's key holders not colluding; Zama's whitepaper tolerates
+collusion of up to 4 of the 13. Being able to read amounts at all depends on Zama's relayer, Gateway
+and key holders being online. The rules of the whole system can be
 changed by Zama's protocol governance.
 
 ### Trust: technical
 
-| Party | Configuration on 2026-09-16 | Trusted for | Failure |
-| --- | --- | --- | --- |
-| KMS operators | 13 signers; thresholds in ProtocolConfig: user decryption 9, public decryption 7, key generation 7, MPC 4 (Sepolia and mainnet). Zama's docs: nodes run by default in AWS Nitro Enclaves, protocol robust with at most one third malicious. | confidentiality of every ciphertext under the global key; correct decryption results | colluding operators above the collusion threshold decrypt anything (the number is not stated in the sources cited; see [zama-confidential-transactions.md](zama-confidential-transactions.md#trust-technical)); too few online operators stop all decryption |
-| Coprocessors | input attestations: 3 of 5 signers on Sepolia, 1 of 1 on Ethereum mainnet | accepting only well-formed inputs; correct FHE computation; storing ciphertexts | per Zama's docs results are valid while more than half are honest; on mainnet a single signer key attests every encrypted input |
-| Gateway | Arbitrum rollup, chain id 10901 (testnet) | ordering and relaying requests, pinning the KMS context | halt: no input attestation, no decryption |
-| Relayer | `relayer.testnet.zama.org`, no key; mainnet hosted relayer requires an API key; self-hosting is documented | availability | down: the SDK cannot encrypt or decrypt through it; on-chain state is unaffected |
-| Protocol DAO (owner of the ACL, and through it of all host contracts) | Sepolia `0x08e8a84c3c8c7cba165B1adcf67Ae4639eF84f52`, mainnet `0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3` | not changing the rules | can upgrade ACL, executor and verifiers, change coprocessor and KMS signer sets and thresholds, HCU limits and the deny list |
-| PauserSet members | not enumerable on chain | not pausing | a paused ACL rejects `allow` and `allowTransient`, so every FHE operation reverts; only the owner unpauses |
-| Client code | `@zama-fhe/sdk` 3.6.0, `@fhevm/sdk` 0.13.2, WASM from npm | honest key generation, proofs and reconstruction | a compromised page reads decrypted values and the transport private key |
+| Party                                                                 | Configuration on 2026-09-16                                                                                                                                                                                                                 | Trusted for                                                                          | Failure                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| KMS operators                                                         | 13 signers; thresholds in ProtocolConfig: user decryption 9, public decryption 7, key generation 7, MPC 4 (Sepolia and mainnet). Zama's docs: nodes run by default in AWS Nitro Enclaves, protocol robust with at most one third malicious. | confidentiality of every ciphertext under the global key; correct decryption results | Zama's FHEVM whitepaper (June 2025) tolerates collusions of up to 4 of the 13 operators, so 5 or more colluding operators are outside that guarantee and could decrypt anything (see [zama-confidential-transactions.md](zama-confidential-transactions.md#trust-technical)); too few online operators stop all decryption |
+| Coprocessors                                                          | input attestations: 3 of 5 signers on Sepolia, 1 of 1 on Ethereum mainnet                                                                                                                                                                   | accepting only well-formed inputs; correct FHE computation; storing ciphertexts      | per Zama's docs results are valid while more than half are honest; on mainnet a single signer key attests every encrypted input                                                                                                                                                                                            |
+| Gateway                                                               | Arbitrum rollup, chain id 10901 (testnet)                                                                                                                                                                                                   | ordering and relaying requests, pinning the KMS context                              | halt: no input attestation, no decryption                                                                                                                                                                                                                                                                                  |
+| Relayer                                                               | `relayer.testnet.zama.org`, no key; mainnet hosted relayer requires an API key; self-hosting is documented                                                                                                                                  | availability                                                                         | down: the SDK cannot encrypt or decrypt through it; on-chain state is unaffected                                                                                                                                                                                                                                           |
+| Protocol DAO (owner of the ACL, and through it of all host contracts) | Sepolia `0x08e8a84c3c8c7cba165B1adcf67Ae4639eF84f52`, mainnet `0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3`                                                                                                                                  | not changing the rules                                                               | can upgrade ACL, executor and verifiers, change coprocessor and KMS signer sets and thresholds, HCU limits and the deny list                                                                                                                                                                                               |
+| PauserSet members                                                     | no function lists them; by the `AddPauser` events and `isPauser`: 1 on Sepolia, 17 on mainnet                                                                                                                                               | not pausing                                                                          | a paused ACL rejects `allow` and `allowTransient`, so every FHE operation reverts; only the owner unpauses                                                                                                                                                                                                                 |
+| Client code                                                           | `@zama-fhe/sdk` 3.6.0, `@fhevm/sdk` 0.13.2, WASM from npm                                                                                                                                                                                   | honest key generation, proofs and reconstruction                                     | a compromised page reads decrypted values and the transport private key                                                                                                                                                                                                                                                    |
 
 No service level agreement for the Sepolia relayer, Gateway or KMS is mentioned in the documentation
 cited here. The incidents of 2026-08-31 to 2026-09-01 and of 2026-09-03 made user decryption fail on
@@ -138,7 +143,7 @@ Sepolia while the chain was correct (see
 
 The escrow holds Zama's test dollar token. Its owner, Zama's protocol governance, can replace the
 token's code, name observers who may read all amounts in the token, block addresses and appoint
-someone who may pause it. On 2026-09-16 there were no observers and nobody could pause it.
+someone who may pause it. On 2026-09-16 there were no observers and nobody was appointed to pause it.
 
 ### Token: technical
 
@@ -158,13 +163,16 @@ cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491` is an ERC-1967 proxy to `
   therefore decrypt every amount this escrow stores, as well as every balance and transfer in the
   token, which Zama's wrapper documentation states for balances, supply and transfers. Observers are
   public (`observers()`, `ObserverAdded` event); `observers()` returned an empty list on 2026-09-16.
-- **Deny list.** `blockUser` is `onlyOwner`; the token's `_update` checks sender, recipient and
-  operator. A blocked creator or beneficiary makes `lock`, `release` and `refund` revert for as long
-  as the block lasts. `isBlocked` was false for the escrow, the creator and the beneficiary during the
-  run.
+- **Deny list.** `blockUser` is `onlyOwner`; the token's `_update` checks sender and recipient, and
+  the caller when it is not the sender. The escrow is the caller or the sender in all three of its
+  transfers, so blocking the escrow makes every `lock`, `release` and `refund` revert; a blocked
+  creator makes `lock` and `refund` revert, a blocked beneficiary `release`, for as long as the block
+  lasts. The owner can also make the token consult the underlying token's own deny list
+  (`setUnderlyingDenyListSelector`); on cUSDTMock that check was off (`0x00000000`) on 2026-09-16.
+  `isBlocked` was false for the escrow, the creator and the beneficiary during the run.
 - **Pause.** `pause()` may be called only by `pauser()`, which the owner sets; `pauser()` returned
-  `address(0)` on 2026-09-16, so nobody could pause. While paused, every transfer, and so every lock,
-  release and refund, reverts.
+  `address(0)` on 2026-09-16, so nobody could pause without the owner appointing a pauser first. While
+  paused, every transfer, and so every lock, release and refund, reverts.
 - **Disclosure by a party.** `requestDiscloseEncryptedAmount(handle)` lets any account that is allowed
   on a handle make it publicly decryptable through the token, which is allowed too. The creator, the
   beneficiary and the auditor can each publish a locked amount this way; an observer cannot, because
@@ -175,8 +183,8 @@ cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491` is an ERC-1967 proxy to `
 ### Auditor: simple
 
 The escrow names one auditor forever. The auditor can read every amount ever locked in it. Today the
-auditor is the developer's own test account, whose key sits unencrypted in a configuration file on a
-development machine.
+auditor is the developer's own test account, whose key the runbook keeps unencrypted in a
+configuration file on a development machine.
 
 ### Auditor: technical
 
@@ -186,9 +194,10 @@ development machine.
 - Rotation is impossible. A new auditor means a new escrow. Escrows in the old contract stay there,
   and the old auditor keeps reading their amounts.
 - The deployed auditor is `0xd81Ad65eF9DdBC6Cf1A81FF2EF21B372EFBf4621`, the deployer, which is also the
-  creator of the smoke test. Its private key is the `DEPLOYER_PRIVATE_KEY` of the Sepolia runbook, kept
-  in `contracts/.env`: a plaintext file that git ignores. Whoever obtains that file can decrypt every
-  locked amount, lock and release as the smoke-test creator, and spend its Sepolia ETH.
+  creator of the smoke test. Its private key is the `DEPLOYER_PRIVATE_KEY` of the Sepolia runbook,
+  which the runbook keeps in `contracts/.env`: a plaintext file that git ignores. Whoever obtains that
+  key can decrypt every locked amount, lock and release as the smoke-test creator, and spend its
+  Sepolia ETH.
 - The auditor is visible to everyone: `auditor()` and the `Allowed` event in each lock.
 - Delegated reading for an auditor service would use `ACL.delegateForUserDecryption`, which is itself
   public and links the auditor to its delegate.
@@ -203,7 +212,7 @@ for. Copying it out of a pending transaction does not help anyone else.
 ### Replay: technical
 
 - The coprocessors sign `CiphertextVerification(bytes32[] ctHandles, address userAddress, address
-  contractAddress, uint256 contractChainId, bytes extraData)`. On chain, FHEVMExecutor sets
+contractAddress, uint256 contractChainId, bytes extraData)`. On chain, FHEVMExecutor sets
   `contractAddress` to its caller and takes `userAddress` from the calling contract, which is the
   escrow's `msg.sender`. InputVerifier recovers the signers with ECDSA and requires the threshold (3 of
   5 on Sepolia, 1 of 1 on mainnet). A proof used by another account or through another contract
@@ -220,7 +229,7 @@ for. Copying it out of a pending transaction does not help anyone else.
   user operations they survive from one operation to the next unless someone calls
   `cleanTransientStorage()`, which anyone may. They stay bound to the account they were granted to.
 - With an empty proof the escrow accepts an existing handle only if `ACL.isAllowed(handle,
-  msg.sender)`; test "takes an existing handle without a proof only from someone who may use it".
+msg.sender)`; test "takes an existing handle without a proof only from someone who may use it".
 
 ## Properties of the escrow itself
 
@@ -299,17 +308,20 @@ accept signatures from such accounts.
 
 - **The EOA setup key is root forever.** Calibur is an EIP-7702 delegation target. Its root key is the
   account's own secp256k1 key (`KeyLib.isRootKey`: a `Secp256k1` key whose address is the account
-  itself, key hash `bytes32(0)`). `register` and `update` refuse the root key, `revoke` cannot remove
-  it because it is never in the key set, and `_isOwnerOrValidKey` always accepts it.
-  `isValidSignature` accepts any raw 64- or 65-byte ECDSA signature from it. Independently of Calibur,
-  under EIP-7702 that key can still send transactions and sign new delegation designations. Deleting the
-  setup key after onboarding is the only protection, and it cannot be proven on chain.
+  itself; the placeholder key hash `bytes32(0)` stands for it). `register` and `update` refuse the root
+  key, `revoke` cannot remove it because it is never in the key set, and `_isOwnerOrValidKey` always
+  accepts it. `isValidSignature` accepts any raw 64- or 65-byte ECDSA signature from it. Calibur has no
+  function to disable it. Independently of Calibur, under EIP-7702 that key can still send
+  transactions and sign new delegation designations, so it keeps control of the account even when
+  the delegation changes. Deleting the setup key after onboarding is the only protection, and it cannot
+  be proven on chain.
 - **User verification is not enforced on chain.** `KeyLib.verify` checks `WebAuthnP256` keys with
   `WebAuthn.verify({ ..., requireUV: false, ... })`. Whether the authenticator verified the user (PIN,
-  biometrics) is enforced only by the client code that requests the assertion.
+  biometrics) is enforced only by the client code that requests the assertion. The pinned webauthn-sol
+  library requires the user-presence flag, and does not check the origin or the `rpIdHash` on chain.
 - **Non-root keys sign ERC-1271 messages only in ERC-7739 form.** Calibur's `isValidSignature` routes
   raw signatures to the root key and expects the ERC-7739 TypedDataSign or NestedPersonalSign flow for
-  every other key.
+  every other key; the root key may use that flow too.
 - **Zama v0.13 accepts only ECDSA permits.** `@fhevm/sdk` 0.13.2 requires 65-byte signatures and
   compares the recovered address; the Gateway's `Decryption` contract reverts with
   `InvalidUserSignature` unless the ECDSA signer is the user. A passkey account cannot sign a decryption
@@ -318,17 +330,19 @@ accept signatures from such accounts.
   The `DelegatedForUserDecryption` event makes the link between account and session key public, and
   the session key can read everything the account may read in those contracts until the expiry or a
   revocation.
-- **v0.14** adds ERC-1271 verification in the KMS connector (`ecrecover`, then a gas-capped
-  `isValidSignature` call). Whether a Calibur passkey signature in ERC-7739 form passes that check was
-  not verified.
+- **v0.14** adds ERC-1271 verification in the KMS connector for its new unified request (`ecrecover`
+  for a 65-byte signature, otherwise a gas-capped `isValidSignature` call). Whether a Calibur passkey
+  signature in ERC-7739 form passes that check was not verified.
 
 ## Open issues
 
 1. Auditor: the deployed auditor is a development key in a plaintext file. Choose the real auditor
    and its key custody before relying on a deployment; a change requires a new escrow.
 2. Token governance: observers, upgrade, deny list and pause of cUSDTMock lie with the Protocol DAO.
-   Zama's wrapper documentation says wrapper ownership is to move to the underlying token's owner;
-   for mainnet cUSDT this was not checked.
+   Zama's wrapper documentation says wrapper ownership is to move to the underlying token's owner.
+   On 2026-09-16 mainnet cUSDT `0xAe0207C757Aa2B4019Ad96edD0092ddc63EF0c50` was still owned by the
+   Protocol DAO `0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3`, had no observers and no pauser, and
+   consulted USDT's own blacklist (`getBlackListStatus`) as its underlying deny list.
 3. Metadata: `todoRef`, delegate DID and budget status are readable in the unencrypted OrbitDB list,
    and decryption requests are public on the Gateway chain.
 4. The app does not use the chain yet: no Zama budget service, no refund, no DID-to-account mapping.
@@ -360,7 +374,7 @@ cUSDTMock implementation on Sourcify
 (<https://sourcify.dev/server/v2/contract/11155111/0xAe37b998d453E1FaBE85DD46cf04295ca4A3af04?fields=sources>):
 `contracts/ConfidentialWrapper.sol` `WILDCARD_CONTRACT` 112, `blockUser` 229-231, `addObserver`
 306-308, `observers` 336-338, `pauser` and `pause` 343-357, `renounceOwnership` 373-375,
-`_addObserver` 391-403, `_update` 432-442, `_authorizeUpgrade` 497;
+`_addObserver` 391-403, `_requireNotBlocked` 420-425, `_update` 432-442, `_authorizeUpgrade` 497;
 `contracts/token/ERC7984Upgradeable.sol` `requestDiscloseEncryptedAmount` 265-273, `_update` 343-378.
 
 zama-ai/fhevm v0.13.5: `host-contracts/contracts/ACL.sol` (`allow` 206-216, `allowTransient` 253-272,
@@ -379,12 +393,21 @@ zama-ai/fhevm v0.13.5: `host-contracts/contracts/ACL.sol` (`allow` 206-216, `all
 236-242.
 
 Calibur v1.0.0 (<https://github.com/Uniswap/calibur/tree/v1.0.0>): `src/libraries/KeyLib.sol` 26,
-35-42, 58-77; `src/KeyManagement.sol` 21-46, 84-89; `src/Calibur.sol` 131-175. EIP-7702:
-<https://eips.ethereum.org/EIPS/eip-7702>.
+35-42, 58-77; `src/KeyManagement.sol` 21-46, 84-89; `src/Calibur.sol` 132-174. webauthn-sol at the
+commit Calibur v1.0.0 pins (`619f20ab0f074fef41066ee4ab24849a913263b2`): `src/WebAuthn.sol` 77-88
+(origin and `rpIdHash` not checked), 133 (user presence), 139 (user verification only on request).
+EIP-7702: <https://eips.ethereum.org/EIPS/eip-7702>.
 
-Chain, read on 2026-09-16: cUSDTMock `owner()`, `observers()`, `pauser()`, implementation slot; ACL
-`owner()`, `persistAllowed` on the stored amount; InputVerifier, KMSVerifier and ProtocolConfig
-thresholds on Sepolia and mainnet.
+Chain, read on 2026-09-16: cUSDTMock `owner()`, `observers()`, `pauser()`,
+`getUnderlyingDenyListSelector()`, implementation slot; mainnet cUSDT `owner()`, `observers()`,
+`pauser()`, `underlying()`, `getUnderlyingDenyListSelector()`; ACL `owner()`, `persistAllowed` on the
+stored amount; InputVerifier, KMSVerifier and ProtocolConfig thresholds on Sepolia and mainnet;
+PauserSet `AddPauser` events (Blockscout) and `isPauser` on Sepolia
+(`0xc62392B4100a1bD45AbDBf91E70f1E4349402b46`) and mainnet
+(`0xbBfE1680b4a63ED05f7F80CE330BED7C992A586C`).
+
+Zama's FHEVM whitepaper, version 3.1 of 30 June 2025
+(<https://github.com/zama-ai/fhevm/blob/main/fhevm-whitepaper.pdf>): KMS collusion bound, p. 12.
 
 Zama documentation: confidential wrapper, observers
 (<https://docs.zama.org/protocol/protocol-apps/confidential-tokens/confidential-wrapper>); KMS
@@ -393,4 +416,5 @@ Zama documentation: confidential wrapper, observers
 (<https://docs.zama.org/protocol/sdk/concepts/security-model>); relayer API keys
 (<https://docs.zama.org/protocol/sdk/guides/relayer-api-keys>); Sepolia and Ethereum addresses
 (<https://docs.zama.org/protocol/protocol-apps/addresses/testnet/sepolia>,
-<https://docs.zama.org/protocol/protocol-apps/addresses/mainnet/ethereum>).
+<https://docs.zama.org/protocol/protocol-apps/addresses/mainnet/ethereum>); chains and Gateway
+explorers (<https://docs.zama.org/protocol/protocol-apps/chains>).

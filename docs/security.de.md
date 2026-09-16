@@ -44,17 +44,20 @@ Schutzgüter:
 
 Angreifer und was sie können:
 
-| Angreifer | Kann | Kann nicht |
-| --- | --- | --- |
-| Beobachter der Chain | jede Transaktion, alle Calldata, jedes Event und jeden Storage-Slot auf Sepolia sowie die Events der Gateway-Chain lesen | ein Handle entschlüsseln; eine vollständige Sperre von einer ungedeckten unterscheiden |
-| Front-Runner | einen ausstehenden `lock`-Aufruf kopieren (`todoRef`, Handle, Proof) | den Proof für ein anderes Konto oder einen anderen Vertrag verwenden; die `todoRef` des Erstellers belegen (Treuhand-Vorgänge sind pro Ersteller indiziert) |
-| Leser der OrbitDB-Liste | Todo-Text, DID des Delegierten und `budget` (`todoRef`, Transaktions-Hashes, Status) lesen | Beträge lesen; sie stehen nicht in OrbitDB |
-| Begünstigter | den gesperrten Betrag und das eigene Guthaben lesen; vor Arbeitsbeginn prüfen, dass die Sperre nicht leer ist | eine Freigabe erzwingen |
-| Ersteller | eine Freigabe zurückhalten und nach der Frist zurückzahlen | an jemand anderen als den eingetragenen Begünstigten freigeben; vor der Frist Mittel entnehmen, ohne freizugeben |
-| Prüfstelle | jeden jemals in dieser Treuhand gesperrten Betrag lesen | Mittel bewegen |
-| Owner (Eigentümer) des Tokens (Protocol DAO) | ein Upgrade von cUSDTMock durchführen, Observer hinzufügen, die entschlüsseln können, Adressen blockieren, einen Pauser ernennen | durch Code ist nichts ausgeschlossen; siehe [Der Token](#token-technisch) |
-| Zama-Betreiber | siehe Abschnitt [Vertrauensannahmen](#vertrauen-technisch) | |
-| Kompromittierter Browser oder Schlüssel | alles lesen, was dieser Schlüssel entschlüsseln darf; als dieses Konto signieren | Beträge lesen, für die er keine ACL-Berechtigung hat |
+| Angreifer                                    | Kann                                                                                                                             | Kann nicht                                                                                                                                                  |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Beobachter der Chain                         | jede Transaktion, alle Calldata, jedes Event und jeden Storage-Slot auf Sepolia sowie die Events der Gateway-Chain lesen         | ein Handle entschlüsseln; eine vollständige Sperre von einer ungedeckten unterscheiden                                                                      |
+| Front-Runner                                 | einen ausstehenden `lock`-Aufruf kopieren (`todoRef`, Handle, Proof)                                                             | den Proof für ein anderes Konto oder einen anderen Vertrag verwenden; die `todoRef` des Erstellers belegen (Treuhand-Vorgänge sind pro Ersteller indiziert) |
+| Leser der OrbitDB-Liste                      | Todo-Text, DID des Delegierten und `budget` (`todoRef`, Transaktions-Hashes, Status) lesen                                       | Beträge lesen; sie stehen nicht in OrbitDB                                                                                                                  |
+| Begünstigter                                 | den gesperrten Betrag und das eigene Guthaben lesen; vor Arbeitsbeginn prüfen, dass die Sperre nicht leer ist                    | eine Freigabe erzwingen                                                                                                                                     |
+| Ersteller                                    | eine Freigabe zurückhalten und nach der Frist zurückzahlen                                                                       | an jemand anderen als den eingetragenen Begünstigten freigeben; vor der Frist Mittel entnehmen, ohne freizugeben                                            |
+| Prüfstelle                                   | jeden jemals in dieser Treuhand gesperrten Betrag lesen                                                                          | Mittel bewegen                                                                                                                                              |
+| Owner (Eigentümer) des Tokens (Protocol DAO) | ein Upgrade von cUSDTMock durchführen, Observer hinzufügen, die entschlüsseln können, Adressen blockieren, einen Pauser ernennen | durch Code ist nichts ausgeschlossen; siehe [Der Token](#token-technisch)                                                                                   |
+| Zama-Betreiber                               | siehe Abschnitt [Vertrauensannahmen](#vertrauen-technisch)                                                                       |                                                                                                                                                             |
+| Kompromittierter Browser oder Schlüssel      | alles lesen, was dieser Schlüssel entschlüsseln darf; als dieses Konto signieren                                                 | Beträge lesen, für die er keine ACL-Berechtigung hat                                                                                                        |
+
+Ersteller, Begünstigter und Prüfstelle können einen gesperrten Betrag außerdem jeweils über den Token
+öffentlich machen (siehe [Der Token](#token-technisch)).
 
 ## Was sichtbar wird
 
@@ -69,22 +72,22 @@ erfassen außerdem, wer die Entschlüsselung welches Werts angefordert hat, und 
 
 Öffentlich auf Sepolia (alles in den Transaktionen des Smoke-Test-Laufs bestätigt):
 
-| Offenlegung | Wo |
-| --- | --- |
-| Absender (Ersteller) | `from` der Transaktion; Topic 1 von `Locked` |
-| Empfänger (Begünstigter) | Calldata von `lock`; Topic 3 von `Locked`; ACL-Event `Allowed`; später Topic 2 von `ConfidentialTransfer` |
-| Adresse der Prüfstelle | `auditor()`; ein ACL-Event `Allowed` in jeder Sperre |
-| Zeitpunkt | Block-Zeitstempel von `setOperator`, `lock`, `release`, `refund` |
-| Funktion | Methodenselektor (Etherscan: "Lock", "Release") |
-| `todoRef` | Calldata; Topic 2 von `Locked`, `Released`, `Refunded` |
-| Frist | Calldata; Datenteil von `Locked` |
-| Operator-Zeitfenster | Calldata von `setOperator` und Event `OperatorSet` |
-| Gas und Gebühr | Receipt |
-| Identität der Handles | Calldata, FHEVMExecutor-Events, `ConfidentialTransfer`, `Allowed`, `escrowOf`, `confidentialBalanceOf` |
-| Berechnungsgraph | jede FHE-Operation mit ihren Operanden- und Ergebnis-Handles in FHEVMExecutor-Events |
-| Input-Proof | Calldata; Event `VerifyInput` |
-| Beträge beim Verpacken und Entpacken | Calldata von `wrap`, ERC-20 `Transfer`, `TrivialEncrypt(pt)`, `Wrap(roundedAmount)`; Calldata von `finalizeUnwrap` und `UnwrapFinalized` |
-| Anzahl der Treuhand-Vorgänge und Freigaben pro Ersteller | Anzahl der Events `Locked` und `Released` |
+| Offenlegung                                              | Wo                                                                                                                                       |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Absender (Ersteller)                                     | `from` der Transaktion; Topic 1 von `Locked`                                                                                             |
+| Empfänger (Begünstigter)                                 | Calldata von `lock`; Topic 3 von `Locked`; ACL-Event `Allowed`; später Topic 2 von `ConfidentialTransfer`                                |
+| Adresse der Prüfstelle                                   | `auditor()`; ein ACL-Event `Allowed` in jeder Sperre                                                                                     |
+| Zeitpunkt                                                | Block-Zeitstempel von `setOperator`, `lock`, `release`, `refund`                                                                         |
+| Funktion                                                 | Methodenselektor (Etherscan: "Lock", "Release")                                                                                          |
+| `todoRef`                                                | Calldata; Topic 2 von `Locked`, `Released`, `Refunded`                                                                                   |
+| Frist                                                    | Calldata; Datenteil von `Locked`                                                                                                         |
+| Operator-Zeitfenster                                     | Calldata von `setOperator` und Event `OperatorSet`                                                                                       |
+| Gas und Gebühr                                           | Receipt                                                                                                                                  |
+| Identität der Handles                                    | Calldata, FHEVMExecutor-Events, `ConfidentialTransfer`, `Allowed`, `escrowOf`, `confidentialBalanceOf`                                   |
+| Berechnungsgraph                                         | jede FHE-Operation mit ihren Operanden- und Ergebnis-Handles in FHEVMExecutor-Events                                                     |
+| Input-Proof                                              | Calldata; Event `VerifyInput`                                                                                                            |
+| Beträge beim Verpacken und Entpacken                     | Calldata von `wrap`, ERC-20 `Transfer`, `TrivialEncrypt(pt)`, `Wrap(roundedAmount)`; Calldata von `finalizeUnwrap` und `UnwrapFinalized` |
+| Anzahl der Treuhand-Vorgänge und Freigaben pro Ersteller | Anzahl der Events `Locked` und `Released`                                                                                                |
 
 Was die Identität der Handles verrät: Gleiche Handles bezeichnen gleiche Werte. Ein berechnetes Handle
 ist ein Hash öffentlicher Daten, und die Executor-Events zeigen, welche Handles in welche Operation
@@ -101,10 +104,11 @@ Außerhalb von Sepolia:
 
 - **Gateway-Chain.** Jede Nutzer-Entschlüsselung ist eine Gateway-Transaktion des Relayers, die
   `UserDecryptionRequest(decryptionId, ciphertext materials including the handles, userAddress,
-  publicKey, extraData)` emittiert, gefolgt von einem `UserDecryptionResponse` pro KMS-Anteil. Wer
-  welches Handle zu lesen angefragt hat, und wann, ist daher auf der Gateway-Chain öffentlich; die
-  Anteile selbst sind für den ML-KEM-512-Schlüssel des Anfragenden verschlüsselt. Ergebnisse
-  öffentlicher Entschlüsselungen werden dort im Klartext veröffentlicht.
+publicKey, extraData)` emittiert, gefolgt von einem `UserDecryptionResponse` pro KMS-Anteil. Wer
+  welches Handle zu lesen angefragt hat, und wann, ist daher auf der Gateway-Chain öffentlich, für die
+  Zama einen öffentlichen Block-Explorer betreibt (`https://explorer.testnet.zama.org` für das
+  Testnet); die Anteile selbst sind für den ML-KEM-512-Schlüssel des Anfragenden verschlüsselt.
+  Ergebnisse öffentlicher Entschlüsselungen werden dort im Klartext veröffentlicht.
 - **Relayer.** Sieht jede Anfrage mit Adressen, Handles und öffentlichen Transportschlüsseln sowie die
   IP-Adresse des Clients.
 - **OrbitDB.** Die geteilte Liste ist unverschlüsselt: Wer ihre Adresse hat, liest Todo-Text, DID des
@@ -117,21 +121,21 @@ ein Transfer den angeforderten Betrag oder 0 bewegt hat.
 
 ### Vertrauen: einfach
 
-Die Geheimhaltung der Beträge hängt davon ab, dass Zamas Schlüsselverwalter sich nicht absprechen. Ob
-sich Beträge überhaupt lesen lassen, hängt davon ab, dass Zamas Relayer, Gateway und Schlüsselverwalter
-online sind. Die Regeln des gesamten Systems können von Zamas Protokoll-Governance geändert werden.
+Die Geheimhaltung der Beträge hängt davon ab, dass Zamas Schlüsselverwalter sich nicht absprechen;
+Zamas Whitepaper toleriert Absprachen von bis zu 4 der 13. Ob sich Beträge überhaupt lesen lassen,
+hängt davon ab, dass Zamas Relayer, Gateway und Schlüsselverwalter online sind. Die Regeln des gesamten Systems können von Zamas Protokoll-Governance geändert werden.
 
 ### Vertrauen: technisch
 
-| Partei | Konfiguration am 2026-09-16 | Wofür vertraut wird | Fehlerfall |
-| --- | --- | --- | --- |
-| KMS-Betreiber | 13 Signierer; Schwellenwerte in ProtocolConfig: Nutzer-Entschlüsselung 9, öffentliche Entschlüsselung 7, Schlüsselerzeugung 7, MPC 4 (Sepolia und Mainnet). Zamas Dokumentation: Knoten laufen standardmäßig in AWS Nitro Enclaves, Protokoll robust bei höchstens einem Drittel bösartiger Knoten. | Vertraulichkeit jedes Chiffrats unter dem globalen Schlüssel; korrekte Entschlüsselungsergebnisse | zusammenwirkende Betreiber oberhalb des Absprache-Schwellenwerts entschlüsseln alles (die Zahl nennen die zitierten Quellen nicht; siehe [zama-confidential-transactions.de.md](zama-confidential-transactions.de.md#vertrauen-technisch)); sind zu wenige Betreiber online, stoppt jede Entschlüsselung |
-| Coprozessoren | Input-Attestierungen: 3 von 5 Signierern auf Sepolia, 1 von 1 im Ethereum-Mainnet | nur wohlgeformte Inputs akzeptieren; korrekte FHE-Berechnung; Chiffrate speichern | laut Zamas Dokumentation sind Ergebnisse gültig, solange mehr als die Hälfte ehrlich ist; im Mainnet attestiert ein einziger Signierschlüssel jeden verschlüsselten Input |
-| Gateway | Arbitrum-Rollup, Chain-ID 10901 (Testnetz) | Anfragen ordnen und weiterleiten, den KMS-Kontext festschreiben | Stillstand: keine Input-Attestierung, keine Entschlüsselung |
-| Relayer | `relayer.testnet.zama.org`, kein Schlüssel; der gehostete Mainnet-Relayer verlangt einen API-Schlüssel; Self-Hosting ist dokumentiert | Verfügbarkeit | ausgefallen: Das SDK kann über ihn weder verschlüsseln noch entschlüsseln; der Zustand on-chain bleibt unberührt |
-| Protocol DAO (Owner der ACL und über sie aller Host-Verträge) | Sepolia `0x08e8a84c3c8c7cba165B1adcf67Ae4639eF84f52`, Mainnet `0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3` | die Regeln nicht ändern | kann Upgrades von ACL, Executor und Verifiern durchführen, Signierer-Sets und Schwellenwerte von Coprozessoren und KMS, HCU-Limits und die Blockliste ändern |
-| Mitglieder von PauserSet | on-chain nicht aufzählbar | nicht pausieren | eine pausierte ACL weist `allow` und `allowTransient` zurück, sodass jede FHE-Operation revertiert; nur der Owner hebt die Pause auf |
-| Client-Code | `@zama-fhe/sdk` 3.6.0, `@fhevm/sdk` 0.13.2, WASM von npm | ehrliche Schlüsselerzeugung, Proofs und Rekonstruktion | eine kompromittierte Seite liest entschlüsselte Werte und den privaten Transportschlüssel |
+| Partei                                                        | Konfiguration am 2026-09-16                                                                                                                                                                                                                                                                         | Wofür vertraut wird                                                                               | Fehlerfall                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| KMS-Betreiber                                                 | 13 Signierer; Schwellenwerte in ProtocolConfig: Nutzer-Entschlüsselung 9, öffentliche Entschlüsselung 7, Schlüsselerzeugung 7, MPC 4 (Sepolia und Mainnet). Zamas Dokumentation: Knoten laufen standardmäßig in AWS Nitro Enclaves, Protokoll robust bei höchstens einem Drittel bösartiger Knoten. | Vertraulichkeit jedes Chiffrats unter dem globalen Schlüssel; korrekte Entschlüsselungsergebnisse | Zamas FHEVM-Whitepaper (Juni 2025) toleriert Kollusionen von bis zu 4 der 13 Betreiber, 5 oder mehr zusammenwirkende Betreiber liegen außerhalb dieser Zusage und könnten alles entschlüsseln (siehe [zama-confidential-transactions.de.md](zama-confidential-transactions.de.md#vertrauen-technisch)); sind zu wenige Betreiber online, stoppt jede Entschlüsselung |
+| Coprozessoren                                                 | Input-Attestierungen: 3 von 5 Signierern auf Sepolia, 1 von 1 im Ethereum-Mainnet                                                                                                                                                                                                                   | nur wohlgeformte Inputs akzeptieren; korrekte FHE-Berechnung; Chiffrate speichern                 | laut Zamas Dokumentation sind Ergebnisse gültig, solange mehr als die Hälfte ehrlich ist; im Mainnet attestiert ein einziger Signierschlüssel jeden verschlüsselten Input                                                                                                                                                                                            |
+| Gateway                                                       | Arbitrum-Rollup, Chain-ID 10901 (Testnetz)                                                                                                                                                                                                                                                          | Anfragen ordnen und weiterleiten, den KMS-Kontext festschreiben                                   | Stillstand: keine Input-Attestierung, keine Entschlüsselung                                                                                                                                                                                                                                                                                                          |
+| Relayer                                                       | `relayer.testnet.zama.org`, kein Schlüssel; der gehostete Mainnet-Relayer verlangt einen API-Schlüssel; Self-Hosting ist dokumentiert                                                                                                                                                               | Verfügbarkeit                                                                                     | ausgefallen: Das SDK kann über ihn weder verschlüsseln noch entschlüsseln; der Zustand on-chain bleibt unberührt                                                                                                                                                                                                                                                     |
+| Protocol DAO (Owner der ACL und über sie aller Host-Verträge) | Sepolia `0x08e8a84c3c8c7cba165B1adcf67Ae4639eF84f52`, Mainnet `0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3`                                                                                                                                                                                          | die Regeln nicht ändern                                                                           | kann Upgrades von ACL, Executor und Verifiern durchführen, Signierer-Sets und Schwellenwerte von Coprozessoren und KMS, HCU-Limits und die Blockliste ändern                                                                                                                                                                                                         |
+| Mitglieder von PauserSet                                      | keine Funktion listet sie auf; laut `AddPauser`-Events und `isPauser`: 1 auf Sepolia, 17 im Mainnet                                                                                                                                                                                                 | nicht pausieren                                                                                   | eine pausierte ACL weist `allow` und `allowTransient` zurück, sodass jede FHE-Operation revertiert; nur der Owner hebt die Pause auf                                                                                                                                                                                                                                 |
+| Client-Code                                                   | `@zama-fhe/sdk` 3.6.0, `@fhevm/sdk` 0.13.2, WASM von npm                                                                                                                                                                                                                                            | ehrliche Schlüsselerzeugung, Proofs und Rekonstruktion                                            | eine kompromittierte Seite liest entschlüsselte Werte und den privaten Transportschlüssel                                                                                                                                                                                                                                                                            |
 
 Kein Service Level Agreement für den Relayer, das Gateway oder das KMS von Sepolia wird in der hier
 zitierten Dokumentation erwähnt. Die Vorfälle vom 2026-08-31 bis 2026-09-01 und vom 2026-09-03 ließen
@@ -144,8 +148,8 @@ die Nutzer-Entschlüsselung auf Sepolia fehlschlagen, während die Chain korrekt
 
 Die Treuhand hält Zamas Test-Dollar-Token. Sein Owner, Zamas Protokoll-Governance, kann den Code des
 Tokens ersetzen, Observer benennen, die alle Beträge im Token lesen dürfen, Adressen blockieren und
-jemanden ernennen, der ihn pausieren darf. Am 2026-09-16 gab es keine Observer, und niemand konnte ihn
-pausieren.
+jemanden ernennen, der ihn pausieren darf. Am 2026-09-16 gab es keine Observer, und niemand war zum
+Pausieren ernannt.
 
 ### Token: technisch
 
@@ -168,13 +172,18 @@ Quellcode:
   Token, was Zamas Wrapper-Dokumentation für Guthaben, Gesamtmenge und Transfers angibt. Observer sind
   öffentlich (`observers()`, Event `ObserverAdded`); `observers()` lieferte am 2026-09-16 eine leere
   Liste.
-- **Blockliste.** `blockUser` ist `onlyOwner`; `_update` des Tokens prüft Absender, Empfänger und
-  Operator. Ein blockierter Ersteller oder Begünstigter lässt `lock`, `release` und `refund`
-  revertieren, solange die Blockierung besteht. `isBlocked` war während des Laufs für die Treuhand,
-  den Ersteller und den Begünstigten false.
+- **Blockliste.** `blockUser` ist `onlyOwner`; `_update` des Tokens prüft Absender und Empfänger
+  sowie den Aufrufer, wenn er nicht der Absender ist. Die Treuhand ist bei allen drei ihrer Transfers
+  Aufrufer oder Absender, eine blockierte Treuhand lässt also jedes `lock`, `release` und `refund`
+  revertieren; ein blockierter Ersteller lässt `lock` und `refund` revertieren, ein blockierter
+  Begünstigter `release`, solange die Blockierung besteht. Der Owner kann den Token außerdem die
+  Blockliste des zugrunde liegenden Tokens abfragen lassen (`setUnderlyingDenyListSelector`); bei
+  cUSDTMock war diese Prüfung am 2026-09-16 abgeschaltet (`0x00000000`). `isBlocked` war während des
+  Laufs für die Treuhand, den Ersteller und den Begünstigten false.
 - **Pause.** `pause()` darf nur von `pauser()` aufgerufen werden, den der Owner festlegt; `pauser()`
-  lieferte am 2026-09-16 `address(0)`, also konnte niemand pausieren. Während der Pause revertiert
-  jeder Transfer und damit jede Sperre, Freigabe und Rückzahlung.
+  lieferte am 2026-09-16 `address(0)`, also konnte niemand pausieren, ohne dass der Owner zuvor einen
+  Pauser ernennt. Während der Pause revertiert jeder Transfer und damit jede Sperre, Freigabe und
+  Rückzahlung.
 - **Offenlegung durch einen Beteiligten.** `requestDiscloseEncryptedAmount(handle)` erlaubt jedem
   Konto, das für ein Handle berechtigt ist, es über den Token, der ebenfalls berechtigt ist, öffentlich
   entschlüsselbar zu machen. Der Ersteller, der Begünstigte und die Prüfstelle können auf diese Weise
@@ -187,7 +196,8 @@ Quellcode:
 
 Die Treuhand benennt eine Prüfstelle für immer. Die Prüfstelle kann jeden Betrag lesen, der jemals
 darin gesperrt wurde. Derzeit ist die Prüfstelle das eigene Testkonto des Entwicklers, dessen
-Schlüssel unverschlüsselt in einer Konfigurationsdatei auf einem Entwicklungsrechner liegt.
+Schlüssel laut Runbook unverschlüsselt in einer Konfigurationsdatei auf einem Entwicklungsrechner
+liegt.
 
 ### Prüfstelle: technisch
 
@@ -199,9 +209,9 @@ Schlüssel unverschlüsselt in einer Konfigurationsdatei auf einem Entwicklungsr
   alten Vertrag bleiben dort, und die alte Prüfstelle liest ihre Beträge weiterhin.
 - Die Prüfstelle im Deployment ist `0xd81Ad65eF9DdBC6Cf1A81FF2EF21B372EFBf4621`, der Deployer, der
   zugleich der Ersteller des Smoke-Tests ist. Dessen privater Schlüssel ist der `DEPLOYER_PRIVATE_KEY`
-  des Sepolia-Runbooks, abgelegt in `contracts/.env`: eine Klartextdatei, die von git ignoriert wird.
-  Wer diese Datei erlangt, kann jeden gesperrten Betrag entschlüsseln, als Ersteller des Smoke-Tests
-  sperren und freigeben und dessen Sepolia-ETH ausgeben.
+  des Sepolia-Runbooks, den das Runbook in `contracts/.env` ablegt: eine Klartextdatei, die von git
+  ignoriert wird. Wer diesen Schlüssel erlangt, kann jeden gesperrten Betrag entschlüsseln, als
+  Ersteller des Smoke-Tests sperren und freigeben und dessen Sepolia-ETH ausgeben.
 - Die Prüfstelle ist für alle sichtbar: `auditor()` und das Event `Allowed` in jeder Sperre.
 - Delegiertes Lesen für einen Prüfstellen-Dienst würde `ACL.delegateForUserDecryption` verwenden, das
   selbst öffentlich ist und die Prüfstelle mit ihrem Delegierten verknüpft.
@@ -217,7 +227,7 @@ niemand anderem.
 ### Wiederverwendung: technisch
 
 - Die Coprozessoren signieren `CiphertextVerification(bytes32[] ctHandles, address userAddress, address
-  contractAddress, uint256 contractChainId, bytes extraData)`. On-chain setzt FHEVMExecutor
+contractAddress, uint256 contractChainId, bytes extraData)`. On-chain setzt FHEVMExecutor
   `contractAddress` auf seinen Aufrufer und übernimmt `userAddress` vom aufrufenden Vertrag; das ist
   der `msg.sender` der Treuhand. InputVerifier ermittelt die Signierer per ECDSA-Recovery und verlangt
   den Schwellenwert (3 von 5 auf Sepolia, 1 von 1 im Mainnet). Ein Proof, der von einem anderen Konto
@@ -238,7 +248,7 @@ niemand anderem.
   sei denn, jemand ruft `cleanTransientStorage()` auf, was jeder darf. Sie bleiben an das Konto
   gebunden, dem sie gewährt wurden.
 - Mit leerem Proof nimmt die Treuhand ein bestehendes Handle nur an, wenn `ACL.isAllowed(handle,
-  msg.sender)` gilt; Test "takes an existing handle without a proof only from someone who may use it".
+msg.sender)` gilt; Test "takes an existing handle without a proof only from someone who may use it".
 
 ## Eigenschaften der Treuhand selbst
 
@@ -326,20 +336,24 @@ solcher Konten annehmen kann.
 
 - **Der EOA-Setup-Schlüssel ist für immer Root.** Calibur ist ein Delegationsziel nach EIP-7702. Sein
   Root-Key ist der eigene secp256k1-Schlüssel des Kontos (`KeyLib.isRootKey`: ein
-  `Secp256k1`-Schlüssel, dessen Adresse das Konto selbst ist, Schlüssel-Hash `bytes32(0)`). `register`
-  und `update` weisen den Root-Key zurück, `revoke` kann ihn nicht entfernen, weil er nie in der
-  Schlüsselmenge liegt, und `_isOwnerOrValidKey` akzeptiert ihn immer. `isValidSignature` akzeptiert
-  von ihm jede rohe, 64 oder 65 Byte lange ECDSA-Signatur. Unabhängig von Calibur kann dieser
-  Schlüssel unter EIP-7702 weiterhin Transaktionen senden und neue Delegationszuweisungen signieren.
-  Das Löschen des Setup-Schlüssels nach dem Onboarding ist der einzige Schutz, und es lässt sich
-  on-chain nicht nachweisen.
+  `Secp256k1`-Schlüssel, dessen Adresse das Konto selbst ist; der Platzhalter-Schlüssel-Hash
+  `bytes32(0)` steht für ihn). `register` und `update` weisen den Root-Key zurück, `revoke` kann ihn
+  nicht entfernen, weil er nie in der Schlüsselmenge liegt, und `_isOwnerOrValidKey` akzeptiert ihn
+  immer. `isValidSignature` akzeptiert von ihm jede rohe, 64 oder 65 Byte lange ECDSA-Signatur.
+  Calibur hat keine Funktion, die ihn abschaltet. Unabhängig von Calibur kann dieser Schlüssel unter
+  EIP-7702 weiterhin Transaktionen senden und neue Delegationszuweisungen signieren, er behält die
+  Kontrolle über das Konto also auch bei einer geänderten Delegation. Das Löschen des
+  Setup-Schlüssels nach dem Onboarding ist der einzige Schutz, und es lässt sich on-chain nicht
+  nachweisen.
 - **Nutzerverifikation (UV) wird on-chain nicht erzwungen.** `KeyLib.verify` prüft
   `WebAuthnP256`-Schlüssel mit `WebAuthn.verify({ ..., requireUV: false, ... })`. Ob der Authenticator
   den Nutzer verifiziert hat (PIN, Biometrie), erzwingt nur der Client-Code, der die Assertion
-  anfordert.
+  anfordert. Die eingebundene Bibliothek webauthn-sol verlangt das Flag für Nutzerpräsenz (UP) und
+  prüft on-chain weder den Origin noch den `rpIdHash`.
 - **Andere Schlüssel als der Root-Key signieren ERC-1271-Nachrichten nur in ERC-7739-Form.** Caliburs
   `isValidSignature` leitet rohe Signaturen an den Root-Key weiter und erwartet für jeden anderen
-  Schlüssel den ERC-7739-Ablauf TypedDataSign oder NestedPersonalSign.
+  Schlüssel den ERC-7739-Ablauf TypedDataSign oder NestedPersonalSign; auch der Root-Key kann diesen
+  Ablauf nutzen.
 - **Zama v0.13 akzeptiert nur ECDSA-Permits.** `@fhevm/sdk` 0.13.2 verlangt 65 Byte lange Signaturen
   und vergleicht die per Recovery ermittelte Adresse; der `Decryption`-Vertrag des Gateways revertiert
   mit `InvalidUserSignature`, es sei denn, der ECDSA-Signierer ist der Nutzer. Ein Passkey-Konto kann
@@ -348,9 +362,10 @@ solcher Konten annehmen kann.
   pro Vertrag (Token und Treuhand). Das Event `DelegatedForUserDecryption` macht die Verknüpfung
   zwischen Konto und Sitzungsschlüssel öffentlich, und der Sitzungsschlüssel kann bis zum Ablauf oder
   zu einem Widerruf alles lesen, was das Konto in diesen Verträgen lesen darf.
-- **v0.14** ergänzt eine ERC-1271-Verifikation im KMS-Connector (`ecrecover`, danach ein
-  gasbegrenzter Aufruf von `isValidSignature`). Ob eine Calibur-Passkey-Signatur in ERC-7739-Form
-  diese Prüfung besteht, wurde nicht verifiziert.
+- **v0.14** ergänzt für seine neue, vereinheitlichte Anfrage eine ERC-1271-Verifikation im
+  KMS-Connector (`ecrecover` bei einer 65 Byte langen Signatur, andernfalls ein gasbegrenzter Aufruf
+  von `isValidSignature`). Ob eine Calibur-Passkey-Signatur in ERC-7739-Form diese Prüfung besteht,
+  wurde nicht verifiziert.
 
 ## Offene Punkte
 
@@ -359,7 +374,10 @@ solcher Konten annehmen kann.
    Deployment verlässt; eine Änderung erfordert eine neue Treuhand.
 2. Token-Governance: Observer, Upgrade, Blockliste und Pause von cUSDTMock liegen bei der Protocol DAO.
    Laut Zamas Wrapper-Dokumentation soll die Owner-Rolle des Wrappers an den Owner des zugrunde
-   liegenden Tokens übergehen; für cUSDT im Mainnet wurde das nicht geprüft.
+   liegenden Tokens übergehen. Am 2026-09-16 gehörte cUSDT im Mainnet
+   (`0xAe0207C757Aa2B4019Ad96edD0092ddc63EF0c50`) noch der Protocol DAO
+   (`0xB6D69D5F334d8B97B194617B53c6aB62f8681Ef3`), hatte keine Observer und keinen Pauser und fragte als
+   Blockliste des zugrunde liegenden Tokens die Blacklist von USDT ab (`getBlackListStatus`).
 3. Metadaten: `todoRef`, DID des Delegierten und Budget-Status sind in der unverschlüsselten
    OrbitDB-Liste lesbar, und Entschlüsselungsanfragen sind auf der Gateway-Chain öffentlich.
 4. Die App nutzt die Chain noch nicht: kein Zama-Budget-Service, keine Rückzahlung, keine Zuordnung
@@ -394,7 +412,7 @@ cUSDTMock-Implementierung auf Sourcify
 (<https://sourcify.dev/server/v2/contract/11155111/0xAe37b998d453E1FaBE85DD46cf04295ca4A3af04?fields=sources>):
 `contracts/ConfidentialWrapper.sol` `WILDCARD_CONTRACT` 112, `blockUser` 229-231, `addObserver`
 306-308, `observers` 336-338, `pauser` und `pause` 343-357, `renounceOwnership` 373-375,
-`_addObserver` 391-403, `_update` 432-442, `_authorizeUpgrade` 497;
+`_addObserver` 391-403, `_requireNotBlocked` 420-425, `_update` 432-442, `_authorizeUpgrade` 497;
 `contracts/token/ERC7984Upgradeable.sol` `requestDiscloseEncryptedAmount` 265-273, `_update` 343-378.
 
 zama-ai/fhevm v0.13.5: `host-contracts/contracts/ACL.sol` (`allow` 206-216, `allowTransient` 253-272,
@@ -413,12 +431,21 @@ zama-ai/fhevm v0.13.5: `host-contracts/contracts/ACL.sol` (`allow` 206-216, `all
 236-242.
 
 Calibur v1.0.0 (<https://github.com/Uniswap/calibur/tree/v1.0.0>): `src/libraries/KeyLib.sol` 26,
-35-42, 58-77; `src/KeyManagement.sol` 21-46, 84-89; `src/Calibur.sol` 131-175. EIP-7702:
-<https://eips.ethereum.org/EIPS/eip-7702>.
+35-42, 58-77; `src/KeyManagement.sol` 21-46, 84-89; `src/Calibur.sol` 132-174. webauthn-sol im von
+Calibur v1.0.0 eingebundenen Commit (`619f20ab0f074fef41066ee4ab24849a913263b2`): `src/WebAuthn.sol`
+77-88 (Origin und `rpIdHash` ungeprüft), 133 (Nutzerpräsenz), 139 (Nutzerverifikation nur auf
+Verlangen). EIP-7702: <https://eips.ethereum.org/EIPS/eip-7702>.
 
-Chain, gelesen am 2026-09-16: cUSDTMock `owner()`, `observers()`, `pauser()`, Implementierungs-Slot;
-ACL `owner()`, `persistAllowed` für den gespeicherten Betrag; Schwellenwerte von InputVerifier,
-KMSVerifier und ProtocolConfig auf Sepolia und im Mainnet.
+Chain, gelesen am 2026-09-16: cUSDTMock `owner()`, `observers()`, `pauser()`,
+`getUnderlyingDenyListSelector()`, Implementierungs-Slot; cUSDT im Mainnet `owner()`, `observers()`,
+`pauser()`, `underlying()`, `getUnderlyingDenyListSelector()`; ACL `owner()`, `persistAllowed` für den
+gespeicherten Betrag; Schwellenwerte von InputVerifier, KMSVerifier und ProtocolConfig auf Sepolia und
+im Mainnet; `AddPauser`-Events (Blockscout) und `isPauser` des PauserSet auf Sepolia
+(`0xc62392B4100a1bD45AbDBf91E70f1E4349402b46`) und im Mainnet
+(`0xbBfE1680b4a63ED05f7F80CE330BED7C992A586C`).
+
+Zamas FHEVM-Whitepaper, Version 3.1 vom 30. Juni 2025
+(<https://github.com/zama-ai/fhevm/blob/main/fhevm-whitepaper.pdf>): Kollusionsschranke des KMS, S. 12.
 
 Zama-Dokumentation: vertraulicher Wrapper, Observer
 (<https://docs.zama.org/protocol/protocol-apps/confidential-tokens/confidential-wrapper>); KMS
@@ -427,4 +454,5 @@ Zama-Dokumentation: vertraulicher Wrapper, Observer
 (<https://docs.zama.org/protocol/sdk/concepts/security-model>); API-Schlüssel des Relayers
 (<https://docs.zama.org/protocol/sdk/guides/relayer-api-keys>); Adressen für Sepolia und Ethereum
 (<https://docs.zama.org/protocol/protocol-apps/addresses/testnet/sepolia>,
-<https://docs.zama.org/protocol/protocol-apps/addresses/mainnet/ethereum>).
+<https://docs.zama.org/protocol/protocol-apps/addresses/mainnet/ethereum>); Chains und Gateway-Explorer
+(<https://docs.zama.org/protocol/protocol-apps/chains>).

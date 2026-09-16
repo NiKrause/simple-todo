@@ -10,12 +10,12 @@ stehen in [security.de.md](security.de.md); ein echter Lauf ist in
 
 Versionen, auf die sich diese Seite bezieht:
 
-| Komponente | Version |
-| --- | --- |
-| Protokoll auf Sepolia und im Ethereum-Mainnet | Host-Verträge v0.13: ACL v0.4.0, FHEVMExecutor v0.4.0, KMSVerifier v0.3.0, InputVerifier v0.2.0, HCULimit v0.3.0, ProtocolConfig v0.1.0 (`getVersion()`) |
-| Vom Treuhand-Vertrag genutzte Solidity-Bibliothek | `@fhevm/solidity` 0.11.1 (warum nicht 0.13.3, erklärt [contracts/README.md](../contracts/README.md#toolchain)) |
-| Vom Smoke-Test genutztes Client-SDK | `@zama-fhe/sdk` 3.6.0 auf `@fhevm/sdk` 0.13.2 |
-| Relayer | `https://relayer.testnet.zama.org` |
+| Komponente                                        | Version                                                                                                                                                  |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Protokoll auf Sepolia und im Ethereum-Mainnet     | Host-Verträge v0.13: ACL v0.4.0, FHEVMExecutor v0.4.0, KMSVerifier v0.3.0, InputVerifier v0.2.0, HCULimit v0.3.0, ProtocolConfig v0.1.0 (`getVersion()`) |
+| Vom Treuhand-Vertrag genutzte Solidity-Bibliothek | `@fhevm/solidity` 0.11.1 (warum nicht 0.13.3, erklärt [contracts/README.md](../contracts/README.md#toolchain))                                           |
+| Vom Smoke-Test genutztes Client-SDK               | `@zama-fhe/sdk` 3.6.0 auf `@fhevm/sdk` 0.13.2                                                                                                            |
+| Relayer                                           | `https://relayer.testnet.zama.org`                                                                                                                       |
 
 Jeder Abschnitt hat eine einfache und eine technische Erklärung.
 
@@ -70,23 +70,25 @@ flowchart LR
   KMS -- liest die ACL --> Host
 ```
 
-| Komponente | Rolle | Auf Sepolia |
-| --- | --- | --- |
-| FHEVM-Solidity-Bibliothek | `FHE.*`-Funktionen und verschlüsselte Typen (`euint64`, `ebool`, ...), die die Host-Verträge aufrufen | in den Treuhand-Vertrag und den Token einkompiliert |
-| ACL | für jedes Handle, wer es verwenden oder entschlüsseln darf | `0xf0Ffdc93b7E186bC2f8CB3dAA75D86d1930A433D` |
-| FHEVMExecutor | macht aus jeder FHE-Operation ein Ergebnis-Handle und ein Event | `0x92C920834Ec8941d2C77D188936E1f7A6f49c127` |
-| InputVerifier | prüft die Coprozessor-Signaturen auf verschlüsselten Eingaben | `0xBBC1fFCdc7C316aAAd72E807D9b0272BE8F84DA0`; 3 von 5 Signierern |
-| KMSVerifier | prüft KMS-Signaturen auf Ergebnissen öffentlicher Entschlüsselung | `0xbE0E383937d564D7FF0BC3b46c51f0bF8d5C311A`; 7 von 13 Signierern |
-| HCULimit | begrenzt die FHE-Arbeit pro Transaktion | `0xa10998783c8CF88D886Bc30307e631D6686F0A22` |
-| ProtocolConfig | enthält die KMS-Signierermenge und die Schwellenwerte | `0x51f9AFBc89Ea792e1a21a12AB802ab58D4dbee83`, v0.1.0 |
-| Coprozessoren | prüfen Input-Proofs, berechnen FHE-Operationen mit TFHE-rs, speichern Chiffrate und committen sie auf dem Gateway | Zamas Sepolia-Seite führt fünf Coprozessor-Betreiber auf |
-| Gateway | ein Rollup, das Eingaben validiert und die Entschlüsselung orchestriert | Gateway-Chain-ID 10901; `InputVerification` `0x483b9dE06E4E4C7D35CCf5837A1668487406D955`, `Decryption` `0x5D8BD78e2ea6bbE41f26dFe9fdaEAa349e077478` |
-| KMS | erzeugt die FHE-Schlüssel und entschlüsselt per Schwellenwert-MPC | 13 in ProtocolConfig registrierte Signierer; Zamas Sepolia-Seite führt 13 KMS-Betreiber auf |
-| Relayer | HTTP-Frontend zum Gateway für Browser und Server | `https://relayer.testnet.zama.org`, kein API-Schlüssel im Testnet |
+| Komponente                | Rolle                                                                                                             | Auf Sepolia                                                                                                                                         |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FHEVM-Solidity-Bibliothek | `FHE.*`-Funktionen und verschlüsselte Typen (`euint64`, `ebool`, ...), die die Host-Verträge aufrufen             | in den Treuhand-Vertrag und den Token einkompiliert                                                                                                 |
+| ACL                       | für jedes Handle, wer es verwenden oder entschlüsseln darf                                                        | `0xf0Ffdc93b7E186bC2f8CB3dAA75D86d1930A433D`                                                                                                        |
+| FHEVMExecutor             | macht aus jeder FHE-Operation ein Ergebnis-Handle und ein Event                                                   | `0x92C920834Ec8941d2C77D188936E1f7A6f49c127`                                                                                                        |
+| InputVerifier             | prüft die Coprozessor-Signaturen auf verschlüsselten Eingaben                                                     | `0xBBC1fFCdc7C316aAAd72E807D9b0272BE8F84DA0`; 3 von 5 Signierern                                                                                    |
+| KMSVerifier               | prüft KMS-Signaturen auf Ergebnissen öffentlicher Entschlüsselung                                                 | `0xbE0E383937d564D7FF0BC3b46c51f0bF8d5C311A`; 7 von 13 Signierern                                                                                   |
+| HCULimit                  | begrenzt die FHE-Arbeit pro Transaktion                                                                           | `0xa10998783c8CF88D886Bc30307e631D6686F0A22`                                                                                                        |
+| ProtocolConfig            | enthält die KMS-Signierermenge und die Schwellenwerte                                                             | `0x51f9AFBc89Ea792e1a21a12AB802ab58D4dbee83`, v0.1.0                                                                                                |
+| Coprozessoren             | prüfen Input-Proofs, berechnen FHE-Operationen mit TFHE-rs, speichern Chiffrate und committen sie auf dem Gateway | Zamas Sepolia-Seite führt fünf Coprozessor-Betreiber auf                                                                                            |
+| Gateway                   | ein Rollup, das Eingaben validiert und die Entschlüsselung orchestriert                                           | Gateway-Chain-ID 10901; `InputVerification` `0x483b9dE06E4E4C7D35CCf5837A1668487406D955`, `Decryption` `0x5D8BD78e2ea6bbE41f26dFe9fdaEAa349e077478` |
+| KMS                       | erzeugt die FHE-Schlüssel und entschlüsselt per Schwellenwert-MPC                                                 | 13 in ProtocolConfig registrierte Signierer; Zamas Sepolia-Seite führt 13 KMS-Betreiber auf                                                         |
+| Relayer                   | HTTP-Frontend zum Gateway für Browser und Server                                                                  | `https://relayer.testnet.zama.org`, kein API-Schlüssel im Testnet                                                                                   |
 
 Zamas Übersichtsseiten beschreiben eine Kopie der ACL auf dem Gateway. Im Quellcode von v0.13.5
 existiert diese Kopie nicht mehr (`MultichainACL.sol` wurde in v0.12.0 entfernt): Der KMS-Connector
-liest die ACL auf der Host-Chain selbst. Diese Seite folgt dem Quellcode.
+liest die ACL auf der Host-Chain selbst. Zamas eigenes Change Log bestätigt das: v0.12 hat die
+MultichainACL-Verträge entfernt, und die ACL-Prüfungen für Entschlüsselungen laufen über Relayer und
+KMS-Connector auf der Host-Chain. Diese Seite folgt dem Quellcode.
 
 Der Treuhand-Vertrag findet die Host-Verträge über `ZamaEthereumConfig`, das `block.chainid` auf
 deren Adressen abbildet (11155111 für Sepolia, 1 für Ethereum, 31337 für einen lokalen
@@ -126,20 +128,20 @@ sehen; einen Wert kann niemand daraus lesen.
 Ein Handle ist ein `bytes32`. Die Host-Verträge auf Sepolia (FHEVMExecutor, Quellcode von v0.13.5) und
 `@fhevm/sdk` 0.13.2 stimmen in diesem Aufbau überein:
 
-| Bytes | Inhalt |
-| --- | --- |
-| 0-20 | die ersten 21 Bytes eines keccak-256-Hashes |
-| 21 | Index des Werts innerhalb einer verschlüsselten Eingabe oder `0xff` für ein on-chain berechnetes Handle |
-| 22-29 | Chain-ID, 8 Bytes Big-Endian |
-| 30 | FHE-Typ: 0 `ebool`, 2 `euint8`, 3 `euint16`, 4 `euint32`, 5 `euint64`, 6 `euint128`, 7 `eaddress`, 8 `euint256` |
-| 31 | Handle-Version, derzeit 0 |
+| Bytes | Inhalt                                                                                                          |
+| ----- | --------------------------------------------------------------------------------------------------------------- |
+| 0-20  | die ersten 21 Bytes eines keccak-256-Hashes                                                                     |
+| 21    | Index des Werts innerhalb einer verschlüsselten Eingabe oder `0xff` für ein on-chain berechnetes Handle         |
+| 22-29 | Chain-ID, 8 Bytes Big-Endian                                                                                    |
+| 30    | FHE-Typ: 0 `ebool`, 2 `euint8`, 3 `euint16`, 4 `euint32`, 5 `euint64`, 6 `euint128`, 7 `eaddress`, 8 `euint256` |
+| 31    | Handle-Version, derzeit 0                                                                                       |
 
 Die beiden Handles des Smoke-Test-Laufs vom 2026-09-16 lassen sich so dekodieren:
 
-| Handle | Byte 21 | Bytes 22-29 | Byte 30 | Byte 31 |
-| --- | --- | --- | --- | --- |
-| Eingabe `0x4a47ae4fd5dd21a7962881ccabba2bc1be379cace6000000000000aa36a70500` | `00`: erster Wert einer verschlüsselten Eingabe | `0000000000aa36a7` = 11155111 | `05`: `euint64` | `00` |
-| gespeicherter Betrag `0x506d80703a79c87b91a050038fb7baf8bb1e70c1e4ff0000000000aa36a70500` | `ff`: berechnet | `0000000000aa36a7` | `05` | `00` |
+| Handle                                                                                    | Byte 21                                         | Bytes 22-29                   | Byte 30         | Byte 31 |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------- | ----------------------------- | --------------- | ------- |
+| Eingabe `0x4a47ae4fd5dd21a7962881ccabba2bc1be379cace6000000000000aa36a70500`              | `00`: erster Wert einer verschlüsselten Eingabe | `0000000000aa36a7` = 11155111 | `05`: `euint64` | `00`    |
+| gespeicherter Betrag `0x506d80703a79c87b91a050038fb7baf8bb1e70c1e4ff0000000000aa36a70500` | `ff`: berechnet                                 | `0000000000aa36a7`            | `05`            | `00`    |
 
 Vergleichsergebnisse im selben Lauf enden auf `...aa36a70000`: Typ 0, `ebool`.
 
@@ -151,7 +153,7 @@ Wie die 21 Hash-Bytes entstehen:
   diesem Hash; sie werden über den Proof gebunden (nächste Abschnitte).
 - Berechnetes Handle, vom FHEVMExecutor erzeugt:
   `keccak256(abi.encodePacked(COMPUTATION_DOMAIN_SEPARATOR, operator, operands, ACL address,
-  block.chainid, blockhash(block.number - 1), block.timestamp))`, wobei eine binäre Operation
+block.chainid, blockhash(block.number - 1), block.timestamp))`, wobei eine binäre Operation
   zusätzlich ihr Skalar-Flag einbezieht und `trivialEncrypt` statt der Operanden-Handles den
   Klartextwert und den Typ hasht.
 
@@ -163,7 +165,8 @@ Folgen:
   `0x8aff21692e3a10a65d8a31c7b594fd738f9558f4f1ff0000000000aa36a70500`.
 - Ein Handle sagt nichts über den Wert aus. Zamas Dokumentation fordert Verträge auf, Handles als
   opak zu behandeln: Gleiche Handles implizieren gleiche Werte, verschiedene Handles implizieren
-  aber keine verschiedenen Werte, und die Konstruktion kann sich ändern.
+  aber keine verschiedenen Werte; derselbe Wert kann ein anderes Handle erhalten, etwa in einem
+  anderen Block.
 
 ## Symbolische Ausführung und Coprozessoren
 
@@ -222,7 +225,7 @@ Was `sdk.encrypt({ values, contractAddress, userAddress })` in `@fhevm/sdk` 0.13
    Job-ID; das SDK pollt, bis das Ergebnis bereitsteht.
 4. Auf dem Gateway prüfen die Coprozessoren den Proof und signieren pro Handle-Liste den
    EIP-712-Struct `CiphertextVerification(bytes32[] ctHandles, address userAddress, address
-   contractAddress, uint256 contractChainId, bytes extraData)` in der Domain `InputVerification`,
+contractAddress, uint256 contractChainId, bytes extraData)` in der Domain `InputVerification`,
    Version `1`.
 5. Das SDK berechnet die Handles aus seinem eigenen Chiffrat neu und verwirft die Antwort, wenn die
    Handles des Relayers abweichen. Es prüft die Signaturen gegen die Signierermenge und den
@@ -266,17 +269,17 @@ mit ihm rechnen, ihn weitergeben oder das KMS bitten, ihn für sich zu entschlü
 
 Die ACL auf Sepolia ist `0xf0Ffdc93b7E186bC2f8CB3dAA75D86d1930A433D`, Version 0.4.0.
 
-| Funktion (Name in der Bibliothek) | Wirkung |
-| --- | --- |
-| `allow(handle, account)` (`FHE.allow`) | dauerhafte Berechtigung; emittiert `Allowed(caller, account, handle)`. Der Aufrufer muss selbst für das Handle berechtigt sein. |
-| `FHE.allowThis(handle)` | `allow(handle, address(this))` |
-| `allowTransient(handle, account)` (`FHE.allowTransient`) | Berechtigung für den Rest der Transaktion, gehalten im transienten Speicher nach EIP-1153; kein Event |
-| `allowForDecryption(handles)` (`FHE.makePubliclyDecryptable`) | jeder darf den Klartextwert anfordern, dauerhaft; emittiert `AllowedForDecryption(caller, handlesList)` |
-| `isAllowed(handle, account)` | dauerhafte oder transiente Berechtigung |
-| `persistAllowed(handle, account)` | nur dauerhafte Berechtigung; das SDK prüft sie vor einer Nutzer-Entschlüsselung |
-| `cleanTransientStorage()` | löscht transiente Berechtigungen, für gebündelte Aufrufe wie bei ERC-4337 |
-| `delegateForUserDecryption(delegate, contractAddress, expirationDate)` | erlaubt `delegate` die Nutzer-Entschlüsselung der Handles des Aufrufers im Kontext von `contractAddress` bis `expirationDate` |
-| `isAccountDenied(account)` | Blockliste, die der Owner der ACL führt; ein Aufrufer auf der Blockliste kann keine Berechtigungen vergeben (geprüft wird der Aufrufer, nicht das Konto, das die Berechtigung erhält) |
+| Funktion (Name in der Bibliothek)                                      | Wirkung                                                                                                                                                                               |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `allow(handle, account)` (`FHE.allow`)                                 | dauerhafte Berechtigung; emittiert `Allowed(caller, account, handle)`. Der Aufrufer muss selbst für das Handle berechtigt sein.                                                       |
+| `FHE.allowThis(handle)`                                                | `allow(handle, address(this))`                                                                                                                                                        |
+| `allowTransient(handle, account)` (`FHE.allowTransient`)               | Berechtigung für den Rest der Transaktion, gehalten im transienten Speicher nach EIP-1153; kein Event                                                                                 |
+| `allowForDecryption(handles)` (`FHE.makePubliclyDecryptable`)          | jeder darf den Klartextwert anfordern, dauerhaft; emittiert `AllowedForDecryption(caller, handlesList)`                                                                               |
+| `isAllowed(handle, account)`                                           | dauerhafte oder transiente Berechtigung                                                                                                                                               |
+| `persistAllowed(handle, account)`                                      | nur dauerhafte Berechtigung; das SDK prüft sie vor einer Nutzer-Entschlüsselung                                                                                                       |
+| `cleanTransientStorage()`                                              | löscht transiente Berechtigungen, für gebündelte Aufrufe wie bei ERC-4337                                                                                                             |
+| `delegateForUserDecryption(delegate, contractAddress, expirationDate)` | erlaubt `delegate` die Nutzer-Entschlüsselung der Handles des Aufrufers im Kontext von `contractAddress` bis `expirationDate`                                                         |
+| `isAccountDenied(account)`                                             | Blockliste, die der Owner der ACL führt; ein Aufrufer auf der Blockliste kann keine Berechtigungen vergeben (geprüft wird der Aufrufer, nicht das Konto, das die Berechtigung erhält) |
 
 Details aus dem Quellcode der ACL v0.4.0 (fhevm v0.13.5):
 
@@ -291,10 +294,11 @@ Details aus dem Quellcode der ACL v0.4.0 (fhevm v0.13.5):
 - `delegateForUserDecryption`: Der Delegierende ist `msg.sender`; Delegierender, Delegierter und
   `contractAddress` müssen verschieden sein; der Delegierte kann nicht die Wildcard-Adresse
   `0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF` sein, `contractAddress` dagegen schon, was für jeden
-  Vertrag delegiert; die einzige Regel für das Ablaufdatum ist, dass es in der Zukunft liegt. Jede
-  Kombination (Delegierender, Delegierter, Vertrag) kann einmal pro Block delegiert oder widerrufen
-  werden. Der Hardhat-Mock dieses Repositorys (Host-Verträge 0.10.0) verlangt noch eine Stunde und
-  kennt keine Wildcard; auch `@zama-fhe/sdk` lehnt weniger als eine Stunde ab.
+  Vertrag delegiert; das Ablaufdatum muss nur in der Zukunft liegen (und vom bereits gesetzten
+  abweichen), eine Mindestdauer gibt es nicht. Jede Kombination (Delegierender, Delegierter, Vertrag)
+  kann einmal pro Block delegiert oder widerrufen werden. Der Hardhat-Mock dieses Repositorys
+  (Host-Verträge 0.10.0) verlangt noch eine Stunde und kennt keine Wildcard; auch `@zama-fhe/sdk` lehnt
+  weniger als eine Stunde ab.
 - `isHandleDelegatedForUserDecryption(delegator, delegate, contract, handle)` ist wahr, wenn der
   Delegierende und der Vertrag beide dauerhaft für das Handle berechtigt sind und eine Delegation für
   diesen Vertrag oder für die Wildcard aktiv ist.
@@ -344,7 +348,7 @@ Was `sdk.decryption.decryptValues([{ encryptedValue: handle, contractAddress }])
    es für einen Lauf im Arbeitsspeicher.
 3. **Permit (signierte Entschlüsselungserlaubnis).** Eine EIP-712-Signatur der Wallet des Nutzers
    über `UserDecryptRequestVerification(bytes publicKey, address[] contractAddresses, uint256
-   startTimestamp, uint256 durationDays, bytes extraData)`. Domain: Name `Decryption`, Version `1`,
+startTimestamp, uint256 durationDays, bytes extraData)`. Domain: Name `Decryption`, Version `1`,
    `chainId` der Host-Chain (11155111), `verifyingContract` der Vertrag `Decryption` des Gateways
    `0x5D8BD78e2ea6bbE41f26dFe9fdaEAa349e077478`. Höchstens 10 Verträge und 365 Tage; `@zama-fhe/sdk`
    verwendet standardmäßig 30 Tage. `extraData` ist `0x01`, gefolgt von der 32 Byte langen
@@ -363,17 +367,18 @@ Was `sdk.decryption.decryptValues([{ encryptedValue: handle, contractAddress }])
    Vertrag prüft: 1 bis 10 Vertragsadressen, der Nutzer ist keine davon, jedes Handle gehört zur
    Host-Chain und zu einem aufgeführten Vertrag, insgesamt höchstens 2048 Bits, `durationDays`
    zwischen 1 und 365, ein Gültigkeitsfenster, das begonnen und nicht geendet hat, und eine
-   ECDSA-Signatur von `userAddress` (andernfalls `InvalidUserSignature`). Er fixiert den aktuellen
-   KMS-Kontext und emittiert `UserDecryptionRequest`. Die ACL prüft er nicht.
+   ECDSA-Signatur von `userAddress` (andernfalls `InvalidUserSignature`). Er fixiert den in
+   `extraData` genannten KMS-Kontext und emittiert `UserDecryptionRequest`. Die ACL prüft er nicht.
 7. **KMS.** Der Connector jedes KMS-Knotens sieht das Event und prüft `ACL.isAllowed(handle, user)`
    und `ACL.isAllowed(handle, contract)` auf der Host-Chain. Jeder Knoten reicht
    `userDecryptionResponse` ein, mit seinem Anteil, der per Signcryption an den öffentlichen
    ML-KEM-Schlüssel des Nutzers verschlüsselt und als `UserDecryptResponseVerification(bytes
-   publicKey, bytes32[] ctHandles, bytes userDecryptedShare, bytes extraData)` in der Domain
+publicKey, bytes32[] ctHandles, bytes userDecryptedShare, bytes extraData)` in der Domain
    `Decryption` mit der Chain-ID des Gateways signiert ist. Das Gateway emittiert jeden Anteil als Event
    `UserDecryptionResponse` und, sobald der Schwellenwert für die Nutzer-Entschlüsselung erreicht ist,
-   `UserDecryptionResponseThresholdReached`: 9 von 13 in ProtocolConfig auf Sepolia. Der Relayer
-   sammelt die Anteile und gibt sie an den Client zurück.
+   `UserDecryptionResponseThresholdReached`; das Gateway liest diesen Schwellenwert aus seiner
+   eigenen Konfiguration, ProtocolConfig auf Sepolia verzeichnet 9 von 13. Der Relayer sammelt die
+   Anteile und gibt sie an den Client zurück.
 8. **Rekonstruktion im Browser.** Das SDK prüft jede Antwortsignatur gegen die KMS-Signierer und
    ruft `process_user_decryption_resp_from_js` im TKMS-WASM auf, das die Anteile mit dem privaten
    ML-KEM-Schlüssel entschlüsselt und den Wert rekonstruiert. Ohne expliziten Schwellenwert nimmt
@@ -464,15 +469,20 @@ reicht er nur Anteile weiter, die für den Schlüssel des Nutzers verschlüsselt
 **Gateway.** Laut Zamas Dokumentation ein Arbitrum-Rollup, das Eingaben validiert, die
 Entschlüsselung orchestriert und weder Schlüssel noch Klartexte hält (die ACL-Kopie, die dieselben
 Seiten erwähnen, fehlt im Quellcode von v0.13.5, siehe [Komponenten](#komponenten-technisch)). Sein
-Vertrag `Decryption` hält jede Entschlüsselungsanfrage und jede KMS-Antwort als Event fest. Chain-ID
-des Testnet-Gateways: 10901; das Mainnet-Preset des SDK verwendet 261131.
+Vertrag `Decryption` hält jede Entschlüsselungsanfrage und jede KMS-Antwort als Event fest. Zama
+veröffentlicht einen Block-Explorer und einen RPC-Endpunkt für das Gateway (Testnet:
+`https://explorer.testnet.zama.org`), diese Events sind also öffentlich. Chain-ID des
+Testnet-Gateways: 10901; das Mainnet-Preset des SDK verwendet 261131.
 
 **KMS.** Laut Zamas Dokumentation ein Netz aus 13 MPC-Knoten, die von verschiedenen Organisationen
 betrieben werden. Es erzeugt die FHE-Schlüssel, hält den privaten Schlüssel nur als
 Schwellenwert-Anteile, führt die Schwellenwert-Entschlüsselung aus und signiert jedes Ergebnis. Die
 Dokumentation nennt „z. B. 9 von 13“ als Zahl der Parteien, die an einer Entschlüsselung teilnehmen
 müssen, beschreibt das Protokoll als robust, solange höchstens ein Drittel der Knoten bösartig ist,
-und gibt an, dass die Knoten standardmäßig in AWS Nitro Enclaves laufen. On-chain registriert
+und gibt an, dass die Knoten standardmäßig in AWS Nitro Enclaves laufen. Zamas FHEVM-Whitepaper
+(Version 3.1 vom 30. Juni 2025) nennt die Schranke für Kollusion: Das KMS bleibt sicher, solange
+weniger als n/3 Parteien kolludieren; bei n = 13 toleriert es Kollusionen von bis zu 4 Knoten. Eine
+Nutzer-Entschlüsselung wartet auf 2t + 1 = 9 Anteile. On-chain registriert
 ProtocolConfig auf Sepolia und im Ethereum-Mainnet 13 KMS-Signierer mit einem Schwellenwert von
 9 für die Nutzer-Entschlüsselung, einem Schwellenwert von 7 für die öffentliche Entschlüsselung,
 einem Schwellenwert von 7 für die Schlüsselerzeugung und einem MPC-Schwellenwert von 4. Zamas
@@ -495,9 +505,10 @@ plus die größte Tiefe ihrer Operanden). Eine Transaktion revertiert mit
 `HCUTransactionLimitExceeded` oder `HCUTransactionDepthLimitExceeded`, wenn einer der beiden Werte
 sein Limit überschreitet. Die Limits sind Speicherwerte, die der Owner der ACL ändern kann; auf
 Sepolia und im Ethereum-Mainnet lagen sie am 2026-09-16 bei 20.000.000 HCU pro Transaktion und
-5.000.000 an Tiefe, den Werten, die Zamas Dokumentation nennt. HCULimit v0.3.0 hat außerdem eine
-Obergrenze pro Block für Aufrufer, die nicht auf der Whitelist stehen, in beiden Netzen auf
-281.474.976.710.655 gesetzt (2^48 - 1, der größte `uint48`), sodass sie heute nichts begrenzt.
+5.000.000 an Tiefe, den Werten, die Zamas HCU-Seite nennt (dort für „the current devnet“).
+HCULimit v0.3.0 hat außerdem eine Obergrenze pro Block für Aufrufer, die nicht auf der Whitelist
+stehen, in beiden Netzen auf 281.474.976.710.655 gesetzt (2^48 - 1, der größte `uint48`), sodass sie
+heute nichts begrenzt.
 
 Ein vertraulicher Transfer in ERC-7984 von OpenZeppelin verbraucht auf `euint64` mit den von Zama
 dokumentierten Preisen: `ge` 152.000, `sub` 162.000, `select` 55.000, `trivialEncrypt` 32 (die
@@ -524,7 +535,9 @@ FHEVMExecutor v0.4.0, KMSVerifier v0.3.0, InputVerifier v0.2.0, HCULimit v0.3.0 
 v0.1.0. In zama-ai/fhevm tragen diese Dateien von v0.13.0 bis v0.13.5 genau diese Versionen; v0.14.0
 hebt ACL und FHEVMExecutor auf v0.5.0, KMSVerifier und HCULimit auf v0.4.0 und ProtocolConfig auf
 v0.2.0. Die Implementierungen hinter den Sepolia-Proxys sind auf Sourcify, Blockscout und Etherscan
-verifiziert.
+verifiziert, die des Mainnets auf Sourcify. In beiden Netzen stimmt der verifizierte Quellcode aller
+sechs mit dem Tag v0.13.5 überein, bis auf Leerzeilen sowie Kommentare und Namen im InputVerifier.
+Auch Zamas Change Log führt FHEVM v0.13 für Testnet und Mainnet.
 
 Die beiden Netze unterscheiden sich in der Konfiguration. Der InputVerifier auf Sepolia akzeptiert
 Eingaben mit Signaturen von 3 von 5 Coprozessor-Signierern, der im Mainnet mit Signaturen von
@@ -552,9 +565,11 @@ v0.14.0 nennen unter anderem:
 Der ungenutzte V2-Permit-Typ in `@fhevm/sdk` 0.13.2 ist `(address userAddress, bytes publicKey,
 address[] allowedContracts, uint256 startTimestamp, uint256 durationSeconds, bytes extraData)`.
 
-In v0.14.0 prüft das Gateway die Signatur des Nutzers nicht mehr selbst; der KMS-Connector wertet
-sie mit `ecrecover` aus und ruft andernfalls `isValidSignature` nach ERC-1271 auf dem Konto mit
-einer Gas-Obergrenze auf (Pull Requests [#2624](https://github.com/zama-ai/fhevm/pull/2624),
+Bei der neuen, vereinheitlichten Anfrage von v0.14.0 prüft das Gateway die Signatur des Nutzers
+nicht mehr selbst; das übernimmt der KMS-Connector: `ecrecover` bei einer 65 Byte langen Signatur,
+andernfalls `isValidSignature` nach ERC-1271 auf dem Konto mit einer konfigurierbaren Gas-Obergrenze
+(standardmäßig 100.000). Die älteren Anfragefunktionen, die es in v0.14.0 weiterhin gibt, behalten die
+ECDSA-Prüfung im Gateway (Pull Requests [#2624](https://github.com/zama-ai/fhevm/pull/2624),
 [#2329](https://github.com/zama-ai/fhevm/pull/2329),
 [#2393](https://github.com/zama-ai/fhevm/pull/2393)). v0.14 ist weder auf Sepolia noch im Mainnet
 deployt: Neben den Versionsnummern oben revertiert die ACL-Funktion
@@ -580,26 +595,28 @@ Redeploy-Checkliste in [contracts/README.md](../contracts/README.md#redeploy-che
 ### Vertrauen: einfach
 
 Die Beträge sind vor der Öffentlichkeit geschützt, solange Zamas Schlüsselverwalter sich nicht über
-ihren Schwellenwert hinaus absprechen. Das Lesen der Beträge hängt davon ab, dass Zamas Relayer,
-Gateway und Schlüsselverwalter online sind.
+ihren Schwellenwert hinaus absprechen; Zamas Whitepaper toleriert Absprachen von bis zu 4 der 13. Das
+Lesen der Beträge hängt davon ab, dass Zamas Relayer, Gateway und Schlüsselverwalter online sind.
 
 ### Vertrauen: technisch
 
-| Partei | Vertrauen für | Bei Ausfall oder Fehlverhalten |
-| --- | --- | --- |
-| KMS-Betreiber | Vertraulichkeit jedes Werts; korrekte Entschlüsselung | der private Schlüssel existiert nur als Schwellenwert-Anteile in ihrer Hand, daher könnte eine Gruppe kolludierender Betreiber oberhalb des Schwellenwerts jedes Chiffrat entschlüsseln; Zamas Dokumentation beschreibt das Protokoll als robust, solange höchstens ein Drittel der Knoten bösartig ist. Sind zu viele Knoten offline, stoppt die Entschlüsselung. |
-| Coprozessoren | korrekte Berechnung; Annahme nur gültiger Eingaben | laut Zamas Dokumentation sind Ergebnisse gültig, solange mehr als die Hälfte ehrlich ist; eine unehrliche Mehrheit könnte ungültige Eingaben signieren oder falsche Ergebnisse berechnen |
-| Gateway | Verfügbarkeit, Reihenfolge der Anfragen | Zama beschreibt es als vertrauensminimiert und prüfbar; hält es an, stoppen Eingaben und Entschlüsselungen |
-| Relayer | Verfügbarkeit | ausgefallen: keine Verschlüsselung und keine Entschlüsselung über ihn; den Klartext einer Nutzer-Entschlüsselung sieht er nie |
-| Owner der ACL (Protocol DAO) und PauserSet | die Regeln selbst | der Owner kann jeden Host-Vertrag upgraden sowie Signierermengen und Schwellenwerte von Coprozessoren und KMS, HCU-Limits und die Blockliste ändern; ein Pauser kann die ACL pausieren, was auch FHE-Operationen stoppt, weil jede Operation eine transiente Berechtigung schreibt |
-| Client-Code (SDK, WASM) | Schlüsselerzeugung, Proofs, Rekonstruktion | läuft im Browser des Nutzers; eine kompromittierte Seite könnte entschlüsselte Werte und den Transport-Schlüssel lesen |
-| Wallet-Schlüssel des Nutzers | Signieren von Permits und Transaktionen | wer ihn besitzt, kann alles entschlüsseln, was dieser Schlüssel entschlüsseln darf |
+| Partei                                     | Vertrauen für                                         | Bei Ausfall oder Fehlverhalten                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| KMS-Betreiber                              | Vertraulichkeit jedes Werts; korrekte Entschlüsselung | der private Schlüssel existiert nur als Schwellenwert-Anteile in ihrer Hand; Zamas Whitepaper toleriert Kollusionen von bis zu 4 der 13, 5 oder mehr kolludierende Betreiber liegen außerhalb dieser Zusage und könnten jedes Chiffrat entschlüsseln; Zamas Dokumentation beschreibt das Protokoll als robust, solange höchstens ein Drittel der Knoten bösartig ist. Sind zu viele Knoten offline, stoppt die Entschlüsselung. |
+| Coprozessoren                              | korrekte Berechnung; Annahme nur gültiger Eingaben    | laut Zamas Dokumentation sind Ergebnisse gültig, solange mehr als die Hälfte ehrlich ist; eine unehrliche Mehrheit könnte ungültige Eingaben signieren oder falsche Ergebnisse berechnen                                                                                                                                                                                                                                        |
+| Gateway                                    | Verfügbarkeit, Reihenfolge der Anfragen               | Zama beschreibt es als vertrauensminimiert; hält es an, stoppen Eingaben und Entschlüsselungen                                                                                                                                                                                                                                                                                                                                  |
+| Relayer                                    | Verfügbarkeit                                         | ausgefallen: keine Verschlüsselung und keine Entschlüsselung über ihn; den Klartext einer Nutzer-Entschlüsselung sieht er nie                                                                                                                                                                                                                                                                                                   |
+| Owner der ACL (Protocol DAO) und PauserSet | die Regeln selbst                                     | der Owner kann jeden Host-Vertrag upgraden sowie Signierermengen und Schwellenwerte von Coprozessoren und KMS, HCU-Limits und die Blockliste ändern; ein Pauser kann die ACL pausieren, was auch FHE-Operationen stoppt, weil jede Operation eine transiente Berechtigung schreibt                                                                                                                                              |
+| Client-Code (SDK, WASM)                    | Schlüsselerzeugung, Proofs, Rekonstruktion            | läuft im Browser des Nutzers; eine kompromittierte Seite könnte entschlüsselte Werte und den Transport-Schlüssel lesen                                                                                                                                                                                                                                                                                                          |
+| Wallet-Schlüssel des Nutzers               | Signieren von Permits und Transaktionen               | wer ihn besitzt, kann alles entschlüsseln, was dieser Schlüssel entschlüsseln darf                                                                                                                                                                                                                                                                                                                                              |
 
-Wie viele KMS-Knoten kolludieren müssten, um zu entschlüsseln, geben die hier zitierten Seiten nicht
-an. ProtocolConfig verzeichnet einen MPC-Schwellenwert von 4 für 13 Signierer, und die
-Rekonstruktionsfehler vom September 2026 zeigen `n=13, deg=4`; ob die Anteile des FHE-Schlüssels
-denselben Grad verwenden, wurde nicht überprüft, daher nennt diese Seite keine Schranke für
-Kollusion.
+Die Schranke für Kollusion stammt aus Zamas FHEVM-Whitepaper (Version 3.1, 30. Juni 2025, verlinkt
+auf docs.zama.org), nicht von den Seiten auf docs.zama.org selbst: Das KMS bleibt sicher, solange
+weniger als n/3 Parteien kolludieren, bei n = 13 also Kollusionen von bis zu 4 Knoten. Die Chain passt
+zu t = 4: ProtocolConfig verzeichnet einen MPC-Schwellenwert von 4 und einen Schwellenwert für die
+Nutzer-Entschlüsselung von 9 = 2t + 1, und die Rekonstruktionsfehler vom September 2026 zeigen
+`n=13, deg=4`. Das Whitepaper ist älter als Protokoll v0.13; dass die heutigen Schlüsselanteile
+t = 4 verwenden, passt zu diesen Werten, lässt sich aber nicht von der Chain ablesen.
 
 ## Die Sepolia-Vorfälle im September 2026
 
@@ -615,7 +632,7 @@ Teile im Browser nicht zusammen.
 **Neue Handles ließen sich nicht entschlüsseln (gemeldet am 2026-09-01).** In
 [community.zama.org/t/4643](https://community.zama.org/t/sepolia-handles-created-after-2026-08-31-will-not-decrypt-while-older-handles-on-the-same-contract-still-do/4643)
 meldete ein Entwickler, dass Handles, die seit etwa 2026-08-31 erzeugt wurden, mit
-`Relayer API error [internal_server_error]: Transaction simulation failed: Execution reverted`
+`Relayer API error [internal_server_error]: Transaction simulation failed: Execution reverted: execution reverted`
 fehlschlugen (HTTP 500 von `/v2/user-decrypt`), während ältere Handles auf demselben Vertrag
 entschlüsselt wurden, sowohl bei Nutzer- als auch bei öffentlicher Entschlüsselung und mit beiden
 SDKs. Laut einer späteren Bearbeitung des Meldenden ließen sich neue Handles am Abend des 2026-09-01
@@ -631,9 +648,9 @@ Im selben Thread (Beitrag vom 2026-09-03) und in
 Sepolia im Browser fehl mit `Gao decoding failure: Allowed at most 0 errors but xgcd factor degree
 indicates 1. n=13, deg=4, #shares=9, block_shares=9, recovery_errors=0`, ausgelöst in
 `user_decryption_wasm.rs` und `threshold-algebra/src/poly.rs`. Die ACL und die Handles waren
-on-chain korrekt. Die Meldenden lasen daraus neun von 13 erhaltene Anteile mit einem inkonsistenten
-Anteil und ohne verbleibendes Budget zur Fehlerkorrektur. Thread 4653 hatte bis zum 2026-09-16 keine
-Antwort. Zamas Pull Request #3481, am 2026-09-04 gemergt und in v0.13.4 veröffentlicht, beschreibt
+on-chain korrekt. Der Meldende in 4653 liest daraus neun von 13 erhaltene Anteile mit einem
+inkonsistenten Anteil und ohne verbleibendes Budget zur Fehlerkorrektur. Thread 4653 hatte bis zum
+2026-09-16 keine Antwort. Zamas Pull Request #3481, am 2026-09-04 gemergt und in v0.13.4 veröffentlicht, beschreibt
 einen Fehler dieser Art: Bis dahin gab der Relayer genau die Schwellenwert-Anzahl an Anteilen zurück
 (der Schwellenwert für die Nutzer-Entschlüsselung in ProtocolConfig ist 9), sodass ein einziger
 ungültiger Anteil die Entschlüsselung scheitern ließ, zum Beispiel während einer KMS-Migration. Der
@@ -689,9 +706,11 @@ Repository (Branch `escrow01`):
 - `core/chains/definitions/sepolia.ts` 9-27, `core/chains/definitions/mainnet.ts` 8-26.
 
 `@zama-fhe/sdk` 3.6.0 (Quellen eingebettet in `dist/esm/*.js.map`): `src/chains/configs.ts` 38-49
-(Sepolia-Preset), `src/services/credential-service.ts` 47-48 (Standardwerte von 30 Tagen),
-`src/services/decryption-service.ts` 40-42 (Wiederholung während der Propagation einer Delegation),
-`src/contracts/acl.ts` 70.
+(Sepolia-Preset), `src/credentials/credential-service.ts` 47-48 (Standardwerte von 30 Tagen),
+`src/services/decryption-service.ts` 40-42 (Wiederholung während der Propagation einer Delegation)
+und 366-367 (Handle aus lauter Nullen), `src/services/delegation-service.ts` 80-83 (Mindestens eine
+Stunde), `src/contracts/acl.ts` 70, `src/config/resolve.ts` 11-15 und
+`src/storage/indexeddb-storage.ts` 5-11 (Speicherung des Schlüsselpaars).
 
 zama-ai/fhevm im Git-Tag v0.13.5 (`https://github.com/zama-ai/fhevm/blob/v0.13.5/<path>`):
 
@@ -715,7 +734,7 @@ zama-ai/fhevm im Git-Tag v0.13.5 (`https://github.com/zama-ai/fhevm/blob/v0.13.5
 - `host-contracts/contracts/ACLEvents.sol`, `host-contracts/contracts/FHEEvents.sol`:
   Event-Signaturen.
 - `gateway-contracts/contracts/Decryption.sol`: Limits 127-137, Anfrage zur öffentlichen
-  Entschlüsselung 340-360, `userDecryptionRequest` 441-526, Antwort zur Nutzer-Entschlüsselung
+  Entschlüsselung 311-361, `userDecryptionRequest` 441-526, Antwort zur Nutzer-Entschlüsselung
   635-709, „ACL checks are performed by the KMS“ 724, Handle-Prüfungen 1123-1164,
   Gültigkeitsprüfungen 1170-1192.
 - `kms-connector/crates/kms-worker/src/core/event_processor/decryption.rs`: ACL-Lesezugriffe 80-113
@@ -727,7 +746,15 @@ Anteile der Nutzer-Entschlüsselung zurück), [#2624](https://github.com/zama-ai
 (vereinheitlichte Nutzer-Entschlüsselung, ERC-1271), [#2072](https://github.com/zama-ai/fhevm/pull/2072)
 (MultichainACL entfernt, in den Release Notes von v0.12.0 aufgeführt). Versionen in v0.14.0:
 `host-contracts/contracts/ACL.sol`, `FHEVMExecutor.sol`, `KMSVerifier.sol`, `HCULimit.sol`,
-`ProtocolConfig.sol` im Git-Tag v0.14.0.
+`ProtocolConfig.sol` im Git-Tag v0.14.0. Signaturprüfung in v0.14.0:
+`gateway-contracts/contracts/Decryption.sol` (ältere Anfragen 464 und 556, vereinheitlichte Anfrage
+658), `shared/user-decryption-signature/src/lib.rs`,
+`kms-connector/crates/kms-worker/src/core/config.rs` 82-85 und 218-220 (Gas-Obergrenze).
+
+Zamas FHEVM-Whitepaper, Version 3.1 vom 30. Juni 2025
+(<https://github.com/zama-ai/fhevm/blob/main/fhevm-whitepaper.pdf>, verlinkt im Litepaper auf
+docs.zama.org): Vertrauenstabelle S. 6, Kollusionsschranke des KMS (n = 13, t = 4) S. 12,
+2t + 1 Anteile für die Nutzer-Entschlüsselung S. 19.
 
 Chain, gelesen am 2026-09-16 über `https://ethereum-sepolia-rpc.publicnode.com` und
 `https://ethereum-rpc.publicnode.com` sowie auf Etherscan:
@@ -740,7 +767,10 @@ Chain, gelesen am 2026-09-16 über `https://ethereum-sepolia-rpc.publicnode.com`
   gespeicherten Betrag; `decryptionSignatureInvalidatedBefore` (revertiert).
 - Verifizierung der Implementierung der Sepolia-ACL, zum Beispiel:
   <https://sourcify.dev/server/v2/contract/11155111/0xF4f793e6a2eF47DE60A94c0bC412292da5F7aB98>,
-  <https://sepolia.etherscan.io/address/0xF4f793e6a2eF47DE60A94c0bC412292da5F7aB98#code>
+  <https://sepolia.etherscan.io/address/0xF4f793e6a2eF47DE60A94c0bC412292da5F7aB98#code>; die
+  EIP-1967-Implementierungs-Slots aller sechs Proxys in beiden Netzen und ihre Sourcify-Quellen im
+  Vergleich mit dem Tag v0.13.5 (ProtocolConfig im Mainnet `0xd8236b57394f90726b26ab25d38ceac776e1a7c4`,
+  die Adresse, die in den KMSVerifier des Mainnets einkompiliert ist).
 - Owner mit dem Namen „Protocol DAO“: <https://docs.zama.org/protocol/protocol-apps/addresses/testnet/sepolia>,
   <https://docs.zama.org/protocol/protocol-apps/addresses/mainnet/ethereum>
 
@@ -760,6 +790,9 @@ Dokumentation von Zama (docs.zama.org, gelesen am 2026-09-16):
 - HCU: <https://docs.zama.org/protocol/solidity-guides/development-guide/hcu>
 - Vertragsadressen: <https://docs.zama.org/protocol/solidity-guides/smart-contract/configure/contract_addresses>,
   <https://docs.zama.org/protocol/protocol-apps/addresses/testnet/sepolia>
+- Chains, Gateway-Explorer und Chain-IDs: <https://docs.zama.org/protocol/protocol-apps/chains>
+- Change Log (v0.13 auf Testnet und Mainnet, MultichainACL in v0.12 entfernt, ACL-Prüfungen auf der
+  Host-Chain): <https://docs.zama.org/protocol/changelog/zama-protocol-change-log>
 - SDK: <https://docs.zama.org/protocol/sdk/concepts/security-model>,
   <https://docs.zama.org/protocol/sdk/concepts/permit-model>,
   <https://docs.zama.org/protocol/sdk/guides/delegated-decryption>,

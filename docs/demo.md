@@ -11,13 +11,13 @@ questions for the bank's own experts.
 
 ## What is real today and what is not
 
-| Part | State on 2026-09-16 | What can be shown |
-| --- | --- | --- |
-| Escrow contract | deployed and verified on Sepolia: `0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429` | source and transactions on Etherscan |
-| Real confidential transactions | smoke test of 2026-09-16: lock, decryption as creator and as beneficiary, underfunded lock, release | the Etherscan pages in [scene 8](#scene-8--what-the-chain-shows) |
-| Budget in the app | in-memory fake in the browser; nothing is encrypted, nothing is sent. The header shows "Demo ohne Chain" ("Demo without a chain"). | flow, wording, states and error cases of the storyboard |
-| Passkey wallet | not integrated | the concept only |
-| Scene 8 of the storyboard ("Was die Chain zeigt") | not in the app | Etherscan instead of the app |
+| Part                                              | State on 2026-09-16                                                                                                                | What can be shown                                                |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Escrow contract                                   | deployed and verified on Sepolia: `0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`                                                     | source and transactions on Etherscan                             |
+| Real confidential transactions                    | smoke test of 2026-09-16: lock, decryption as creator and as beneficiary, underfunded lock, release                                | the Etherscan pages in [scene 8](#scene-8--what-the-chain-shows) |
+| Budget in the app                                 | in-memory fake in the browser; nothing is encrypted, nothing is sent. The header shows "Demo ohne Chain" ("Demo without a chain"). | flow, wording, states and error cases of the storyboard          |
+| Passkey wallet                                    | not integrated                                                                                                                     | the concept only                                                 |
+| Scene 8 of the storyboard ("Was die Chain zeigt") | not in the app                                                                                                                     | Etherscan instead of the app                                     |
 
 Statements that would not be true today:
 
@@ -36,9 +36,9 @@ All commands in the `contracts/` directory.
    in [contracts/README.md](../contracts/README.md#troubleshooting).
 2. **Full run.** `npm run smoke:sepolia`, started by whoever manages the key in `contracts/.env`.
    Expected: every step `ok` and `passed` at the end. After the run of 2026-09-16 the creator holds no
-   cUSDTMock, so the run mints, approves and wraps again: 7 transactions, 0.00242 ETH at about 1 gwei on
-   2026-09-16. Note the new transaction links from the result table; they can replace the links in
-   scene 8.
+   USDTMock and no allowance, and its cUSDTMock balance is empty after the lock of 1.0, so the run mints,
+   approves and wraps again: 7 transactions, 0.00242 ETH at about 1 gwei on 2026-09-16. Note the new
+   transaction links from the result table; they can replace the links in scene 8.
 3. **ETH balance.** Open address `0xd81Ad65eF9DdBC6Cf1A81FF2EF21B372EFBf4621` on
    [Etherscan](https://sepolia.etherscan.io/address/0xd81Ad65eF9DdBC6Cf1A81FF2EF21B372EFBf4621). After
    the run of 2026-09-16 it held 2.245336 Sepolia ETH; according to the runbook a full run costs 0.002
@@ -122,18 +122,19 @@ part of the planned wallet.
 
 ### Scene 4 · Bob is done
 
-**Show.** Bob opens the list by its address, sees the todo as "Von Alice an Sie delegiert" ("delegated
-to you by Alice") and ticks it. His passkey asks, the header reports "Änderung unterschrieben"
-("Delegated write signed"). In Alice's profile the todo appears as completed.
+**Show.** Bob opens the list by its address, sees the todo as "Von … an Sie delegiert" ("delegated to
+you by …", with Alice's shortened DID) and ticks it. His passkey asks, the header reports "Änderung
+unterschrieben" ("Delegated write signed"). In Alice's profile the todo appears as completed.
 
 **Simple.** "Bob sees that money is locked for him and reports the task as done. He reads the amount
 on his own device."
 
 **For experts.** Bob reads the amount by user decryption: his browser creates an ML-KEM-512 transport
 key pair, Bob signs an EIP-712 permit, the relayer passes the request to Zama's Gateway, every KMS
-node checks the ACL on Sepolia and returns a share encrypted for Bob's key, and from 9 of 13 shares the
-browser reconstructs the value. In the smoke test this took 2.3 s for the beneficiary. With the fake,
-Bob's profile shows "•••", because the amount exists only in Alice's tab.
+node checks the ACL on Sepolia and returns a share encrypted for Bob's key, the relayer collects the
+shares until at least 9 of 13 have arrived, and the browser reconstructs the value from them. In the
+smoke test this took 2.3 s for the beneficiary. With the fake, Bob's profile shows "•••", because the
+amount exists only in Alice's tab.
 
 ### Scene 5 · Alice releases
 
@@ -173,29 +174,29 @@ locked).
 
 **For experts.** The auditor is fixed in the contract (`immutable`). Every lock gives it a persistent
 ACL permission, visible as a public `Allowed` event; it cannot be withdrawn, and a change means a new
-escrow. The auditor can read but cannot move money. The auditor registered today is the development
-key. In the fake the auditor view answers any identity; the real service is meant to answer only the
-registered auditor.
+escrow. The auditor can read but cannot move money; like Alice and Bob, it can make an amount public
+through the token. The auditor registered today is the development key. In the fake the auditor view
+answers any identity; the real service is meant to answer only the registered auditor.
 
 ### Scene 8 · What the chain shows
 
 **Show.** The app does not have this scene; use the Etherscan pages of the smoke test instead:
 
-| Transaction | Link | What it shows |
-| --- | --- | --- |
+| Transaction          | Link                                                                                                              | What it shows                                                                                             |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Wrap of 1.0 USDTMock | [0x567d87cb…](https://sepolia.etherscan.io/tx/0x567d87cb57e9b868db726e61f1924c8c227fcba10356b3b95150a0428a9186de) | the amount: under "ERC-20 Tokens Transferred", in `TrivialEncrypt` (`pt`) and in `Wrap` (`roundedAmount`) |
-| Lock | [0x04259275…](https://sepolia.etherscan.io/tx/0x04259275f7a6b3a669e196ae6f16bfc9679bee932a3114fdc2507417cc116065) | sender, escrow, `todoRef`, beneficiary, deadline, handles, input proof, permitted accounts; no amount |
-| Underfunded lock | [0xfbe2cd1e…](https://sepolia.etherscan.io/tx/0xfbe2cd1ed19e4f0c11fd00d5fbcdb80d848b46f700c307656f88879649aeded6) | the same picture as the funded lock |
-| Release | [0xd9d123e6…](https://sepolia.etherscan.io/tx/0xd9d123e6f75de8415e88dd0b7343c1b7656c33e797b67ac0fa0f89759d65022c) | `ConfidentialTransfer` from the escrow to the beneficiary with a handle; no amount |
-| Escrow contract | [0x6Ee3Fa9d…](https://sepolia.etherscan.io/address/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429#code) | verified source |
+| Lock                 | [0x04259275…](https://sepolia.etherscan.io/tx/0x04259275f7a6b3a669e196ae6f16bfc9679bee932a3114fdc2507417cc116065) | sender, escrow, `todoRef`, beneficiary, deadline, handles, input proof, permitted accounts; no amount     |
+| Underfunded lock     | [0xfbe2cd1e…](https://sepolia.etherscan.io/tx/0xfbe2cd1ed19e4f0c11fd00d5fbcdb80d848b46f700c307656f88879649aeded6) | the same picture as the funded lock                                                                       |
+| Release              | [0xd9d123e6…](https://sepolia.etherscan.io/tx/0xd9d123e6f75de8415e88dd0b7343c1b7656c33e797b67ac0fa0f89759d65022c) | `ConfidentialTransfer` from the escrow to the beneficiary with a handle; no amount                        |
+| Escrow contract      | [0x6Ee3Fa9d…](https://sepolia.etherscan.io/address/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429#code)               | verified source                                                                                           |
 
 **Simple.** "This is the public view. Who, when, to whom: yes. How much: no. Only when USDT is
 exchanged into confidential dollars and back is the amount visible."
 
 **For experts.** Also public are the handles, the input proof with three coprocessor signatures, every
 ACL permission and every computation step as an event. A funded and an underfunded lock cannot be told
-apart. Decryption requests are transactions on Zama's Gateway chain and name the handle, the user
-address and the transport key there.
+apart. User decryption requests are transactions on Zama's Gateway chain, which has a public explorer,
+and name the handle, the user address and the transport key there.
 
 ### Scene 9 · Error cases (optional)
 
@@ -230,9 +231,12 @@ lock; this can be checked publicly. Beyond that:
 - The owner of the token cUSDTMock, Zama's Protocol DAO, can register observers. An observer can
   decrypt every amount the token is permitted on, including the amounts of this escrow. On 2026-09-16
   no observer was registered; observers are public.
-- Zama's KMS: 13 operators hold the decryption key only as shares. How many of them would have to
-  collude to decrypt without permission is not stated in the sources consulted; registered on chain are
-  thresholds of 9 (user decryption), 7 (public decryption) and 4 (MPC).
+- Zama's KMS: 13 operators hold the decryption key only as shares. Zama's FHEVM whitepaper (June 2025)
+  tolerates collusion of up to 4 of the 13 operators; from 5 colluding operators on, that guarantee no
+  longer holds. Registered on chain are thresholds of 9 (user decryption), 7 (public decryption) and 4
+  (MPC).
+- Zama's Protocol DAO owns the ACL and the other host contracts and can upgrade them, so the permission
+  rules themselves depend on that governance.
 - In a user decryption, the relayer only sees shares encrypted for the reader's key.
 
 ### What is public?
@@ -256,20 +260,22 @@ service level agreement. On Sepolia, user decryption failed for a time twice in 
 - **FHE key:** the 13 KMS operators, only as shares; according to Zama's documentation by default in
   AWS Nitro Enclaves.
 - **Transport key for reading:** in the reader's browser; according to Zama's documentation the SDK
-  stores it unencrypted in IndexedDB by default.
+  stores it unencrypted in IndexedDB by default in browsers.
 - **Account keys:** in this demo creator and auditor are the same development key, in plain text in
   `contracts/.env`; the beneficiary of the smoke test was a throwaway key in memory.
-- **Planned:** a passkey account (Calibur). There the original setup key remains root key forever, the
+- **Planned:** a passkey account (Calibur). There the original setup key can never be removed (Calibur
+  always accepts it as root key, and under EIP-7702 it can re-delegate the account anyway), the
   passkey's user verification is not enforced on chain, and reading needs an additional session key
   because Zama's current version accepts only ECDSA signatures. Not built in.
 
 ### Is this ready for mainnet?
 
-No, it is a testnet demonstration. Zama's protocol runs on Ethereum mainnet in the same version v0.13
-as on Sepolia. Open points: the app is not connected to the chain, the escrow is not audited, the
-auditor is a development key, the passkey wallet is missing, version v0.14 is released but not yet
-deployed, and on mainnet a single coprocessor signer attests every encrypted input (3 of 5 on Sepolia).
-Nothing from this chapter ran on mainnet.
+No, it is a testnet demonstration. Zama's host contracts on Ethereum mainnet have the same version
+v0.13 and the same verified source as on Sepolia. Open points: the app is not connected to the chain,
+the escrow is not audited, the auditor is a development key, the passkey wallet is missing, version
+v0.14 is released but not yet deployed, and mainnet's InputVerifier accepts an encrypted input with the
+signature of a single registered coprocessor key (3 of 5 on Sepolia); how Zama operates that key is not
+visible from outside. Nothing from this chapter ran on mainnet.
 
 ### What happens if Alice does not release?
 
@@ -333,5 +339,8 @@ and [security.md](security.md).
 Chain and services, queried on 2026-09-16: the transactions and addresses above on Etherscan;
 `https://relayer.testnet.zama.org/v2/keyurl`; forum threads 4643 and 4653; Zama's documentation on
 relayer API keys (<https://docs.zama.org/protocol/sdk/guides/relayer-api-keys>), the SDK security model
-(<https://docs.zama.org/protocol/sdk/concepts/security-model>) and the KMS
-(<https://docs.zama.org/protocol/protocol/overview/kms>).
+(<https://docs.zama.org/protocol/sdk/concepts/security-model>), the KMS
+(<https://docs.zama.org/protocol/protocol/overview/kms>) and chains with the Gateway explorer
+(<https://docs.zama.org/protocol/protocol-apps/chains>); Zama's FHEVM whitepaper, version 3.1
+(<https://github.com/zama-ai/fhevm/blob/main/fhevm-whitepaper.pdf>), p. 12; the creator's USDTMock
+balance and allowance (`balanceOf`, `allowance`).
