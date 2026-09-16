@@ -154,7 +154,7 @@
 			"cancelled": "Cancelled: nothing was signed and nothing was sent."
 		},
 		"notice": {
-			"confirmLock": "Confirm with your passkey, with Touch ID for example. Approving and locking the budget go out in one step.",
+			"confirmLock": "Confirm with your passkey, with Touch ID for example. Letting the escrow take the amount and locking it go out in one step.",
 			"lockFailedTitle": "Budget not locked.",
 			"underfundedTitle": "Budget not funded.",
 			"insufficient": "Your confidential balance was not enough. The lock still went through: the fee was paid, and an encrypted 0 was transferred.",

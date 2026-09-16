@@ -154,7 +154,7 @@
 			"cancelled": "Abgebrochen: Es wurde nichts signiert und nichts gesendet."
 		},
 		"notice": {
-			"confirmLock": "Bestätigen Sie mit Ihrem Passkey, zum Beispiel mit Touch ID. Freigabe und Sperren des Budgets gehen in einem Schritt raus.",
+			"confirmLock": "Bestätigen Sie mit Ihrem Passkey, zum Beispiel mit Touch ID. Die Abbuchungserlaubnis für die Treuhand und das Sperren gehen in einem Schritt raus.",
 			"lockFailedTitle": "Budget nicht gesperrt.",
 			"underfundedTitle": "Budget nicht gedeckt.",
 			"insufficient": "Ihr vertrauliches Guthaben reichte nicht. Die Sperre ging trotzdem durch: Die Gebühr ist bezahlt, und überwiesen wurde eine verschlüsselte 0.",
