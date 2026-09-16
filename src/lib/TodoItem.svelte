@@ -34,7 +34,7 @@
 	import { delegationStatus, isDelegationActiveFor } from './delegation.js';
 	import { budgetHoldsTodo, canReleaseBudget } from './budget.js';
 	import BudgetChip from './BudgetChip.svelte';
-	import BudgetIcon from './BudgetIcon.svelte';
+	import BudgetRowNote from './BudgetRowNote.svelte';
 
 	export const id = undefined;
 	export let text = '';
@@ -93,6 +93,10 @@
 	$: canRelease = canReleaseBudget({ budget, completed, isOwner: ownsBudget });
 	$: completedByDelegate = completed && Boolean(updatedBy) && updatedBy !== createdByIdentity;
 	$: owner = author || createdByIdentity || '';
+	// Whose view of the budget this row is, and who the other party is.
+	/** @type {'owner' | 'beneficiary' | 'other'} */
+	$: budgetPerspective = ownsBudget ? 'owner' : isBeneficiary ? 'beneficiary' : 'other';
+	$: budgetParty = formatDid(ownsBudget ? (delegation?.delegateDid ?? '') : owner);
 
 	$: canDelegate = delegationEnabled && isOwner && !isLegacy && !holdsBudget;
 	$: canRevoke = isOwner && status === 'active';
@@ -327,15 +331,6 @@
 						<BudgetChip {budget} {todoKey} creatorDid={createdByIdentity} />
 					{/if}
 				</div>
-				{#if hasBudget && isBeneficiary && holdsBudget}
-					<div
-						class="mt-1.5 flex items-center gap-1.5 text-xs text-faint"
-						data-testid="todo-budget-visibility"
-					>
-						<BudgetIcon name="eye" size={14} />
-						{$_('budget.item.visibleTo', { values: { owner: formatDid(owner) } })}
-					</div>
-				{/if}
 			</div>
 		</div>
 		<div class="flex flex-wrap items-center gap-1 pl-12 sm:justify-end sm:pl-0">
@@ -388,6 +383,21 @@
 			{/if}
 		</div>
 	</div>
+
+	<!--
+		Under the whole row rather than in its text column: the actions beside that
+		column take their full width, and a technical explanation squeezed next to
+		them is a narrow tower nobody reads on a projector.
+	-->
+	{#if hasBudget && budget}
+		<BudgetRowNote
+			{budget}
+			{todoKey}
+			{completed}
+			perspective={budgetPerspective}
+			party={budgetParty}
+		/>
+	{/if}
 
 	{#if isDelegating}
 		<div

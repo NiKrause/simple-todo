@@ -10,6 +10,12 @@
 		"auditorView": "Auditor view",
 		"backToTodos": "Back to the todos"
 	},
+	"technical": {
+		"tag": "Technical",
+		"documentedIn": "Documented in",
+		"simulated": "Describes the flow on Sepolia; the demo without a chain does not run it.",
+		"newTab": "opens in a new tab"
+	},
 	"alert": {
 		"dismiss": "Dismiss"
 	},
@@ -116,14 +122,16 @@
 			"confidential": "(confidential)",
 			"hint": "The amount is encrypted on this device before it is sent. Only you, the delegate and the auditor can read it.",
 			"invalidAmount": "Enter an amount greater than 0, with at most {decimals} decimal places.",
-			"needsDelegate": "A budget needs the DID it is for."
+			"needsDelegate": "A budget needs the DID it is for.",
+			"refundHint": "If the budget is still locked after the deadline, you can take it back. This app has no button for that yet."
 		},
 		"status": {
 			"locking": "being locked",
 			"funded": "locked",
 			"releasing": "being released",
 			"released": "paid out",
-			"failed": "not locked"
+			"failed": "not locked",
+			"underfunded": "not funded"
 		},
 		"chip": {
 			"hidden": "This browser cannot read the amount.",
@@ -133,13 +141,23 @@
 		"item": {
 			"release": "Release budget",
 			"reopen": "Reopen",
-			"awaitingRelease": "awaiting release",
-			"visibleTo": "Only you, {owner} and the auditor can see the amount."
+			"awaitingRelease": "awaiting release"
+		},
+		"note": {
+			"visibleParty": "Only you, {party} and the auditor can see the amount.",
+			"visibleOther": "Only the two parties and the auditor can see the amount.",
+			"releaseOffered": "When you release the budget, the escrow pays the amount to {party}. Only you can do that.",
+			"releasedOwner": "Paid out to {party}. Only the two of you and the auditor can still see the amount.",
+			"releasedBeneficiary": "Paid into your confidential balance. Only you, {party} and the auditor can still see the amount.",
+			"releasedOther": "Paid out. Only the two parties and the auditor can see the amount.",
+			"underfunded": "The lock holds an encrypted 0 because the balance was not enough.",
+			"cancelled": "Cancelled: nothing was signed and nothing was sent."
 		},
 		"notice": {
 			"confirmLock": "Confirm with your passkey, with Touch ID for example. Approving and locking the budget go out in one step.",
 			"lockFailedTitle": "Budget not locked.",
-			"insufficient": "Your confidential balance was not enough. Nothing was transferred.",
+			"underfundedTitle": "Budget not funded.",
+			"insufficient": "Your confidential balance was not enough. The lock still went through: the fee was paid, and an encrypted 0 was transferred.",
 			"lockFailed": "Locking did not go through. Check the details and try again.",
 			"releaseFailedTitle": "Budget not released.",
 			"releaseFailed": "The amount stays locked. Try again.",
@@ -148,7 +166,7 @@
 			"expired": "Confirm with your passkey to see the amounts again.",
 			"renew": "Renew with passkey",
 			"cancelledTitle": "Passkey confirmation cancelled.",
-			"cancelled": "Nothing was sent.",
+			"cancelled": "Nothing was signed and nothing was sent.",
 			"retry": "Confirm again"
 		},
 		"balance": {

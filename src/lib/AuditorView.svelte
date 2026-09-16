@@ -5,6 +5,7 @@
 	import { _, locale } from '$lib/i18n/index.js';
 	import BudgetIcon from './BudgetIcon.svelte';
 	import ErrorAlert from './ErrorAlert.svelte';
+	import TechnicalExplanation from './TechnicalExplanation.svelte';
 	import { budgetErrorCode, formatAmount } from './budget.js';
 	import {
 		budgetInfo,
@@ -71,6 +72,8 @@
 	</span>
 </div>
 
+<TechnicalExplanation step="auditor" simulated={!budgetInfo.confidential} className="mb-6" />
+
 {#if state === 'expired'}
 	<ErrorAlert
 		type="info"
@@ -87,6 +90,12 @@
 				data-testid="auditor-renew-read">{$_('budget.notice.renew')}</button
 			>
 		</svelte:fragment>
+		<TechnicalExplanation
+			slot="details"
+			step="readExpired"
+			simulated={!budgetInfo.confidential}
+			className="mt-3"
+		/>
 	</ErrorAlert>
 {:else if state === 'error'}
 	<ErrorAlert error={$_('budget.auditor.error')} />

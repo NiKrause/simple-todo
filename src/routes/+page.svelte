@@ -9,6 +9,8 @@
 	import AuditorView from '$lib/AuditorView.svelte';
 	import BalanceCard from '$lib/BalanceCard.svelte';
 	import BudgetNotices from '$lib/BudgetNotices.svelte';
+	import TechnicalExplanation from '$lib/TechnicalExplanation.svelte';
+	import TechnicalToggle from '$lib/TechnicalToggle.svelte';
 	import { formatAmount } from '$lib/budget.js';
 	import {
 		addTodoWithBudget,
@@ -519,6 +521,9 @@
 		<div class="flex min-w-0 flex-wrap items-center gap-2 sm:max-w-md sm:justify-end">
 			<DelegatedAuthBadge />
 			<LanguageSwitcher />
+			<!-- Page-wide, and beside the flags as in the consent dialog: every budget
+			     step shows its technical explanation. -->
+			<TechnicalToggle />
 			<span
 				class="rounded-md border px-2 py-1 text-xs font-medium {budgetInfo.network === 'demo'
 					? 'border-data-400 bg-data-100 text-data-800 dark:border-data/40 dark:bg-data/10 dark:text-data'
@@ -547,6 +552,11 @@
 			<SocialIcons size="w-5 h-5" className="" />
 		</div>
 	</header>
+
+	<!-- What "Demo ohne Chain" in the header means, and the real run it stands in for. -->
+	{#if budgetInfo.network === 'demo'}
+		<TechnicalExplanation step="demo" collapsible className="mb-6" />
+	{/if}
 
 	{#if view === 'auditor'}
 		<AuditorView />

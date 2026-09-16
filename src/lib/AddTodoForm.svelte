@@ -2,6 +2,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { _, locale } from '$lib/i18n/index.js';
 	import BudgetIcon from './BudgetIcon.svelte';
+	import TechnicalExplanation from './TechnicalExplanation.svelte';
 	import { numberSeparators, parseAmount } from './budget.js';
 
 	/** @type {string | null} */
@@ -179,6 +180,10 @@
 								{budgetError}
 							</p>
 						{/if}
+						<!-- The deadline above is the escrow's too: what it means for the money. -->
+						<p class="mt-1.5 text-xs text-faint" data-testid="add-todo-budget-refund">
+							{$_('budget.form.refundHint')}
+						</p>
 					</div>
 				{/if}
 				<p class="text-xs text-faint sm:col-span-2">
@@ -200,6 +205,8 @@
 						{/if}
 					</span>
 				</div>
+				<TechnicalExplanation step="lock" simulated={!budgetConfidential} />
+				<TechnicalExplanation step="refund" simulated={!budgetConfidential} />
 			{/if}
 		{/if}
 

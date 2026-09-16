@@ -2,13 +2,16 @@
 	// What a budget action is waiting for, or why it did not happen (escrow01),
 	// each in one plain sentence: the passkey prompt for a lock, a balance that
 	// was too low, a decryption under way, read access that ran out, a passkey
-	// prompt that was cancelled.
+	// prompt that was cancelled. In the technical view the three that stay on
+	// screen carry the step behind them.
 	import { onDestroy, onMount } from 'svelte';
 	import { _ } from '$lib/i18n/index.js';
 	import BudgetIcon from './BudgetIcon.svelte';
 	import ErrorAlert from './ErrorAlert.svelte';
+	import TechnicalExplanation from './TechnicalExplanation.svelte';
 	import { delegatedWriteAuthStore } from './delegated-write-auth.js';
 	import {
+		budgetInfo,
 		budgetNoticeRetryable,
 		budgetNoticeStore,
 		decryptingCount,
@@ -34,6 +37,9 @@
 	$: notice = $budgetNoticeStore;
 	$: awaitingLock = auth.state === 'awaiting' && auth.action === 'budget-lock';
 	$: expired = active && $readKeyStore?.state !== undefined && $readKeyStore.state !== 'valid';
+	// The lock went through and holds an encrypted 0, which is not a lock that
+	// failed to happen: its own title, its own sentence.
+	$: underfunded = notice?.action === 'lock' && notice.code === 'insufficient-balance';
 	$: scheduleDecryptNotice($decryptingCount > 0);
 
 	/** @param {boolean} decrypting */
@@ -96,6 +102,12 @@
 						>
 					{/if}
 				</svelte:fragment>
+				<TechnicalExplanation
+					slot="details"
+					step="cancelled"
+					simulated={!budgetInfo.confidential}
+					className="mt-3"
+				/>
 			</ErrorAlert>
 		</div>
 	{:else if notice}
@@ -103,17 +115,29 @@
 			<ErrorAlert
 				type="error"
 				inlineTitle
-				title={notice.action === 'lock'
-					? $_('budget.notice.lockFailedTitle')
-					: $_('budget.notice.releaseFailedTitle')}
+				title={underfunded
+					? $_('budget.notice.underfundedTitle')
+					: notice.action === 'lock'
+						? $_('budget.notice.lockFailedTitle')
+						: $_('budget.notice.releaseFailedTitle')}
 				error={notice.action === 'release'
 					? $_('budget.notice.releaseFailed')
-					: notice.code === 'insufficient-balance'
+					: underfunded
 						? $_('budget.notice.insufficient')
 						: $_('budget.notice.lockFailed')}
 				dismissible
 				on:dismiss={dismissBudgetNotice}
-			/>
+			>
+				<svelte:fragment slot="details">
+					{#if underfunded}
+						<TechnicalExplanation
+							step="underfunded"
+							simulated={!budgetInfo.confidential}
+							className="mt-3"
+						/>
+					{/if}
+				</svelte:fragment>
+			</ErrorAlert>
 		</div>
 	{/if}
 
@@ -147,6 +171,12 @@
 						data-testid="budget-renew-read">{$_('budget.notice.renew')}</button
 					>
 				</svelte:fragment>
+				<TechnicalExplanation
+					slot="details"
+					step="readExpired"
+					simulated={!budgetInfo.confidential}
+					className="mt-3"
+				/>
 			</ErrorAlert>
 		</div>
 	{/if}

@@ -77,5 +77,7 @@
 				</button>
 			{/if}
 		</div>
+		<!-- Below the message and across the whole alert: escrow01's technical view. -->
+		<slot name="details" />
 	</div>
 {/if}

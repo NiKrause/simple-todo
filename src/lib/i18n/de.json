@@ -10,6 +10,12 @@
 		"auditorView": "Prüfansicht",
 		"backToTodos": "Zurück zu den Aufgaben"
 	},
+	"technical": {
+		"tag": "Technisch",
+		"documentedIn": "Belegt in",
+		"simulated": "Beschreibt den Ablauf auf Sepolia; die Demo ohne Chain führt ihn nicht aus.",
+		"newTab": "öffnet in einem neuen Tab"
+	},
 	"alert": {
 		"dismiss": "Schließen"
 	},
@@ -116,14 +122,16 @@
 			"confidential": "(vertraulich)",
 			"hint": "Der Betrag wird auf diesem Gerät verschlüsselt, bevor er gesendet wird. Lesen können ihn nur Sie, die delegierte Person und die Prüfstelle.",
 			"invalidAmount": "Geben Sie einen Betrag über 0 ein, mit höchstens {decimals} Nachkommastellen.",
-			"needsDelegate": "Für ein Budget braucht die Aufgabe eine delegierte DID."
+			"needsDelegate": "Für ein Budget braucht die Aufgabe eine delegierte DID.",
+			"refundHint": "Ist das Budget nach der Frist noch gesperrt, können Sie es zurückholen. Eine Schaltfläche dafür hat diese App noch nicht."
 		},
 		"status": {
 			"locking": "wird gesperrt",
 			"funded": "gesperrt",
 			"releasing": "wird freigegeben",
 			"released": "ausgezahlt",
-			"failed": "nicht gesperrt"
+			"failed": "nicht gesperrt",
+			"underfunded": "ungedeckt"
 		},
 		"chip": {
 			"hidden": "Diesen Betrag kann dieser Browser nicht lesen.",
@@ -133,13 +141,23 @@
 		"item": {
 			"release": "Budget freigeben",
 			"reopen": "Wieder öffnen",
-			"awaitingRelease": "wartet auf Freigabe",
-			"visibleTo": "Den Betrag sehen nur Sie, {owner} und die Prüfstelle."
+			"awaitingRelease": "wartet auf Freigabe"
+		},
+		"note": {
+			"visibleParty": "Den Betrag sehen nur Sie, {party} und die Prüfstelle.",
+			"visibleOther": "Den Betrag sehen nur die beiden Beteiligten und die Prüfstelle.",
+			"releaseOffered": "Geben Sie das Budget frei, zahlt die Treuhand den Betrag an {party} aus. Das können nur Sie.",
+			"releasedOwner": "Ausgezahlt an {party}. Den Betrag sehen weiterhin nur Sie beide und die Prüfstelle.",
+			"releasedBeneficiary": "In Ihr vertrauliches Guthaben ausgezahlt. Den Betrag sehen weiterhin nur Sie, {party} und die Prüfstelle.",
+			"releasedOther": "Ausgezahlt. Den Betrag sehen nur die beiden Beteiligten und die Prüfstelle.",
+			"underfunded": "Die Sperre hält eine verschlüsselte 0, weil das Guthaben nicht reichte.",
+			"cancelled": "Abgebrochen: Es wurde nichts signiert und nichts gesendet."
 		},
 		"notice": {
 			"confirmLock": "Bestätigen Sie mit Ihrem Passkey, zum Beispiel mit Touch ID. Freigabe und Sperren des Budgets gehen in einem Schritt raus.",
 			"lockFailedTitle": "Budget nicht gesperrt.",
-			"insufficient": "Ihr vertrauliches Guthaben reichte nicht. Es wurde nichts überwiesen.",
+			"underfundedTitle": "Budget nicht gedeckt.",
+			"insufficient": "Ihr vertrauliches Guthaben reichte nicht. Die Sperre ging trotzdem durch: Die Gebühr ist bezahlt, und überwiesen wurde eine verschlüsselte 0.",
 			"lockFailed": "Das Sperren ist nicht gelungen. Prüfen Sie die Angaben und versuchen Sie es erneut.",
 			"releaseFailedTitle": "Budget nicht freigegeben.",
 			"releaseFailed": "Der Betrag bleibt gesperrt. Versuchen Sie es erneut.",
@@ -148,7 +166,7 @@
 			"expired": "Bestätigen Sie mit Ihrem Passkey, um die Beträge wieder zu sehen.",
 			"renew": "Mit Passkey verlängern",
 			"cancelledTitle": "Passkey-Bestätigung abgebrochen.",
-			"cancelled": "Es wurde nichts gesendet.",
+			"cancelled": "Es wurde nichts signiert und nichts gesendet.",
 			"retry": "Erneut bestätigen"
 		},
 		"balance": {

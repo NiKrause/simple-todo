@@ -15,6 +15,12 @@
 
 	$: amount = amountFor({ todoKey, creatorDid, budget });
 	$: status = budget.status;
+	// An underfunded lock went through and holds an encrypted 0: "not locked"
+	// would say the opposite of what the chain did.
+	$: statusLabel =
+		status === 'failed' && budget.lastError === 'insufficient-balance'
+			? 'budget.status.underfunded'
+			: `budget.status.${status}`;
 	$: busy = status === 'locking' || status === 'releasing' || $amount.state === 'decrypting';
 	$: known = $amount.state === 'ready' && $amount.units !== null;
 	$: amountText =
@@ -64,6 +70,6 @@
 			{budgetInfo.token.symbol}
 		</span>
 		<span aria-hidden="true">·</span>
-		<span>{$_(`budget.status.${status}`)}</span>
+		<span>{$_(statusLabel)}</span>
 	</span>
 {/if}

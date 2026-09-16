@@ -3,7 +3,9 @@
 	import { get } from 'svelte/store';
 	import { _, json } from '$lib/i18n/index.js';
 	import LanguageSwitcher from './LanguageSwitcher.svelte';
+	import TechnicalToggle from './TechnicalToggle.svelte';
 	import { formatBuildDate, formatVersions } from './build-info.js';
+	import { technicalView } from './technical-view.js';
 
 	const dispatch = createEventDispatcher();
 
@@ -38,7 +40,6 @@
 	/** @type {any} */
 	let introEl;
 	let ready = false;
-	let technical = false;
 	let accepted = false;
 
 	const version = `${formatVersions()} [${formatBuildDate(
@@ -111,7 +112,10 @@
 	};
 
 	$: if (ready) introEl.strings = strings;
-	$: if (ready) introEl.technical = technical;
+	// The page-wide setting (escrow01): the header switches the same one, so the
+	// dialog opens the way the last visit left it and a switch here carries on
+	// into the page.
+	$: if (ready) introEl.technical = $technicalView;
 	$: if (ready) {
 		introEl.privacy = { accept: true, clauses };
 		watchAcceptance();
@@ -190,21 +194,14 @@
 	-->
 	<div slot="header" class="flex shrink-0 items-center gap-2">
 		<LanguageSwitcher />
-		<button
-			type="button"
-			on:click={() => (technical = !technical)}
-			data-testid="consent-technical"
-			class="rounded-md border border-border px-2 py-1 text-xs text-faint hover:text-text"
-		>
-			{technical ? $_('consent.simple') : $_('consent.technical')}
-		</button>
+		<TechnicalToggle testid="consent-technical" />
 	</div>
 
 	<!--
 		Build metadata was the second line of the first screen anybody sees. It
 		belongs where somebody goes looking for it.
 	-->
-	{#if technical}
+	{#if $technicalView}
 		<p class="text-xs text-faint" data-testid="consent-version">{version}</p>
 	{/if}
 
