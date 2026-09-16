@@ -11,6 +11,7 @@
 	import BudgetNotices from '$lib/BudgetNotices.svelte';
 	import TechnicalExplanation from '$lib/TechnicalExplanation.svelte';
 	import TechnicalToggle from '$lib/TechnicalToggle.svelte';
+	import { technicalView } from '$lib/technical-view.js';
 	import { formatAmount } from '$lib/budget.js';
 	import {
 		addTodoWithBudget,
@@ -363,6 +364,16 @@
 		if (location.hash === '#pruefstelle') view = 'auditor';
 	});
 
+	/*
+		The line under the title: what the app is, for everyone; what this build
+		is made of — versions, branch, build date — in the technical view, as on
+		the consent screen.
+	*/
+	const buildStamp = `${formatVersions({ appName: 'Simple-Todo' })} · ${
+		typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'
+	} [${typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]`;
+	$: subtitle = $technicalView ? `${$_('header.tagline')} · ${buildStamp}` : $_('header.tagline');
+
 	// A budget is paid to the delegate, so it exists only where delegation does,
 	// and only for a session the service can sign for.
 	$: budgetEnabled = delegationEnabled && (!budgetInfo.requiresPasskey || Boolean($ownDidStore));
@@ -441,11 +452,11 @@
 		const peerTarget = event.detail.remotePeer || event.detail.remoteAddr;
 
 		if (event.detail.status === 'stable') {
-			showToast(`🔗 Connected to ${peerTarget}`, 'success');
+			showToast($_('network.connect.toastConnected', { values: { peer: peerTarget } }), 'success');
 			return;
 		}
 
-		showToast(`⚠️ ${peerTarget} closed the connection shortly after connect`, 'warning');
+		showToast($_('network.connect.toastDropped', { values: { peer: peerTarget } }), 'warning');
 	};
 
 	// Subscribe to the peerIdStore
@@ -507,14 +518,7 @@
 					</p>
 				{:else}
 					<h1 class="text-2xl font-bold text-heading sm:text-3xl">Simple-Todo</h1>
-					<p class="mt-1 text-sm text-faint">
-						A local-first peer-to-peer PWA · {formatVersions({
-							appName: 'Simple-Todo'
-						})} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{typeof __BUILD_DATE__ !==
-						'undefined'
-							? __BUILD_DATE__
-							: 'dev'}]
-					</p>
+					<p class="mt-1 text-sm text-faint" data-testid="app-tagline">{subtitle}</p>
 				{/if}
 			</div>
 		</div>
@@ -593,7 +597,12 @@
 		</P2PStatusNav>
 
 		{#if !showModal && (error || $initializationStore.error)}
-			<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
+			<!-- `error` is already a sentence; the store holds the stack's bare reason. -->
+			<ErrorAlert
+				error={error ||
+					$_('consent.errorStart', { values: { reason: $initializationStore.error ?? '' } })}
+				dismissible={true}
+			/>
 		{/if}
 
 		{#if $initializationStore.isInitialized}
@@ -642,8 +651,12 @@
 	the balance card and the todo rows scroll underneath it. The key is passed
 	explicitly: the component stores nothing unless asked, and the key keeps
 	this chapter's `simpleTodo.` prefix.
+
+	Technical view only (escrow01): it deploys relay infrastructure on Aleph,
+	which is nothing somebody delegating a todo needs to see, and the widget
+	has no way to take this page's language.
 -->
-{#if SponsorRelayFab}
+{#if SponsorRelayFab && $technicalView}
 	<svelte:component
 		this={SponsorRelayFab}
 		manifestUrl="./rootfs-manifest.json"

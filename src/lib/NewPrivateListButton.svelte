@@ -2,6 +2,7 @@
 	// Create a new access-controlled private list (acl01). The public mnemonic
 	// list stays available; this opens a fresh owner-only list and switches to
 	// it, after which the permissions panel appears for granting DIDs.
+	import { _, SLOT, around } from '$lib/i18n/index.js';
 	import { createPrivateTodoList } from './db-actions.js';
 
 	let name = '';
@@ -40,15 +41,15 @@
 	class="mt-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700"
 	data-testid="new-private-list"
 >
-	<h2 class="text-lg font-semibold text-heading">Create a private list</h2>
+	<h2 class="text-lg font-semibold text-heading">{$_('lists.create.heading')}</h2>
 	<p class="mt-1 text-xs text-faint">
-		Only your identity can write to it. Share its address and grant other DIDs below.
+		{$_('lists.create.hint')}
 	</p>
 	<div class="mt-3 flex gap-2">
 		<input
 			type="text"
 			bind:value={name}
-			placeholder="list name (optional)"
+			placeholder={$_('lists.create.namePlaceholder')}
 			data-testid="new-list-name"
 			class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs"
 		/>
@@ -59,7 +60,7 @@
 			data-testid="new-list-create"
 			class="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
 		>
-			{busy ? 'Creating…' : 'Create private list'}
+			{busy ? $_('lists.create.busy') : $_('lists.create.submit')}
 		</button>
 	</div>
 	{#if errorMessage}
@@ -67,17 +68,18 @@
 	{/if}
 
 	{#if created}
+		<!-- The name sits in the sentence where each language puts it. -->
+		{@const sentence = around($_('lists.create.created', { values: { name: SLOT } }))}
 		<div
 			class="mt-3 rounded-md border border-emerald-300 bg-emerald-50 p-2 dark:border-emerald-800 dark:bg-emerald-950"
 			data-testid="new-list-created"
 		>
 			<p class="text-xs text-heading">
-				Created <strong data-testid="new-list-created-name">{created.name}</strong> — you are now writing
-				to it.
+				{sentence.before}<strong data-testid="new-list-created-name">{created.name}</strong
+				>{sentence.after}
 			</p>
 			<p class="mt-2 text-xs text-faint">
-				Share this address so others can open the list. They can read it right away; writing needs a
-				grant below.
+				{$_('lists.create.share')}
 			</p>
 			<div class="mt-1 flex items-center gap-2">
 				<code
@@ -90,7 +92,7 @@
 					data-testid="new-list-copy-address"
 					class="shrink-0 rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-800"
 				>
-					{copied ? 'Copied' : 'Copy'}
+					{copied ? $_('lists.create.copied') : $_('lists.create.copy')}
 				</button>
 			</div>
 		</div>

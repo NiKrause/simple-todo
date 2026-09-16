@@ -1,5 +1,6 @@
 <script>
 	import { onDestroy } from 'svelte';
+	import { _ } from '$lib/i18n/index.js';
 
 	/** @type {any} */
 	export let libp2p = null;
@@ -126,10 +127,10 @@
 
 <section class="max-w-full min-w-0 overflow-hidden" data-testid="own-multiaddrs">
 	<div class="mb-2 flex items-baseline justify-between gap-2">
-		<h2 class="text-sm font-semibold">My Multiaddresses</h2>
+		<h2 class="text-sm font-semibold">{$_('network.multiaddrs.title')}</h2>
 		<span class="text-xs text-faint">{addresses.length}</span>
 	</div>
-	<p class="mb-2 text-xs text-faint">Copy an address to connect another browser directly.</p>
+	<p class="mb-2 text-xs text-faint">{$_('network.multiaddrs.hint')}</p>
 
 	{#if addresses.length > 0}
 		<ul
@@ -147,8 +148,8 @@
 						type="button"
 						on:click={() => copyAddress(address)}
 						class="shrink-0 rounded p-1 text-text transition-colors hover:bg-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-500 dark:hover:bg-cyan/20"
-						aria-label={`Copy multiaddress ${index + 1}`}
-						title={copiedAddress === address ? 'Copied!' : 'Copy to clipboard'}
+						aria-label={$_('network.multiaddrs.copyLabel', { values: { index: index + 1 } })}
+						title={copiedAddress === address ? $_('network.copy.copied') : $_('network.copy.title')}
 						data-testid="copy-own-multiaddr"
 						data-multiaddr={address}
 					>
@@ -175,9 +176,9 @@
 			{/each}
 		</ul>
 		<p class="sr-only" aria-live="polite">
-			{copiedAddress ? 'Multiaddress copied to clipboard.' : ''}
+			{copiedAddress ? $_('network.multiaddrs.copiedLive') : ''}
 		</p>
 	{:else}
-		<p class="text-xs text-faint">Waiting for a dialable address…</p>
+		<p class="text-xs text-faint">{$_('network.multiaddrs.waiting')}</p>
 	{/if}
 </section>

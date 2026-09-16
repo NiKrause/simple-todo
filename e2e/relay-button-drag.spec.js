@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { RelayButtonDriver } from '@le-space/playwright';
 
 import { passConsent } from './consent.mjs';
+import { pinTechnicalView } from './technical-view.mjs';
 
 /**
  * The launcher floats over the bottom-right corner, and on a phone that corner
@@ -30,6 +31,8 @@ const viewports = [
  * @param {{ remember?: boolean }} [options]
  */
 async function openWithLauncher(page, { remember = false } = {}) {
+	// The launcher is the technical view's: the simple view does not render it.
+	await pinTechnicalView(page);
 	await page.goto('/');
 	await passConsent(page, { remember });
 	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({ timeout });

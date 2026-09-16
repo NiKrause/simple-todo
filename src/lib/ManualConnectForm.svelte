@@ -1,5 +1,6 @@
 <script>
 	import { createEventDispatcher } from 'svelte';
+	import { _ } from '$lib/i18n/index.js';
 	import ErrorAlert from './ErrorAlert.svelte';
 	// Imported where they are used, not at module scope: `p2p.js` carries
 	// libp2p/Helia/OrbitDB, and this form renders on the page — a static
@@ -109,13 +110,13 @@
 		const address = (useCustomMultiaddr ? customMultiaddr : selectedMultiaddr).trim();
 
 		if (!address) {
-			errorMessage = 'Enter a multiaddress to connect to a peer.';
+			errorMessage = $_('network.connect.enterAddress');
 			statusMessage = null;
 			return;
 		}
 
 		if (!address.startsWith('/')) {
-			errorMessage = 'A multiaddress must start with "/".';
+			errorMessage = $_('network.connect.mustStartWithSlash');
 			statusMessage = null;
 			return;
 		}
@@ -123,8 +124,8 @@
 		errorMessage = null;
 		statusMessage = {
 			tone: 'info',
-			title: 'Dialing peer',
-			detail: 'Opening the websocket and completing the libp2p handshake...'
+			title: $_('network.connect.dialing'),
+			detail: $_('network.connect.handshake')
 		};
 		isConnecting = true;
 
@@ -136,12 +137,12 @@
 				result.status === 'stable'
 					? {
 							tone: 'success',
-							title: 'Connection stable',
+							title: $_('network.connect.stable'),
 							detail: result.detail
 						}
 					: {
 							tone: 'warning',
-							title: 'Connection dropped',
+							title: $_('network.connect.dropped'),
 							detail: result.detail
 						};
 			dispatch('connected', result);
@@ -175,10 +176,10 @@
 	<div class:mb-4={!compact} class:mb-2={compact} class="flex items-start justify-between gap-4">
 		<div>
 			<h2 class:text-xl={!compact} class:text-sm={compact} class="font-semibold">
-				Connect to relay
+				{$_('network.connect.heading')}
 			</h2>
 			<p class="mt-1 text-xs text-faint">
-				Choose a current browser-reachable relay discovered through Aleph.
+				{$_('network.connect.hint')}
 			</p>
 		</div>
 	</div>
@@ -192,9 +193,9 @@
 				class="min-w-0 flex-1 rounded-md border border-border px-2 py-1.5 text-xs focus:border-transparent focus:ring-2 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:bg-surface-2"
 			>
 				{#if isDiscovering}
-					<option value="">Discovering and pinging Aleph relays…</option>
+					<option value="">{$_('network.connect.discovering')}</option>
 				{:else if discoveredMultiaddrs.length === 0}
-					<option value="">No relay addresses discovered</option>
+					<option value="">{$_('network.connect.noAddresses')}</option>
 				{:else}
 					{#each discoveredMultiaddrs as address}
 						<option value={address} data-ping-verified={addressesPingVerified ? 'true' : undefined}
@@ -209,7 +210,7 @@
 				disabled={disabled || isConnecting || isDiscovering}
 				class="rounded-md border border-border px-2 py-1.5 text-xs font-medium text-text hover:bg-surface disabled:cursor-not-allowed disabled:bg-surface-2"
 			>
-				{isDiscovering ? 'Loading…' : 'Refresh'}
+				{isDiscovering ? $_('network.connect.loading') : $_('network.connect.refresh')}
 			</button>
 		</div>
 
@@ -219,7 +220,7 @@
 				bind:checked={useCustomMultiaddr}
 				disabled={disabled || isConnecting}
 			/>
-			Use a custom multiaddress
+			{$_('network.connect.custom')}
 		</label>
 
 		{#if useCustomMultiaddr}
@@ -235,17 +236,17 @@
 
 		{#if discoveryError}
 			<ErrorAlert
-				error={`Aleph relay discovery failed: ${discoveryError}`}
+				error={$_('network.connect.discoveryFailed', { values: { reason: discoveryError } })}
 				type="warning"
-				title="Relay discovery unavailable"
+				title={$_('network.connect.discoveryUnavailable')}
 				{compact}
 			/>
 		{:else if !isDiscovering && discoveredMultiaddrs.length === 0}
 			<p class="text-sm text-data-700">
 				{discoveredAddressCount > 0
-					? `None of the ${discoveredAddressCount} discovered relay addresses answered a libp2p ping.`
-					: 'No current browser-dialable relays were found.'}
-				Refresh or enter a custom multiaddress.
+					? $_('network.connect.nonePinged', { values: { count: discoveredAddressCount } })
+					: $_('network.connect.noDialable')}
+				{$_('network.connect.refreshOrCustom')}
 			</p>
 		{/if}
 
@@ -274,7 +275,7 @@
 					!(useCustomMultiaddr ? customMultiaddr.trim() : selectedMultiaddr)}
 				class="rounded-md bg-code px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-code disabled:cursor-not-allowed disabled:bg-faint"
 			>
-				{isConnecting ? 'Connecting...' : 'Connect'}
+				{isConnecting ? $_('network.connect.connecting') : $_('network.connect.connect')}
 			</button>
 		</div>
 	</div>

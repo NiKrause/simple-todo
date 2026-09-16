@@ -84,23 +84,55 @@ export function generateSpanishMnemonic(randomValues = defaultRandomValues) {
 	return Array.from(values.slice(0, 3), (value) => SPANISH_WORDS_V1[value & 63]).join('-');
 }
 
+/**
+ * Why a share code was refused.
+ *
+ * The `code` is what a screen translates; the English `message` stays for logs
+ * and for callers that only print it. This module is imported by Node-side
+ * specs as well, so it cannot reach for the app's catalogues itself.
+ */
+export class MnemonicError extends Error {
+	/**
+	 * @param {'empty' | 'repeatedSeparator' | 'wordCount' | 'unknownWord'} code
+	 * @param {string} message
+	 * @param {string} [word] the word that is not in the list, for `unknownWord`
+	 */
+	constructor(code, message, word = '') {
+		super(message);
+		this.name = 'MnemonicError';
+		this.code = code;
+		this.word = word;
+	}
+}
+
 /** @param {string} input */
 export function normalizeSpanishMnemonic(input) {
-	if (typeof input !== 'string') throw new Error('Enter a three-word Spanish share code.');
+	if (typeof input !== 'string') {
+		throw new MnemonicError('empty', 'Enter a three-word Spanish share code.');
+	}
 
 	const normalized = input.normalize('NFC').trim().toLocaleLowerCase('es');
-	if (!normalized) throw new Error('Enter a three-word Spanish share code.');
+	if (!normalized) throw new MnemonicError('empty', 'Enter a three-word Spanish share code.');
 	if (REPEATED_NON_SPACE_SEPARATOR.test(normalized)) {
-		throw new Error('Do not use empty words or repeated separators.');
+		throw new MnemonicError('repeatedSeparator', 'Do not use empty words or repeated separators.');
 	}
 
 	const withSpaces = normalized.replace(/\s+/gu, ' ').replace(/[_\-‐-―]/gu, ' ');
 	const words = withSpaces.split(' ');
 	if (words.length !== 3 || words.some((word) => !word)) {
-		throw new Error('The share code must contain exactly three Spanish words.');
+		throw new MnemonicError(
+			'wordCount',
+			'The share code must contain exactly three Spanish words.'
+		);
 	}
 	const unknownWord = words.find((word) => !WORD_SET.has(word));
-	if (unknownWord) throw new Error(`Unknown Spanish share-code word: ${unknownWord}`);
+	if (unknownWord) {
+		throw new MnemonicError(
+			'unknownWord',
+			`Unknown Spanish share-code word: ${unknownWord}`,
+			unknownWord
+		);
+	}
 	return words.join('-');
 }
 

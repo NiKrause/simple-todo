@@ -1,6 +1,10 @@
 <script>
 	import { _ } from '$lib/i18n/index.js';
-	import { generateSpanishMnemonic, normalizeSpanishMnemonic } from './spanish-mnemonic.js';
+	import {
+		MnemonicError,
+		generateSpanishMnemonic,
+		normalizeSpanishMnemonic
+	} from './spanish-mnemonic.js';
 
 	export let value = '';
 	export let disabled = false;
@@ -10,7 +14,8 @@
 	/** @type {ReturnType<typeof setTimeout> | null} */
 	let copiedTimeout = null;
 
-	$: validation = validate(value);
+	// `$_` is passed in so a language switch rewrites a message already showing.
+	$: validation = validate(value, $_);
 
 	function generateNew() {
 		value = generateSpanishMnemonic();
@@ -25,12 +30,21 @@
 		copiedTimeout = setTimeout(() => (copied = false), 2000);
 	}
 
-	/** @param {string} input */
-	function validate(input) {
+	/**
+	 * @param {string} input
+	 * @param {(id: string, options?: { values?: Record<string, string> }) => string} format
+	 */
+	function validate(input, format) {
 		try {
 			return { canonical: normalizeSpanishMnemonic(input), error: '' };
 		} catch (error) {
-			return { canonical: '', error: error instanceof Error ? error.message : String(error) };
+			const message =
+				error instanceof MnemonicError
+					? format(`consent.mnemonicError.${error.code}`, { values: { word: error.word } })
+					: error instanceof Error
+						? error.message
+						: String(error);
+			return { canonical: '', error: message };
 		}
 	}
 </script>

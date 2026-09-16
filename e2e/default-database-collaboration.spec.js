@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { passConsent } from './consent.mjs';
+import { pinTechnicalView } from './technical-view.mjs';
 
 const testUrl = '/';
 const collaborationTimeout = 90000;
@@ -60,6 +61,8 @@ test.describe('Default todo database collaboration', () => {
  * @param {import('@playwright/test').Page} page
  */
 async function openReadyApp(page) {
+	// The transport badges and the start's eight steps are the technical view's.
+	await pinTechnicalView(page);
 	await page.goto(testUrl);
 
 	await passConsent(page, { mnemonic: sharedMnemonic });

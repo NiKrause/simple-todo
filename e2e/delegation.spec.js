@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { passConsent } from './consent.mjs';
+import { pinTechnicalView } from './technical-view.mjs';
 
 // Chapter (delegation01): a list stays owner-only, but the owner may hand ONE
 // todo to another DID. That delegate may complete or rename exactly that todo
@@ -351,6 +352,9 @@ test.describe('Per-todo delegation', () => {
  */
 async function newIdentity(browser, label, { webrtc = true } = {}) {
 	const context = await browser.newContext();
+	// `waitForPeers` reads the peer count from the network details, which only
+	// the technical view renders.
+	await pinTechnicalView(context);
 
 	// Relay-only, for the tests that have to prove something arrived *through*
 	// the relay. Measured: Playwright's `setOffline` cuts the WebSocket to the

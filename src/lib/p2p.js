@@ -34,6 +34,7 @@ import { initializeDatabase, todoDBAddressStore, todosStore } from './db-actions
 import { getWebRTCEnabled, setWebRTCEnabled, webrtcEnabledStore } from './webrtc-settings.js';
 import { getTodoDatabaseName } from './default-todo-database.js';
 import { normalizeDiscoveredMultiaddrs } from './multiaddr-utils.js';
+import { translate } from './i18n/index.js';
 
 export { setWebRTCEnabled, webrtcEnabledStore };
 
@@ -42,49 +43,29 @@ export { setWebRTCEnabled, webrtcEnabledStore };
 // because plenty of callers legitimately want both from one import.
 export { libp2pStore, peerIdStore, ownDidStore, initializationStore } from './p2p-stores.js';
 
+/*
+	The start's steps, in order. Only keys: what each step is called and what it
+	does is the status panel's to say, in the language on screen
+	(`network.step.<key>` in the catalogues).
+*/
 const INITIALIZATION_STEP_DEFINITIONS = [
-	{
-		label: 'Network config',
-		description:
-			'Validates the configured browser-reachable relay addresses and prepares the libp2p transports and services.'
-	},
-	{
-		label: 'libp2p',
-		description:
-			'Creates and starts the libp2p node, including its peer identity, discovery, relay, WebSocket and WebRTC support.'
-	},
-	{
-		label: 'Helia',
-		description:
-			'Starts the Helia IPFS node on top of libp2p and enables block exchange and HTTP retrieval.'
-	},
-	{
-		label: 'OrbitDB',
-		description:
-			'Loads or creates the persistent OrbitDB identity and initializes OrbitDB using the Helia node.'
-	},
-	{
-		label: 'Database + sync',
-		description:
-			'Opens the shared todo database, loads its local operation log and starts OrbitDB pubsub synchronization.'
-	},
-	{
-		label: 'Local todos',
-		description:
-			'Connects the local todo store and starts hydrating it from OrbitDB in the background without blocking the application.'
-	}
+	{ key: 'networkConfig' },
+	{ key: 'libp2p' },
+	{ key: 'helia' },
+	{ key: 'orbitdb' },
+	{ key: 'databaseSync' },
+	{ key: 'localTodos' }
 ];
 
 /**
  * @typedef {'pending' | 'active' | 'complete' | 'error'} InitializationStepStatus
- * @typedef {{ label: string, description: string, status: InitializationStepStatus }} InitializationStep
+ * @typedef {{ key: string, status: InitializationStepStatus }} InitializationStep
  */
 
 /** @param {number} [activeIndex=-1] */
 function createInitializationSteps(activeIndex = -1) {
-	return INITIALIZATION_STEP_DEFINITIONS.map(({ label, description }, index) => ({
-		label,
-		description,
+	return INITIALIZATION_STEP_DEFINITIONS.map(({ key }, index) => ({
+		key,
 		status: /** @type {InitializationStepStatus} */ (
 			index < activeIndex ? 'complete' : index === activeIndex ? 'active' : 'pending'
 		)
@@ -861,15 +842,15 @@ export async function connectToMultiaddr(address) {
 	const normalizedAddress = address.trim();
 
 	if (!normalizedAddress) {
-		throw new Error('Please enter a multiaddress.');
+		throw new Error(translate('network.connect.enterAddress'));
 	}
 
 	if (!normalizedAddress.startsWith('/')) {
-		throw new Error('A multiaddress must start with "/".');
+		throw new Error(translate('network.connect.mustStartWithSlash'));
 	}
 
 	if (!libp2p) {
-		throw new Error('P2P is not initialized yet.');
+		throw new Error(translate('network.connect.notInitialized'));
 	}
 
 	let target;
@@ -878,18 +859,18 @@ export async function connectToMultiaddr(address) {
 		target = multiaddr(normalizedAddress);
 	} catch (error) {
 		throw new Error(
-			`Invalid multiaddress: ${error instanceof Error ? error.message : String(error)}`
+			translate('network.connect.invalid', {
+				reason: error instanceof Error ? error.message : String(error)
+			})
 		);
 	}
 
 	if (extractPeerIdFromMultiaddr(normalizedAddress) == null) {
-		throw new Error(
-			'The multiaddress must include a peer id, for example ending with "/p2p/<peer-id>".'
-		);
+		throw new Error(translate('network.connect.needsPeerId'));
 	}
 
 	if (!getWebRTCEnabled() && normalizedAddress.toLowerCase().includes('/webrtc')) {
-		throw new Error('WebRTC is disabled. Use a relay circuit multiaddress instead.');
+		throw new Error(translate('network.connect.webrtcDisabled'));
 	}
 
 	const connection = await libp2p.dial(target);
@@ -1009,7 +990,7 @@ function waitForManualConnectionOutcome(connection) {
 		if (!libp2p) {
 			resolve({
 				status: 'dropped',
-				detail: 'P2P node is no longer available.'
+				detail: translate('network.connect.nodeGone')
 			});
 			return;
 		}
@@ -1037,15 +1018,16 @@ function waitForManualConnectionOutcome(connection) {
 
 			finish({
 				status: 'dropped',
-				detail:
-					'Handshake succeeded, but the remote peer closed the connection during relay or protocol setup.'
+				detail: translate('network.connect.droppedDetail')
 			});
 		};
 
 		const timeoutId = setTimeout(() => {
 			finish({
 				status: 'stable',
-				detail: `Connection stayed open for ${MANUAL_CONNECT_STABILIZATION_MS / 1000} seconds.`
+				detail: translate('network.connect.stableDetail', {
+					seconds: MANUAL_CONNECT_STABILIZATION_MS / 1000
+				})
 			});
 		}, MANUAL_CONNECT_STABILIZATION_MS);
 

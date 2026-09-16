@@ -83,8 +83,7 @@
 				class="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm"
 			/>
 			<p class="mt-1 text-xs text-gray-500" data-testid="passkey-label-hint">
-				Only a label for the passkey picker. Your identity comes from the key, not from this name —
-				two people on this device may use the same one.
+				{$_('consent.identityLabelHint')}
 			</p>
 		</div>
 	{/if}

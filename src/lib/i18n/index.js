@@ -1,4 +1,11 @@
-import { addMessages, init, getLocaleFromNavigator, locale as i18nLocale } from 'svelte-i18n';
+import { get } from 'svelte/store';
+import {
+	_ as formatter,
+	addMessages,
+	init,
+	getLocaleFromNavigator,
+	locale as i18nLocale
+} from 'svelte-i18n';
 import de from './de.json';
 import en from './en.json';
 
@@ -77,5 +84,51 @@ init({
 	fallbackLocale: 'en',
 	initialLocale: initialLocale()
 });
+
+/*
+	`app.html` says `lang="en"`, and a German page that declares itself English is
+	read aloud by a screen reader with English pronunciation. The document follows
+	the language on screen instead.
+*/
+i18nLocale.subscribe((value) => {
+	if (typeof document !== 'undefined' && value) document.documentElement.lang = value;
+});
+
+/**
+ * A message in the language on screen, for code that is not a component: the
+ * errors `db-actions.js` returns, the details `p2p.js` reports.
+ *
+ * Read once, when the message is made. An error on screen stays in the
+ * language it was raised in if somebody switches while it is showing; it is
+ * gone a moment later anyway, and the next one is raised in the new language.
+ *
+ * @param {string} id
+ * @param {Record<string, string | number>} [values]
+ * @returns {string}
+ */
+export function translate(id, values) {
+	return get(formatter)(id, values ? { values } : undefined);
+}
+
+/**
+ * Stands in for a value that is rendered as markup — a name in `<strong>`, a
+ * DID in `<code>` — while the sentence around it is translated.
+ */
+export const SLOT = '\u0000';
+
+/**
+ * A translated sentence split around its one markup value.
+ *
+ * The languages put that value in different places ("Delegated to you by X" /
+ * "Von X an Sie delegiert"), so the sentence is translated whole, with `SLOT`
+ * as the value, and cut afterwards.
+ *
+ * @param {string} message
+ * @returns {{ before: string, after: string }}
+ */
+export function around(message) {
+	const [before = '', after = ''] = message.split(SLOT);
+	return { before, after };
+}
 
 export { _, json, locale } from 'svelte-i18n';

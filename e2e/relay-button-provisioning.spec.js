@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
 import { passConsent } from './consent.mjs';
+import { pinTechnicalView } from './technical-view.mjs';
 import { privateKeyToAccount } from 'viem/accounts';
 import { mkdir } from 'node:fs/promises';
 import { PREVIEW_ORIGIN } from './preview-origin.mjs';
@@ -147,6 +148,8 @@ relayTest.describe('Relay Button', () => {
 			const startedAt = Date.now();
 			const deploymentContext = await browser.newContext();
 			await installEip1193WalletMock(deploymentContext, account);
+			// The Relay Button is the technical view's: the simple view does not render it.
+			await pinTechnicalView(deploymentContext);
 			// Enable @le-space/ui controller tracing so deploy-phase diagnostics
 			// reach the browser console, where the handler below forwards them.
 			await deploymentContext.addInitScript(() => {

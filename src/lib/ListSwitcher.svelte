@@ -2,6 +2,7 @@
 	// The list of lists (acl01, issue #114 step 3). Entries come from the
 	// identity's own registry database, so they survive a reload and replicate
 	// to the same passkey on another device — see list-registry.js.
+	import { _ } from '$lib/i18n/index.js';
 	import {
 		listRegistryStore,
 		listRegistryReadyStore,
@@ -45,10 +46,9 @@
 		data-testid="list-switcher"
 		data-registry-name={$listRegistryNameStore}
 	>
-		<h2 class="text-lg font-semibold text-heading">Your lists</h2>
+		<h2 class="text-lg font-semibold text-heading">{$_('lists.switcher.heading')}</h2>
 		<p class="mt-1 text-xs text-faint">
-			Kept in your own OrbitDB registry, so they come back after a reload and follow your passkey to
-			another device.
+			{$_('lists.switcher.hint')}
 		</p>
 
 		<ul class="mt-3 flex flex-col gap-1" data-testid="list-switcher-items">
@@ -67,9 +67,15 @@
 							? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950'
 							: 'border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800'}"
 					>
-						<span class="font-medium text-heading">{entry.name || 'unnamed list'}</span>
-						<span class="ml-1 text-faint">· {entry.role}</span>
-						{#if active}<span class="ml-1 text-emerald-700 dark:text-emerald-400">· open</span>{/if}
+						<span class="font-medium text-heading"
+							>{entry.name || $_('lists.switcher.unnamed')}</span
+						>
+						<span class="ml-1 text-faint"
+							>· {$_(`lists.switcher.role.${entry.role}`, { default: entry.role })}</span
+						>
+						{#if active}<span class="ml-1 text-emerald-700 dark:text-emerald-400"
+								>· {$_('lists.switcher.open')}</span
+							>{/if}
 						<code class="mt-0.5 block truncate font-mono text-[10px] text-faint"
 							>{entry.address}</code
 						>
@@ -77,12 +83,12 @@
 					<button
 						type="button"
 						on:click={() => forget(entry.address)}
-						title="Remove from this list of lists; the database itself is untouched"
+						title={$_('lists.switcher.forgetTitle')}
 						data-testid="list-switcher-forget"
 						data-address={entry.address}
 						class="shrink-0 rounded-md border border-gray-300 px-2 py-1 text-xs hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-800"
 					>
-						Forget
+						{$_('lists.switcher.forget')}
 					</button>
 				</li>
 			{/each}

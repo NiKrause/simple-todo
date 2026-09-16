@@ -4,6 +4,7 @@
 	// own replicated keyvalue store, so the DB address never changes and peers
 	// pick up permission changes live.
 	import { onDestroy } from 'svelte';
+	import { _ } from '$lib/i18n/index.js';
 	import { todoDBStore } from './db-actions.js';
 	import { ownDidStore } from './p2p.js';
 
@@ -66,7 +67,9 @@
 			newDid = '';
 			await refresh();
 		} catch (error) {
-			errorMessage = `Grant failed: ${error instanceof Error ? error.message : String(error)}`;
+			errorMessage = $_('lists.permissions.grantFailed', {
+				values: { reason: error instanceof Error ? error.message : String(error) }
+			});
 		} finally {
 			busy = false;
 		}
@@ -80,7 +83,9 @@
 			await currentDb.access.revoke('write', did);
 			await refresh();
 		} catch (error) {
-			errorMessage = `Revoke failed: ${error instanceof Error ? error.message : String(error)}`;
+			errorMessage = $_('lists.permissions.revokeFailed', {
+				values: { reason: error instanceof Error ? error.message : String(error) }
+			});
 		} finally {
 			busy = false;
 		}
@@ -92,9 +97,9 @@
 		class="mt-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700"
 		data-testid="permissions-panel"
 	>
-		<h2 class="text-lg font-semibold text-heading">Write permissions</h2>
+		<h2 class="text-lg font-semibold text-heading">{$_('lists.permissions.heading')}</h2>
 		<p class="mt-1 text-xs text-faint">
-			DIDs allowed to write to this list. Only list admins (the creator) can grant or revoke.
+			{$_('lists.permissions.hint')}
 		</p>
 
 		<ul class="mt-3 space-y-1">
@@ -106,7 +111,9 @@
 				>
 					<code class="truncate rounded bg-surface-2 px-1" title={did}>
 						{did.length > 30 ? `${did.slice(0, 18)}…${did.slice(-8)}` : did}
-						{#if did === $ownDidStore}<span class="text-emerald-600"> (you)</span>{/if}
+						{#if did === $ownDidStore}<span class="text-emerald-600">
+								{$_('lists.permissions.you')}</span
+							>{/if}
 					</code>
 					<button
 						type="button"
@@ -115,7 +122,7 @@
 						class="rounded border border-red-300 px-1.5 py-0.5 text-red-600 hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-950"
 						data-testid="permission-revoke"
 					>
-						Remove
+						{$_('lists.permissions.remove')}
 					</button>
 				</li>
 			{/each}
@@ -125,7 +132,7 @@
 			<input
 				type="text"
 				bind:value={newDid}
-				placeholder="did:key:… of the identity to allow"
+				placeholder={$_('lists.permissions.placeholder')}
 				data-testid="permission-did-input"
 				class="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-1.5 font-mono text-xs"
 			/>
@@ -136,7 +143,7 @@
 				data-testid="permission-add"
 				class="rounded-md bg-cyan-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-cyan-700 disabled:opacity-50"
 			>
-				Add DID
+				{$_('lists.permissions.add')}
 			</button>
 		</div>
 

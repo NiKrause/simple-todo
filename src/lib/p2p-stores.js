@@ -29,7 +29,12 @@ export const ownDidStore = writable(/** @type {string | null} */ (null));
 export const passkeyCredentialStore = writable(/** @type {any} */ (null));
 
 /** @typedef {'pending' | 'active' | 'complete' | 'error'} InitializationStepStatus */
-/** @typedef {{ label: string, description: string, status: InitializationStepStatus }} InitializationStep */
+/**
+ * A step names itself by key only; the status panel says what it is called and
+ * what it does, in the language on screen.
+ *
+ * @typedef {{ key: string, status: InitializationStepStatus }} InitializationStep
+ */
 
 /** Progress of `initializeP2P`, read by the status nav. */
 export const initializationStore = writable(

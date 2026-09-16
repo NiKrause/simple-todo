@@ -14,6 +14,7 @@ import { budgetErrorCode, canReleaseBudget, isWellFormedBudget, paidOutSince } f
 import { finishLock, prepareLock, releaseBudgetOf } from './budget-flow.js';
 import { createBudgetService } from './budget-service.js';
 import { confirmDelegatedWrite } from './delegated-write-auth.js';
+import { translate } from './i18n/index.js';
 import {
 	addTodo,
 	createTodoKey,
@@ -285,7 +286,13 @@ export async function addTodoWithBudget({ text, delegateDid, expiresAt, amount }
 	try {
 		locking = await prepareLock({ todoKey }, { service: budgetService });
 	} catch (error) {
-		return { ok: false, error: error instanceof Error ? error.message : String(error) };
+		// The service's own words are the reason; the sentence around them is the reader's.
+		return {
+			ok: false,
+			error: translate('errors.addFailed', {
+				reason: error instanceof Error ? error.message : String(error)
+			})
+		};
 	}
 	rememberAmount(todoKey, amount);
 	const added = await addTodo(

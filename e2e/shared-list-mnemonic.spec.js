@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { acceptNotice, consentModal, waitForConsent } from './consent.mjs';
+import { pinTechnicalView } from './technical-view.mjs';
 
 const testUrl = '/';
 const timeout = 90000;
@@ -88,6 +89,9 @@ test.describe('Spanish mnemonic shared todo lists', () => {
 
 /** @param {import('@playwright/test').Page} page */
 async function openSelection(page) {
+	// The spec checks that the network details stay closed next to the list
+	// details, and the network details are the technical view's.
+	await pinTechnicalView(page);
 	await page.goto(testUrl);
 	await waitForConsent(page);
 	await expect(consentModal(page).getByTestId('shared-list-mnemonic-input')).toHaveValue(

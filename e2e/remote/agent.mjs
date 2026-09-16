@@ -1,4 +1,5 @@
 import { passConsent } from '../consent.mjs';
+import { pinTechnicalView } from '../technical-view.mjs';
 
 const DEFAULT_TIMEOUT = 120_000;
 
@@ -20,6 +21,10 @@ export class TodoBrowserAgent {
 
 	async open(mnemonic) {
 		this.context = await this.browser.newContext();
+		// Not cosmetic: the relay select and the manual connect form sit in the
+		// network details, and the build stamp `diagnostics()` records is the
+		// header line's technical half. The simple view renders neither.
+		await pinTechnicalView(this.context);
 		this.page = await this.context.newPage();
 		this.page.on('console', (message) => {
 			const text = message.text();

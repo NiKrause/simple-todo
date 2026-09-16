@@ -255,6 +255,55 @@ test.describe('Consent screen', () => {
 		}
 	});
 
+	test('behind the dialog, a German browser gets a German page without the plumbing', async ({
+		browser
+	}) => {
+		// The dialog was German while the page behind it still said "Create a
+		// private list" and "P2P network ready", with peer IDs and multiaddrs in
+		// front of people who came to delegate a todo.
+		const context = await browser.newContext({ locale: 'de-DE' });
+		const page = await context.newPage();
+
+		try {
+			await page.goto('/');
+			await passConsent(page, { identity: 'anonymous' });
+			await expect(page.getByPlaceholder('Was ist zu tun?')).toBeEnabled({ timeout });
+			expect(await page.evaluate(() => document.documentElement.lang)).toBe('de');
+
+			// The simple view: whether the app is ready, and which list is open.
+			await expect(page.getByTestId('p2p-status-nav')).toHaveAttribute('data-view', 'simple');
+			await expect(page.getByTestId('active-list-kind')).toHaveText('Geteilte Liste');
+			await expect(page.getByTestId('p2p-status-step')).toHaveCount(0);
+			await expect(page.getByTestId('network-details')).toHaveCount(0);
+
+			await page.getByTestId('new-list-name').fill('Prüfbericht');
+			await page.getByTestId('new-list-create').click();
+			await expect(page.getByTestId('permissions-panel')).toBeVisible({ timeout });
+			await expect(page.getByTestId('new-list-created')).toContainText('ist angelegt');
+			await expect(page.getByTestId('active-list-kind')).toHaveText('Private Liste');
+
+			const shown = await page.evaluate(() => document.body.innerText);
+			for (const english of [
+				'Create a private list',
+				'Open a shared list by address',
+				'Write permissions',
+				'Your lists',
+				'P2P network ready',
+				'Network details',
+				'A local-first peer-to-peer PWA'
+			]) {
+				expect(shown, english).not.toContain(english);
+			}
+
+			// One switch brings all of it back.
+			await page.getByTestId('technical-toggle').click();
+			await expect(page.getByTestId('network-details')).toContainText('Netzwerkdetails');
+			await expect(page.getByTestId('p2p-status-step')).toHaveCount(8);
+		} finally {
+			await context.close();
+		}
+	});
+
 	test('remembers the decision when asked to', async ({ page }) => {
 		await page.goto('/');
 		await passConsent(page, { remember: true });

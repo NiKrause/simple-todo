@@ -1,35 +1,25 @@
 <script context="module">
-	/** @param {'unknown' | 'pending' | 'pinned' | 'unavailable'} status */
-	export function getReplicationDescription(status) {
-		if (status === 'pending')
-			return 'Waiting for this OrbitDB entry to be replicated by the relay.';
-		if (status === 'pinned')
-			return 'The relay confirmed that this exact OrbitDB entry was replicated and stored locally.';
-		if (status === 'unavailable')
-			return 'No exact relay replication proof is currently available for this entry.';
-		return 'Relay replication status was not observed for this existing entry.';
+	/**
+	 * The catalogue key describing a row's relay replication status.
+	 *
+	 * @param {'unknown' | 'pending' | 'pinned' | 'unavailable'} status
+	 */
+	export function replicationDescriptionKey(status) {
+		return status === 'pending' || status === 'pinned' || status === 'unavailable'
+			? `todo.item.replication.${status}`
+			: 'todo.item.replication.unknown';
 	}
 	/** @param {string} did */
 	function formatDid(did) {
 		return did.length > 24 ? `${did.slice(0, 14)}…${did.slice(-6)}` : did;
 	}
-	/**
-	 * A translated sentence with one value that is rendered as markup — a DID in
-	 * a `<code>` — split around that value. The languages put it in different
-	 * places ("Delegated to you by X" / "Von X an Sie delegiert"), so the
-	 * sentence is translated whole and cut afterwards.
-	 */
-	const SLOT = '\u0000';
-	/** @param {string} message */
-	function around(message) {
-		const [before = '', after = ''] = message.split(SLOT);
-		return { before, after };
-	}
 </script>
 
 <script>
 	import { createEventDispatcher } from 'svelte';
-	import { _, locale } from '$lib/i18n/index.js';
+	// `around` splits a translated sentence around its one DID, which is set in
+	// a `<code>`: "Delegated to you by X" / "Von X an Sie delegiert".
+	import { _, SLOT, around, locale } from '$lib/i18n/index.js';
 	import { formatPeerId } from './utils.js';
 	import { delegationStatus, isDelegationActiveFor } from './delegation.js';
 	import { budgetHoldsTodo, canReleaseBudget } from './budget.js';
@@ -183,7 +173,7 @@
 				class:bg-data-400={replicationStatus === 'unavailable'}
 				class:bg-surface-2={replicationStatus === 'unknown'}
 				class="relative inline-flex h-2 w-2 shrink-0 cursor-help rounded-full p-0 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
-				aria-label={getReplicationDescription(replicationStatus)}
+				aria-label={$_(replicationDescriptionKey(replicationStatus))}
 				data-testid="todo-relay-status"
 				data-status={replicationStatus}
 				on:mouseenter={() => (showReplicationTooltip = true)}
@@ -197,8 +187,8 @@
 						role="tooltip"
 						data-testid="todo-relay-tooltip"
 					>
-						<span class="font-semibold">Relay replication:</span>
-						{getReplicationDescription(replicationStatus)}
+						<span class="font-semibold">{$_('todo.item.replication.label')}</span>
+						{$_(replicationDescriptionKey(replicationStatus))}
 					</span>
 				{/if}
 			</button>

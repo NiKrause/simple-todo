@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { passConsent } from './consent.mjs';
+import { pinTechnicalView } from './technical-view.mjs';
 
 const testUrl = '/';
 const connectionTimeout = 90000;
@@ -89,6 +90,8 @@ test.describe('Manual browser connection using a copied own multiaddress', () =>
 
 /** @param {import('@playwright/test').Page} page */
 async function openReadyApp(page) {
+	// Own multiaddrs and the manual connect form are the technical view's.
+	await pinTechnicalView(page);
 	await page.goto(testUrl);
 	await passConsent(page, { mnemonic: sharedMnemonic });
 	await expect(page.getByPlaceholder('What needs to be done?')).toBeEnabled({

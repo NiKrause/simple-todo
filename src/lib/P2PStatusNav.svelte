@@ -1,11 +1,22 @@
 <script>
+	// escrow01: in the simple view this panel says in one sentence whether the
+	// app is ready and connected, and names the open list. The steps behind that
+	// sentence — libp2p, Helia, OrbitDB — and the network details wait in the
+	// technical view.
+	//
+	// The panel itself stays mounted in both views: the relay health check below
+	// publishes the relay's HTTP origin, and the replication proof on every todo
+	// row asks that origin. Hiding the panel must not switch the proof off.
 	import { onDestroy } from 'svelte';
+	import { _ } from '$lib/i18n/index.js';
 	import { relayHttpStatusStore } from './relay-status.js';
 	import { relayHttpOriginForPeer } from './multiaddr-utils.js';
 	import { getRelayBootstrapAddrs } from './relay-bootstrap-addrs.js';
+	import { technicalView } from './technical-view.js';
 
 	/** @typedef {'pending' | 'active' | 'complete' | 'error'} StepStatus */
-	/** @typedef {{ label: string, description: string, status: StepStatus }} StatusStep */
+	/** @typedef {{ key: string, status: StepStatus }} StatusStep */
+	/** @typedef {(id: string, options?: { values?: Record<string, string | number> }) => string} Format */
 
 	/** @type {{ isInitializing: boolean, isInitialized: boolean, error: string | null, steps: StatusStep[] }} */
 	export let initialization;
@@ -44,14 +55,11 @@
 	$: initializationComplete = initialization?.isInitialized === true;
 	$: connectivitySteps = [
 		{
-			label: 'Relay connected',
-			description: getRelayDescription(),
+			key: 'relayConnected',
 			status: relayConnected ? 'complete' : initializationComplete ? 'active' : 'pending'
 		},
 		{
-			label: 'WebRTC connected',
-			description:
-				'A live libp2p connection using WebRTC is available. This normally appears after another browser peer has been discovered.',
+			key: 'webrtcConnected',
 			status: webRTCConnected
 				? 'complete'
 				: initializationComplete && relayConnected
@@ -65,7 +73,40 @@
 		allSteps.find((step) => step.status === 'active') ??
 		allSteps.find((step) => step.status === 'pending') ??
 		allSteps.find((step) => step.status === 'error');
-	$: statusLabel = getStatusLabel(allComplete, currentStep);
+	$: failed = Boolean(initialization?.error) || allSteps.some((step) => step.status === 'error');
+	$: statusLabel = $technicalView
+		? technicalStatus($_, allComplete, currentStep)
+		: simpleStatus($_, {
+				failed,
+				initialized: initializationComplete,
+				relayConnected,
+				webRTCConnected
+			});
+	// The simple view stops spinning once the app can be used and reaches a relay;
+	// waiting for a direct connection to another browser is the technical view's
+	// business, and without a second browser it never ends.
+	$: busy = $technicalView ? !allComplete : !failed && (!initializationComplete || !relayConnected);
+	$: relayDescription = describeRelay($_, {
+		connected: relayConnected,
+		origin: relayHealthOrigin,
+		health: relayHealthStatus,
+		version: relayVersion
+	});
+	// A tooltip left open when the view switched would come back with it.
+	$: if (!$technicalView) tooltipStep = null;
+	// What each step is called and what it does, in the language on screen.
+	$: stepTexts = Object.fromEntries(
+		allSteps.map((step) => [
+			step.key,
+			{
+				label: $_(`network.step.${step.key}.label`),
+				description:
+					step.key === 'relayConnected'
+						? relayDescription
+						: $_(`network.step.${step.key}.description`)
+			}
+		])
+	);
 
 	$: if (libp2p !== observedLibp2p) {
 		observeConnections(libp2p);
@@ -193,19 +234,23 @@
 		);
 	}
 
-	function getRelayDescription() {
-		const base =
-			'A live WebSocket connection to a relay/bootstrap peer is available for discovery, pubsub and circuit relay traffic.';
-		if (!relayConnected) return `${base} No relay is connected yet.`;
-		if (!relayHealthOrigin)
-			return `${base} No HTTPS health URL can be derived from the connected relay address.`;
-		if (relayHealthStatus === 'loading')
-			return `${base} Reading the OrbitDB relay version from ${relayHealthOrigin}/health…`;
-		if (relayHealthStatus === 'verified' && relayVersion)
-			return `${base} OrbitDB relay version ${relayVersion}; health and peer ID verified at ${relayHealthOrigin}/health.`;
-		if (relayHealthStatus === 'verified')
-			return `${base} Health and peer ID verified at ${relayHealthOrigin}/health. This relay does not expose its OrbitDB relay version.`;
-		return `${base} ${relayHealthOrigin}/health could not be verified, so its OrbitDB relay version is unavailable.`;
+	/**
+	 * What the relay step stands for, and what is known about the relay behind it.
+	 *
+	 * @param {Format} format
+	 * @param {{ connected: boolean, origin: string, health: 'idle' | 'loading' | 'verified' | 'unavailable', version: string }} relay
+	 */
+	function describeRelay(format, { connected, origin, health, version }) {
+		const key = 'network.step.relayConnected';
+		const base = format(`${key}.description`);
+		const values = { origin, version };
+		if (!connected) return `${base} ${format(`${key}.none`)}`;
+		if (!origin) return `${base} ${format(`${key}.noOrigin`)}`;
+		if (health === 'loading') return `${base} ${format(`${key}.loading`, { values })}`;
+		if (health === 'verified' && version)
+			return `${base} ${format(`${key}.verifiedVersion`, { values })}`;
+		if (health === 'verified') return `${base} ${format(`${key}.verified`, { values })}`;
+		return `${base} ${format(`${key}.unverified`, { values })}`;
 	}
 
 	function resetRelayHealth() {
@@ -228,16 +273,35 @@
 	}
 
 	/**
+	 * The technical view's status line: the step the start is at, by name.
+	 *
+	 * @param {Format} format
 	 * @param {boolean} complete
 	 * @param {StatusStep | undefined} step
 	 */
-	function getStatusLabel(complete, step) {
-		if (complete) return 'P2P network ready';
-		if (step?.label === 'Relay connected') return 'Connecting to relay';
-		if (step?.label === 'WebRTC connected') return 'Waiting for WebRTC connection';
-		if (step?.status === 'error') return `Failed to initialize ${step.label}`;
-		if (step) return `Initializing ${step.label}`;
-		return 'Preparing P2P network';
+	function technicalStatus(format, complete, step) {
+		if (complete) return format('network.status.ready');
+		if (step?.key === 'relayConnected') return format('network.status.connectingRelay');
+		if (step?.key === 'webrtcConnected') return format('network.status.waitingWebrtc');
+		if (!step) return format('network.status.preparing');
+		const values = { step: format(`network.step.${step.key}.label`) };
+		return step.status === 'error'
+			? format('network.status.failed', { values })
+			: format('network.status.initializing', { values });
+	}
+
+	/**
+	 * The simple view's status line: whether the app can be used, and how far it
+	 * reaches — no component names.
+	 *
+	 * @param {Format} format
+	 * @param {{ failed: boolean, initialized: boolean, relayConnected: boolean, webRTCConnected: boolean }} state
+	 */
+	function simpleStatus(format, { failed, initialized, relayConnected, webRTCConnected }) {
+		if (failed) return format('network.simple.failed');
+		if (!initialized) return format('network.simple.starting');
+		if (!relayConnected) return format('network.simple.connecting');
+		return webRTCConnected ? format('network.simple.direct') : format('network.simple.relay');
 	}
 
 	onDestroy(() => {
@@ -248,60 +312,66 @@
 
 <nav
 	class="mb-6 rounded-lg border border-border bg-surface px-4 py-3 shadow-sm"
-	aria-label="P2P initialization and connection status"
+	aria-label={$_('network.navLabel')}
 	data-testid="p2p-status-nav"
+	data-view={$technicalView ? 'technical' : 'simple'}
 >
 	<div class="mb-2 flex items-center gap-2 text-sm font-medium text-text" aria-live="polite">
-		{#if !allComplete}
+		{#if busy}
 			<span
 				class="h-3 w-3 animate-spin rounded-full border-2 border-border border-t-blue-600"
 				aria-hidden="true"
 				data-testid="p2p-status-spinner"
 			></span>
 		{/if}
-		<span>{statusLabel}</span>
+		<span data-testid="p2p-status-label">{statusLabel}</span>
 	</div>
 
-	<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
-		{#each allSteps as step}
-			<div
-				class="flex cursor-help items-center gap-2 text-xs whitespace-nowrap text-faint outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
-				aria-label={`${step.label}: ${step.description}`}
-				data-testid="p2p-status-step"
-				data-status={step.status}
-				role="button"
-				tabindex="0"
-				on:mouseenter={() => (tooltipStep = step)}
-				on:mouseleave={() => (tooltipStep = null)}
-				on:focus={() => (tooltipStep = step)}
-				on:blur={() => (tooltipStep = null)}
-			>
-				<span
-					class:animate-pulse={step.status === 'active'}
-					class:bg-cyan-500={step.status === 'active'}
-					class:bg-identity-500={step.status === 'complete'}
-					class:bg-danger-500={step.status === 'error'}
-					class:bg-surface-2={step.status === 'pending'}
-					class="h-2 w-2 rounded-full shadow-sm"
-					aria-hidden="true"
-				></span>
-				<span class:text-text={step.status === 'active'}>{step.label}</span>
-			</div>
-		{/each}
-	</div>
-
-	{#if tooltipStep}
-		<div
-			class="mt-3 rounded-md border border-border bg-code px-3 py-2 text-xs leading-relaxed text-white shadow-lg"
-			role="tooltip"
-			data-testid="p2p-status-tooltip"
-		>
-			<span class="font-semibold">{tooltipStep.label}:</span>
-			{tooltipStep.description}
+	{#if $technicalView}
+		<div class="flex flex-wrap items-center gap-x-5 gap-y-2">
+			{#each allSteps as step (step.key)}
+				<div
+					class="flex cursor-help items-center gap-2 text-xs whitespace-nowrap text-faint outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
+					aria-label={`${stepTexts[step.key]?.label}: ${stepTexts[step.key]?.description}`}
+					data-testid="p2p-status-step"
+					data-step={step.key}
+					data-status={step.status}
+					role="button"
+					tabindex="0"
+					on:mouseenter={() => (tooltipStep = step)}
+					on:mouseleave={() => (tooltipStep = null)}
+					on:focus={() => (tooltipStep = step)}
+					on:blur={() => (tooltipStep = null)}
+				>
+					<span
+						class:animate-pulse={step.status === 'active'}
+						class:bg-cyan-500={step.status === 'active'}
+						class:bg-identity-500={step.status === 'complete'}
+						class:bg-danger-500={step.status === 'error'}
+						class:bg-surface-2={step.status === 'pending'}
+						class="h-2 w-2 rounded-full shadow-sm"
+						aria-hidden="true"
+					></span>
+					<span class:text-text={step.status === 'active'}>{stepTexts[step.key]?.label}</span>
+				</div>
+			{/each}
 		</div>
+
+		{#if tooltipStep}
+			<div
+				class="mt-3 rounded-md border border-border bg-code px-3 py-2 text-xs leading-relaxed text-white shadow-lg"
+				role="tooltip"
+				data-testid="p2p-status-tooltip"
+			>
+				<span class="font-semibold">{stepTexts[tooltipStep.key]?.label}:</span>
+				{stepTexts[tooltipStep.key]?.description}
+			</div>
+		{/if}
 	{/if}
 
-	{#if $$slots.default}
+	<!-- Peer count, peer ID, manual relay connect, connected peers and multiaddrs:
+	     the technical view's, and not rendered at all in the simple one. -->
+	{#if $technicalView && $$slots.default}
 		<details class="group mt-3 border-t border-border pt-2" data-testid="network-details">
 			<summary
 				class="flex cursor-pointer list-none items-center gap-2 rounded px-1 py-1 text-xs font-medium text-text outline-none hover:text-heading focus-visible:ring-2 focus-visible:ring-cyan-500 [&::-webkit-details-marker]:hidden"
@@ -318,9 +388,9 @@
 						clip-rule="evenodd"
 					/>
 				</svg>
-				<span>Network details</span>
+				<span>{$_('network.details')}</span>
 				<span class="font-normal text-faint"
-					>· {connectedPeerCount} {connectedPeerCount === 1 ? 'peer' : 'peers'}</span
+					>· {$_('network.peerCount', { values: { count: connectedPeerCount } })}</span
 				>
 				{#if peerId}
 					<code class="hidden font-mono font-normal text-faint sm:inline"

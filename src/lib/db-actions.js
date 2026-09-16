@@ -12,6 +12,7 @@ import { confirmDelegatedWrite } from './delegated-write-auth.js';
 import { rememberList, listRegistryStore, openListRegistry } from './list-registry.js';
 import { relayHttpStatusStore } from './relay-status.js';
 import { createLogStorages } from './storage-mode.js';
+import { translate } from './i18n/index.js';
 
 /**
  * @typedef {{
@@ -191,15 +192,15 @@ export async function loadTodoDatabase(address) {
 	const normalizedAddress = address.trim();
 
 	if (!orbitdb) {
-		throw new Error('OrbitDB is not initialized yet.');
+		throw new Error(translate('errors.orbitdbNotReady'));
 	}
 
 	if (!normalizedAddress) {
-		throw new Error('Enter an OrbitDB database address.');
+		throw new Error(translate('errors.enterAddress'));
 	}
 
 	if (!normalizedAddress.startsWith('/orbitdb/')) {
-		throw new Error('The database address must start with "/orbitdb/".');
+		throw new Error(translate('errors.addressPrefix'));
 	}
 
 	try {
@@ -238,7 +239,9 @@ export async function loadTodoDatabase(address) {
 		};
 	} catch (error) {
 		throw new Error(
-			`Failed to load Todo DB: ${error instanceof Error ? error.message : String(error)}`
+			translate('errors.loadFailed', {
+				reason: error instanceof Error ? error.message : String(error)
+			})
 		);
 	}
 }
@@ -258,7 +261,7 @@ export async function loadTodoDatabase(address) {
  */
 export async function createPrivateTodoList(name = 'private-todos') {
 	const orbitdb = get(orbitdbStore);
-	if (!orbitdb) throw new Error('OrbitDB is not initialized yet.');
+	if (!orbitdb) throw new Error(translate('errors.orbitdbNotReady'));
 
 	const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 	const dbName = `${name.trim() || 'private-todos'}-${suffix}`;
@@ -530,23 +533,20 @@ export async function addTodo(text, assignee = null, delegation = null, extra = 
 
 	if (!todoDB || !myPeerId) {
 		console.error('❌ Database or peer ID not available');
-		return { ok: false, error: 'Database is not ready yet.' };
+		return { ok: false, error: translate('errors.databaseNotReady') };
 	}
 
 	if (!text || text.trim() === '') {
 		console.error('❌ Todo text cannot be empty');
-		return { ok: false, error: 'Todo text cannot be empty.' };
+		return { ok: false, error: translate('errors.emptyText') };
 	}
 
 	if (delegation?.delegateDid?.trim() && !supportsDelegation(todoDB)) {
-		return {
-			ok: false,
-			error: 'This list does not support delegation. Create a private list to delegate todos.'
-		};
+		return { ok: false, error: translate('errors.listCannotDelegate') };
 	}
 
 	if (extra.budget && !buildDelegation(delegation, myIdentityId)) {
-		return { ok: false, error: 'A budget needs a delegate to pay.' };
+		return { ok: false, error: translate('errors.budgetNeedsDelegate') };
 	}
 
 	try {
@@ -580,8 +580,8 @@ export async function addTodo(text, assignee = null, delegation = null, extra = 
 		return {
 			ok: false,
 			error: denied
-				? 'Your identity has no write permission for this list. Ask the owner to add your DID.'
-				: `Failed to add todo: ${message}`
+				? translate('errors.noWritePermission')
+				: translate('errors.addFailed', { reason: message })
 		};
 	}
 }
@@ -765,9 +765,9 @@ function roleFor(todoData, identityId) {
  */
 async function readTodoForWrite(todoKey) {
 	const todoDB = get(todoDBStore);
-	if (!todoDB) return { error: 'Database is not ready yet.' };
+	if (!todoDB) return { error: translate('errors.databaseNotReady') };
 	const existing = await todoDB.get(todoKey);
-	if (!existing) return { error: 'Todo not found.' };
+	if (!existing) return { error: translate('errors.todoNotFound') };
 	return { todoDB, todoData: unwrapTodoValue(existing) };
 }
 
@@ -785,7 +785,7 @@ async function readTodoForWrite(todoKey) {
 async function writeDelegationAction(todoDB, todoKey, todoData, delegateDid, change) {
 	const actionName = 'setCompleted' in change ? 'set-completed' : 'patch-fields';
 	if (!(await confirmDelegatedWrite(actionName))) {
-		return { ok: false, error: 'Passkey confirmation was cancelled; nothing was written.' };
+		return { ok: false, error: translate('errors.passkeyCancelled') };
 	}
 	const key = buildDelegationActionKey(todoKey, delegateDid);
 	const action = buildDelegationAction(
@@ -799,7 +799,8 @@ async function writeDelegationAction(todoDB, todoKey, todoData, delegateDid, cha
 	return { ok: true };
 }
 
-const NOT_ALLOWED = 'Only the owner of this todo, or the DID it was delegated to, can change it.';
+/** Read when a write is refused, so it is in the language on screen at that moment. */
+const notAllowed = () => translate('errors.notAllowed');
 
 // Toggle todo completion status
 /**
@@ -813,7 +814,7 @@ export async function toggleTodoComplete(todoKey) {
 		const { todoDB, todoData } = read;
 		const myIdentityId = get(ownIdentityIdStore);
 		const role = roleFor(todoData, myIdentityId);
-		if (role === 'none') return { ok: false, error: NOT_ALLOWED };
+		if (role === 'none') return { ok: false, error: notAllowed() };
 
 		// Toggle what is on screen: the todo with its delegate's actions folded
 		// in. The entry alone still says "open" after a delegate completed it, so
@@ -843,7 +844,10 @@ export async function toggleTodoComplete(todoKey) {
 	} catch (error) {
 		console.error('❌ Error toggling todo:', error);
 		const { denied, message } = describeWriteError(error);
-		return { ok: false, error: denied ? NOT_ALLOWED : `Failed to update todo: ${message}` };
+		return {
+			ok: false,
+			error: denied ? notAllowed() : translate('errors.updateFailed', { reason: message })
+		};
 	}
 }
 
@@ -857,14 +861,14 @@ export async function toggleTodoComplete(todoKey) {
  */
 export async function updateTodoText(todoKey, text) {
 	const nextText = text.trim();
-	if (!nextText) return { ok: false, error: 'Todo text cannot be empty.' };
+	if (!nextText) return { ok: false, error: translate('errors.emptyText') };
 	try {
 		const read = await readTodoForWrite(todoKey);
 		if ('error' in read) return { ok: false, error: read.error };
 		const { todoDB, todoData } = read;
 		const myIdentityId = get(ownIdentityIdStore);
 		const role = roleFor(todoData, myIdentityId);
-		if (role === 'none') return { ok: false, error: NOT_ALLOWED };
+		if (role === 'none') return { ok: false, error: notAllowed() };
 
 		if (role === 'delegate' && myIdentityId) {
 			return writeDelegationAction(todoDB, todoKey, todoData, myIdentityId, {
@@ -879,7 +883,10 @@ export async function updateTodoText(todoKey, text) {
 	} catch (error) {
 		console.error('❌ Error renaming todo:', error);
 		const { denied, message } = describeWriteError(error);
-		return { ok: false, error: denied ? NOT_ALLOWED : `Failed to rename todo: ${message}` };
+		return {
+			ok: false,
+			error: denied ? notAllowed() : translate('errors.renameFailed', { reason: message })
+		};
 	}
 }
 
@@ -893,20 +900,22 @@ export async function updateTodoText(todoKey, text) {
  * @returns {Promise<{ ok: boolean, error?: string }>}
  */
 export async function delegateTodo(todoKey, request) {
-	if (!request?.delegateDid?.trim()) return { ok: false, error: 'Enter the DID to delegate to.' };
+	if (!request?.delegateDid?.trim()) {
+		return { ok: false, error: translate('errors.enterDelegateDid') };
+	}
 	try {
 		const read = await readTodoForWrite(todoKey);
 		if ('error' in read) return { ok: false, error: read.error };
 		const { todoDB, todoData } = read;
 		if (!supportsDelegation(todoDB)) {
-			return { ok: false, error: 'This list does not support delegation.' };
+			return { ok: false, error: translate('errors.noDelegation') };
 		}
 		const myIdentityId = get(ownIdentityIdStore);
 		if (roleFor(todoData, myIdentityId) !== 'owner') {
-			return { ok: false, error: 'Only the owner of a todo can delegate it.' };
+			return { ok: false, error: translate('errors.onlyOwnerDelegates') };
 		}
 		if (request.delegateDid.trim() === myIdentityId) {
-			return { ok: false, error: 'You already own this todo; delegate it to someone else.' };
+			return { ok: false, error: translate('errors.alreadyOwner') };
 		}
 		const updatedTodo = {
 			...todoData,
@@ -920,7 +929,7 @@ export async function delegateTodo(todoKey, request) {
 	} catch (error) {
 		console.error('❌ Error delegating todo:', error);
 		const { message } = describeWriteError(error);
-		return { ok: false, error: `Failed to delegate todo: ${message}` };
+		return { ok: false, error: translate('errors.delegateFailed', { reason: message }) };
 	}
 }
 
@@ -947,7 +956,7 @@ export async function setTodoBudget(todoKey, budget, { acceptCompletion = false 
 	const { todoDB, todoData } = read;
 	const myIdentityId = get(ownIdentityIdStore);
 	if (!todoData.createdByIdentity || todoData.createdByIdentity !== myIdentityId) {
-		throw new Error('Only the owner of a todo can change its budget.');
+		throw new Error(translate('errors.onlyOwnerBudget'));
 	}
 	const updatedTodo = acceptCompletion
 		? { ...todoData, budget, completed: true, updatedAt: new Date().toISOString() }
@@ -971,11 +980,11 @@ export async function revokeTodoDelegation(todoKey) {
 		if ('error' in read) return { ok: false, error: read.error };
 		const { todoDB, todoData } = read;
 		if (!todoData.delegation?.delegateDid) {
-			return { ok: false, error: 'This todo is not delegated.' };
+			return { ok: false, error: translate('errors.notDelegated') };
 		}
 		const myIdentityId = get(ownIdentityIdStore);
 		if (roleFor(todoData, myIdentityId) !== 'owner') {
-			return { ok: false, error: 'Only the owner of a todo can revoke its delegation.' };
+			return { ok: false, error: translate('errors.onlyOwnerRevokes') };
 		}
 		const now = new Date().toISOString();
 		const updatedTodo = {
@@ -990,7 +999,7 @@ export async function revokeTodoDelegation(todoKey) {
 	} catch (error) {
 		console.error('❌ Error revoking delegation:', error);
 		const { message } = describeWriteError(error);
-		return { ok: false, error: `Failed to revoke delegation: ${message}` };
+		return { ok: false, error: translate('errors.revokeFailed', { reason: message }) };
 	}
 }
 

@@ -1,13 +1,20 @@
 <script>
+	import { _ } from '$lib/i18n/index.js';
 	import { formatPeerId } from './utils.js';
 
 	/** @type {string | null | undefined} */
 	export let peerId = null;
-	export let title = 'My Peer ID';
-	export let description = 'Share this ID with others to assign TODOs to you.';
-	export let loadingMessage = 'Loading...';
+	// The three texts default to the catalogue's wording in the language on screen.
+	/** @type {string | null} */
+	export let title = null;
+	/** @type {string | null} */
+	export let description = null;
+	/** @type {string | null} */
+	export let loadingMessage = null;
 	export let copyable = true;
 	export let compact = false;
+
+	$: shownDescription = description ?? $_('network.peerId.description');
 
 	let copied = false;
 
@@ -54,16 +61,35 @@
 	}
 </script>
 
-<div class:rounded-lg={!compact} class:bg-surface={!compact} class:p-6={!compact} class:shadow-md={!compact}>
-	<h2 class:mb-4={!compact} class:mb-2={compact} class:text-xl={!compact} class:text-sm={compact} class="font-semibold">{title}</h2>
+<div
+	class:rounded-lg={!compact}
+	class:bg-surface={!compact}
+	class:p-6={!compact}
+	class:shadow-md={!compact}
+>
+	<h2
+		class:mb-4={!compact}
+		class:mb-2={compact}
+		class:text-xl={!compact}
+		class:text-sm={compact}
+		class="font-semibold"
+	>
+		{title ?? $_('network.peerId.title')}
+	</h2>
 	{#if peerId}
-		<div class="relative rounded-md bg-cyan-50 dark:bg-cyan/10" class:p-3={!compact} class:p-2={compact}>
-			<code class="block truncate pr-7 font-mono text-xs select-all" title={peerId}>{formatPeerId(peerId)}</code>
+		<div
+			class="relative rounded-md bg-cyan-50 dark:bg-cyan/10"
+			class:p-3={!compact}
+			class:p-2={compact}
+		>
+			<code class="block truncate pr-7 font-mono text-xs select-all" title={peerId}
+				>{formatPeerId(peerId)}</code
+			>
 			{#if copyable}
 				<button
 					on:click={copyToClipboard}
 					class="absolute top-2 right-2 rounded p-1 transition-colors hover:bg-cyan-200 dark:hover:bg-cyan/20"
-					title={copied ? 'Copied!' : 'Copy to clipboard'}
+					title={copied ? $_('network.copy.copied') : $_('network.copy.title')}
 				>
 					{#if copied}
 						<svg
@@ -80,12 +106,7 @@
 							></path>
 						</svg>
 					{:else}
-						<svg
-							class="h-4 w-4 text-text"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
+						<svg class="h-4 w-4 text-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path
 								stroke-linecap="round"
 								stroke-linejoin="round"
@@ -97,13 +118,15 @@
 				</button>
 			{/if}
 		</div>
-		{#if description && !compact}
-			<p class="mt-2 text-sm text-text">{description}</p>
+		{#if shownDescription && !compact}
+			<p class="mt-2 text-sm text-text">{shownDescription}</p>
 		{/if}
 		{#if copied}
-			<p class="mt-1 text-sm font-medium text-identity-600">Copied to clipboard!</p>
+			<p class="mt-1 text-sm font-medium text-identity-600">
+				{$_('network.copy.copiedToClipboard')}
+			</p>
 		{/if}
 	{:else}
-		<p class="text-faint">{loadingMessage}</p>
+		<p class="text-faint">{loadingMessage ?? $_('network.peerId.loading')}</p>
 	{/if}
 </div>

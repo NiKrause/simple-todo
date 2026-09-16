@@ -59,7 +59,8 @@
 				{#if typeof error === 'string'}
 					{error}
 				{:else}
-					Error: {error}
+					{$_('alert.errorPrefix')}
+					{error}
 				{/if}
 			</div>
 			{#if $$slots.actions}
