@@ -268,6 +268,10 @@ escrow's token to be cUSDTMock. Every relayer call, encryption or decryption, ge
 not retried. Each step prints `ok`, `FAILED` or `skipped` as it runs. The run ends with a table of
 step, result, time, relayer attempts and Etherscan link, and exits with 1 if any step failed.
 
+Every step of both modes, explained simply and technically with the transactions of the full run of
+2026-09-16, is in [docs/smoke-test.md](../docs/smoke-test.md). What the test does not cover, whom the
+escrow trusts and what is still open is in [docs/security.md](../docs/security.md).
+
 #### Dry run
 
 ```sh
@@ -335,6 +339,37 @@ answered at once, then `spent ... ETH in N transactions; the creator went from .
 cUSDTMock with up to 6 decimals, and `SMOKE_DEBUG=1` adds the SDK's diagnostics and `@fhevm/sdk`'s
 trace of every relayer request.
 
+#### Full run of 2026-09-16
+
+Creator and auditor `0xd81Ad65eF9DdBC6Cf1A81FF2EF21B372EFBf4621`, beneficiary
+`0x3e715fAc356AcB5b7A7383e6cbde865bCeF596BB` (made for the run), `SMOKE_AMOUNT` 1, no `SMOKE_REFUND`,
+`@zama-fhe/sdk` 3.6.0 on `@fhevm/sdk` 0.13.2. The creator's cUSDTMock balance handle was still zero,
+so the script read it as 0.0 (never funded) without a relayer request, and step 1 minted, approved and
+wrapped. Times are the script's step times, including the wait for one confirmation, or two before a
+decryption; gas is from the receipts.
+
+| Step | Time | Transaction | Gas |
+| --- | ---: | --- | ---: |
+| mint 1.0 USDTMock | 8.4 s | [`0xe9e177db…`](https://sepolia.etherscan.io/tx/0xe9e177db627ff3d769af661b5724ac2777d57883803e1c7bcd3a1a2af2b1288c) | 51,760 |
+| approve | 12.5 s | [`0x41630980…`](https://sepolia.etherscan.io/tx/0x416309800691580524f8d9a2bbe2130c31651e1939a1cb258b0f520c1ac15d79) | 46,600 |
+| wrap into 1.0 cUSDTMock | 24.8 s | [`0x567d87cb…`](https://sepolia.etherscan.io/tx/0x567d87cb57e9b868db726e61f1924c8c227fcba10356b3b95150a0428a9186de) | 367,250 |
+| `setOperator(escrow, now + 1 h)` | 24.9 s | [`0x79a1a622…`](https://sepolia.etherscan.io/tx/0x79a1a622a864129daa23d887d9c56fee578066222065dab6514c5cbe830c4b51) | 51,129 |
+| encrypt 1.0 | 9.6 s | – | – |
+| lock, 2 confirmations | 37.0 s | [`0x04259275…`](https://sepolia.etherscan.io/tx/0x04259275f7a6b3a669e196ae6f16bfc9679bee932a3114fdc2507417cc116065), block 11717341 | 682,630 |
+| decrypt the amount as creator | 2.8 s | – | – |
+| decrypt the amount as beneficiary | 2.3 s | – | – |
+| encrypt uint64 max | 4.5 s | – | – |
+| lock uint64 max (underfunded) | | [`0xfbe2cd1e…`](https://sepolia.etherscan.io/tx/0xfbe2cd1ed19e4f0c11fd00d5fbcdb80d848b46f700c307656f88879649aeded6), block 11717345 | 657,529 |
+| release | | [`0xd9d123e6…`](https://sepolia.etherscan.io/tx/0xd9d123e6f75de8415e88dd0b7343c1b7656c33e797b67ac0fa0f89759d65022c), block 11717348 | 412,902 |
+
+Both decryptions returned 1.0 cUSDTMock, and every relayer step took less than the 10 s a retry waits,
+so each succeeded on its first attempt. `escrowOf` showed `Locked` after both locks, with amount handle
+`0x506d80703a79c87b91a050038fb7baf8bb1e70c1e4ff0000000000aa36a70500` for the first. The recorded output
+ends after `escrowOf` of the underfunded lock; its decryption to 0 and the beneficiary's balance after the
+release are not in it. On chain, `escrowOf` shows `Released` for the first `todoRef` and the
+beneficiary's balance handle is non-zero. The seven transactions used 2,269,800 gas and cost
+0.002420484746174163 ETH at 1.006 to 1.115 gwei: the creator went from 2.247756 to 2.245336 ETH.
+
 #### Cost
 
 - The dry run costs nothing.
@@ -345,6 +380,9 @@ trace of every relayer request.
   52 k each (as mined on Sepolia); release and refund take 0.35 and 0.33 M in the FHEVM mock, which
   prices a lock at 0.53 M. At the 1 to 2 gwei of 2026-09-16 a run costs 0.002 to 0.007 ETH, and prints
   what it paid.
+- Measured in the full run of 2026-09-16, with wrapping: 2,269,800 gas and 0.00242 ETH for 7
+  transactions. A lock used 682,630 gas (657,529 for the underfunded one), a release 412,902, a wrap
+  367,250, and mint, approve and `setOperator` 46,600 to 51,760.
 - The `SMOKE_AMOUNT` each run releases stays with a beneficiary whose key is gone, and the
   underfunded lock stays `Locked` over an encrypted 0.
 
@@ -352,9 +390,10 @@ trace of every relayer request.
 
 - **`Relayer API error [internal_server_error]: Transaction simulation failed: Execution reverted`**
   (HTTP 500 from `/v2/user-decrypt`): in the incident of 2026-08-31 to 2026-09-01, handles created
-  after it began would not decrypt, while older ones did. Zama traced it to stale RPC data in part of
-  the relayer ([community.zama.org/t/4643](https://community.zama.org/t/4643)). The script waits two
-  confirmations and retries; when all attempts fail, rerun later before suspecting the escrow.
+  after it began would not decrypt, while older ones did. Zama's first analysis pointed to stale RPC
+  data in part of the relayer ([community.zama.org/t/4643](https://community.zama.org/t/4643)). The
+  script waits two confirmations and retries; when all attempts fail, rerun later before suspecting the
+  escrow.
 - **`Gao decoding failure: Allowed at most 0 errors ... n=13, deg=4, #shares=9`**: the client got the
   9-share quorum of the 13 KMS nodes, one share was inconsistent, and the value could not be
   reconstructed ([community.zama.org/t/4653](https://community.zama.org/t/4653), also in t/4643).

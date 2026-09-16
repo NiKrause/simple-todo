@@ -5,17 +5,63 @@
 
 A basic decentralized, local-first, peer-to-peer todo application built with **libp2p**, **IPFS**, and **OrbitDB**. This app demonstrates how modern Web3 technologies can create truly decentralized applications that work entirely in the browser.
 
-> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `passkey01`, `acl01`, `privacy01`, `delegation01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `delegation01` chapter (per-todo delegation, built on `acl01` via `privacy01`).
+> 📚 **This repository is a tutorial.** Its branches — `main`, `collab01`, `passkey01`, `acl01`, `privacy01`, `delegation01`, `escrow01` — are chapters that build the app up step by step, so they are kept separate rather than merged into one another. This is the `escrow01` chapter (a confidential escrow for a delegated todo's budget, built on `delegation01`).
 
 ## 🚀 Live Demo
 
-- **This chapter (delegation01)**: https://delegation01.le-space.de
-- **Previous chapter (acl01)**: https://acl01.le-space.de
+- **This chapter (escrow01)**: not deployed; run it locally, see [Try it](#try-it)
+- **Previous chapter (delegation01)**: https://delegation01.le-space.de
+- **acl01**: https://acl01.le-space.de
 - **Main app**: https://simple-todo.le-space.de
 
 The custom-domain links track the current deployment of each branch.
 
-## 🤝 This Chapter: Per-Todo Delegation (`delegation01`)
+## This Chapter: Confidential Escrow (`escrow01`)
+
+Built on `delegation01`. A delegated todo can carry a budget: the owner locks an amount of a
+confidential token for the delegate, releases it when the todo is done, or takes it back after a
+deadline. The amount is encrypted with Zama's FHEVM, so the chain shows who locked money for whom and
+when, but not how much. The owner, the delegate and one auditor fixed in the contract can decrypt it;
+the exceptions and the trust in Zama's key holders are in [docs/security.md](docs/security.md). This is
+the escrow half of [de2do](https://github.com/NiKrause/de2do).
+
+- **The contract is live.** [`ConfidentialTodoEscrow`](contracts/src/ConfidentialTodoEscrow.sol) accepts
+  one ERC-7984 confidential token (Zama's cUSDTMock on Sepolia) and keeps each escrow under its creator
+  and a salted `todoRef`. It is deployed on Sepolia at
+  [`0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`](https://sepolia.etherscan.io/address/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429#code)
+  and verified on Etherscan, Sourcify and Blockscout. A smoke test locked, decrypted and released a
+  real amount there on 2026-09-16.
+- **The app's budgets are not on the chain yet.** Adding a delegated todo can lock a budget, the owner
+  releases it once the delegate is done, the delegate is told about the payout, and an auditor view
+  lists all escrows. All of this runs against an in-memory fake that encrypts nothing and forgets its
+  escrows on reload; the header says "Demo without a chain". The Zama service with a passkey wallet
+  is planned.
+- **OrbitDB stores no amounts.** A todo's `budget` field holds status, token, escrow, `todoRef`,
+  transaction hashes and the last error. The chain is the source of truth for what is locked.
+
+### Try it
+
+1. The app: on branch `escrow01`, `pnpm install` and `pnpm dev`. Create a passkey, create a private
+   list, and add a todo delegated to another DID with a budget. Tick it as the delegate, release it as
+   the owner, and open **Auditor view** in the header. With the fake, amounts are readable only in the
+   browser tab that locked them.
+2. The contract: `cd contracts && npm ci && npm test` runs 16 tests in FHEVM mock mode.
+   `npm run smoke:sepolia:dry` checks the Sepolia deployment through Zama's relayer and needs only an
+   RPC URL ([runbook](contracts/README.md#sepolia-runbook)).
+
+### Read more
+
+- [docs/escrow.md](docs/escrow.md): roles, lifecycle, `todoRef`, what is public and what is encrypted
+- [docs/zama-confidential-transactions.md](docs/zama-confidential-transactions.md): Zama's protocol as
+  used here, from handles to threshold decryption
+- [docs/smoke-test.md](docs/smoke-test.md): the Sepolia run of 2026-09-16, step by step
+- [docs/security.md](docs/security.md): threat model, leaks, trust assumptions, open issues
+- [docs/demo.de.md](docs/demo.de.md) ([English](docs/demo.md)): the bank demo
+- [contracts/README.md](contracts/README.md): toolchain, deployment, verification, smoke test
+
+German versions of the docs sit next to them as `*.de.md`.
+
+## 🤝 Per-Todo Delegation (from `delegation01`)
 
 Built on `acl01`. A private list is still owner-only — but the owner can now
 hand **one todo** to another DID. That delegate may complete or rename
@@ -255,7 +301,7 @@ This branch extends the basic `main` tutorial with a three-word Spanish shared-l
 5. **Wait for Connection** - The app will automatically discover and connect peers
 6. **Add Todos** - Create todos in one browser and watch them appear in the other
 
-### Try this chapter (per-todo delegation)
+### Try the delegation01 chapter (per-todo delegation)
 
 You need three passkeys — three browsers, or three profiles of one:
 
@@ -276,7 +322,7 @@ You need three passkeys — three browsers, or three profiles of one:
 `pnpm exec playwright test e2e/delegation.spec.js` runs this with three
 virtual authenticators.
 
-### Try the previous chapter (per-DID write permissions)
+### Try the acl01 chapter (per-DID write permissions)
 
 The mnemonic list above stays public. To exercise access control, create a
 **private list** and share it by address:
