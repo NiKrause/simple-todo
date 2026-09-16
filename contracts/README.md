@@ -181,12 +181,13 @@ cUSDTMock, `0x4E7B06D78965594eB5EF5414c357ca21E1554491` (6 decimals, rate 1, ove
 | Deployed | 2026-09-16, block 11716748, [transaction](https://sepolia.etherscan.io/tx/0xaa01bc53d37c2fdb970ce663c004f58bb5b9ae90571979c24acdfbf3d81cbd60), 950,017 gas |
 | Token | cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491` |
 | Auditor | `0xd81Ad65eF9DdBC6Cf1A81FF2EF21B372EFBf4621`, the deployer's own address, for now. Another auditor means another deployment. |
+| Source | Verified on [Sourcify](https://repo.sourcify.dev/11155111/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429) and shown as verified on [Blockscout](https://eth-sepolia.blockscout.com/address/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429?tab=contract). Not yet on Etherscan, which needs `ETHERSCAN_API_KEY` (see [Verify the source](#verify-the-source)). |
 
 Its runtime code matches this directory's build (solc 0.8.27) byte for byte outside the seven
-immutable slots, which hold the token (five) and the auditor (two). Its source is verified on
-[Sourcify](https://repo.sourcify.dev/11155111/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429): `match`
-for creation and runtime code. `exact_match` is out of reach, because the build sets
-`bytecodeHash: "none"` and the bytecode therefore carries no metadata hash to compare.
+immutable slots, which hold the token (five) and the auditor (two). Sourcify reports `match` for
+creation and runtime code. `exact_match` is out of reach, because the build sets
+`bytecodeHash: "none"` and the bytecode therefore carries no metadata hash to compare. Blockscout
+imported Sourcify's result without a separate submission.
 
 ### Verify the source
 
