@@ -1,0 +1,14 @@
+# Hardhat and the FHEVM plugin
+artifacts
+cache
+fhevmTemp
+types
+coverage
+coverage.json
+
+# This project installs with npm; a pnpm or yarn lockfile here is a mistake
+pnpm-lock.yaml
+yarn.lock
+
+# Deployment secrets
+.env
