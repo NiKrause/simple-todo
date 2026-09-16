@@ -183,8 +183,21 @@ cUSDTMock, `0x4E7B06D78965594eB5EF5414c357ca21E1554491` (6 decimals, rate 1, ove
 | Auditor | `0xd81Ad65eF9DdBC6Cf1A81FF2EF21B372EFBf4621`, the deployer's own address, for now. Another auditor means another deployment. |
 
 Its runtime code matches this directory's build (solc 0.8.27) byte for byte outside the seven
-immutable slots, which hold the token (five) and the auditor (two). Its source is not yet verified
-on a block explorer.
+immutable slots, which hold the token (five) and the auditor (two). Its source is verified on
+[Sourcify](https://repo.sourcify.dev/11155111/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429): `match`
+for creation and runtime code. `exact_match` is out of reach, because the build sets
+`bytecodeHash: "none"` and the bytecode therefore carries no metadata hash to compare.
+
+### Verify the source
+
+Both ways publish the source of this directory's build, so compile the commit that was deployed.
+
+- **Sourcify**, no key needed:
+  `ESCROW_ADDRESS=0x... ESCROW_DEPLOY_TX=0x... npm run verify:sourcify`.
+  [`scripts/verify-sourcify.ts`](scripts/verify-sourcify.ts) uses Sourcify's API v2 and signs nothing.
+- **Etherscan**, with `ETHERSCAN_API_KEY` in `.env`: the command the deployment prints,
+  `npx hardhat verify --network sepolia <escrow> <token> <auditor>`. Without the key, hardhat-verify
+  skips Etherscan.
 
 Before relying on a deployment:
 

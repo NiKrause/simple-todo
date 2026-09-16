@@ -12,7 +12,8 @@
     "test": "hardhat test",
     "typecheck": "hardhat compile && tsc --noEmit",
     "clean": "hardhat clean && rm -rf fhevmTemp types",
-    "deploy:sepolia": "hardhat run scripts/deploy-sepolia.ts --network sepolia"
+    "deploy:sepolia": "hardhat run scripts/deploy-sepolia.ts --network sepolia",
+    "verify:sourcify": "hardhat run scripts/verify-sourcify.ts --network sepolia"
   },
   "dependencies": {
     "@fhevm/solidity": "0.11.1",

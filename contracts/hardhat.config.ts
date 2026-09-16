@@ -25,7 +25,11 @@ const config: HardhatUserConfig = {
       accounts: deployerPrivateKey ? [deployerPrivateKey] : [],
     },
   },
+  // `npx hardhat verify` publishes the source to Etherscan, and only once ETHERSCAN_API_KEY is set.
+  // Sourcify goes through scripts/verify-sourcify.ts instead: hardhat-verify 2.1.3, its last release
+  // for Hardhat 2, still calls Sourcify endpoints that Sourcify has removed.
   etherscan: {
+    enabled: Boolean(process.env.ETHERSCAN_API_KEY),
     apiKey: process.env.ETHERSCAN_API_KEY ?? "",
   },
   sourcify: {
