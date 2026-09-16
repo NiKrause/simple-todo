@@ -1,3 +1,4 @@
+import "dotenv/config";
 import "@fhevm/hardhat-plugin";
 import "@nomicfoundation/hardhat-chai-matchers";
 import "@nomicfoundation/hardhat-ethers";
@@ -6,9 +7,10 @@ import "@typechain/hardhat";
 import type { HardhatUserConfig } from "hardhat/config";
 
 // Only a Sepolia deployment reads these (see scripts/deploy-sepolia.ts and
-// .env.example). Tests run on the in-process Hardhat network in FHEVM mock
-// mode and need none of them. They are not read from a .env file: export them
-// in the shell that runs the deployment.
+// .env.example), from contracts/.env, which git ignores, or from the shell,
+// which wins. So whoever holds the deployer key can put it in that file and
+// someone else can start the deployment without ever seeing it. Tests run on
+// the in-process Hardhat network in FHEVM mock mode and need none of them.
 const sepoliaRpcUrl = process.env.SEPOLIA_RPC_URL ?? "";
 const deployerPrivateKey = process.env.DEPLOYER_PRIVATE_KEY;
 

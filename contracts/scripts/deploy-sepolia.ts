@@ -1,10 +1,13 @@
 /**
  * Deploys ConfidentialTodoEscrow to Sepolia.
  *
- *   export SEPOLIA_RPC_URL=https://...        # any Sepolia JSON-RPC endpoint
- *   export DEPLOYER_PRIVATE_KEY=0x...         # a throwaway key holding a little Sepolia ETH
- *   export ESCROW_AUDITOR=0x...               # required: may decrypt every locked amount
- *   export ESCROW_TOKEN=0x...                 # optional: defaults to Zama's cUSDTMock
+ * Put these in contracts/.env (git ignores it; see .env.example) or export them in the shell:
+ *
+ *   SEPOLIA_RPC_URL=https://...        # any Sepolia JSON-RPC endpoint
+ *   DEPLOYER_PRIVATE_KEY=0x...         # a throwaway key holding a little Sepolia ETH
+ *   ESCROW_AUDITOR=0x...               # required: may decrypt every locked amount
+ *   ESCROW_TOKEN=0x...                 # optional: defaults to Zama's cUSDTMock
+ *
  *   npm run deploy:sepolia
  *
  * The auditor is fixed for the contract's lifetime. Changing it means deploying a new escrow.

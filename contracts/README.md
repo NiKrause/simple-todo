@@ -154,13 +154,18 @@ the root ESLint configuration matches no file in it.
 
 ## Deploy to Sepolia
 
+Copy `.env.example` to `.env` in this directory (git ignores it) and fill it in, or export the same
+variables in the shell, which wins:
+
 ```sh
-export SEPOLIA_RPC_URL=https://...
-export DEPLOYER_PRIVATE_KEY=0x...     # a throwaway key with a little Sepolia ETH
-export ESCROW_AUDITOR=0x...           # required, fixed for the contract's lifetime
-export ESCROW_TOKEN=0x...             # optional, defaults to cUSDTMock
-npm run deploy:sepolia
+SEPOLIA_RPC_URL=https://...
+DEPLOYER_PRIVATE_KEY=0x...     # a throwaway key with a little Sepolia ETH
+ESCROW_AUDITOR=0x...           # required, fixed for the contract's lifetime
+ESCROW_TOKEN=0x...             # optional, defaults to cUSDTMock
 ```
+
+Then run `npm run deploy:sepolia`. Because the key can live in that file, whoever holds it can fill
+it in and someone else can start the deployment without seeing it.
 
 [`scripts/deploy-sepolia.ts`](scripts/deploy-sepolia.ts) refuses any other network, checks that the
 token is a contract, estimates the deployment first so a non-ERC-7984 token or a zero auditor fails
