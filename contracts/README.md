@@ -169,7 +169,7 @@ it in and someone else can start the deployment without seeing it.
 
 [`scripts/deploy-sepolia.ts`](scripts/deploy-sepolia.ts) refuses any other network, checks that the
 token is a contract, estimates the deployment first so a non-ERC-7984 token or a zero auditor fails
-before any gas is spent, and prints the `hardhat verify` command. The default token is Zama's
+before any gas is spent, and prints the commands that verify the source. The default token is Zama's
 cUSDTMock, `0x4E7B06D78965594eB5EF5414c357ca21E1554491` (6 decimals, rate 1, over USDTMock
 `0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0`, whose `mint` anyone may call).
 
@@ -181,7 +181,7 @@ cUSDTMock, `0x4E7B06D78965594eB5EF5414c357ca21E1554491` (6 decimals, rate 1, ove
 | Deployed | 2026-09-16, block 11716748, [transaction](https://sepolia.etherscan.io/tx/0xaa01bc53d37c2fdb970ce663c004f58bb5b9ae90571979c24acdfbf3d81cbd60), 950,017 gas |
 | Token | cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491` |
 | Auditor | `0xd81Ad65eF9DdBC6Cf1A81FF2EF21B372EFBf4621`, the deployer's own address, for now. Another auditor means another deployment. |
-| Source | Verified on [Sourcify](https://repo.sourcify.dev/11155111/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429) and shown as verified on [Blockscout](https://eth-sepolia.blockscout.com/address/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429?tab=contract). Not yet on Etherscan, which needs `ETHERSCAN_API_KEY` (see [Verify the source](#verify-the-source)). |
+| Source | Verified on [Etherscan](https://sepolia.etherscan.io/address/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429#code) and [Sourcify](https://repo.sourcify.dev/11155111/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429), and shown as verified on [Blockscout](https://eth-sepolia.blockscout.com/address/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429?tab=contract) (2026-09-16, see [Verify the source](#verify-the-source)) |
 
 Its runtime code matches this directory's build (solc 0.8.27) byte for byte outside the seven
 immutable slots, which hold the token (five) and the auditor (two). Sourcify reports `match` for
@@ -191,14 +191,23 @@ imported Sourcify's result without a separate submission.
 
 ### Verify the source
 
-Both ways publish the source of this directory's build, so compile the commit that was deployed.
+Both scripts publish the source of this directory's build, so compile the commit that was deployed.
+Neither signs anything, and the deployment prints both commands with its address filled in.
 
 - **Sourcify**, no key needed:
   `ESCROW_ADDRESS=0x... ESCROW_DEPLOY_TX=0x... npm run verify:sourcify`.
-  [`scripts/verify-sourcify.ts`](scripts/verify-sourcify.ts) uses Sourcify's API v2 and signs nothing.
-- **Etherscan**, with `ETHERSCAN_API_KEY` in `.env`: the command the deployment prints,
-  `npx hardhat verify --network sepolia <escrow> <token> <auditor>`. Without the key, hardhat-verify
-  skips Etherscan.
+  [`scripts/verify-sourcify.ts`](scripts/verify-sourcify.ts) uses Sourcify's API v2. Blockscout picks
+  up the result from Sourcify.
+- **Etherscan**, with `ETHERSCAN_API_KEY` in `.env` (it is never printed):
+  `ESCROW_ADDRESS=0x... npx hardhat run scripts/verify-etherscan.ts --network sepolia`.
+  [`scripts/verify-etherscan.ts`](scripts/verify-etherscan.ts) submits the full standard JSON input and
+  reads the constructor arguments from the escrow.
+
+`npx hardhat verify` works for neither here. hardhat-verify 2.1.3, its last release for Hardhat 2,
+calls Sourcify endpoints that Sourcify has removed. On Etherscan it first submits a minimal input,
+the escrow and its imports only. Etherscan refused that for this deployment ("Compiled contract
+deployment bytecode does NOT match"), and hardhat-verify stopped there instead of retrying with the
+full input, which also holds the two mocks compiled in the same build.
 
 Before relying on a deployment:
 
