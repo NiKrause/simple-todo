@@ -120,8 +120,8 @@ prüft den Input-Proof selbst, der Token zieht den Betrag verschlüsselt ein, un
 Alice, Bob und der Prüfstelle eine dauerhafte ACL-Berechtigung auf den gesperrten Betrag. Beispiel aus
 dem Smoke-Test: Sperre in Block 11717341, 682.630 Gas, 21 Events, kein Betrag
 ([Etherscan](https://sepolia.etherscan.io/tx/0x04259275f7a6b3a669e196ae6f16bfc9679bee932a3114fdc2507417cc116065)).
-Dass die Freigabe des Operators und die Sperre in einem einzigen Passkey-Schritt hinausgehen, wie der
-App-Text sagt, gehört zur geplanten Wallet.
+Dass die Abbuchungserlaubnis für die Treuhand (Operator) und die Sperre in einem einzigen
+Passkey-Schritt hinausgehen, wie der App-Text sagt, gehört zur geplanten Wallet.
 
 ### Szene 4 · Bob erledigt
 
@@ -209,19 +209,21 @@ Handle, Nutzeradresse und Transport-Schlüssel.
 **Zeigen.** Mit der Attrappe:
 
 - **Zu wenig Guthaben.** Die Attrappe schreibt jedem Konto bei der ersten Sperre 1.000,00 cUSDT gut.
-  Nach 500,00 aus Szene 2 ein Budget über 600,00 sperren: „Budget nicht gesperrt. Ihr vertrauliches
-  Guthaben reichte nicht. Es wurde nichts überwiesen.“
+  Nach 500,00 aus Szene 2 ein Budget über 600,00 sperren: „Budget nicht gedeckt. Ihr vertrauliches
+  Guthaben reichte nicht. Die Sperre ging trotzdem durch: Die Gebühr ist bezahlt, und überwiesen wurde
+  eine verschlüsselte 0.“ Die Zeile der Aufgabe zeigt dazu „ungedeckt“.
 - **Lesezugriff abgelaufen.** In der Konsole `simpleTodoBudgetDemo.expireReadKey()` ausführen:
   „Lesezugriff abgelaufen.“ mit „Mit Passkey verlängern“.
 - **Passkey abgebrochen.** Die Passkey-Abfrage abbrechen: „Passkey-Bestätigung abgebrochen. Es wurde
-  nichts gesendet.“
+  nichts signiert und nichts gesendet.“
 
 **Einfach.** „Wenn etwas schiefgeht, sagt die App in einem Satz, was passiert ist und was zu tun ist.“
 
 **Für Fachleute.** Auf der Chain geht eine ungedeckte Sperre durch und hält eine verschlüsselte 0; im
-Smoke-Test Block 11717345. Die App-Meldung „Es wurde nichts überwiesen“ vereinfacht: Die Transaktion
-wurde ausgeführt, Gas wurde bezahlt und überwiesen wurde eine verschlüsselte 0. Deshalb liest der
-geplante Dienst den gesperrten Betrag nach jeder Sperre zurück.
+Smoke-Test Block 11717345. Genau das sagt auch die App-Meldung: Die Transaktion wurde ausgeführt, Gas
+wurde bezahlt und überwiesen wurde eine verschlüsselte 0. Von außen ist eine ungedeckte Sperre nicht
+von einer gedeckten zu unterscheiden. Deshalb liest der geplante Dienst den gesperrten Betrag nach
+jeder Sperre zurück.
 
 ## Fragen von Fachleuten
 

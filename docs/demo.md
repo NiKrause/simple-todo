@@ -117,8 +117,8 @@ checks the input proof itself, the token pulls the amount encrypted, and the esc
 and the auditor a persistent ACL permission on the locked amount. Example from the smoke test: lock in
 block 11717341, 682,630 gas, 21 events, no amount
 ([Etherscan](https://sepolia.etherscan.io/tx/0x04259275f7a6b3a669e196ae6f16bfc9679bee932a3114fdc2507417cc116065)).
-That the operator approval and the lock go out in a single passkey step, as the app's text says, is
-part of the planned wallet.
+That the escrow's permission to take the amount (the operator approval) and the lock go out in a
+single passkey step, as the app's text says, is part of the planned wallet.
 
 ### Scene 4 · Bob is done
 
@@ -203,20 +203,23 @@ and name the handle, the user address and the transport key there.
 **Show.** With the fake:
 
 - **Balance too low.** The fake credits every account 1.000,00 cUSDT at its first lock. After the
-  500,00 from scene 2, lock a budget of 600,00: "Budget nicht gesperrt. Ihr vertrauliches Guthaben
-  reichte nicht. Es wurde nichts überwiesen." ("Budget not locked. Your confidential balance was not
-  enough. Nothing was transferred.")
+  500,00 from scene 2, lock a budget of 600,00: "Budget nicht gedeckt. Ihr vertrauliches Guthaben
+  reichte nicht. Die Sperre ging trotzdem durch: Die Gebühr ist bezahlt, und überwiesen wurde eine
+  verschlüsselte 0." ("Budget not funded. Your confidential balance was not enough. The lock still
+  went through: the fee was paid, and an encrypted 0 was transferred.") The todo's row shows
+  "ungedeckt" ("not funded").
 - **Read access expired.** Run `simpleTodoBudgetDemo.expireReadKey()` in the console: "Lesezugriff
   abgelaufen." ("Read access expired.") with "Mit Passkey verlängern" ("Renew with passkey").
 - **Passkey cancelled.** Cancel the passkey prompt: "Passkey-Bestätigung abgebrochen. Es wurde nichts
-  gesendet." ("Passkey confirmation cancelled. Nothing was sent.")
+  signiert und nichts gesendet." ("Passkey confirmation cancelled. Nothing was signed and nothing was
+  sent.")
 
 **Simple.** "When something goes wrong, the app says in one sentence what happened and what to do."
 
 **For experts.** On the chain an underfunded lock goes through and holds an encrypted 0; in the smoke
-test, block 11717345. The app's message "Nothing was transferred" simplifies: the transaction was
-executed, gas was paid, and an encrypted 0 was transferred. That is why the planned service reads the
-locked amount back after every lock.
+test, block 11717345. The app's message says exactly that: the transaction was executed, gas was paid,
+and an encrypted 0 was transferred. From outside, an underfunded lock cannot be told from a funded
+one. That is why the planned service reads the locked amount back after every lock.
 
 ## Questions from experts
 

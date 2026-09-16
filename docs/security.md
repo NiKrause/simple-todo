@@ -346,8 +346,6 @@ accept signatures from such accounts.
 3. Metadata: `todoRef`, delegate DID and budget status are readable in the unencrypted OrbitDB list,
    and decryption requests are public on the Gateway chain.
 4. The app does not use the chain yet: no Zama budget service, no refund, no DID-to-account mapping.
-   Its notice for an underfunded lock says nothing was transferred; on chain the lock was mined, gas
-   was paid and an encrypted 0 was transferred.
 5. Passkey wallet: permanent root key, no on-chain user verification, public link between account and
    session key.
 6. Mainnet readiness: a single coprocessor signer for input attestation on mainnet, relayer API key

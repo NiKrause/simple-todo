@@ -381,9 +381,7 @@ solcher Konten annehmen kann.
 3. Metadaten: `todoRef`, DID des Delegierten und Budget-Status sind in der unverschlüsselten
    OrbitDB-Liste lesbar, und Entschlüsselungsanfragen sind auf der Gateway-Chain öffentlich.
 4. Die App nutzt die Chain noch nicht: kein Zama-Budget-Service, keine Rückzahlung, keine Zuordnung
-   von DID zu Konto. Ihr Hinweis bei einer ungedeckten Sperre sagt, es sei nichts überwiesen
-   worden; on-chain wurde die Sperre in einen Block aufgenommen, Gas bezahlt und eine verschlüsselte 0
-   überwiesen.
+   von DID zu Konto.
 5. Passkey-Wallet: dauerhafter Root-Key, keine Nutzerverifikation on-chain, öffentliche Verknüpfung
    zwischen Konto und Sitzungsschlüssel.
 6. Mainnet-Reife: ein einziger Coprozessor-Signierer für die Input-Attestierung im Mainnet,
