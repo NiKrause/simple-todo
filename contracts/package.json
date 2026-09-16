@@ -13,7 +13,10 @@
     "typecheck": "hardhat compile && tsc --noEmit",
     "clean": "hardhat clean && rm -rf fhevmTemp types",
     "deploy:sepolia": "hardhat run scripts/deploy-sepolia.ts --network sepolia",
-    "verify:sourcify": "hardhat run scripts/verify-sourcify.ts --network sepolia"
+    "verify:sourcify": "hardhat run scripts/verify-sourcify.ts --network sepolia",
+    "verify:etherscan": "hardhat run scripts/verify-etherscan.ts --network sepolia",
+    "smoke:sepolia": "SMOKE_MODE=full hardhat run scripts/smoke-sepolia.ts --network sepolia",
+    "smoke:sepolia:dry": "SMOKE_MODE=dry hardhat run scripts/smoke-sepolia.ts --network sepolia"
   },
   "dependencies": {
     "@fhevm/solidity": "0.11.1",
@@ -35,6 +38,7 @@
     "@types/mocha": "10.0.10",
     "@types/node": "22.20.3",
     "@zama-fhe/relayer-sdk": "0.4.1",
+    "@zama-fhe/sdk": "3.6.0",
     "chai": "4.5.0",
     "dotenv": "16.6.1",
     "ethers": "6.16.0",

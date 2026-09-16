@@ -4,7 +4,7 @@
  *
  *   ESCROW_ADDRESS=0x...       # required: the deployed escrow
  *   ETHERSCAN_API_KEY=...      # required, from .env or the shell; never printed
- *   npx hardhat run scripts/verify-etherscan.ts --network sepolia
+ *   npm run verify:etherscan
  *
  * `npx hardhat verify` submits a minimal input first, the escrow and its imports only. For this
  * deployment Etherscan refused that ("Compiled contract deployment bytecode does NOT match"), and
@@ -44,9 +44,7 @@ async function call(chainId: number, apiKey: string, params: Record<string, stri
 async function main() {
   const chainId = network.config.chainId;
   if (!chainId) {
-    throw new Error(
-      `Network "${network.name}" has no chainId. Run: npx hardhat run scripts/verify-etherscan.ts --network sepolia`,
-    );
+    throw new Error(`Network "${network.name}" has no chainId. Run: npm run verify:etherscan`);
   }
   const apiKey = process.env.ETHERSCAN_API_KEY?.trim();
   if (!apiKey) {

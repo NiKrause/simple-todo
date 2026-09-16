@@ -5,7 +5,8 @@ Zama FHEVM ([#378](https://github.com/NiKrause/simple-todo/issues/378), part of 
 chapter, [#382](https://github.com/NiKrause/simple-todo/issues/382)). Alice locks a budget for a
 todo she delegated to Bob, and releases it when he is done, or takes it back after a deadline. The
 budget is an ERC-7984 confidential token, such as Zama's cUSDT, and its amount stays encrypted:
-Alice, Bob and an auditor can decrypt it, nobody else.
+Alice, Bob and an auditor can decrypt it, nobody else (with one token-side exception, see
+[Who can decrypt](#who-can-decrypt)).
 
 This directory is its own project with its own `package.json`. The app's `pnpm install` does not
 see it (see [Why npm](#why-npm)), and nothing in the app's CI runs it.
@@ -16,6 +17,8 @@ npm ci          # Node 22 or later
 npm test        # FHEVM mock mode, no network
 npm run typecheck
 ```
+
+Deploying, verifying and smoke-testing on Sepolia: see the [Sepolia runbook](#sepolia-runbook).
 
 ## The contract
 
@@ -71,6 +74,11 @@ token keeps its own access to handles it returned (OpenZeppelin's `ERC7984` does
 needs to compute with them. Nobody else can decrypt, and the amount stays decryptable by those
 three after a release or refund, as the record of what was locked.
 
+One exception depends on the token. Zama's cUSDTMock (`ConfidentialWrapper`) lets its owner add
+observers, and grants each one a wildcard user-decryption delegation over the handles the token may
+use, which includes every amount this escrow stores. `observers()` was empty on 2026-09-16; the
+smoke test prints it.
+
 Users are expected to read through Zama's delegated user decryption: the passkey account delegates
 to a session key with `ACL.delegateForUserDecryption(delegate, contractAddress, expirationDate)`.
 Delegations are per contract, and the numbers live under two: balances under the token, locked
@@ -107,7 +115,8 @@ User operations bundled into one transaction (an ERC-4337 bundle, a batched call
 | `@fhevm/solidity` | 0.11.1 |
 | `@openzeppelin/confidential-contracts` | 0.5.3 |
 | `@openzeppelin/contracts` | 5.6.1 |
-| `@zama-fhe/relayer-sdk` | 0.4.1 |
+| `@zama-fhe/relayer-sdk` | 0.4.1, the exact peer the plugin and `@fhevm/mock-utils` require |
+| `@zama-fhe/sdk` | 3.6.0 (on `@fhevm/sdk` 0.13.2), for the smoke test |
 | `ethers` | 6.16.0 |
 
 Checked on 2026-09-16. Sepolia runs the host contracts of FHEVM v0.13: `getVersion()` returns ACL
@@ -115,7 +124,7 @@ v0.4.0, FHEVMExecutor v0.4.0, KMSVerifier v0.3.0, InputVerifier v0.2.0 and HCULi
 versions tagged v0.13.x in `zama-ai/fhevm`. The matching library, `@fhevm/solidity` 0.13.3, is
 what nothing else supports yet: the Hardhat plugin 0.4.2 wants `^0.11.1`, OpenZeppelin's
 confidential contracts 0.5.3 want exactly 0.11.1, and forge-fhevm pins 0.11.1 as well. Zama's
-`fhevm-hardhat-template` and OpenZeppelin's own CI both resolve the plugin, library, SDK and
+`fhevm-hardhat-template` and OpenZeppelin's own CI both resolve the plugin, library, relayer SDK and
 Hardhat versions above.
 
 So the project uses 0.11.1, the version its tools and OpenZeppelin's contracts were built and tested
@@ -152,28 +161,69 @@ The app's install is unaffected: pnpm 10 installs only the root project with or 
 and pnpm 9, which CI uses without it, does the same. The root `.prettierignore` skips `contracts/`;
 the root ESLint configuration matches no file in it.
 
-## Deploy to Sepolia
+### Why `@zama-fhe/sdk`
+
+The smoke test reaches Sepolia's relayer through `@zama-fhe/sdk` 3.6.0 (released 2026-09-11) and its
+Node transport. Zama's documentation calls it the default SDK and `@zama-fhe/relayer-sdk` the legacy
+one, and the `@fhevm/sdk` 0.13.2 it builds on is the v0.13 line Sepolia runs. It installs next to the
+plugin's `@zama-fhe/relayer-sdk` 0.4.1. The latest relayer SDK, 0.4.4, would replace that exact peer
+(npm: `ERESOLVE overriding peer dependency`). Both encrypted an amount through Sepolia's relayer on
+2026-09-16, `@zama-fhe/sdk` in 9 to 14 s and relayer-sdk 0.4.4 in 19 s, start-up included. The TFHE
+worker threads `@fhevm/sdk` starts for encryption outlive `ZamaSDK.terminate()` and keep Node running,
+so the script exits explicitly.
+
+## Sepolia runbook
+
+In this order, all in `contracts/`: [prerequisites](#prerequisites), [`.env`](#env),
+[deploy](#deploy), [record the deployment](#record-the-deployment),
+[verify the source](#verify-the-source), [smoke test](#smoke-test), and for the next deployment the
+[redeploy checklist](#redeploy-checklist).
+
+### Prerequisites
+
+- Node 22 or later, and `npm ci` in `contracts/` (not pnpm, see [Why npm](#why-npm)).
+- A Sepolia JSON-RPC endpoint.
+- A throwaway key that holds Sepolia ETH and nothing else. The deployment used 950,017 gas, a full
+  smoke run needs about 2 to 3.5 M gas. The dry smoke run and Sourcify need no key; Etherscan needs
+  an API key.
+- `npm test` and `npm run typecheck` pass on the commit you deploy.
+
+### `.env`
 
 Copy `.env.example` to `.env` in this directory (git ignores it) and fill it in, or export the same
-variables in the shell, which wins:
+variables in the shell, which wins. Because the key can live in that file, whoever holds it can fill
+it in and someone else can run the scripts without seeing it. No script prints a key; the smoke test
+also keeps the RPC URL out of its output.
+
+| Variable | Read by | |
+| --- | --- | --- |
+| `SEPOLIA_RPC_URL` | every Sepolia script | Any Sepolia JSON-RPC endpoint. |
+| `DEPLOYER_PRIVATE_KEY` | `deploy:sepolia`, `smoke:sepolia` | The deployer, and the creator in the full smoke run. |
+| `ESCROW_AUDITOR` | `deploy:sepolia` | Required. May decrypt every amount locked in the escrow, for the contract's lifetime. |
+| `ESCROW_TOKEN` | `deploy:sepolia` | Optional, defaults to cUSDTMock. |
+| `ETHERSCAN_API_KEY` | `verify:etherscan` | |
+
+Per run, on the command line: `ESCROW_ADDRESS` and `ESCROW_DEPLOY_TX` for the verify scripts, and
+`ESCROW_ADDRESS`, `SMOKE_AMOUNT`, `SMOKE_REFUND` and `SMOKE_DEBUG` for the [smoke test](#smoke-test).
+
+### Deploy
 
 ```sh
-SEPOLIA_RPC_URL=https://...
-DEPLOYER_PRIVATE_KEY=0x...     # a throwaway key with a little Sepolia ETH
-ESCROW_AUDITOR=0x...           # required, fixed for the contract's lifetime
-ESCROW_TOKEN=0x...             # optional, defaults to cUSDTMock
+npm run deploy:sepolia
 ```
-
-Then run `npm run deploy:sepolia`. Because the key can live in that file, whoever holds it can fill
-it in and someone else can start the deployment without seeing it.
 
 [`scripts/deploy-sepolia.ts`](scripts/deploy-sepolia.ts) refuses any other network, checks that the
 token is a contract, estimates the deployment first so a non-ERC-7984 token or a zero auditor fails
-before any gas is spent, and prints the commands that verify the source. The default token is Zama's
-cUSDTMock, `0x4E7B06D78965594eB5EF5414c357ca21E1554491` (6 decimals, rate 1, over USDTMock
-`0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0`, whose `mint` anyone may call).
+before any gas is spent, waits for two confirmations, checks `confidentialProtocolId()`, and prints
+the escrow's address and block and the two commands that verify its source. The default token is
+Zama's cUSDTMock, `0x4E7B06D78965594eB5EF5414c357ca21E1554491` (6 decimals, rate 1, over USDTMock
+`0xa7dA08FafDC9097Cc0E7D4f113A61e31d7e8e9b0`, whose `mint` anyone may call, up to 1,000,000 tokens a
+call).
 
-### The Sepolia deployment
+### Record the deployment
+
+Copy what the deployment printed into this table, and the address into `DEFAULT_ESCROW` in
+[`scripts/smoke-sepolia.ts`](scripts/smoke-sepolia.ts).
 
 | | |
 | --- | --- |
@@ -199,7 +249,7 @@ Neither signs anything, and the deployment prints both commands with its address
   [`scripts/verify-sourcify.ts`](scripts/verify-sourcify.ts) uses Sourcify's API v2. Blockscout picks
   up the result from Sourcify.
 - **Etherscan**, with `ETHERSCAN_API_KEY` in `.env` (it is never printed):
-  `ESCROW_ADDRESS=0x... npx hardhat run scripts/verify-etherscan.ts --network sepolia`.
+  `ESCROW_ADDRESS=0x... npm run verify:etherscan`.
   [`scripts/verify-etherscan.ts`](scripts/verify-etherscan.ts) submits the full standard JSON input and
   reads the constructor arguments from the escrow.
 
@@ -209,15 +259,141 @@ the escrow and its imports only. Etherscan refused that for this deployment ("Co
 deployment bytecode does NOT match"), and hardhat-verify stopped there instead of retrying with the
 full input, which also holds the two mocks compiled in the same build.
 
-Before relying on a deployment:
+### Smoke test
+
+[`scripts/smoke-sepolia.ts`](scripts/smoke-sepolia.ts) runs the deployment against Zama's live relayer
+and KMS, through `@zama-fhe/sdk` (see [Why `@zama-fhe/sdk`](#why-zama-fhesdk)). It expects the
+escrow's token to be cUSDTMock. Every relayer call, encryption or decryption, gets three attempts,
+10 s and 30 s apart, and each failed attempt is logged with the SDK's own message; transactions are
+not retried. Each step prints `ok`, `FAILED` or `skipped` as it runs. The run ends with a table of
+step, result, time, relayer attempts and Etherscan link, and exits with 1 if any step failed.
+
+#### Dry run
+
+```sh
+npm run smoke:sepolia:dry
+```
+
+It needs only `SEPOLIA_RPC_URL`: it does not read the key, signs nothing and sends nothing. It
+
+1. checks that the RPC serves chain 11155111;
+2. reads the escrow's code, `token()`, `auditor()` and `confidentialProtocolId()`, and the token's
+   metadata, `rate()`, `underlying()`, `paused()`, `observers()` and the USDTMock mint cap;
+3. encrypts `SMOKE_AMOUNT` (default 1 cUSDTMock) for the escrow and a random address through the
+   relayer;
+4. simulates the lock with that input (`eth_call` from the random address). It must revert with
+   `ERC7984UnauthorizedSpender(random address, escrow)`: the escrow verified the input proof and called
+   the token, which only lacks the operator approval. `InvalidSigner(address)` would mean Sepolia's
+   InputVerifier refused the proof;
+5. public-decrypts the newest amount cUSDTMock published for an unwrap (from its `UnwrapRequested`
+   events), which goes through the same relayer and KMS as a user decryption;
+6. prints the plan of the full run with its estimated cost.
+
+The end of a dry run on 2026-09-16:
+
+```text
+step                                                result      time  attempts  transaction
+RPC serves Sepolia                                  ok         0.8 s
+escrow and token                                    ok         0.2 s
+encrypt 1.0 cUSDTMock for (escrow, random address)  ok        13.6 s  1/3
+simulate the lock (eth_call)                        ok         0.3 s
+public decrypt (relayer and KMS)                    ok         2.3 s  1/3
+
+passed: 5 steps ok
+```
+
+In three dry runs on 2026-09-16 the encryption took 10.0 to 13.6 s, counting the SDK's start-up, the
+proof it builds locally and the relayer round trip, and the public decryption took 2.3 s each time;
+the whole command took about 25 s, compilation included. A dry run cannot time a user decryption: that needs
+an account with an ACL grant on the handle, which only the full run creates.
+
+#### Full run
+
+```sh
+npm run smoke:sepolia                  # SMOKE_AMOUNT=1 by default
+SMOKE_REFUND=1 npm run smoke:sepolia   # also a refund, a few minutes longer
+```
+
+It needs `DEPLOYER_PRIVATE_KEY` with Sepolia ETH; that account is the creator, and in this deployment
+also the auditor. The beneficiary is a wallet made in memory for the run. It only signs decryption
+requests, needs no ETH, and its key is never printed.
+
+| Step | What it does | Passes when |
+| --- | --- | --- |
+| 1. Fund | Decrypts the creator's cUSDTMock balance. Below `SMOKE_AMOUNT` (twice that with `SMOKE_REFUND`) it mints USDTMock, approves cUSDTMock (a non-zero allowance goes to 0 first, USDT's rule) and wraps. | The transactions are mined. |
+| 2. Operator | `setOperator(escrow, now + 1 h)` | `isOperator(creator, escrow)` |
+| 3. Lock | Encrypts `SMOKE_AMOUNT` for (escrow, creator) and locks it for the beneficiary under `keccak256(abi.encode("smoke-<timestamp>", salt))`, deadline in one day. | `Locked` is emitted. |
+| 4. Check | `escrowOf`, then user decryption of the amount as creator and as beneficiary, each with its own EIP-712 permit. | Status `Locked`; both decrypt to `SMOKE_AMOUNT`. |
+| 5. Shortfall | Locks 2^64 - 1, more than any balance, under a second `todoRef`. | The lock goes through, and its amount decrypts to 0. |
+| 6. Release | Releases the first lock; `escrowOf`; the beneficiary decrypts its cUSDTMock balance. | Status `Released`; the balance decrypts to `SMOKE_AMOUNT`. |
+| 7. Refund | Only with `SMOKE_REFUND=1`: locks with a 90 s deadline, decrypts the lock and the creator's balance, waits for a block past the deadline, refunds. | Status `Refunded`; the balance rose by `SMOKE_AMOUNT`. |
+
+A transaction whose result is decrypted next waits for two confirmations first. A step whose input
+failed is skipped. A good run ends with every step `ok`, relayer steps at `1/3` when the relayer
+answered at once, then `spent ... ETH in N transactions; the creator went from ... to ... ETH` and
+`passed: N steps ok, M skipped`. `ESCROW_ADDRESS` tests another deployment, `SMOKE_AMOUNT` takes
+cUSDTMock with up to 6 decimals, and `SMOKE_DEBUG=1` adds the SDK's diagnostics and `@fhevm/sdk`'s
+trace of every relayer request.
+
+#### Cost
+
+- The dry run costs nothing.
+- A full run sends 4 transactions when the creator already holds the amount in cUSDTMock
+  (`setOperator`, two locks, the release) and 7 when it wraps first; `SMOKE_REFUND` adds a lock and a
+  refund. That is about 1.9 M gas, 2.4 M with wrapping and 1.1 M more with the refund. A lock takes
+  about 0.7 M (`eth_estimateGas` on Sepolia), a wrap 0.35 M, mint, approve and `setOperator` 35 to
+  52 k each (as mined on Sepolia); release and refund take 0.35 and 0.33 M in the FHEVM mock, which
+  prices a lock at 0.53 M. At the 1 to 2 gwei of 2026-09-16 a run costs 0.002 to 0.007 ETH, and prints
+  what it paid.
+- The `SMOKE_AMOUNT` each run releases stays with a beneficiary whose key is gone, and the
+  underfunded lock stays `Locked` over an encrypted 0.
+
+#### Troubleshooting
+
+- **`Relayer API error [internal_server_error]: Transaction simulation failed: Execution reverted`**
+  (HTTP 500 from `/v2/user-decrypt`): in the incident of 2026-08-31 to 2026-09-01, handles created
+  after it began would not decrypt, while older ones did. Zama traced it to stale RPC data in part of
+  the relayer ([community.zama.org/t/4643](https://community.zama.org/t/4643)). The script waits two
+  confirmations and retries; when all attempts fail, rerun later before suspecting the escrow.
+- **`Gao decoding failure: Allowed at most 0 errors ... n=13, deg=4, #shares=9`**: the client got the
+  9-share quorum of the 13 KMS nodes, one share was inconsistent, and the value could not be
+  reconstructed ([community.zama.org/t/4653](https://community.zama.org/t/4653), also in t/4643).
+  fhevm v0.13.4 (2026-09-04) lets the relayer wait for extra shares, which tolerates a bad one;
+  whether Sepolia's relayer runs it cannot be seen from outside. It is not the escrow: retry later.
+- **`NotEntitledError`, `is not authorized to decrypt handle`**: the SDK reads the ACL through
+  `SEPOLIA_RPC_URL` before it asks the relayer. Right after a transaction a lagging RPC can cause it;
+  if it persists, the account lacks the grant.
+- **`InvalidSigner(address)`** in the simulated lock or a real one: the input proof was made for
+  another contract or user, or the SDK's Sepolia addresses no longer match the chain.
+- **`ERC7984UnauthorizedSpender(creator, escrow)`** on a lock: the operator approval is missing or
+  has lapsed.
+- **A lock that decrypts to 0** where `SMOKE_AMOUNT` was expected: the creator's cUSDTMock balance was
+  too low, so check step 1.
+- **`no result within 240 s`**: an attempt hung, often in the SDK's start-up (the FHE key download
+  and WASM). The next attempt starts from a new SDK instance.
+- Rerun with `SMOKE_DEBUG=1` to see each relayer request, its job id and retries.
+
+### Redeploy checklist
+
+For another auditor or another token, both fixed at deployment, or when Sepolia moves to FHEVM v0.14
+(new ACL, KMS context rotation, unified user decryption; released, not yet on Sepolia), which may
+need a newer `@fhevm/solidity` and SDK:
+
+1. For a protocol change, update the library and SDK first; `npm test` and `npm run typecheck` pass.
+2. Set `ESCROW_AUDITOR`, and `ESCROW_TOKEN` if it changes, in `.env`, and check the deployer's ETH.
+3. `npm run deploy:sepolia` from a committed tree.
+4. Run the two verify commands the deployment printed.
+5. [Record the deployment](#record-the-deployment), including `DEFAULT_ESCROW` in
+   `scripts/smoke-sepolia.ts`.
+6. `npm run smoke:sepolia:dry`, then `npm run smoke:sepolia`.
+7. Point the app at the new address. Escrows in the old contract stay there: their creators release
+   or refund them there, and the old auditor can still decrypt every amount ever locked in it.
+
+### Before relying on a deployment
 
 - cUSDTMock is a UUPS proxy whose owner, a contract, can replace the implementation. The escrow's
   balance depends on that implementation staying the ERC-7984 it is today.
 - The auditor can decrypt every amount ever locked in the contract. A leaked auditor key cannot be
   rotated, only answered with a new deployment.
-- FHEVM v0.14 (new ACL, KMS context rotation, unified user decryption) is released but not yet on
-  Sepolia. An upgrade there may need a new library version and a redeploy.
-- Sepolia's decryption has had incidents in September 2026 (handles that would not decrypt for a
-  few days, a KMS share-decoding failure); a failed decrypt is not necessarily this contract.
-- The plugin pins `@zama-fhe/relayer-sdk` 0.4.1 for its Sepolia tasks, while 0.4.4 and Zama's newer
-  SDKs are current; the app should pick its own SDK against the live relayer.
+- A failed decryption on Sepolia is not necessarily this contract; see
+  [Troubleshooting](#troubleshooting).

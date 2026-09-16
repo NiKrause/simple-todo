@@ -109,7 +109,7 @@ async function main() {
 
   console.log(`escrow    ${address} (block ${receipt?.blockNumber}, ${CONFIRMATIONS} confirmations)`);
   console.log(`sourcify  ESCROW_ADDRESS=${address} ESCROW_DEPLOY_TX=${deployment?.hash} npm run verify:sourcify`);
-  console.log(`etherscan ESCROW_ADDRESS=${address} npx hardhat run scripts/verify-etherscan.ts --network sepolia`);
+  console.log(`etherscan ESCROW_ADDRESS=${address} npm run verify:etherscan`);
 }
 
 main().catch((error) => {
