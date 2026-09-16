@@ -625,11 +625,20 @@
 	</div>
 </main>
 
-<!-- Floating Relay Button FAB -->
+<!--
+	Floating Relay Button FAB.
+
+	Draggable, because it floats over the bottom-right corner, and on a phone
+	the balance card and the todo rows scroll underneath it. The key is passed
+	explicitly: the component stores nothing unless asked, and the key keeps
+	this chapter's `simpleTodo.` prefix.
+-->
 {#if SponsorRelayFab}
 	<svelte:component
 		this={SponsorRelayFab}
 		manifestUrl="./rootfs-manifest.json"
 		showInstances={true}
+		draggable={true}
+		positionStorageKey="simpleTodo.relayFabPosition"
 	/>
 {/if}
