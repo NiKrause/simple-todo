@@ -518,7 +518,7 @@
 		</div>
 		<div class="flex min-w-0 flex-wrap items-center gap-2 sm:max-w-md sm:justify-end">
 			<DelegatedAuthBadge />
-			<LanguageSwitcher variant="segmented" />
+			<LanguageSwitcher />
 			<span
 				class="rounded-md border px-2 py-1 text-xs font-medium {budgetInfo.network === 'demo'
 					? 'border-data-400 bg-data-100 text-data-800 dark:border-data/40 dark:bg-data/10 dark:text-data'

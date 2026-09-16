@@ -4,8 +4,7 @@
 	},
 	"language": {
 		"de": "Deutsch",
-		"en": "English",
-		"switch": "Sprache"
+		"en": "English"
 	},
 	"header": {
 		"auditorView": "Prüfansicht",
