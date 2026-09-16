@@ -4,7 +4,181 @@
 	},
 	"language": {
 		"de": "Deutsch",
-		"en": "English"
+		"en": "English",
+		"switch": "Sprache"
+	},
+	"header": {
+		"auditorView": "Prüfansicht",
+		"backToTodos": "Zurück zu den Aufgaben"
+	},
+	"alert": {
+		"dismiss": "Schließen"
+	},
+	"identity": {
+		"passkeyDid": "Passkey-DID",
+		"copy": "Kopieren",
+		"copied": "Kopiert ✓"
+	},
+	"auth": {
+		"awaiting": "Passkey bestätigen …",
+		"awaitingTitle": "Bestätigen Sie mit Ihrem Passkey, um fortzufahren.",
+		"delegatedWriteSigned": "Änderung unterschrieben",
+		"lockConfirmed": "Sperren bestätigt",
+		"releaseConfirmed": "Freigabe bestätigt",
+		"readKeyRenewed": "Lesezugriff verlängert",
+		"failed": "Passkey-Bestätigung fehlgeschlagen"
+	},
+	"onboarding": {
+		"heading": "Ein Passkey für alles",
+		"intro": "Ihr Passkey meldet Sie an, unterschreibt Ihre Einträge und bestätigt Zahlungen. Sie brauchen kein Passwort, keine Seed-Phrase und keine separate Wallet.",
+		"signInTitle": "Anmelden",
+		"signInText": "Auf diesem Gerät, zum Beispiel mit Touch ID.",
+		"signTitle": "Unterschreiben",
+		"signText": "Jede Änderung trägt Ihre DID.",
+		"payTitle": "Bezahlen",
+		"payText": "Budgets in vertraulichen Token, bestätigt mit demselben Passkey. Ihr Konto dafür entsteht still im Hintergrund.",
+		"storedHeading": "Was gespeichert wird",
+		"storedDid": "Ihr öffentlicher Schlüssel und Ihre DID",
+		"storedListsPersistent": "Ihre Listen in diesem Browser",
+		"storedListsMemory": "Ihre Listen im Arbeitsspeicher dieses Browsers, bis Sie neu laden",
+		"storedBudgetsChain": "Budgets verschlüsselt im Sepolia-Testnetz",
+		"storedBudgetsDemo": "Budgets nur zur Vorführung im Arbeitsspeicher dieses Browsers: Nichts wird verschlüsselt, nichts erreicht eine Chain",
+		"storedKeys": "Schlüssel zum Unterschreiben und zum Lesen der Beträge, in diesem Browser",
+		"storedPasskey": "Der Passkey selbst verlässt Ihr Gerät nie"
+	},
+	"todo": {
+		"form": {
+			"heading": "Neue Aufgabe",
+			"placeholder": "Was ist zu tun?",
+			"submit": "Aufgabe anlegen",
+			"submitWithBudget": "Aufgabe anlegen und Budget sperren",
+			"delegateToggle": "An eine andere DID delegieren",
+			"delegateDid": "DID des Delegierten",
+			"delegateDidPlaceholder": "did:key:… der Person, die die Aufgabe erledigen darf",
+			"expiry": "Frist",
+			"optional": "(optional)",
+			"delegateHint": "Die delegierte Person bekommt keinen Schreibzugriff auf die Liste. Sie darf nur diese eine Aufgabe erledigen oder umbenennen, und Sie können das jederzeit zurücknehmen."
+		},
+		"item": {
+			"toggle": "Als erledigt markieren oder wieder öffnen",
+			"toggleNotAllowed": "Erledigen kann diese Aufgabe nur, wer sie angelegt hat oder an wen sie delegiert ist",
+			"save": "Speichern",
+			"cancel": "Abbrechen",
+			"assignedTo": "Zugewiesen an:",
+			"unassigned": "Nicht zugewiesen",
+			"createdBy": "Angelegt von:",
+			"delegatedTo": "Delegiert an {did}",
+			"delegatedToYou": "Von {did} an Sie delegiert",
+			"completedBy": "Erledigt von {did}",
+			"lastChangedBy": "Zuletzt geändert von der delegierten DID: {did}",
+			"until": "Frist {date}",
+			"status": {
+				"active": "aktiv",
+				"revoked": "zurückgenommen",
+				"expired": "abgelaufen"
+			},
+			"rename": "Umbenennen",
+			"delegate": "Delegieren",
+			"redelegate": "Neu delegieren",
+			"revoke": "Zurücknehmen",
+			"delete": "Löschen",
+			"delegatePlaceholder": "did:key:… der delegierten Person",
+			"expiryTitle": "Frist (optional)"
+		},
+		"list": {
+			"title": "Aufgaben",
+			"empty": "Noch keine Aufgaben. Legen Sie oben eine an."
+		},
+		"toast": {
+			"added": "✅ Aufgabe angelegt",
+			"addedDelegated": "✅ Aufgabe angelegt und delegiert",
+			"addFailed": "Die Aufgabe konnte nicht angelegt werden",
+			"deleted": "🗑️ Aufgabe gelöscht",
+			"deleteFailed": "❌ Die Aufgabe konnte nicht gelöscht werden",
+			"statusUpdated": "✅ Status der Aufgabe geändert",
+			"updateFailed": "Die Aufgabe konnte nicht geändert werden",
+			"renamed": "✅ Aufgabe umbenannt",
+			"renameFailed": "Die Aufgabe konnte nicht umbenannt werden",
+			"delegated": "🤝 Aufgabe delegiert",
+			"delegateFailed": "Die Aufgabe konnte nicht delegiert werden",
+			"revoked": "↩️ Delegation zurückgenommen",
+			"revokeFailed": "Die Delegation konnte nicht zurückgenommen werden"
+		}
+	},
+	"budget": {
+		"network": {
+			"demo": "Demo ohne Chain",
+			"demoTitle": "Budgets laufen gegen eine Attrappe im Arbeitsspeicher dieses Browsers. Nichts wird verschlüsselt, nichts gesendet.",
+			"sepolia": "Sepolia-Testnetz"
+		},
+		"demoNotice": "Vorführung ohne Chain: Beträge bleiben unverschlüsselt im Arbeitsspeicher dieses Browsers, und gesendet wird nichts.",
+		"form": {
+			"label": "Budget",
+			"confidential": "(vertraulich)",
+			"hint": "Der Betrag wird auf diesem Gerät verschlüsselt, bevor er gesendet wird. Lesen können ihn nur Sie, die delegierte Person und die Prüfstelle.",
+			"invalidAmount": "Geben Sie einen Betrag über 0 ein, mit höchstens {decimals} Nachkommastellen.",
+			"needsDelegate": "Für ein Budget braucht die Aufgabe eine delegierte DID."
+		},
+		"status": {
+			"locking": "wird gesperrt",
+			"funded": "gesperrt",
+			"releasing": "wird freigegeben",
+			"released": "ausgezahlt",
+			"failed": "nicht gesperrt"
+		},
+		"chip": {
+			"hidden": "Diesen Betrag kann dieser Browser nicht lesen.",
+			"decrypting": "Betrag wird entschlüsselt …",
+			"expired": "Lesezugriff abgelaufen."
+		},
+		"item": {
+			"release": "Budget freigeben",
+			"reopen": "Wieder öffnen",
+			"awaitingRelease": "wartet auf Freigabe",
+			"visibleTo": "Den Betrag sehen nur Sie, {owner} und die Prüfstelle."
+		},
+		"notice": {
+			"confirmLock": "Bestätigen Sie mit Ihrem Passkey, zum Beispiel mit Touch ID. Freigabe und Sperren des Budgets gehen in einem Schritt raus.",
+			"lockFailedTitle": "Budget nicht gesperrt.",
+			"insufficient": "Ihr vertrauliches Guthaben reichte nicht. Es wurde nichts überwiesen.",
+			"lockFailed": "Das Sperren ist nicht gelungen. Prüfen Sie die Angaben und versuchen Sie es erneut.",
+			"releaseFailedTitle": "Budget nicht freigegeben.",
+			"releaseFailed": "Der Betrag bleibt gesperrt. Versuchen Sie es erneut.",
+			"decrypting": "Betrag wird entschlüsselt. Das dauert einige Sekunden.",
+			"expiredTitle": "Lesezugriff abgelaufen.",
+			"expired": "Bestätigen Sie mit Ihrem Passkey, um die Beträge wieder zu sehen.",
+			"renew": "Mit Passkey verlängern",
+			"cancelledTitle": "Passkey-Bestätigung abgebrochen.",
+			"cancelled": "Es wurde nichts gesendet.",
+			"retry": "Erneut bestätigen"
+		},
+		"balance": {
+			"heading": "Vertrauliches Guthaben",
+			"note": "Entschlüsselt auf diesem Gerät. Auf der Chain steht nur ein verschlüsselter Wert.",
+			"hidden": "Das Guthaben kann dieser Browser nicht lesen."
+		},
+		"toast": {
+			"received": "{amount} {token} von {from} erhalten",
+			"receivedHidden": "Budget von {from} ausgezahlt"
+		},
+		"auditor": {
+			"title": "Prüfansicht",
+			"escrow": "Treuhand",
+			"role": "Prüfstelle",
+			"banner": "Sie sehen diese Beträge, weil die Treuhand Ihre Adresse als Prüfstelle eingetragen hat. Entschlüsselt wird auf Ihrem Gerät. Im Klartext steht nichts auf der Chain.",
+			"heading": "Treuhand-Vorgänge",
+			"reference": "Referenz",
+			"from": "Von",
+			"to": "An",
+			"amount": "Betrag",
+			"status": "Status",
+			"locked": "gesperrt",
+			"released": "ausgezahlt",
+			"refunded": "zurückgezahlt",
+			"footnote": "Die Aufgaben selbst sehen Sie nicht, nur Referenz, Beteiligte und Betrag.",
+			"empty": "Noch keine Treuhand-Vorgänge.",
+			"error": "Die Treuhand-Vorgänge ließen sich nicht laden."
+		}
 	},
 	"consent": {
 		"warningHeading": "Noch früh",

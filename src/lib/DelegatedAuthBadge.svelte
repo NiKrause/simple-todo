@@ -2,17 +2,44 @@
 	// The passkey prompt before a delegated write, made visible (delegation01).
 	// Idle most of the time; shows "awaiting" while the authenticator is up,
 	// then the outcome for a few seconds. Also what the E2E test watches.
+	//
+	// escrow01: locking and releasing a budget, and renewing read access, ask
+	// the same passkey through the same prompt, so they show here as well —
+	// with their own word for success, because nothing was "written" yet.
+	import { _ } from '$lib/i18n/index.js';
 	import { delegatedWriteAuthStore } from './delegated-write-auth.js';
+
+	/** @param {string | null} action */
+	function successKey(action) {
+		switch (action) {
+			case 'budget-lock':
+				return 'auth.lockConfirmed';
+			case 'budget-release':
+				return 'auth.releaseConfirmed';
+			case 'budget-read-key':
+				return 'auth.readKeyRenewed';
+			default:
+				return 'auth.delegatedWriteSigned';
+		}
+	}
 
 	$: auth = $delegatedWriteAuthStore;
 	$: label =
 		auth.state === 'awaiting'
-			? 'Confirm passkey…'
+			? $_('auth.awaiting')
 			: auth.state === 'success'
-				? 'Delegated write signed'
+				? $_(successKey(auth.action))
 				: auth.state === 'error'
-					? 'Passkey confirmation failed'
+					? $_('auth.failed')
 					: '';
+	// The error keeps the authenticator's own message; the rest say it in the
+	// language on screen.
+	$: title =
+		auth.state === 'error'
+			? auth.message
+			: auth.state === 'awaiting'
+				? $_('auth.awaitingTitle')
+				: label;
 </script>
 
 <span
@@ -23,7 +50,7 @@
 			: auth.state === 'error'
 				? 'border-red-300 bg-red-50 text-red-700 dark:border-red-700 dark:bg-red-950 dark:text-red-300'
 				: 'hidden'}"
-	title={auth.message}
+	{title}
 	data-testid="delegated-auth-state"
 	data-state={auth.state}
 	data-action={auth.action ?? ''}

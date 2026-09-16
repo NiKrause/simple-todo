@@ -1,9 +1,24 @@
 <script>
 	import { onMount } from 'svelte';
-	import { _ } from '$lib/i18n/index.js';
+	import { _, locale } from '$lib/i18n/index.js';
 	import { peerIdStore, initializationStore, ownDidStore } from '$lib/p2p-stores.js';
 	import PasskeyOnboarding from '$lib/PasskeyOnboarding.svelte';
+	import OnePasskeyIntro from '$lib/OnePasskeyIntro.svelte';
+	import LanguageSwitcher from '$lib/LanguageSwitcher.svelte';
 	import DidBadge from '$lib/DidBadge.svelte';
+	import AuditorView from '$lib/AuditorView.svelte';
+	import BalanceCard from '$lib/BalanceCard.svelte';
+	import BudgetNotices from '$lib/BudgetNotices.svelte';
+	import { formatAmount } from '$lib/budget.js';
+	import {
+		addTodoWithBudget,
+		budgetInfo,
+		readAmount,
+		refreshBalance,
+		releaseTodoBudget,
+		watchPayouts
+	} from '$lib/budget-store.js';
+	import { shortId } from '$lib/utils.js';
 	import { createPasskeyCredential, recoverPasskeyCredential } from '$lib/passkey-identity.js';
 	import {
 		todosStore,
@@ -51,7 +66,7 @@
 	import { libp2pStore } from '$lib/p2p-stores.js';
 
 	/** @typedef {'default' | 'success' | 'error' | 'warning'} ToastType */
-	/** @typedef {{ detail: { text: string, delegateDid?: string | null, delegationExpiresAt?: string | null } }} AddTodoEvent */
+	/** @typedef {{ detail: { text: string, delegateDid?: string | null, delegationExpiresAt?: string | null, budgetAmount?: bigint | null } }} AddTodoEvent */
 	/** @typedef {{ detail: { key: string } }} TodoActionEvent */
 	/** @typedef {{ detail: { key: string, text: string } }} UpdateTextEvent */
 	/** @typedef {{ detail: { key: string, delegateDid: string, expiresAt: string | null } }} DelegateEvent */
@@ -275,20 +290,89 @@
 	 * @param {AddTodoEvent} event
 	 */
 	const handleAddTodo = async (event) => {
-		const { text, delegateDid, delegationExpiresAt } = event.detail;
-		const result = await addTodo(text, null, {
-			delegateDid: delegateDid ?? null,
-			expiresAt: delegationExpiresAt ?? null
-		});
+		const { text, delegateDid, delegationExpiresAt, budgetAmount } = event.detail;
+		// escrow01: with a budget, the todo is written "being locked" and the lock
+		// follows; how it went shows on the row and in the notices, not here.
+		const result =
+			delegateDid && budgetAmount
+				? await addTodoWithBudget({
+						text,
+						delegateDid,
+						expiresAt: delegationExpiresAt ?? null,
+						amount: budgetAmount
+					})
+				: await addTodo(text, null, {
+						delegateDid: delegateDid ?? null,
+						expiresAt: delegationExpiresAt ?? null
+					});
 		if (result.ok) {
-			showToast(
-				delegateDid ? '✅ Todo added and delegated!' : '✅ Todo added successfully!',
-				'success'
-			);
+			showToast(delegateDid ? $_('todo.toast.addedDelegated') : $_('todo.toast.added'), 'success');
 		} else {
-			showToast(`❌ ${result.error ?? 'Failed to add todo'}`, 'error');
+			showToast(`❌ ${result.error ?? $_('todo.toast.addFailed')}`, 'error');
 		}
 	};
+
+	/** @param {TodoActionEvent} event */
+	const handleReleaseBudget = async (event) => {
+		await releaseTodoBudget(event.detail.key);
+	};
+
+	/**
+	 * A budget paid out to this session while it was watching (escrow01).
+	 *
+	 * @param {import('$lib/db-actions.js').TodoItem} todo
+	 */
+	async function announcePayout(todo) {
+		const from = shortId(todo.createdByIdentity ?? '');
+		const todoRef = todo.budget?.todoRef;
+		const amount =
+			todoRef && todo.createdByIdentity ? await readAmount(todo.createdByIdentity, todoRef) : null;
+		showToast(
+			amount?.state === 'ready' && amount.units !== null
+				? $_('budget.toast.received', {
+						values: {
+							amount: formatAmount(amount.units, {
+								decimals: budgetInfo.token.decimals,
+								locale: $locale ?? 'en'
+							}),
+							token: budgetInfo.token.symbol,
+							from
+						}
+					})
+				: $_('budget.toast.receivedHidden', { values: { from } }),
+			'success',
+			6000
+		);
+		void refreshBalance();
+	}
+
+	onMount(() => watchPayouts((todo) => void announcePayout(todo)));
+
+	/**
+	 * escrow01's auditor view. A view inside this page rather than a route of
+	 * its own: this page owns the consent dialog and the P2P start, and a
+	 * navigation away and back would mount it again and start both over.
+	 * `#pruefstelle` opens the page on it.
+	 *
+	 * @type {'todos' | 'auditor'}
+	 */
+	let view = 'todos';
+	onMount(() => {
+		if (location.hash === '#pruefstelle') view = 'auditor';
+	});
+
+	// A budget is paid to the delegate, so it exists only where delegation does,
+	// and only for a session the service can sign for.
+	$: budgetEnabled = delegationEnabled && (!budgetInfo.requiresPasskey || Boolean($ownDidStore));
+	$: budgetsInList = $todosStore.some((todo) => todo.budget && todo.budget.status !== 'none');
+	// The balance appears where the storyboard has it: once a budget was paid
+	// out to this session.
+	$: showBalance =
+		Boolean($ownIdentityIdStore) &&
+		$todosStore.some(
+			(todo) =>
+				todo.budget?.status === 'released' && todo.delegation?.delegateDid === $ownIdentityIdStore
+		);
 
 	/**
 	 * @param {TodoActionEvent} event
@@ -296,9 +380,9 @@
 	const handleDelete = async (event) => {
 		const success = await deleteTodo(event.detail.key);
 		if (success) {
-			showToast('🗑️ Todo deleted successfully!', 'success');
+			showToast($_('todo.toast.deleted'), 'success');
 		} else {
-			showToast('❌ Failed to delete todo', 'error');
+			showToast($_('todo.toast.deleteFailed'), 'error');
 		}
 	};
 
@@ -308,9 +392,9 @@
 	const handleToggleComplete = async (event) => {
 		const result = await toggleTodoComplete(event.detail.key);
 		if (result.ok) {
-			showToast('✅ Todo status updated!', 'success');
+			showToast($_('todo.toast.statusUpdated'), 'success');
 		} else {
-			showToast(`❌ ${result.error ?? 'Failed to update todo'}`, 'error');
+			showToast(`❌ ${result.error ?? $_('todo.toast.updateFailed')}`, 'error');
 		}
 	};
 
@@ -318,7 +402,7 @@
 	const handleUpdateText = async (event) => {
 		const result = await updateTodoText(event.detail.key, event.detail.text);
 		showToast(
-			result.ok ? '✅ Todo renamed!' : `❌ ${result.error ?? 'Failed to rename todo'}`,
+			result.ok ? $_('todo.toast.renamed') : `❌ ${result.error ?? $_('todo.toast.renameFailed')}`,
 			result.ok ? 'success' : 'error'
 		);
 	};
@@ -328,7 +412,9 @@
 		const { key, delegateDid, expiresAt } = event.detail;
 		const result = await delegateTodo(key, { delegateDid, expiresAt });
 		showToast(
-			result.ok ? '🤝 Todo delegated!' : `❌ ${result.error ?? 'Failed to delegate todo'}`,
+			result.ok
+				? $_('todo.toast.delegated')
+				: `❌ ${result.error ?? $_('todo.toast.delegateFailed')}`,
 			result.ok ? 'success' : 'error'
 		);
 	};
@@ -337,7 +423,7 @@
 	const handleRevokeDelegation = async (event) => {
 		const result = await revokeTodoDelegation(event.detail.key);
 		showToast(
-			result.ok ? '↩️ Delegation revoked' : `❌ ${result.error ?? 'Failed to revoke delegation'}`,
+			result.ok ? $_('todo.toast.revoked') : `❌ ${result.error ?? $_('todo.toast.revokeFailed')}`,
 			result.ok ? 'success' : 'error'
 		);
 	};
@@ -390,6 +476,7 @@
 		on:proceed={handleModalClose}
 	>
 		<svelte:fragment slot="before-confirmation">
+			<OnePasskeyIntro confidential={budgetInfo.confidential} storage={storageMode} />
 			<StorageModeSelector bind:mode={storageMode} />
 			<SharedListSelector bind:value={selectedMnemonic} />
 			<PasskeyOnboarding bind:mode={identityMode} bind:label={passkeyLabel} />
@@ -399,85 +486,143 @@
 
 <main class="container mx-auto max-w-4xl p-6">
 	<!-- Header with title and social icons -->
-	<header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<div class="flex flex-1 items-center gap-3">
+	<!--
+		escrow01 adds a language switch, the budget network and the auditor view
+		to the header, more than fits beside the title: the status side wraps
+		rather than pushing the page wider than the window.
+	-->
+	<header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+		<div class="flex min-w-0 flex-1 items-center gap-3">
 			<LeSpaceLogo size={52} />
 			<div>
-				<h1 class="text-2xl font-bold text-heading sm:text-3xl">Simple-Todo</h1>
-				<p class="mt-1 text-sm text-faint">
-					A local-first peer-to-peer PWA · {formatVersions({
-						appName: 'Simple-Todo'
-					})} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{typeof __BUILD_DATE__ !==
-					'undefined'
-						? __BUILD_DATE__
-						: 'dev'}]
-				</p>
+				{#if view === 'auditor'}
+					<h1 class="text-2xl font-bold text-heading sm:text-3xl">{$_('budget.auditor.title')}</h1>
+					<p class="mt-1 text-sm text-faint">
+						{$_('budget.auditor.escrow')}
+						<code class="font-mono text-xs" title={budgetInfo.escrow}
+							>{shortId(budgetInfo.escrow)}</code
+						>
+					</p>
+				{:else}
+					<h1 class="text-2xl font-bold text-heading sm:text-3xl">Simple-Todo</h1>
+					<p class="mt-1 text-sm text-faint">
+						A local-first peer-to-peer PWA · {formatVersions({
+							appName: 'Simple-Todo'
+						})} · {typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'} [{typeof __BUILD_DATE__ !==
+						'undefined'
+							? __BUILD_DATE__
+							: 'dev'}]
+					</p>
+				{/if}
 			</div>
 		</div>
-		<div class="flex flex-shrink-0 items-center gap-2 self-start sm:self-auto">
-			<DidBadge did={$ownDidStore ?? ''} />
+		<div class="flex min-w-0 flex-wrap items-center gap-2 sm:max-w-md sm:justify-end">
 			<DelegatedAuthBadge />
+			<LanguageSwitcher variant="segmented" />
+			<span
+				class="rounded-md border px-2 py-1 text-xs font-medium {budgetInfo.network === 'demo'
+					? 'border-data-400 bg-data-100 text-data-800 dark:border-data/40 dark:bg-data/10 dark:text-data'
+					: 'border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan/40 dark:bg-cyan/10 dark:text-cyan'}"
+				title={budgetInfo.network === 'demo' ? $_('budget.network.demoTitle') : undefined}
+				data-testid="budget-network"
+				data-network={budgetInfo.network}
+				>{budgetInfo.network === 'demo'
+					? $_('budget.network.demo')
+					: $_('budget.network.sepolia')}</span
+			>
+			{#if view === 'auditor'}
+				<DidBadge did={budgetInfo.auditor} label={$_('budget.auditor.role')} />
+			{:else}
+				<DidBadge did={$ownDidStore ?? ''} />
+			{/if}
+			<button
+				type="button"
+				on:click={() => (view = view === 'auditor' ? 'todos' : 'auditor')}
+				class="rounded-md px-2 py-1 text-xs font-medium text-cyan-700 underline-offset-2 hover:underline dark:text-cyan"
+				data-testid="view-toggle"
+				data-view={view}
+				>{view === 'auditor' ? $_('header.backToTodos') : $_('header.auditorView')}</button
+			>
 			<ThemeToggle />
 			<SocialIcons size="w-5 h-5" className="" />
 		</div>
 	</header>
 
-	<P2PStatusNav initialization={$initializationStore} libp2p={$libp2pStore} peerId={myPeerId}>
-		<ManualConnectForm
-			compact
+	{#if view === 'auditor'}
+		<AuditorView />
+	{/if}
+
+	<!-- Kept mounted while the auditor view is open: the network panel and the
+	     forms hold state that a remount would throw away. -->
+	<div hidden={view === 'auditor'}>
+		<P2PStatusNav initialization={$initializationStore} libp2p={$libp2pStore} peerId={myPeerId}>
+			<ManualConnectForm
+				compact
+				disabled={!$initializationStore.isInitialized}
+				on:connected={handleManualConnect}
+			/>
+			<ConnectedPeers compact bind:this={connectedPeersRef} libp2p={$libp2pStore} />
+			<div class="max-w-full min-w-0 space-y-3 overflow-hidden">
+				<PeerIdCard compact peerId={myPeerId} />
+				<OwnMultiaddrs libp2p={$libp2pStore} />
+			</div>
+			<svelte:fragment slot="shared-list">
+				{#if $initializationStore.isInitialized && activeMnemonic}
+					<SharedListDetails
+						embedded
+						mnemonic={activeMnemonic}
+						databaseAddress={$todoDBAddressStore}
+						activeList={$activeListStore}
+						on:change={() => {
+							selectedMnemonic = activeMnemonic;
+							showModal = true;
+						}}
+					/>
+				{/if}
+			</svelte:fragment>
+		</P2PStatusNav>
+
+		{#if !showModal && (error || $initializationStore.error)}
+			<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
+		{/if}
+
+		{#if $initializationStore.isInitialized}
+			<NewPrivateListButton />
+			<ListSwitcher />
+			<OpenDatabaseForm />
+			<PermissionsPanel />
+		{/if}
+
+		{#if showBalance}
+			<BalanceCard />
+		{/if}
+
+		<!-- Add TODO Form -->
+		<AddTodoForm
+			on:add={handleAddTodo}
 			disabled={!$initializationStore.isInitialized}
-			on:connected={handleManualConnect}
+			{delegationEnabled}
+			{budgetEnabled}
+			budgetToken={budgetInfo.token.symbol}
+			budgetDecimals={budgetInfo.token.decimals}
+			budgetConfidential={budgetInfo.confidential}
 		/>
-		<ConnectedPeers compact bind:this={connectedPeersRef} libp2p={$libp2pStore} />
-		<div class="max-w-full min-w-0 space-y-3 overflow-hidden">
-			<PeerIdCard compact peerId={myPeerId} />
-			<OwnMultiaddrs libp2p={$libp2pStore} />
-		</div>
-		<svelte:fragment slot="shared-list">
-			{#if $initializationStore.isInitialized && activeMnemonic}
-				<SharedListDetails
-					embedded
-					mnemonic={activeMnemonic}
-					databaseAddress={$todoDBAddressStore}
-					activeList={$activeListStore}
-					on:change={() => {
-						selectedMnemonic = activeMnemonic;
-						showModal = true;
-					}}
-				/>
-			{/if}
-		</svelte:fragment>
-	</P2PStatusNav>
 
-	{#if !showModal && (error || $initializationStore.error)}
-		<ErrorAlert error={error || $initializationStore.error} dismissible={true} />
-	{/if}
+		<BudgetNotices active={budgetsInList || showBalance} />
 
-	{#if $initializationStore.isInitialized}
-		<NewPrivateListButton />
-		<ListSwitcher />
-		<OpenDatabaseForm />
-		<PermissionsPanel />
-	{/if}
-
-	<!-- Add TODO Form -->
-	<AddTodoForm
-		on:add={handleAddTodo}
-		disabled={!$initializationStore.isInitialized}
-		{delegationEnabled}
-	/>
-
-	<!-- TODO List -->
-	<TodoList
-		todos={$todosStore}
-		currentIdentityId={$ownIdentityIdStore}
-		{delegationEnabled}
-		on:delete={handleDelete}
-		on:toggleComplete={handleToggleComplete}
-		on:updateText={handleUpdateText}
-		on:delegate={handleDelegate}
-		on:revokeDelegation={handleRevokeDelegation}
-	/>
+		<!-- TODO List -->
+		<TodoList
+			todos={$todosStore}
+			currentIdentityId={$ownIdentityIdStore}
+			{delegationEnabled}
+			on:delete={handleDelete}
+			on:toggleComplete={handleToggleComplete}
+			on:updateText={handleUpdateText}
+			on:delegate={handleDelegate}
+			on:revokeDelegation={handleRevokeDelegation}
+			on:releaseBudget={handleReleaseBudget}
+		/>
+	</div>
 </main>
 
 <!-- Floating Relay Button FAB -->

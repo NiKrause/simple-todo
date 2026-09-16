@@ -4,7 +4,181 @@
 	},
 	"language": {
 		"de": "Deutsch",
-		"en": "English"
+		"en": "English",
+		"switch": "Language"
+	},
+	"header": {
+		"auditorView": "Auditor view",
+		"backToTodos": "Back to the todos"
+	},
+	"alert": {
+		"dismiss": "Dismiss"
+	},
+	"identity": {
+		"passkeyDid": "Passkey DID",
+		"copy": "Copy",
+		"copied": "Copied ✓"
+	},
+	"auth": {
+		"awaiting": "Confirm passkey…",
+		"awaitingTitle": "Confirm with your passkey to continue.",
+		"delegatedWriteSigned": "Delegated write signed",
+		"lockConfirmed": "Lock confirmed",
+		"releaseConfirmed": "Release confirmed",
+		"readKeyRenewed": "Read access renewed",
+		"failed": "Passkey confirmation failed"
+	},
+	"onboarding": {
+		"heading": "One passkey for everything",
+		"intro": "Your passkey signs you in, signs your entries and confirms payments. You need no password, no seed phrase and no separate wallet.",
+		"signInTitle": "Sign in",
+		"signInText": "On this device, with Touch ID for example.",
+		"signTitle": "Sign",
+		"signText": "Every change carries your DID.",
+		"payTitle": "Pay",
+		"payText": "Budgets in confidential tokens, confirmed with the same passkey. The account for them is set up quietly in the background.",
+		"storedHeading": "What is stored",
+		"storedDid": "Your public key and your DID",
+		"storedListsPersistent": "Your lists, in this browser",
+		"storedListsMemory": "Your lists, in this browser's memory until the page reloads",
+		"storedBudgetsChain": "Budgets, encrypted, on the Sepolia testnet",
+		"storedBudgetsDemo": "Budgets only as a demo, in this browser's memory: nothing is encrypted and nothing reaches a chain",
+		"storedKeys": "Keys for signing and for reading amounts, in this browser",
+		"storedPasskey": "The passkey itself never leaves your device"
+	},
+	"todo": {
+		"form": {
+			"heading": "Add New TODO",
+			"placeholder": "What needs to be done?",
+			"submit": "Add TODO",
+			"submitWithBudget": "Add TODO and lock budget",
+			"delegateToggle": "Delegate this todo to another DID",
+			"delegateDid": "Delegate DID",
+			"delegateDidPlaceholder": "did:key:… of the person who may complete it",
+			"expiry": "Delegation expires at",
+			"optional": "(optional)",
+			"delegateHint": "The delegate does not get write access to the list. They may only complete or rename this one todo, and you can revoke that at any time."
+		},
+		"item": {
+			"toggle": "Toggle completion",
+			"toggleNotAllowed": "Only the owner or the delegate of this todo can complete it",
+			"save": "Save",
+			"cancel": "Cancel",
+			"assignedTo": "Assigned to:",
+			"unassigned": "Unassigned",
+			"createdBy": "Created by:",
+			"delegatedTo": "Delegated to {did}",
+			"delegatedToYou": "Delegated to you by {did}",
+			"completedBy": "Completed by {did}",
+			"lastChangedBy": "Last changed by delegate: {did}",
+			"until": "until {date}",
+			"status": {
+				"active": "active",
+				"revoked": "revoked",
+				"expired": "expired"
+			},
+			"rename": "Rename",
+			"delegate": "Delegate",
+			"redelegate": "Re-delegate",
+			"revoke": "Revoke",
+			"delete": "Delete",
+			"delegatePlaceholder": "did:key:… of the delegate",
+			"expiryTitle": "Expires at (optional)"
+		},
+		"list": {
+			"title": "TODO Items",
+			"empty": "No TODOs yet. Add one above!"
+		},
+		"toast": {
+			"added": "✅ Todo added successfully!",
+			"addedDelegated": "✅ Todo added and delegated!",
+			"addFailed": "Failed to add todo",
+			"deleted": "🗑️ Todo deleted successfully!",
+			"deleteFailed": "❌ Failed to delete todo",
+			"statusUpdated": "✅ Todo status updated!",
+			"updateFailed": "Failed to update todo",
+			"renamed": "✅ Todo renamed!",
+			"renameFailed": "Failed to rename todo",
+			"delegated": "🤝 Todo delegated!",
+			"delegateFailed": "Failed to delegate todo",
+			"revoked": "↩️ Delegation revoked",
+			"revokeFailed": "Failed to revoke delegation"
+		}
+	},
+	"budget": {
+		"network": {
+			"demo": "Demo without a chain",
+			"demoTitle": "Budgets run against a stand-in in this browser's memory. Nothing is encrypted and nothing is sent.",
+			"sepolia": "Sepolia testnet"
+		},
+		"demoNotice": "Demo without a chain: amounts stay unencrypted in this browser's memory, and nothing is sent.",
+		"form": {
+			"label": "Budget",
+			"confidential": "(confidential)",
+			"hint": "The amount is encrypted on this device before it is sent. Only you, the delegate and the auditor can read it.",
+			"invalidAmount": "Enter an amount greater than 0, with at most {decimals} decimal places.",
+			"needsDelegate": "A budget needs the DID it is for."
+		},
+		"status": {
+			"locking": "being locked",
+			"funded": "locked",
+			"releasing": "being released",
+			"released": "paid out",
+			"failed": "not locked"
+		},
+		"chip": {
+			"hidden": "This browser cannot read the amount.",
+			"decrypting": "Decrypting the amount…",
+			"expired": "Read access expired."
+		},
+		"item": {
+			"release": "Release budget",
+			"reopen": "Reopen",
+			"awaitingRelease": "awaiting release",
+			"visibleTo": "Only you, {owner} and the auditor can see the amount."
+		},
+		"notice": {
+			"confirmLock": "Confirm with your passkey, with Touch ID for example. Approving and locking the budget go out in one step.",
+			"lockFailedTitle": "Budget not locked.",
+			"insufficient": "Your confidential balance was not enough. Nothing was transferred.",
+			"lockFailed": "Locking did not go through. Check the details and try again.",
+			"releaseFailedTitle": "Budget not released.",
+			"releaseFailed": "The amount stays locked. Try again.",
+			"decrypting": "Decrypting the amount. This takes a few seconds.",
+			"expiredTitle": "Read access expired.",
+			"expired": "Confirm with your passkey to see the amounts again.",
+			"renew": "Renew with passkey",
+			"cancelledTitle": "Passkey confirmation cancelled.",
+			"cancelled": "Nothing was sent.",
+			"retry": "Confirm again"
+		},
+		"balance": {
+			"heading": "Confidential balance",
+			"note": "Decrypted on this device. The chain holds only an encrypted value.",
+			"hidden": "This browser cannot read the balance."
+		},
+		"toast": {
+			"received": "{amount} {token} received from {from}",
+			"receivedHidden": "Budget from {from} paid out"
+		},
+		"auditor": {
+			"title": "Auditor view",
+			"escrow": "Escrow",
+			"role": "Auditor",
+			"banner": "You see these amounts because the escrow lists your address as its auditor. They are decrypted on your device. Nothing is in plain text on the chain.",
+			"heading": "Escrow transactions",
+			"reference": "Reference",
+			"from": "From",
+			"to": "To",
+			"amount": "Amount",
+			"status": "Status",
+			"locked": "locked",
+			"released": "paid out",
+			"refunded": "refunded",
+			"footnote": "You do not see the todos themselves, only reference, parties and amount.",
+			"empty": "No escrow transactions yet.",
+			"error": "The escrow transactions could not be loaded."
+		}
 	},
 	"consent": {
 		"warningHeading": "Early days",

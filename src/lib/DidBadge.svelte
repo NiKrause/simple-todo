@@ -1,14 +1,18 @@
 <script>
 	// Shows the session's own DID (shortened) with a copy button. Rendered only
 	// when the user chose a passkey identity in the onboarding.
+	//
+	// escrow01: the auditor view shows its account the same way, under its own
+	// label.
+	import { _ } from '$lib/i18n/index.js';
+	import { shortId } from './utils.js';
+
 	export let did = '';
+	/** What the identifier is; the passkey DID unless said otherwise. */
+	/** @type {string | null} */
+	export let label = null;
 
 	let copied = false;
-
-	function shortDid(/** @type {string} */ value) {
-		if (value.length <= 24) return value;
-		return `${value.slice(0, 14)}…${value.slice(-6)}`;
-	}
 
 	async function copyDid() {
 		try {
@@ -27,15 +31,17 @@
 		data-testid="own-did-badge"
 		title={did}
 	>
-		<span class="font-semibold text-emerald-700 dark:text-emerald-300">Passkey DID</span>
-		<code class="font-mono" data-testid="own-did-value" data-did={did}>{shortDid(did)}</code>
+		<span class="font-semibold text-emerald-700 dark:text-emerald-300"
+			>{label ?? $_('identity.passkeyDid')}</span
+		>
+		<code class="font-mono" data-testid="own-did-value" data-did={did}>{shortId(did)}</code>
 		<button
 			type="button"
 			on:click={copyDid}
 			class="rounded border border-emerald-300 px-1.5 py-0.5 hover:bg-emerald-100 dark:border-emerald-700 dark:hover:bg-emerald-900"
 			data-testid="own-did-copy"
 		>
-			{copied ? 'Copied ✓' : 'Copy'}
+			{copied ? $_('identity.copied') : $_('identity.copy')}
 		</button>
 	</div>
 {/if}

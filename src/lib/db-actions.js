@@ -20,6 +20,7 @@ import { createLogStorages } from './storage-mode.js';
  *   createdBy: string
  *   createdByIdentity?: string | null
  *   delegation?: import('./delegation.js').Delegation | null
+ *   budget?: import('./budget.js').Budget | null
  *   updatedBy?: string
  *   assignee: string | null
  *   createdAt: string
@@ -506,13 +507,23 @@ function describeWriteError(error) {
 	return { denied, message };
 }
 
+/** A key for a new todo. Exported so a budget's `todoRef` can be made before the todo is written. */
+export function createTodoKey() {
+	return `todo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
 // Add a new todo
 /**
  * @param {string} text
  * @param {string | null} [assignee=null]
  * @param {DelegationRequest | null} [delegation=null] delegation01: hand this todo to a DID on creation
+ * @param {{ key?: string, budget?: import('./budget.js').Budget | null }} [extra]
+ *   escrow01: the key from `createTodoKey()` and the budget the todo starts
+ *   with, so a todo whose budget is being locked is written once, already
+ *   saying so
+ * @returns {Promise<{ ok: boolean, error?: string, key?: string }>}
  */
-export async function addTodo(text, assignee = null, delegation = null) {
+export async function addTodo(text, assignee = null, delegation = null, extra = {}) {
 	const todoDB = get(todoDBStore);
 	const myPeerId = get(peerIdStore);
 	const myIdentityId = get(ownIdentityIdStore);
@@ -534,8 +545,12 @@ export async function addTodo(text, assignee = null, delegation = null) {
 		};
 	}
 
+	if (extra.budget && !buildDelegation(delegation, myIdentityId)) {
+		return { ok: false, error: 'A budget needs a delegate to pay.' };
+	}
+
 	try {
-		const todoId = `todo_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+		const todoId = extra.key ?? createTodoKey();
 		/** @type {TodoValue} */
 		const todo = {
 			text: text.trim(),
@@ -549,11 +564,14 @@ export async function addTodo(text, assignee = null, delegation = null) {
 			createdAt: new Date().toISOString(),
 			updatedAt: new Date().toISOString()
 		};
+		// Only when there is one: a todo without a budget stays exactly the shape
+		// the earlier chapters write.
+		if (extra.budget) todo.budget = extra.budget;
 
 		const entryHash = String(await todoDB.put(todoId, todo));
 		scheduleRelayReplicationProof(todoId, entryHash, getDatabaseAddress(todoDB));
 		console.log('✅ Todo added:', todoId);
-		return { ok: true };
+		return { ok: true, key: todoId };
 	} catch (error) {
 		// A denied write throws inside OrbitDB's canAppend gate BEFORE anything
 		// is appended locally, so nothing shows up as "saved" — surface why.
@@ -797,7 +815,12 @@ export async function toggleTodoComplete(todoKey) {
 		const role = roleFor(todoData, myIdentityId);
 		if (role === 'none') return { ok: false, error: NOT_ALLOWED };
 
-		const nextCompleted = !(todoData.completed || false);
+		// Toggle what is on screen: the todo with its delegate's actions folded
+		// in. The entry alone still says "open" after a delegate completed it, so
+		// the owner's first click on "reopen" wrote "completed" again (escrow01's
+		// "Reopen" next to "Release budget" is exactly that click).
+		const shown = get(todosStore).find((todo) => todo.key === String(todoKey));
+		const nextCompleted = !(shown ? shown.completed : todoData.completed || false);
 		if (role === 'delegate' && myIdentityId) {
 			return writeDelegationAction(todoDB, String(todoKey), todoData, myIdentityId, {
 				setCompleted: nextCompleted
@@ -899,6 +922,39 @@ export async function delegateTodo(todoKey, request) {
 		const { message } = describeWriteError(error);
 		return { ok: false, error: `Failed to delegate todo: ${message}` };
 	}
+}
+
+/**
+ * Write a todo's budget metadata (escrow01). Only the todo's owner, by
+ * identity — a todo from before delegation01 has no owner and never carries a
+ * budget. Throws, so a budget flow can tell a write that did not happen from
+ * one that did.
+ *
+ * A budget write leaves `updatedAt` alone. Delegate actions older than the
+ * todo's `updatedAt` are dropped on read, so bumping it for a status change
+ * would silently undo the delegate's completion. The one exception is the
+ * write that starts a release, `acceptCompletion`: releasing is the owner
+ * accepting the work, so the completion moves into the owner's own entry,
+ * where a later revocation cannot take it back.
+ *
+ * @param {string} todoKey
+ * @param {import('./budget.js').Budget} budget
+ * @param {{ acceptCompletion?: boolean }} [options]
+ */
+export async function setTodoBudget(todoKey, budget, { acceptCompletion = false } = {}) {
+	const read = await readTodoForWrite(todoKey);
+	if ('error' in read) throw new Error(read.error);
+	const { todoDB, todoData } = read;
+	const myIdentityId = get(ownIdentityIdStore);
+	if (!todoData.createdByIdentity || todoData.createdByIdentity !== myIdentityId) {
+		throw new Error('Only the owner of a todo can change its budget.');
+	}
+	const updatedTodo = acceptCompletion
+		? { ...todoData, budget, completed: true, updatedAt: new Date().toISOString() }
+		: { ...todoData, budget };
+	const entryHash = String(await todoDB.put(todoKey, updatedTodo));
+	scheduleRelayReplicationProof(todoKey, entryHash, getDatabaseAddress(todoDB));
+	await loadTodos();
 }
 
 /**
