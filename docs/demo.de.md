@@ -18,7 +18,7 @@ als offene Fragen an die Fachleute der Bank.
 | Treuhand-Vertrag                              | auf Sepolia bereitgestellt und verifiziert: `0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`                                                                                                                                                                                                                                                | Quelltext und Transaktionen auf Etherscan                                                                            |
 | Echte vertrauliche Transaktionen              | Smoke-Test vom 2026-09-16: Sperre, Entschlüsselung als Ersteller und als Begünstigter, ungedeckte Sperre, Freigabe. App-Lauf vom 2026-09-17: zwei Konten, Sperre, Lesen, Freigabe, Guthaben                                                                                                                                             | die Etherscan-Seiten in [Szene 8](#szene-8--was-die-chain-zeigt)                                                     |
 | Budget in der App                             | zwei Modi. Sepolia-Modus (`VITE_BUDGET_SERVICE=zama` mit Openfort-Zugang): Beträge im Browser verschlüsselt und entschlüsselt, Sperre und Freigabe als Transaktionen; der Tab „Konto“ zeigt „Sepolia-Testnetz“. Attrappe (ohne diese Einstellung): nichts wird verschlüsselt, nichts gesendet; der Tab „Konto“ zeigt „Demo ohne Chain“. | im Sepolia-Modus der ganze Ablauf mit echten Transaktionen, mit der Attrappe Ablauf, Texte, Zustände und Fehlerfälle |
-| Passkey-Wallet                                | im Sepolia-Modus eingebaut: ein Calibur-Konto je Passkey, Gas von Openfort gesponsert ([passkey-account.de.md](passkey-account.de.md))                                                                                                                                                                                                  | Kontoadresse mit Etherscan-Link im Tab „Konto“                                                                       |
+| Passkey-Wallet                                | im Sepolia-Modus eingebaut: ein Konto je Passkey auf Calibur, einem nicht änderbaren Smart Contract von Uniswap Labs, Gas von Openfort gesponsert ([passkey-account.de.md](passkey-account.de.md))                                                                                                                                      | Kontoadresse mit Etherscan-Link im Tab „Konto“                                                                       |
 | Szene 8 des Drehbuchs („Was die Chain zeigt“) | nicht in der App                                                                                                                                                                                                                                                                                                                        | Etherscan statt der App                                                                                              |
 
 Aussagen, die heute nicht stimmen würden:
@@ -67,7 +67,8 @@ Alle Befehle im Verzeichnis `contracts/`.
 7. **Sepolia-Modus.** `.env.local` mit den Einstellungen aus
    [Konfiguration](passkey-account.de.md#konfiguration). Nach dem Anlegen der Passkeys muss in beiden
    Profilen im Tab „Konto“ nach etwa 20 Sekunden „Konto auf Sepolia“ mit Adresse stehen. Eine Sperre
-   einmal durchspielen: rund eine Minute bis „gesperrt“. Der Leseschlüssel gilt 24 Stunden; wer am
+   einmal durchspielen: rund eine Minute bis „gesperrt“. Der Leseschlüssel gilt 24 Stunden
+   ([warum](passkey-account.de.md#leseschlüssel-einfach)); wer am
    Vortag probt, verlängert ihn am Termin einmal je Profil mit „Mit Passkey verlängern“ oder legt die
    Passkeys erst am Morgen an. Passkeys gelten nur für die Adresse, unter der sie angelegt wurden
    (README, „Passkeys are bound to the origin“). Im Openfort-Dashboard prüfen, dass das Sponsoring
@@ -348,6 +349,37 @@ schlug die Nutzer-Entschlüsselung Anfang September 2026 zweimal zeitweise fehl.
 - **Openfort-Schlüssel:** ein publishable Schlüssel in der ausgelieferten Seite. Wer ihn ausliest, kann
   auf Sepolia Operationen auf Kosten des Openfort-Projekts sponsern lassen, aber für kein Konto
   signieren.
+
+### Was ist Calibur, und wer kontrolliert es?
+
+Ein Smart Contract, keine Firma, kein Dienst und kein Standard. Uniswap Labs hat ihn geschrieben und
+unter MIT-Lizenz veröffentlicht. Er liegt fest auf der Chain, lässt sich nicht ändern, und Uniswap
+betreibt dafür keinen Server. Die Konten von Alice und Bob folgen seinen Regeln per EIP-7702: Der
+Passkey ist dort als Admin-Schlüssel eingetragen, und nur er gibt Zahlungen frei. Uniswap kann neue
+Versionen unter neuen Adressen veröffentlichen, bestehende Konten aber nicht umstellen. Die README des
+Repositorys verlinkt Audits von Cantina (04/2025) und OpenZeppelin (05/2025); v1.0.0, die Version der
+App, ist der Stand nach deren Korrekturen. Seit Juli 2026 führt Uniswap v1.1.0
+([Was Calibur ist](passkey-account.de.md#calibur-einfach)).
+
+### Was ist zentral, was dezentral?
+
+Auf der Chain liegen das Konto, Calibur, die Treuhand, der Token und der EntryPoint. Zentral und von
+Firmen betrieben, aber austauschbar sind Openfort (reicht Zahlungen ein, bezahlt das Gas), Zamas
+Relayer, die öffentlichen RPC-Zugänge und das Relay von Le Space. Verteilt, aber von Zama koordiniert
+sind Gateway, Coprozessoren (auf Sepolia 5 Betreiber) und KMS (13 Betreiber). Zwei Einschränkungen:
+Sepolias Blöcke erzeugt ein geschlossener Kreis aus Client- und Testteams, und den Token sowie Zamas
+Regelverträge kann Zamas Protocol DAO ändern. Fällt ein zentraler Dienst aus, bleibt das Geld auf der
+Chain; die App kann dann aber nicht sperren, freigeben oder lesen
+([Wer betreibt was](passkey-account.de.md#wer-betreibt-was-zentral-oder-dezentral)).
+
+### Was ist der Leseschlüssel, und warum gilt er nur 24 Stunden?
+
+Eine befristete Vollmacht für Kontoauszüge: ein zusätzlicher Schlüssel im Browser, dem das
+Passkey-Konto erlaubt, seine Beträge bei Zama entschlüsseln zu lassen. Nötig ist er, weil Zamas
+aktuelle Version keine Passkey-Unterschriften annimmt. Er kann nur lesen, nichts bewegen. Weil er
+unverschlüsselt im Browser liegt, gilt die Vollmacht in der App 24 Stunden und wird danach mit einem
+Passkey-Schritt erneuert. Die Frist ist eine Einstellung der App, keine Vorgabe von Zama, und
+durchgesetzt wird sie über die Chain ([Der Leseschlüssel](passkey-account.de.md#leseschlüssel-einfach)).
 
 ### Ist das reif für Mainnet?
 

@@ -416,8 +416,8 @@ KMS-Connectoren lesen den Delegierenden aus der Calldata und prüfen
 `isHandleDelegatedForUserDecryption` auf der Host-Chain; die Antworten laufen über
 `userDecryptionResponse`.
 
-Die App liest Beträge so: Das Calibur-Konto eines Passkeys delegiert an einen Sitzungsschlüssel im
-Browser, einmal pro Vertrag, für 24 Stunden
+Die App liest Beträge so: Das Konto eines Passkeys, das Uniswaps Smart Contract Calibur folgt,
+delegiert an einen Sitzungsschlüssel im Browser, einmal pro Vertrag, für 24 Stunden
 ([passkey-account.de.md](passkey-account.de.md#lesen-technisch)).
 
 ## Öffentliche Entschlüsselung

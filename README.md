@@ -33,8 +33,9 @@ the escrow half of [de2do](https://github.com/NiKrause/de2do).
   real amount there on 2026-09-16.
 - **One passkey pays, on Sepolia.** Adding a delegated todo can lock a budget, the owner releases it
   once the delegate is done, the delegate is told about the payout, and an auditor view lists the
-  escrows. Built with `VITE_BUDGET_SERVICE=zama` and an Openfort key, each passkey gets a Calibur
-  account (EIP-7702) in the background; a lock or a release is one user operation the passkey signs,
+  escrows. Built with `VITE_BUDGET_SERVICE=zama` and an Openfort key, each passkey gets an account in
+  the background that follows Calibur, a non-upgradeable wallet smart contract by Uniswap Labs, through
+  EIP-7702; a lock or a release is one user operation the passkey signs,
   with gas sponsored by Openfort, and amounts are encrypted and decrypted in the browser. A run on
   2026-09-17 did all of it between two browsers ([docs/passkey-account.md](docs/passkey-account.md)).
 - **Without that configuration, a fake.** It encrypts nothing and forgets its escrows on reload; the

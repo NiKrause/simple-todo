@@ -382,8 +382,9 @@ as for a user decryption, with the delegate's address. The KMS connectors take t
 calldata and check `isHandleDelegatedForUserDecryption` on the host chain; the answers go through
 `userDecryptionResponse`.
 
-The app reads amounts this way: a passkey's Calibur account delegates to a session key in the browser,
-once per contract, for 24 hours ([passkey-account.md](passkey-account.md#reading-technical)).
+The app reads amounts this way: a passkey's account, which follows Uniswap's smart contract Calibur,
+delegates to a session key in the browser, once per contract, for 24 hours
+([passkey-account.md](passkey-account.md#reading-technical)).
 
 ## Public decryption
 

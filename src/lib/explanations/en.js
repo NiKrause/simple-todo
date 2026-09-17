@@ -42,12 +42,18 @@ export default {
 			{
 				heading: 'From the passkey account',
 				points: [
-					'In the app the lock is one user operation: the passkey signs its hash, Openfort submits it to EntryPoint v0.8 and pays the gas, Calibur checks the P-256 signature and runs the calls as one batch.',
+					'In the app the lock is one user operation: the passkey signs its hash, Openfort (a central service) submits it to EntryPoint v0.8 and pays the gas, and Calibur, a non-upgradeable smart contract by Uniswap Labs that the account follows, checks the P-256 signature and runs the calls as one batch.',
 					'The batch is `setOperator` and `lock`; on the first lock `mint`, `approve` and `wrap` of 1,000.00 test cUSDT come first. If one call fails, `revertOnFailure` undoes them all.',
 					'Creator and proof user is the Calibur account, since it is the `msg.sender` of `lock`. Afterwards the app reads the escrow at the receipt’s block and decrypts the amount to catch an underfunded lock.',
 					'Measured on 2026-09-17: 54 s from the click to “locked”, 1,164,214 gas, 42 events.'
 				],
-				sources: ['account.locking', 'account.signing', 'account.measured']
+				sources: [
+					'account.locking',
+					'account.signing',
+					'account.calibur',
+					'account.operators',
+					'account.measured'
+				]
 			},
 			{
 				heading: 'What Etherscan shows',
@@ -327,9 +333,10 @@ export default {
 				heading: 'In this app',
 				points: [
 					'On Sepolia the read key holds for 24 hours. “Renew with passkey” sends one user operation with two new delegations to a new read key: one passkey step.',
+					'The 24 hours are an app setting (`READ_KEY_TTL_SECONDS`), not a Zama requirement: the read key sits in the browser in plain text, and a short term limits how long someone with access to the browser profile could read along.',
 					'The fake simulates the expiry: `simpleTodoBudgetDemo.expireReadKey()` in the console.'
 				],
-				sources: ['account.reading', 'demo.scene9']
+				sources: ['account.readKey', 'account.reading', 'demo.scene9']
 			}
 		]
 	},

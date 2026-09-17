@@ -17,7 +17,7 @@ questions for the bank's own experts.
 | Escrow contract                                   | deployed and verified on Sepolia: `0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`                                                                                                                                                                                                                                                                       | source and transactions on Etherscan                                                                       |
 | Real confidential transactions                    | smoke test of 2026-09-16: lock, decryption as creator and as beneficiary, underfunded lock, release. App run of 2026-09-17: two accounts, lock, reading, release, balance                                                                                                                                                                            | the Etherscan pages in [scene 8](#scene-8--what-the-chain-shows)                                           |
 | Budget in the app                                 | two modes. Sepolia mode (`VITE_BUDGET_SERVICE=zama` with Openfort access): amounts encrypted and decrypted in the browser, lock and release as transactions; the "Konto" ("Account") tab shows "Sepolia-Testnetz". The fake (without that setting): nothing is encrypted, nothing is sent; the tab shows "Demo ohne Chain" ("Demo without a chain"). | in Sepolia mode the whole flow with real transactions, with the fake flow, wording, states and error cases |
-| Passkey wallet                                    | built into Sepolia mode: one Calibur account per passkey, gas sponsored by Openfort ([passkey-account.md](passkey-account.md))                                                                                                                                                                                                                       | the account address with an Etherscan link in the "Konto" tab                                              |
+| Passkey wallet                                    | built into Sepolia mode: one account per passkey on Calibur, a non-upgradeable smart contract by Uniswap Labs, gas sponsored by Openfort ([passkey-account.md](passkey-account.md))                                                                                                                                                                  | the account address with an Etherscan link in the "Konto" tab                                              |
 | Scene 8 of the storyboard ("Was die Chain zeigt") | not in the app                                                                                                                                                                                                                                                                                                                                       | Etherscan instead of the app                                                                               |
 
 Statements that would not be true today:
@@ -64,7 +64,8 @@ All commands in the `contracts/` directory.
 7. **Sepolia mode.** `.env.local` with the settings from
    [Configuration](passkey-account.md#configuration). After the passkeys are created, both profiles'
    "Konto" tabs must show "Konto auf Sepolia" ("Account on Sepolia") with an address within about 20
-   seconds. Run one lock through: about a minute until "gesperrt". The read key holds for 24 hours;
+   seconds. Run one lock through: about a minute until "gesperrt". The read key holds for 24 hours
+   ([why](passkey-account.md#read-key-simple));
    whoever rehearses the day before renews it once per profile at the meeting with "Mit Passkey
    verlängern", or creates the passkeys only that morning. Passkeys only work at the address they were
    created at (README, "Passkeys are bound to the origin"). Check in the Openfort dashboard that the
@@ -337,6 +338,35 @@ service level agreement. On Sepolia, user decryption failed for a time twice in 
   signatures. There is no recovery without the passkey.
 - **Openfort key:** a publishable key in the shipped page. Whoever reads it out can have operations on
   Sepolia sponsored at the Openfort project's expense, but cannot sign for any account.
+
+### What is Calibur, and who controls it?
+
+A smart contract, not a company, a service or a standard. Uniswap Labs wrote it and published it under
+the MIT license. It sits fixed on the chain, cannot be changed, and Uniswap runs no server for it.
+Alice's and Bob's accounts follow its rules through EIP-7702: the passkey is registered there as admin
+key, and only it releases payments. Uniswap can publish new versions at new addresses but cannot move
+existing accounts to them. The repository's README links audits by Cantina (04/2025) and OpenZeppelin
+(05/2025); v1.0.0, the app's version, is the state after their fixes. Since July 2026 Uniswap lists
+v1.1.0 ([What Calibur is](passkey-account.md#calibur-simple)).
+
+### What is central, what is decentralized?
+
+On the chain are the account, Calibur, the escrow, the token and the EntryPoint. Central, run by
+companies but replaceable, are Openfort (submits payments, pays the gas), Zama's relayer, the public RPC
+access points and Le Space's relay. Distributed but coordinated by Zama are the gateway, the
+coprocessors (5 operators on Sepolia) and the KMS (13 operators). Two caveats: Sepolia's blocks come
+from a closed circle of client and testing teams, and Zama's Protocol DAO can change the token and
+Zama's rule contracts. If a central service fails, the money stays on the chain, but the app cannot
+lock, release or read ([Who runs what](passkey-account.md#who-runs-what-central-or-decentralized)).
+
+### What is the read key, and why does it hold for only 24 hours?
+
+A time-limited power of attorney for account statements: an extra key in the browser that the passkey
+account allows to have its amounts decrypted by Zama. It is needed because Zama's current version
+accepts no passkey signatures. It can only read, not move anything. Because it sits unencrypted in the
+browser, the app grants it for 24 hours and renews it afterwards with one passkey step. The term is an
+app setting, not a Zama requirement, and it is enforced through the chain
+([The read key](passkey-account.md#read-key-simple)).
 
 ### Is this ready for mainnet?
 

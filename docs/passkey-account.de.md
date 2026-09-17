@@ -16,7 +16,7 @@ Arbeitsspeicher; auch die Tests laufen gegen sie.
 
 | Baustein              | Version und Adresse                                                                                                                           |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Kontovertrag          | Calibur v1.0.0 von Uniswap, `0x000000009B1D0aF20D8C6d0A44e162d11F9b8f00` (Sepolia und Mainnet)                                                |
+| Kontovertrag          | Calibur v1.0.0, ein Smart Contract von Uniswap Labs (MIT-Lizenz), `0x000000009B1D0aF20D8C6d0A44e162d11F9b8f00` (Sepolia und Mainnet)          |
 | ERC-4337              | EntryPoint v0.8, `0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108`                                                                                 |
 | Bundler und Paymaster | Openfort, `https://api.openfort.io/rpc/11155111`; Paymaster-Vertrag `0x8888fee873e7035789db91c16b5dddbad7214cda`                              |
 | Wallet-Code           | `@le-space/passkey-wallet`, unveröffentlicht, als Tarball in [`vendor/`](../vendor) (Commit `cde6878`)                                        |
@@ -26,11 +26,13 @@ Arbeitsspeicher; auch die Tests laufen gegen sie.
 Jeder Abschnitt hat eine einfache und eine technische Erklärung.
 
 - [Überblick](#überblick-einfach)
+- [Wer betreibt was: zentral oder dezentral](#wer-betreibt-was-zentral-oder-dezentral)
 - [Was Calibur ist](#calibur-einfach)
 - [Konto einrichten](#einrichtung-einfach)
 - [Mit dem Passkey signieren](#signieren-einfach)
 - [Budget sperren: wo verschlüsselt wird](#sperren-einfach)
 - [Betrag lesen: wo entschlüsselt wird](#lesen-einfach)
+- [Der Leseschlüssel](#leseschlüssel-einfach)
 - [Freigabe und Auszahlung](#freigabe-einfach)
 - [Welches Konto zu welcher DID gehört](#kontozuordnung-einfach)
 - [Was wo gespeichert ist](#was-wo-gespeichert-ist)
@@ -52,40 +54,51 @@ Ein Passkey erledigt in der App drei Dinge:
 3. **Er bestätigt jede Zahlung.** Sperren und Freigeben fragen den Passkey je genau einmal.
 
 Beträge zu lesen braucht den Passkey nicht. Dafür hält der Browser einen Leseschlüssel, der 24 Stunden
-lang die Beträge dieses Kontos entschlüsseln lassen darf, aber kein Geld bewegen kann.
+lang die Beträge dieses Kontos entschlüsseln lassen darf, aber kein Geld bewegen kann
+([Der Leseschlüssel](#leseschlüssel-einfach)).
 
 ### Überblick: technisch
 
 ```mermaid
 flowchart LR
-  subgraph Browser["Browser"]
+  subgraph Device["Gerät der Person (lokal)"]
     Authenticator["Passkey<br/>(Authenticator, P-256)"]
     App["App<br/>budget-service-zama.js"]
     Wallet["passkey-wallet<br/>(Calibur-Kodierung)"]
     SDK["Zama SDK<br/>(TFHE- und TKMS-WASM)"]
     Store["localStorage<br/>Adresse, Leseschlüssel"]
   end
-  Openfort["Openfort<br/>Bundler + Paymaster"]
-  subgraph Sepolia["Ethereum Sepolia"]
+  subgraph Central["Zentrale Dienste (Firmen, austauschbar)"]
+    Openfort["Openfort<br/>Bundler + Paymaster"]
+    RPC["Öffentlicher RPC<br/>(publicnode, dRPC, 1RPC)"]
+    Relayer["Zama Relayer"]
+    Relay["Relay<br/>(Le Space)"]
+  end
+  subgraph Sepolia["Ethereum Sepolia (Smart Contracts)"]
     EP["EntryPoint v0.8"]
-    Account["Konto<br/>(EOA, Code verweist auf Calibur)"]
+    Account["Konto der Person<br/>(Code verweist auf Calibur)"]
+    Calibur["Calibur v1.0.0<br/>(Uniswap Labs)"]
     Escrow["ConfidentialTodoEscrow"]
     Token["cUSDTMock (ERC-7984)"]
     Host["Zama-Host-Verträge<br/>(ACL, Executor, InputVerifier)"]
   end
-  subgraph Zama["Zama"]
-    Relayer["Relayer"]
+  subgraph ZamaNet["Zama-Netz (mehrere Betreiber)"]
     Gateway["Gateway, Coprozessoren, KMS"]
   end
-  OrbitDB["OrbitDB<br/>Kontoverzeichnis je DID"]
+  subgraph P2P["Peer-to-Peer"]
+    OrbitDB["OrbitDB<br/>Listen, Kontoverzeichnis je DID"]
+  end
 
   App -- "WebAuthn: UserOperation signieren" --> Authenticator
   App --> Wallet
   App --> SDK
   App --> Store
   App -- "UserOperation" --> Openfort
+  App -- "Zustände lesen" --> RPC
+  RPC --> Sepolia
   Openfort -- "handleOps" --> EP
   EP -- "validateUserOp, executeUserOp" --> Account
+  Account -. "führt Code aus von" .-> Calibur
   Account --> Escrow
   Account --> Token
   Escrow --> Host
@@ -94,7 +107,23 @@ flowchart LR
   Relayer --> Gateway
   Gateway -- "liest die ACL" --> Host
   App -- "Adresse veröffentlichen, nachschlagen" --> OrbitDB
+  OrbitDB -. "Verbindungen, Kopien" .- Relay
+
+  classDef lokal fill:#dbeafe,stroke:#1d4ed8,color:#0f172a
+  classDef zentral fill:#fef3c7,stroke:#b45309,color:#0f172a
+  classDef chain fill:#dcfce7,stroke:#15803d,color:#0f172a
+  classDef netz fill:#f3e8ff,stroke:#7e22ce,color:#0f172a
+  classDef p2p fill:#e5e7eb,stroke:#374151,color:#0f172a
+  class Authenticator,App,Wallet,SDK,Store lokal
+  class Openfort,RPC,Relayer,Relay zentral
+  class EP,Account,Calibur,Escrow,Token,Host chain
+  class Gateway netz
+  class OrbitDB p2p
 ```
+
+Farben im Überblick, Kästen in den Sequenzdiagrammen: blau das Gerät der Person, gelb zentrale Dienste
+von Firmen, violett Zamas Netz mit mehreren Betreibern, grün Smart Contracts auf Ethereum Sepolia,
+grau Peer-to-Peer. Wer was betreibt, steht in [Wer betreibt was](#wer-betreibt-was-zentral-oder-dezentral).
 
 Die Schlüssel, die dabei vorkommen:
 
@@ -106,22 +135,70 @@ Die Schlüssel, die dabei vorkommen:
 | Transportschlüssel    | ML-KEM-512              | Arbeitsspeicher der Seite                                            | öffnet die Antwortanteile des KMS                                           | solange die Seite offen ist                                     |
 | Openfort-Schlüssel    | publishable `pk_test_…` | im ausgelieferten JavaScript                                         | UserOperations nach Openforts Regel sponsern lassen                         | bis er rotiert wird                                             |
 
+## Wer betreibt was: zentral oder dezentral
+
+Drei Arten von Beteiligten tragen den Ablauf:
+
+- **Auf dem eigenen Gerät** liegen Passkey, App und Leseschlüssel.
+- **Auf der Blockchain** liegen die Verträge: Konto, Treuhand, Token. Jede Bewegung dort braucht eine
+  passende Unterschrift; keiner der Dienste unten kann Geld abziehen.
+- **Dazwischen stehen Dienste von Firmen**, die heute zentral laufen und sich austauschen ließen:
+  Openfort reicht Zahlungen ein und bezahlt das Gas, Zamas Relayer nimmt Ver- und
+  Entschlüsselungsanfragen an, öffentliche RPC-Anbieter geben Lesezugang zur Chain, und Le Space
+  betreibt das Relay für die Listen. Fällt einer davon aus, bleibt das Geld auf der Chain, aber die App
+  kann nicht mehr sperren, freigeben oder lesen, bis der Dienst zurück ist oder ersetzt wird.
+
+Zwei Einschränkungen gehören dazu. Sepolia ist ein Testnetz, dessen Blöcke ein geschlossener Kreis aus
+Client- und Testteams erzeugt; im Ethereum-Mainnet ist dieser Kreis offen. Und den Token sowie Zamas
+Regelverträge auf der Chain kann Zamas Protocol DAO ändern.
+
+| Baustein                                        | Was es ist                                                                                                                              | Wer betreibt oder kontrolliert es                                                                                    | Einordnung                     |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| Passkey                                         | Schlüsselpaar im Authenticator des Geräts (WebAuthn)                                                                                    | die Person; wird er synchronisiert, liegt er zusätzlich verschlüsselt beim Anbieter des Passwortmanagers             | lokal                          |
+| App, Wallet-Code, Zama SDK                      | JavaScript und WebAssembly im Browser                                                                                                   | läuft auf dem Gerät; ausgeliefert von der Website, die die App hostet                                                | lokal                          |
+| Leseschlüssel                                   | secp256k1-Schlüssel im Browser                                                                                                          | die Person, über das Browserprofil ([Der Leseschlüssel](#leseschlüssel-einfach))                                     | lokal                          |
+| OrbitDB-Listen und Kontoverzeichnis             | Datenbanken, die die Browser direkt miteinander abgleichen                                                                              | die beteiligten Peers                                                                                                | Peer-to-Peer                   |
+| Relay                                           | `orbitdb-relay`: vermittelt Verbindungen zwischen Browsern und hält Kopien der Listen                                                   | Le Space                                                                                                             | zentral, austauschbar          |
+| Öffentlicher RPC                                | Lese- und Sendezugang zu Sepolia                                                                                                        | Anbieter wie publicnode, dRPC und 1RPC; ersetzbar über `VITE_SEPOLIA_RPC_URL`                                        | zentral, austauschbar          |
+| Openfort                                        | Dienst, der UserOperations einreicht, und Paymaster, der das Gas bezahlt                                                                | Openfort, eine Firma, nach der Regel im Openfort-Projekt                                                             | zentral                        |
+| EntryPoint v0.8                                 | Smart Contract, Referenzimplementierung von ERC-4337 (eth-infinitism)                                                                   | niemand; der Vertrag hat keinen Upgrade-Mechanismus                                                                  | Blockchain                     |
+| Calibur v1.0.0                                  | Smart Contract von Uniswap Labs, MIT-Lizenz ([Was Calibur ist](#calibur-einfach))                                                       | niemand; nicht upgradebar, von allen Konten gemeinsam genutzt                                                        | Blockchain                     |
+| Konto der Person                                | Ethereum-Adresse, deren Code auf Calibur verweist                                                                                       | der Passkey als Admin; der verworfene Einrichtungsschlüssel bleibt technisch Root-Key                                | Blockchain                     |
+| ConfidentialTodoEscrow                          | Smart Contract dieses Kapitels                                                                                                          | niemand; kein Eigentümer, kein Upgrade, Prüfstelle fest eingetragen                                                  | Blockchain                     |
+| cUSDTMock, Zama-Host-Verträge (ACL und weitere) | Smart Contracts von Zama                                                                                                                | Zamas Protocol DAO kann sie upgraden und ihre Konfiguration ändern                                                   | Blockchain, zentral steuerbar  |
+| Ethereum Sepolia                                | Testnetz von Ethereum                                                                                                                   | Validatoren aus Client- und Testteams, ein geschlossener Kreis                                                       | Blockchain, Testnetz           |
+| Zama Relayer                                    | HTTP-Dienst für Verschlüsseln und Entschlüsseln                                                                                         | Zama; laut Zamas Dokumentation auch selbst betreibbar                                                                | zentral                        |
+| Gateway, Coprozessoren, KMS                     | Zamas Protokoll-Netz: Gateway-Chain (Arbitrum-Rollup), Rechner für verschlüsselte Werte, Schlüsselverwaltung per Mehrparteienberechnung | auf Sepolia 5 Coprozessor-Betreiber und 13 KMS-Betreiber, von denen 9 für eine Nutzer-Entschlüsselung zusammenwirken | verteilt, von Zama koordiniert |
+
 ## Was Calibur ist
 
 ### Calibur: einfach
 
-Ein gewöhnliches Ethereum-Konto gehört genau einem privaten Schlüssel. Wer ihn hat, hat das Konto;
-einen zweiten Schlüssel oder einen Passkey kennt es nicht. Seit EIP-7702 kann ein Konto erklären:
-„Für mich gilt der Code dieses Vertrags.“ Die Adresse bleibt dieselbe, und das Konto folgt von da an
-den Regeln des Vertrags.
+**Was für ein Ding Calibur ist:** ein Smart Contract, also ein Programm, das auf Ethereum gespeichert
+ist und von allen Knoten gleich ausgeführt wird. Geschrieben und veröffentlicht hat ihn Uniswap Labs,
+die Firma hinter der Handelsplattform Uniswap; „Calibur“ ist ihr Name für diesen Vertrag, abgeleitet von
+Excalibur. Calibur ist keine Firma, kein Dienst und kein Standard: Uniswap betreibt dafür keinen
+Server, und niemand braucht ein Konto bei Uniswap. Der Vertrag setzt aber Standards um, allen voran
+EIP-7702 und ERC-4337. Er liegt unter derselben Adresse auf Sepolia und im Mainnet, und niemand kann
+ihn nachträglich ändern, auch Uniswap nicht; Uniswap kann nur neue Versionen unter neuen Adressen
+veröffentlichen.
 
-Calibur ist ein solches Regelwerk, veröffentlicht von Uniswap. Ein Konto mit Calibur kann weitere
-Schlüssel eintragen, darunter Passkeys, mehrere Aufrufe in einem Schritt ausführen und das Gas von
-jemand anderem bezahlen lassen. Jedes Konto hält seine Schlüssel in seinem eigenen Speicher. Der
-Calibur-Vertrag selbst hält nichts und lässt sich nicht nachträglich ändern.
+**Was er tut:** Ein gewöhnliches Ethereum-Konto gehört genau einem privaten Schlüssel. Wer ihn hat,
+hat das Konto; einen zweiten Schlüssel oder einen Passkey kennt es nicht. Seit EIP-7702 kann ein Konto
+erklären: „Für mich gilt der Code dieses Vertrags.“ Die Adresse bleibt dieselbe, und das Konto folgt
+von da an den Regeln von Calibur. Es kann dann weitere Schlüssel eintragen, darunter Passkeys, mehrere
+Aufrufe in einem Schritt ausführen und das Gas von jemand anderem bezahlen lassen. Jedes Konto hält
+seine Schlüssel und sein Geld in seinem eigenen Speicher; der Calibur-Vertrag selbst hält beides nicht.
 
 ### Calibur: technisch
 
+- **Einordnung.** Repository `Uniswap/calibur` der GitHub-Organisation Uniswap Labs, MIT-Lizenz,
+  beschrieben als „non-upgradeable, singleton wallet contract“ für EIP-7702. Laut README setzt der
+  Vertrag ERC-4337 (UserOperations), ERC-7821 (Stapel von Aufrufen), ERC-7201 (benannte
+  Speicherbereiche), ERC-7739 (verschachtelte Signaturen) und ERC-7914 (ETH-Freigaben) um. Welcher
+  Version ein Konto folgt, legt eine EIP-7702-Autorisierung fest, die nur der Root-Key des Kontos
+  signieren kann; die Konten dieser App bleiben deshalb bei v1.0.0, denn ihr Einrichtungsschlüssel ist
+  verworfen.
 - **Delegation nach EIP-7702.** Eine Transaktion vom Typ 4 trägt eine Autorisierung, die der
   Kontoschlüssel signiert hat (Chain-ID, Code-Adresse, Nonce). Danach ist der Code des Kontos der
   Verweis `0xef0100 ‖ Calibur-Adresse`, und ein Aufruf an das Konto führt Caliburs Code im Speicher
@@ -159,8 +236,8 @@ Calibur-Vertrag selbst hält nichts und lässt sich nicht nachträglich ändern.
   statt eines Reverts; nur Admin-Schlüssel dürfen den EntryPoint aufrufen (laut dem Kommentar zu
   dieser Änderung konnte ein Schlüssel ohne Admin-Recht zuvor das Depot des Kontos dort abziehen);
   `register` prüft die Länge des öffentlichen Schlüssels und lehnt EntryPoint und SenderCreator als
-  Schlüssel ab; `update` lehnt reservierte Bits und Hooks ohne Code ab. `KeyLib.hash`, das Admin-Bit und der Speicherort nach
-  ERC-7201 sind gleich geblieben. Ein Audit für v1.1.0 verlinkt das Repository nicht. Die App nutzt
+  Schlüssel ab; `update` lehnt reservierte Bits und Hooks ohne Code ab. `KeyLib.hash`, das Admin-Bit
+  und der Speicherort nach ERC-7201 sind gleich geblieben. Ein Audit für v1.1.0 verlinkt das Repository nicht. Die App nutzt
   v1.0.0 ([Offene Punkte](#offene-punkte)).
 
 ## Konto einrichten
@@ -179,14 +256,22 @@ unter der DID in OrbitDB, damit andere diesem Konto Budgets zuweisen können.
 ```mermaid
 sequenceDiagram
   autonumber
-  participant App as Browser: App
-  participant W as Browser: passkey-wallet
-  participant OF as Openfort<br/>Bundler + Paymaster
-  participant EP as EntryPoint v0.8
-  participant ACC as Neues Konto<br/>(EOA)
-  participant ACL as Zama ACL
-  participant RPC as Öffentlicher RPC
-  participant DB as OrbitDB<br/>Kontoverzeichnis
+  box transparent Gerät der Person (lokal)
+    participant App as Browser: App
+    participant W as Browser: passkey-wallet
+  end
+  box transparent Zentrale Dienste (Firmen)
+    participant OF as Openfort<br/>Bundler + Paymaster
+    participant RPC as Öffentlicher RPC
+  end
+  box transparent Ethereum Sepolia (Smart Contracts)
+    participant EP as EntryPoint v0.8
+    participant ACC as Neues Konto<br/>(Code wird Calibur)
+    participant ACL as Zama ACL
+  end
+  box transparent Peer-to-Peer
+    participant DB as OrbitDB<br/>Kontoverzeichnis
+  end
 
   Note over App: Passkey angemeldet, öffentlicher Schlüssel x, y bekannt
   App->>App: Leseschlüssel erzeugen (secp256k1)
@@ -299,17 +384,26 @@ zurück. Kommt 0 an, war das Guthaben zu klein, und die App sagt das.
 ```mermaid
 sequenceDiagram
   autonumber
-  actor Alice
-  participant App as Alices Browser: App
-  participant SDK as Alices Browser: Zama SDK
-  participant PK as Passkey
-  participant REL as Zama Relayer
-  participant CO as Gateway und<br/>Coprozessoren
-  participant OF as Openfort
-  participant ACC as Alices Konto<br/>(Calibur)
-  participant ESC as Treuhand
-  participant TOK as cUSDTMock
-  participant HOST as Zama-Host<br/>(Executor, InputVerifier, ACL)
+  box transparent Alices Gerät (lokal)
+    actor Alice
+    participant App as Browser: App
+    participant SDK as Browser: Zama SDK
+    participant PK as Passkey
+  end
+  box transparent Zentrale Dienste (Firmen)
+    participant REL as Zama Relayer
+    participant OF as Openfort
+  end
+  box transparent Zama-Netz (mehrere Betreiber)
+    participant CO as Gateway und<br/>Coprozessoren
+  end
+  box transparent Ethereum Sepolia (Smart Contracts)
+    participant EP as EntryPoint v0.8
+    participant ACC as Alices Konto<br/>(Calibur)
+    participant ESC as Treuhand
+    participant TOK as cUSDTMock
+    participant HOST as Zama-Host<br/>(Executor, InputVerifier, ACL)
+  end
 
   Alice->>App: Aufgabe an Bobs DID, Budget 5,00
   Note over App: Bobs Konto: Kontoverzeichnis + Prüfung auf der Chain
@@ -331,8 +425,9 @@ sequenceDiagram
   Alice->>PK: bestätigt (Fingerabdruck, Gesicht, PIN)
   PK-->>App: authenticatorData, clientDataJSON, r, s
   App->>OF: eth_sendUserOperation
-  OF->>ACC: über EntryPoint: validateUserOp (P-256 über Precompile 0x100)
-  OF->>ACC: über EntryPoint: executeUserOp
+  OF->>EP: handleOps
+  EP->>ACC: validateUserOp (P-256 über Precompile 0x100)
+  EP->>ACC: executeUserOp
   opt erstes Sperren (Guthaben-Handle ist null)
     ACC->>TOK: USDTMock.mint 1.000,00, approve, wrap (Klartext, öffentlich)
   end
@@ -397,13 +492,21 @@ liest nur, wem es gehört.
 ```mermaid
 sequenceDiagram
   autonumber
-  participant App as Bobs Browser: App
-  participant SDK as Bobs Browser: Zama SDK
-  participant LS as Leseschlüssel<br/>(localStorage)
-  participant CH as Sepolia<br/>(Treuhand, ACL)
-  participant REL as Zama Relayer
-  participant GW as Gateway<br/>(Decryption)
-  participant KMS as KMS<br/>(13 MPC-Knoten)
+  box transparent Bobs Gerät (lokal)
+    participant App as Browser: App
+    participant SDK as Browser: Zama SDK
+    participant LS as Leseschlüssel<br/>(localStorage)
+  end
+  box transparent Zentraler Dienst (Firma)
+    participant REL as Zama Relayer
+  end
+  box transparent Zama-Netz (mehrere Betreiber)
+    participant GW as Gateway<br/>(Decryption)
+    participant KMS as KMS<br/>(13 Betreiber)
+  end
+  box transparent Ethereum Sepolia (Smart Contracts)
+    participant CH as Treuhand, ACL
+  end
 
   App->>CH: escrowOf(Alices Konto, todoRef)
   CH-->>App: Handle (nur ein Verweis)
@@ -463,6 +566,81 @@ sequenceDiagram
    Prüfstelle ist; sonst zeigt sie „•••“. Die eingetragene Prüfstelle ist ein Entwicklungsschlüssel
    ohne Passkey, in der App erscheinen dort also immer „•••“.
 
+## Der Leseschlüssel
+
+### Leseschlüssel: einfach
+
+Um einen Betrag zu zeigen, bittet der Browser Zamas Schlüsselverwalter, ihn zu entschlüsseln. Die
+verlangen dafür eine unterschriebene Erlaubnis. Unterschreiben müsste das Konto, und das Konto gehört
+dem Passkey. Zamas aktuelle Version nimmt aber nur Unterschriften klassischer Ethereum-Schlüssel an,
+keine Passkey-Unterschriften. Deshalb erzeugt die App im Browser einen zusätzlichen Schlüssel, den
+Leseschlüssel, und das Konto erteilt ihm eine Vollmacht.
+
+Man kann sich das wie eine befristete Vollmacht für Kontoauszüge vorstellen: Wer sie hat, sieht die
+Beträge, kann aber nichts überweisen, sperren oder freigeben. Das kann nur der Passkey.
+
+- **Erteilt** wird die Vollmacht bei der Einrichtung des Kontos, ohne Nachfrage.
+- **Lesen** fragt den Passkey nie. So sieht Bob seine Beträge, ohne jedes Mal den Finger aufzulegen.
+- **Nach 24 Stunden** läuft die Vollmacht ab. Die App zeigt „Lesezugriff abgelaufen.“; nach „Mit Passkey
+  verlängern“ und einer Bestätigung gilt ein neuer Leseschlüssel wieder 24 Stunden. Dasselbe zeigt
+  ein zweites Gerät, das noch keinen Leseschlüssel hat.
+
+**Warum 24 Stunden:** Der Leseschlüssel liegt unverschlüsselt im Browser. Wer an dieses Browserprofil
+kommt, etwa über Schadsoftware oder einen offenen Laptop, kann Beträge lesen, bis die Vollmacht
+abläuft. Eine kurze Frist begrenzt diese Zeit, eine lange erspart Bestätigungen. Die 24 Stunden sind
+eine Einstellung der App für die Demo, keine Vorgabe von Zama, und lassen sich ändern.
+
+```mermaid
+stateDiagram-v2
+  state "Gültig" as valid
+  state "Abgelaufen" as expired
+  state "Fehlt" as missing
+  [*] --> valid: Konto eingerichtet, ohne Passkey
+  [*] --> missing: zweites Gerät mit demselben Passkey
+  valid --> valid: Betrag lesen, ohne Passkey
+  valid --> expired: 24 Stunden später
+  expired --> valid: Mit Passkey verlängern
+  missing --> valid: Mit Passkey verlängern
+```
+
+### Leseschlüssel: technisch
+
+- **Schlüssel.** secp256k1, erzeugt mit viems `generatePrivateKey` in `ensureAccount` (Einrichtung)
+  und in `renewReadKey` (Verlängerung), jedes Mal neu. Er steht im Klartext im Kontodatensatz in
+  `localStorage` unter `simpleTodo.chainAccount.v1.<DID>`, als `session: { address, privateKey }` mit
+  `readKeyExpiresAt` in Unix-Sekunden.
+- **Vollmacht.** `ACL.delegateForUserDecryption(Leseschlüssel, Vertrag, Ablauf)`, je einmal für die
+  Treuhand und für cUSDTMock. Bei der Einrichtung steht der Aufruf im Stapel, den der
+  Einrichtungsschlüssel signiert, ohne Passkey-Abfrage; bei der Verlängerung ist es eine
+  UserOperation, die der Passkey signiert. Der Schlüssel ist jedes Mal neu, weil die ACL dieselbe
+  Kombination aus Delegierendem, Delegiertem und Vertrag nur einmal pro Block annimmt und ein alter
+  Schlüssel seine Verlängerung nicht überdauern soll.
+- **Ablauf.** Zeitstempel des letzten Blocks plus `READ_KEY_TTL_SECONDS`, festgelegt mit 24 Stunden in
+  [`src/lib/chain/config.js`](../src/lib/chain/config.js). Ein geänderter Wert gilt für neue
+  Leseschlüssel; bestehende Vollmachten behalten ihr Datum. Die ACL v0.4.0 verlangt nur ein Datum in
+  der Zukunft, die Laufzeit ist also frei wählbar.
+- **Wer das Ende durchsetzt.** Die App vergleicht `readKeyExpiresAt` mit der Uhr (`readKeyState`:
+  `valid`, `expired`, `missing`) und zeigt dann „Lesezugriff abgelaufen.“. Durchgesetzt wird der Ablauf
+  aber über die Chain: Die KMS-Connectoren prüfen `ACL.isHandleDelegatedForUserDecryption` auf Sepolia,
+  und schon `@zama-fhe/sdk` prüft vor der Anfrage, dass die Delegation aktiv ist. Das signierte Permit hat
+  ein eigenes Zeitfenster; lesen lässt die Chain nur, solange die Delegation gilt.
+- **Was er kann.** EIP-712-Permits vom Typ `DelegatedUserDecryptRequestVerification` signieren, für
+  Handles, die das Konto in diesen beiden Verträgen lesen darf, etwa gesperrte Beträge, bei denen das
+  Konto Ersteller, Begünstigter oder Prüfstelle ist, und das eigene Guthaben. Im Calibur-Konto ist er nicht
+  eingetragen, er kann also keine UserOperation signieren und nichts bewegen.
+- **Was öffentlich wird.** Das Event `DelegatedForUserDecryption` auf Sepolia verknüpft Konto und
+  Leseschlüssel samt Ablaufdatum; `UserDecryptionRequest` auf der Gateway-Chain nennt bei jeder
+  Leseanfrage die Adresse des Leseschlüssels.
+- **Warum nicht der Passkey.** Zama v0.13 nimmt nur ECDSA-Permits mit 65 Bytes an; die Signatur eines
+  Calibur-Kontos wäre ein ERC-1271-Nachweis in ERC-7739-Form
+  ([Passkey-Wallet](security.de.md#passkey-wallet-technisch)). v0.14 prüft Permits auch per ERC-1271;
+  ob eine Calibur-Passkey-Signatur dort besteht, ist nicht geprüft.
+- **Was die App nicht tut.** Einen Widerruf (`revokeDelegationForUserDecryption`, im Wallet-Paket
+  `getRevokeDelegationForUserDecryptionCalls`) bietet sie nicht an; die Vollmacht endet nur durch
+  Ablauf. Das Wallet-Paket könnte den Schlüssel mit AES-GCM versiegeln (`seal`, etwa mit einem aus dem
+  PRF-Wert des Passkeys abgeleiteten Schlüssel); die App nutzt das noch nicht
+  ([Offene Punkte](#offene-punkte)).
+
 ## Freigabe und Auszahlung
 
 ### Freigabe: einfach
@@ -477,21 +655,29 @@ Browser entschlüsselt.
 ```mermaid
 sequenceDiagram
   autonumber
-  participant Bob as Bobs Browser
-  participant Alice as Alices Browser
-  participant PK as Alices Passkey
-  participant OF as Openfort + EntryPoint
-  participant ACC as Alices Konto<br/>(Calibur)
-  participant ESC as Treuhand
-  participant TOK as cUSDTMock
-  participant HOST as Zama-Host (ACL)
+  box transparent Geräte (lokal)
+    participant Bob as Bobs Browser
+    participant Alice as Alices Browser
+    participant PK as Alices Passkey
+  end
+  box transparent Zentraler Dienst (Firma)
+    participant OF as Openfort
+  end
+  box transparent Ethereum Sepolia (Smart Contracts)
+    participant EP as EntryPoint v0.8
+    participant ACC as Alices Konto<br/>(Calibur)
+    participant ESC as Treuhand
+    participant TOK as cUSDTMock
+    participant HOST as Zama-Host (ACL)
+  end
 
   Bob->>Alice: Aufgabe erledigt (OrbitDB, von Bobs Passkey bestätigt)
   Alice->>ESC: escrowOf: noch gesperrt?
   Alice->>PK: WebAuthn get (Challenge = UserOperation-Hash)
   PK-->>Alice: Signatur
   Alice->>OF: eth_sendUserOperation(release(todoRef))
-  OF->>ACC: validateUserOp, executeUserOp
+  OF->>EP: handleOps
+  EP->>ACC: validateUserOp, executeUserOp
   ACC->>ESC: release(todoRef)
   ESC->>TOK: confidentialTransfer(Bobs Konto, Handle)
   Note over TOK,HOST: symbolisch: neues Guthaben für Bob,<br/>ACL.allow für Bob und den Token
@@ -682,6 +868,10 @@ Repository, Branch `escrow01`:
   [`src/lib/chain/account-directory.js`](../src/lib/chain/account-directory.js),
   [`src/lib/chain/account-store.js`](../src/lib/chain/account-store.js),
   [`src/lib/chain/did-key.js`](../src/lib/chain/did-key.js).
+- Leseschlüssel: [`src/lib/chain/config.js`](../src/lib/chain/config.js) (`READ_KEY_TTL_SECONDS` 35),
+  [`src/lib/budget-service-zama.js`](../src/lib/budget-service-zama.js) (`readKeyState`, `ensureAccount`,
+  `renewReadKey`), [`src/lib/BudgetNotices.svelte`](../src/lib/BudgetNotices.svelte) (Hinweis „Lesezugriff
+  abgelaufen.“, `expired` 39).
 - Tests: [`src/lib/budget-service-zama.spec.js`](../src/lib/budget-service-zama.spec.js),
   [`src/lib/chain/did-key.spec.js`](../src/lib/chain/did-key.spec.js).
 
@@ -703,6 +893,15 @@ Calibur v1.0.0 (<https://github.com/Uniswap/calibur/tree/v1.0.0>, Commit `35d809
 2026-09-17: README (Adressen v1.1.0, Audits), Releases v1.0.0 („Frozen commit post audit fixes“) und
 v1.1.0, Vergleich <https://github.com/Uniswap/calibur/compare/v1.0.0...v1.1.0> (`src/Calibur.sol`,
 `src/KeyManagement.sol`, `src/libraries/KeyLib.sol`, `src/libraries/SettingsLib.sol`).
+
+Einordnung, gelesen am 2026-09-17: GitHub-Organisation `Uniswap` (Name „Uniswap Labs“) und Repository
+`Uniswap/calibur` (Lizenz MIT, Beschreibung „a non-upgradeable, singleton wallet contract that can be set
+on an EIP-7702 delegation transaction“; README mit Namensherkunft und Liste der umgesetzten Standards);
+SPDX-Kennung MIT in `src/Calibur.sol` von v1.0.0; `eth-infinitism/account-abstraction`,
+`contracts/core/EntryPoint.sol` 28 (kein Proxy, kein Owner); ethereum.org, Networks
+(<https://ethereum.org/en/developers/docs/networks/>): Sepolia nutzt „a permissioned validator set
+controlled by client & testing teams“. Zamas Betreiber, Gateway und Relayer:
+[zama-confidential-transactions.de.md](zama-confidential-transactions.de.md#komponenten-technisch).
 
 viem: `account-abstraction/utils/userOperation/getUserOperationTypedData.js` (EIP-712-Hash für v0.8),
 `getInitCode.js` (Markierung `0x7702`).

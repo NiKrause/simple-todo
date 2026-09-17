@@ -297,8 +297,9 @@ about to be replaced. It is a demonstration, not a product.
 
 Integrated on 2026-09-17 behind `VITE_BUDGET_SERVICE=zama`
 ([`src/lib/budget-service-zama.js`](../src/lib/budget-service-zama.js),
-[`src/lib/chain/`](../src/lib/chain)): Zama's token and the escrow, signed through a Calibur account that
-the passkey controls. How it works, step by step, is in [passkey-account.md](passkey-account.md). The
+[`src/lib/chain/`](../src/lib/chain)): Zama's token and the escrow, signed through an account on Calibur, a
+non-upgradeable smart contract by Uniswap Labs ([What Calibur is](passkey-account.md#calibur-simple)),
+that the passkey controls. How it works, step by step, is in [passkey-account.md](passkey-account.md). The
 facts below concern Calibur v1.0.0 (Uniswap, tag `v1.0.0`), Zama v0.13 and what the app does with
 them.
 

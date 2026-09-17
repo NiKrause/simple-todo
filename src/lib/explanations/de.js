@@ -43,12 +43,18 @@ export default {
 			{
 				heading: 'Aus dem Passkey-Konto',
 				points: [
-					'In der App ist die Sperre eine UserOperation: Der Passkey signiert ihren Hash, Openfort reicht sie beim EntryPoint v0.8 ein und bezahlt das Gas, Calibur prüft die P-256-Signatur und führt die Aufrufe als ein Stapel aus.',
+					'In der App ist die Sperre eine UserOperation: Der Passkey signiert ihren Hash, Openfort (ein zentraler Dienst) reicht sie beim EntryPoint v0.8 ein und bezahlt das Gas, und Calibur, ein nicht änderbarer Smart Contract von Uniswap Labs, dem das Konto folgt, prüft die P-256-Signatur und führt die Aufrufe als ein Stapel aus.',
 					'Der Stapel ist `setOperator` und `lock`; bei der ersten Sperre kommen davor `mint`, `approve` und `wrap` von 1.000,00 Test-cUSDT. Scheitert ein Aufruf, nimmt `revertOnFailure` alle zurück.',
 					'Ersteller und Nutzer des Proofs ist das Calibur-Konto, denn es ist `msg.sender` von `lock`. Danach liest die App den Vorgang am Block der Quittung und entschlüsselt den Betrag, um eine ungedeckte Sperre zu erkennen.',
 					'Gemessen am 2026-09-17: 54 s vom Klick bis „gesperrt“, 1.164.214 Gas, 42 Events.'
 				],
-				sources: ['account.locking', 'account.signing', 'account.measured']
+				sources: [
+					'account.locking',
+					'account.signing',
+					'account.calibur',
+					'account.operators',
+					'account.measured'
+				]
 			},
 			{
 				heading: 'Was Etherscan zeigt',
@@ -331,9 +337,10 @@ export default {
 				heading: 'In dieser App',
 				points: [
 					'Auf Sepolia gilt der Leseschlüssel 24 Stunden. „Mit Passkey verlängern“ sendet eine UserOperation mit zwei neuen Delegationen an einen neuen Leseschlüssel: ein Passkey-Schritt.',
+					'Die 24 Stunden sind eine Einstellung der App (`READ_KEY_TTL_SECONDS`), keine Vorgabe von Zama: Der Leseschlüssel liegt im Klartext im Browser, und eine kurze Frist begrenzt, wie lange jemand mit Zugriff auf das Browserprofil mitlesen könnte.',
 					'Die Attrappe simuliert den Ablauf: `simpleTodoBudgetDemo.expireReadKey()` in der Konsole.'
 				],
-				sources: ['account.reading', 'demo.scene9']
+				sources: ['account.readKey', 'account.reading', 'demo.scene9']
 			}
 		]
 	},

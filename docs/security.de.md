@@ -324,8 +324,9 @@ demnächst abgelöst wird. Es ist eine Demonstration, kein Produkt.
 
 Seit dem 2026-09-17 eingebaut, hinter `VITE_BUDGET_SERVICE=zama`
 ([`src/lib/budget-service-zama.js`](../src/lib/budget-service-zama.js),
-[`src/lib/chain/`](../src/lib/chain)): Zamas Token und die Treuhand, signiert über ein Calibur-Konto,
-das der Passkey kontrolliert. Wie das Schritt für Schritt abläuft, steht in
+[`src/lib/chain/`](../src/lib/chain)): Zamas Token und die Treuhand, signiert über ein Konto auf Calibur,
+einem nicht änderbaren Smart Contract von Uniswap Labs
+([Was Calibur ist](passkey-account.de.md#calibur-einfach)), das der Passkey kontrolliert. Wie das Schritt für Schritt abläuft, steht in
 [passkey-account.de.md](passkey-account.de.md). Die folgenden Fakten betreffen Calibur v1.0.0
 (Uniswap, Tag `v1.0.0`), Zama v0.13 und das, was die App damit macht.
 
