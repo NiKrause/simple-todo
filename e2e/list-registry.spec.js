@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { isConsentOpen, passConsent } from './consent.mjs';
+import { openSection } from './sections.mjs';
 
 // Chapter (acl01), issue #114 step 3: the registry.
 //
@@ -58,6 +59,7 @@ test.describe('list registry (#114)', () => {
 
 		await page.reload();
 		await dismissConsent(page);
+		await openSection(page, 'listen');
 		await expect(page.getByTestId('list-switcher')).toBeVisible({ timeout });
 		await expect(page.getByTestId('list-switcher')).toContainText(name);
 	});
@@ -75,7 +77,8 @@ test.describe('list registry (#114)', () => {
 
 		await expect(page.getByTestId('active-list-label')).toHaveText(`· ${second}`);
 
-		// Switch back to the first list through the switcher.
+		// Switch back to the first list through the switcher, which is in the
+		// lists tab, where `createList` left the page.
 		await page
 			.locator(`[data-testid="list-switcher-open"][data-address="${firstAddress}"]`)
 			.click();
@@ -84,6 +87,9 @@ test.describe('list registry (#114)', () => {
 		await expect(page.getByTestId('active-database-address')).toHaveText(firstAddress, {
 			timeout
 		});
+		// The todos tab follows: it names the list its todos now go to.
+		await openSection(page, 'aufgaben');
+		await expect(page.getByTestId('active-list-name')).toHaveText(first);
 	});
 
 	test('the registry name is not derivable from the DID', async ({ page }) => {
@@ -131,6 +137,7 @@ test.describe('list registry (#114)', () => {
  * @param {string} name
  */
 async function createList(page, name) {
+	await openSection(page, 'listen');
 	await page.getByTestId('new-list-name').fill(name);
 	await page.getByTestId('new-list-create').click();
 	await expect(page.getByTestId('new-list-created-name')).toHaveText(name, { timeout });

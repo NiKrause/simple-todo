@@ -35,6 +35,10 @@
 	let budgetError = null;
 	const dispatch = createEventDispatcher();
 
+	// escrow01: a new todo is one line — the text and the button beside it. Who
+	// does it, by when and for how much fold out only when asked for, and the
+	// button then moves below them, to where the form ends.
+	$: expanded = delegationEnabled && showDelegation;
 	$: offerBudget = budgetEnabled && delegationEnabled && showDelegation;
 	$: withBudget = offerBudget && budgetInput.trim() !== '';
 	$: budgetUnits = parseAmount(budgetInput, { decimals: budgetDecimals, locale: $locale ?? 'en' });
@@ -73,6 +77,8 @@
 		delegateDid = '';
 		delegationExpiresAt = '';
 		budgetInput = '';
+		// Folded back to one line, so the todo just added is in view.
+		showDelegation = false;
 	}
 
 	/**
@@ -85,17 +91,28 @@
 	}
 </script>
 
-<div class="mb-6 rounded-lg bg-surface p-6 shadow-md">
-	<h2 class="mb-4 text-xl font-semibold">{$_('todo.form.heading')}</h2>
+<div class="mb-6 rounded-lg bg-surface p-4 shadow-md sm:p-6">
+	<h2 class="sr-only">{$_('todo.form.heading')}</h2>
 	<div class="space-y-4">
-		<input
-			type="text"
-			bind:value={inputText}
-			placeholder={placeholder ?? $_('todo.form.placeholder')}
-			{disabled}
-			class="w-full rounded-md border border-border px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:bg-surface-2"
-			on:keydown={handleKeydown}
-		/>
+		<div class="flex gap-2">
+			<input
+				type="text"
+				bind:value={inputText}
+				placeholder={placeholder ?? $_('todo.form.placeholder')}
+				{disabled}
+				class="min-w-0 flex-1 rounded-md border border-border px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-cyan-500 disabled:cursor-not-allowed disabled:bg-surface-2"
+				on:keydown={handleKeydown}
+			/>
+			{#if !expanded}
+				<button
+					on:click={handleSubmit}
+					{disabled}
+					class="shrink-0 rounded-md bg-coral-500 px-4 py-2 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-faint sm:px-6"
+				>
+					{buttonText ?? $_('todo.form.submit')}
+				</button>
+			{/if}
+		</div>
 
 		{#if delegationEnabled}
 			<label class="flex items-center gap-2 text-sm text-faint">
@@ -210,14 +227,16 @@
 			{/if}
 		{/if}
 
-		<div class="flex gap-2">
-			<button
-				on:click={handleSubmit}
-				{disabled}
-				class="rounded-md bg-coral-500 px-6 py-2 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-faint"
-			>
-				{withBudget ? $_('todo.form.submitWithBudget') : (buttonText ?? $_('todo.form.submit'))}
-			</button>
-		</div>
+		{#if expanded}
+			<div class="flex gap-2">
+				<button
+					on:click={handleSubmit}
+					{disabled}
+					class="rounded-md bg-coral-500 px-6 py-2 font-medium text-white transition-colors hover:bg-coral-600 disabled:cursor-not-allowed disabled:bg-faint"
+				>
+					{withBudget ? $_('todo.form.submitWithBudget') : (buttonText ?? $_('todo.form.submit'))}
+				</button>
+			</div>
+		{/if}
 	</div>
 </div>

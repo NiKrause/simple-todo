@@ -1,9 +1,11 @@
 import { page } from '@vitest/browser/context';
 import { createRawSnippet, tick } from 'svelte';
+import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { locale } from '$lib/i18n/index.js';
 import P2PStatusNav from './P2PStatusNav.svelte';
+import { networkStateStore } from './network-status.js';
 import { TECHNICAL_VIEW_STORAGE_KEY, technicalView } from './technical-view.js';
 
 const STEP_KEYS = ['networkConfig', 'libp2p', 'helia', 'orbitdb', 'databaseSync', 'localTodos'];
@@ -90,6 +92,23 @@ describe('the P2P status panel', () => {
 		expect(steps).toContain('Relay verbunden');
 		await expect.element(page.getByTestId('network-details')).toHaveTextContent('Netzwerkdetails');
 		await expect.element(page.getByTestId('network-details')).toHaveTextContent('0 Peers');
+	});
+
+	it("hands its state to the header's dot, in both views", async () => {
+		// The dot lives outside the network tab and reads what this panel works
+		// out; if the panel stopped publishing, the dot would say "Starting…"
+		// forever, on every tab.
+		render(P2PStatusNav, { initialization: started });
+		await expect.poll(() => get(networkStateStore)).toBe('connecting');
+
+		technicalView.set(true);
+		await tick();
+		expect(get(networkStateStore)).toBe('connecting');
+	});
+
+	it('hands a failed start to the dot as failed', async () => {
+		render(P2PStatusNav, { initialization: failed });
+		await expect.poll(() => get(networkStateStore)).toBe('failed');
 	});
 
 	it('says plainly that the start failed, and stops spinning', async () => {

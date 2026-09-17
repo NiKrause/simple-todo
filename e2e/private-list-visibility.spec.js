@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { passConsent } from './consent.mjs';
+import { openSection } from './sections.mjs';
 
 // Chapter (acl01), issue #114: creating a private list used to leave no trace in
 // the UI. The list was created and became active, but its name was never
@@ -8,6 +9,9 @@ import { passConsent } from './consent.mjs';
 //
 // These tests fail against the pre-fix build: `new-list-created` did not exist,
 // and `active-list-kind` read "Shared list" after creating a private list.
+//
+// escrow01: creating and opening lists happens in the lists tab, and the todos
+// tab names the open list above its todos. Both places are asserted.
 
 const testUrl = '/';
 const timeout = 90000;
@@ -19,6 +23,7 @@ test.describe('private list visibility (#114)', () => {
 		await openReadyApp(page);
 
 		const listName = `test-${Date.now().toString(36)}`;
+		await openSection(page, 'listen');
 		await page.getByTestId('new-list-name').fill(listName);
 		await page.getByTestId('new-list-create').click();
 
@@ -47,6 +52,7 @@ test.describe('private list visibility (#114)', () => {
 		await addVirtualAuthenticator(page);
 		await openReadyApp(page);
 
+		await openSection(page, 'listen');
 		await page.getByTestId('new-list-name').fill('clipboard-list');
 		await page.getByTestId('new-list-create').click();
 		await expect(page.getByTestId('new-list-created')).toBeVisible({ timeout });
@@ -59,26 +65,41 @@ test.describe('private list visibility (#114)', () => {
 		expect(clipboard).toBe(shown);
 	});
 
-	test('the header names the active list instead of the shared mnemonic', async ({ page }) => {
+	test('the page names the active list instead of the shared mnemonic', async ({ page }) => {
 		test.setTimeout(timeout * 3);
 		await addVirtualAuthenticator(page);
 		await openReadyApp(page);
 
-		// Before: the public list every visitor lands in.
+		// Before: the public list every visitor lands in, named by its words above
+		// the todos.
+		const heading = page.getByTestId('active-list-heading');
+		await expect(heading).toBeVisible();
+		await expect(heading).toHaveAttribute('data-kind', 'shared');
+		await expect(heading).toContainText('Shared list');
+		await openSection(page, 'listen');
 		await expect(page.getByTestId('active-list-kind')).toHaveText('Shared list');
 		const mnemonic = (await page.getByTestId('active-list-label').textContent())?.trim();
 		expect(mnemonic).toMatch(/^·\s+\S+-\S+-\S+$/);
+
+		expect(await page.getByTestId('active-list-name').textContent()).toContain(
+			mnemonic?.replace(/^·\s+/, '')
+		);
 
 		const listName = `named-${Date.now().toString(36)}`;
 		await page.getByTestId('new-list-name').fill(listName);
 		await page.getByTestId('new-list-create').click();
 		await expect(page.getByTestId('permissions-panel')).toBeVisible({ timeout });
 
-		// After: the header must name the list actually being written to. This is
+		// After: the page must name the list actually being written to. This is
 		// the assertion that failed before the fix — it read "Shared list" here.
 		await expect(page.getByTestId('active-list-kind')).toHaveText('Private list');
 		await expect(page.getByTestId('active-list-label')).toHaveText(`· ${listName}`);
 		await expect(page.getByTestId('active-list-note')).toContainText(listName);
+
+		// And above the todos, where the next todo will go.
+		await openSection(page, 'aufgaben');
+		await expect(heading).toHaveAttribute('data-kind', 'private');
+		await expect(page.getByTestId('active-list-name')).toHaveText(listName);
 	});
 
 	test('a list opened by address is labelled as a guest list', async ({ browser }) => {
@@ -92,18 +113,22 @@ test.describe('private list visibility (#114)', () => {
 			await Promise.all([addVirtualAuthenticator(owner), addVirtualAuthenticator(guest)]);
 			await Promise.all([openReadyApp(owner), openReadyApp(guest)]);
 
+			await openSection(owner, 'listen');
 			await owner.getByTestId('new-list-name').fill('shared-by-address');
 			await owner.getByTestId('new-list-create').click();
 			await expect(owner.getByTestId('new-list-created')).toBeVisible({ timeout });
 			const address = (await owner.getByTestId('new-list-created-address').textContent())?.trim();
 			expect(address).toBeTruthy();
 
+			await openSection(guest, 'listen');
 			await guest.getByTestId('open-db-address-input').fill(String(address));
 			await guest.getByTestId('open-db-button').click();
 
 			// The guest is reading someone else's list; calling that "Shared list"
 			// would point at the mnemonic list they are no longer in.
 			await expect(guest.getByTestId('active-list-kind')).toHaveText('Opened list', { timeout });
+			await openSection(guest, 'aufgaben');
+			await expect(guest.getByTestId('active-list-heading')).toHaveAttribute('data-kind', 'guest');
 		} finally {
 			await ownerContext.close();
 			await guestContext.close();

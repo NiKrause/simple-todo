@@ -7,9 +7,47 @@
 		"en": "English"
 	},
 	"header": {
-		"auditorView": "Prüfansicht",
 		"backToTodos": "Zurück zu den Aufgaben",
 		"tagline": "Eine Peer-to-Peer-PWA nach dem Local-first-Prinzip"
+	},
+	"sections": {
+		"label": "Bereiche",
+		"tab": {
+			"tasks": "Aufgaben",
+			"lists": "Listen",
+			"account": "Konto",
+			"network": "Netzwerk"
+		},
+		"lists": {
+			"waiting": "Ihre Listen erscheinen hier, sobald die App gestartet ist."
+		},
+		"account": {
+			"passkey": "Ihr Passkey",
+			"passkeyHint": "Andere brauchen diese DID, um Ihnen Schreibrechte zu geben oder eine Aufgabe an Sie zu delegieren.",
+			"noPasskey": "Diese Sitzung wurde ohne Passkey gestartet und hat deshalb keine DID.",
+			"balanceWaiting": "Ihr Guthaben erscheint hier, sobald Ihnen aus dieser Liste ein Budget ausgezahlt wurde.",
+			"chain": "Chain",
+			"auditor": "Prüfstelle",
+			"auditorHint": "Die Treuhand-Vorgänge so ansehen, wie die Prüfstelle sie sieht.",
+			"auditorOpen": "Prüfansicht öffnen"
+		},
+		"network": {
+			"app": "App",
+			"theme": "Darstellung",
+			"links": "Projekt",
+			"version": "Version"
+		},
+		"status": {
+			"starting": "Startet …",
+			"connecting": "Verbindet …",
+			"relay": "Verbunden",
+			"direct": "Direkt verbunden",
+			"failed": "Startfehler",
+			"details": "Details im Tab Netzwerk."
+		},
+		"list": {
+			"switch": "Liste wechseln"
+		}
 	},
 	"theme": {
 		"toLight": "Zum hellen Design wechseln",

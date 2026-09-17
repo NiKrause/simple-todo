@@ -1,14 +1,15 @@
 <script>
 	// escrow01: in the simple view this panel says in one sentence whether the
-	// app is ready and connected, and names the open list. The steps behind that
-	// sentence — libp2p, Helia, OrbitDB — and the network details wait in the
-	// technical view.
+	// app is ready and connected. The steps behind that sentence — libp2p, Helia,
+	// OrbitDB — and the network details wait in the technical view.
 	//
-	// The panel itself stays mounted in both views: the relay health check below
-	// publishes the relay's HTTP origin, and the replication proof on every todo
-	// row asks that origin. Hiding the panel must not switch the proof off.
+	// The panel itself stays mounted in both views and on every tab: the relay
+	// health check below publishes the relay's HTTP origin, and the replication
+	// proof on every todo row asks that origin. Hiding the panel must not switch
+	// the proof off. The same goes for the state it publishes for the header.
 	import { onDestroy } from 'svelte';
 	import { _ } from '$lib/i18n/index.js';
+	import { networkStateStore } from './network-status.js';
 	import { relayHttpStatusStore } from './relay-status.js';
 	import { relayHttpOriginForPeer } from './multiaddr-utils.js';
 	import { getRelayBootstrapAddrs } from './relay-bootstrap-addrs.js';
@@ -74,14 +75,16 @@
 		allSteps.find((step) => step.status === 'pending') ??
 		allSteps.find((step) => step.status === 'error');
 	$: failed = Boolean(initialization?.error) || allSteps.some((step) => step.status === 'error');
+	$: networkState = simpleState({
+		failed,
+		initialized: initializationComplete,
+		relayConnected,
+		webRTCConnected
+	});
+	$: networkStateStore.set(networkState);
 	$: statusLabel = $technicalView
 		? technicalStatus($_, allComplete, currentStep)
-		: simpleStatus($_, {
-				failed,
-				initialized: initializationComplete,
-				relayConnected,
-				webRTCConnected
-			});
+		: $_(`network.simple.${networkState}`);
 	// The simple view stops spinning once the app can be used and reaches a relay;
 	// waiting for a direct connection to another browser is the technical view's
 	// business, and without a second browser it never ends.
@@ -291,17 +294,18 @@
 	}
 
 	/**
-	 * The simple view's status line: whether the app can be used, and how far it
-	 * reaches — no component names.
+	 * The simple view's state: whether the app can be used, and how far it
+	 * reaches — no component names. `network.simple.<state>` says it in a
+	 * sentence, and the header's dot in a word.
 	 *
-	 * @param {Format} format
 	 * @param {{ failed: boolean, initialized: boolean, relayConnected: boolean, webRTCConnected: boolean }} state
+	 * @returns {import('./network-status.js').NetworkState}
 	 */
-	function simpleStatus(format, { failed, initialized, relayConnected, webRTCConnected }) {
-		if (failed) return format('network.simple.failed');
-		if (!initialized) return format('network.simple.starting');
-		if (!relayConnected) return format('network.simple.connecting');
-		return webRTCConnected ? format('network.simple.direct') : format('network.simple.relay');
+	function simpleState({ failed, initialized, relayConnected, webRTCConnected }) {
+		if (failed) return 'failed';
+		if (!initialized) return 'starting';
+		if (!relayConnected) return 'connecting';
+		return webRTCConnected ? 'direct' : 'relay';
 	}
 
 	onDestroy(() => {
@@ -403,6 +407,4 @@
 			</div>
 		</details>
 	{/if}
-
-	<slot name="shared-list" />
 </nav>

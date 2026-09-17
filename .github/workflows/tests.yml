@@ -62,9 +62,14 @@ jobs:
       # `passkey-identity.spec.js` is deliberately absent, as on `acl01`: it
       # fails about half the time there regardless of parallelism, and a spec
       # that flaky teaches people to ignore red.
+      #
+      # escrow01: `sections.spec.js` holds the page to its tabs — todos first,
+      # the back button, a reload, the auditor view's old address, and a phone's
+      # tab bar clear of the relay button.
       - name: Browser specs
         run: >-
           pnpm exec playwright test
+          e2e/sections.spec.js
           e2e/delegation.spec.js
           e2e/acl-permissions.spec.js
           e2e/consent-screen.spec.js

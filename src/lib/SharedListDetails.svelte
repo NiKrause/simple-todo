@@ -5,6 +5,8 @@
 	export let mnemonic = '';
 	export let databaseAddress = '';
 	export let embedded = false;
+	/** escrow01: in the lists tab the open list is what the tab is about, so it starts open. */
+	export let open = false;
 	/**
 	 * Which list is actually open. The summary used to be hard-wired to
 	 * "Shared list" and the shared mnemonic, so after creating a private list the
@@ -30,6 +32,7 @@
 </script>
 
 <details
+	{open}
 	class="group"
 	class:mb-6={!embedded}
 	class:rounded-lg={!embedded}

@@ -67,6 +67,14 @@
 	} from '$lib/spanish-mnemonic.js';
 	import ManualConnectForm from '$lib/ManualConnectForm.svelte';
 	import { libp2pStore } from '$lib/p2p-stores.js';
+	import SectionTabs from '$lib/SectionTabs.svelte';
+	import NetworkStatusDot from '$lib/NetworkStatusDot.svelte';
+	import ActiveListHeading from '$lib/ActiveListHeading.svelte';
+	import { AUDITOR_SECTION, currentSection } from '$lib/sections.js';
+	import {
+		RELAY_FAB_POSITION_KEY,
+		placeRelayButtonForThisScreen
+	} from '$lib/relay-fab-position.js';
 
 	/** @typedef {'default' | 'success' | 'error' | 'warning'} ToastType */
 	/** @typedef {{ detail: { text: string, delegateDid?: string | null, delegationExpiresAt?: string | null, budgetAmount?: bigint | null } }} AddTodoEvent */
@@ -222,7 +230,11 @@
 	let SponsorRelayFab = null;
 	async function loadSponsorFab() {
 		if (SponsorRelayFab) return;
-		SponsorRelayFab = (await import('@le-space/ui/svelte')).default;
+		const component = (await import('@le-space/ui/svelte')).default;
+		// Read once, when the launcher mounts: on a phone it starts above the tab
+		// bar rather than on top of it.
+		placeRelayButtonForThisScreen();
+		SponsorRelayFab = component;
 	}
 
 	onMount(async () => {
@@ -351,28 +363,31 @@
 
 	onMount(() => watchPayouts((todo) => void announcePayout(todo)));
 
-	/**
-	 * escrow01's auditor view. A view inside this page rather than a route of
-	 * its own: this page owns the consent dialog and the P2P start, and a
-	 * navigation away and back would mount it again and start both over.
-	 * `#pruefstelle` opens the page on it.
-	 *
-	 * @type {'todos' | 'auditor'}
-	 */
-	let view = 'todos';
+	/*
+		escrow01's sections: the todos first, the lists, the account and the
+		network behind tabs, and the auditor view without a tab of its own. Like
+		the auditor view before them, sections of this page rather than routes:
+		this page owns the consent dialog and the P2P start, and a navigation away
+		and back would mount it again and start both over. The fragment says which
+		one is open, so `#pruefstelle` still opens the page on the auditor view.
+	*/
+	$: auditorOpen = $currentSection === AUDITOR_SECTION;
+
+	// A section opens at its top. Otherwise it opens wherever the last one was
+	// scrolled to, which on a phone is often below everything the new one holds.
 	onMount(() => {
-		if (location.hash === '#pruefstelle') view = 'auditor';
+		let first = true;
+		return currentSection.subscribe(() => {
+			if (!first) window.scrollTo({ top: 0 });
+			first = false;
+		});
 	});
 
-	/*
-		The line under the title: what the app is, for everyone; what this build
-		is made of — versions, branch, build date — in the technical view, as on
-		the consent screen.
-	*/
+	// What this build is made of — versions, branch, build date — in the
+	// technical view, as on the consent screen.
 	const buildStamp = `${formatVersions({ appName: 'Simple-Todo' })} · ${
 		typeof __APP_BRANCH__ !== 'undefined' ? __APP_BRANCH__ : 'local'
 	} [${typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : 'dev'}]`;
-	$: subtitle = $technicalView ? `${$_('header.tagline')} · ${buildStamp}` : $_('header.tagline');
 
 	// A budget is paid to the delegate, so it exists only where delegation does,
 	// and only for a session the service can sign for.
@@ -497,19 +512,26 @@
 	</ConsentModal>
 {/if}
 
-<main class="container mx-auto max-w-4xl p-6">
-	<!-- Header with title and social icons -->
+<main class="container mx-auto max-w-4xl px-4 pt-4 pb-28 sm:px-6 sm:pt-6 sm:pb-6">
 	<!--
-		escrow01 adds a language switch, the budget network and the auditor view
-		to the header, more than fits beside the title: the status side wraps
-		rather than pushing the page wider than the window.
+		What stays on screen on every tab: the app, the network's state as a dot
+		(a link to the network tab), the language and the technical view — the
+		switches somebody presenting reaches for while they talk.
+
+		A grid, so a phone gets two short rows instead of three wrapped ones: the
+		title and the switches on the first, the state on the second. From `sm` on,
+		all three share one row.
 	-->
-	<header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-		<div class="flex min-w-0 flex-1 items-center gap-3">
-			<LeSpaceLogo size={52} />
-			<div>
-				{#if view === 'auditor'}
-					<h1 class="text-2xl font-bold text-heading sm:text-3xl">{$_('budget.auditor.title')}</h1>
+	<header
+		class="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 sm:mb-6 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+	>
+		<div class="col-start-1 row-start-1 flex min-w-0 items-center gap-3">
+			<LeSpaceLogo size={44} />
+			<div class="min-w-0">
+				{#if auditorOpen}
+					<h1 class="truncate text-xl font-bold text-heading sm:text-3xl">
+						{$_('budget.auditor.title')}
+					</h1>
 					<p class="mt-1 text-sm text-faint">
 						{$_('budget.auditor.escrow')}
 						<code class="font-mono text-xs" title={budgetInfo.escrow}
@@ -517,106 +539,64 @@
 						>
 					</p>
 				{:else}
-					<h1 class="text-2xl font-bold text-heading sm:text-3xl">Simple-Todo</h1>
-					<p class="mt-1 text-sm text-faint" data-testid="app-tagline">{subtitle}</p>
+					<h1 class="truncate text-xl font-bold text-heading sm:text-3xl">Simple-Todo</h1>
+					<!-- On a phone the list's name is the better use of the line. -->
+					<p class="mt-0.5 hidden text-sm text-faint sm:block" data-testid="app-tagline">
+						{$_('header.tagline')}
+					</p>
 				{/if}
 			</div>
 		</div>
-		<div class="flex min-w-0 flex-wrap items-center gap-2 sm:max-w-md sm:justify-end">
+		<div
+			class="col-span-2 row-start-2 flex min-w-0 flex-wrap items-center gap-2 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:justify-end"
+		>
 			<DelegatedAuthBadge />
-			<LanguageSwitcher />
-			<!-- Page-wide, and beside the flags as in the consent dialog: every budget
-			     step shows its technical explanation. -->
-			<TechnicalToggle />
-			<span
-				class="rounded-md border px-2 py-1 text-xs font-medium {budgetInfo.network === 'demo'
-					? 'border-data-400 bg-data-100 text-data-800 dark:border-data/40 dark:bg-data/10 dark:text-data'
-					: 'border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan/40 dark:bg-cyan/10 dark:text-cyan'}"
-				title={budgetInfo.network === 'demo' ? $_('budget.network.demoTitle') : undefined}
-				data-testid="budget-network"
-				data-network={budgetInfo.network}
-				>{budgetInfo.network === 'demo'
-					? $_('budget.network.demo')
-					: $_('budget.network.sepolia')}</span
-			>
-			{#if view === 'auditor'}
+			{#if auditorOpen}
 				<DidBadge did={budgetInfo.auditor} label={$_('budget.auditor.role')} />
-			{:else}
-				<DidBadge did={$ownDidStore ?? ''} />
+				<a
+					href="#aufgaben"
+					data-testid="auditor-view-close"
+					class="rounded-md px-2 py-1 text-xs font-medium text-cyan-800 no-underline hover:underline dark:text-cyan"
+					>{$_('header.backToTodos')}</a
+				>
 			{/if}
-			<button
-				type="button"
-				on:click={() => (view = view === 'auditor' ? 'todos' : 'auditor')}
-				class="rounded-md px-2 py-1 text-xs font-medium text-cyan-700 underline-offset-2 hover:underline dark:text-cyan"
-				data-testid="view-toggle"
-				data-view={view}
-				>{view === 'auditor' ? $_('header.backToTodos') : $_('header.auditorView')}</button
-			>
-			<ThemeToggle />
-			<SocialIcons size="w-5 h-5" className="" />
+			<NetworkStatusDot />
+		</div>
+		<div class="col-start-2 row-start-1 flex items-center gap-1 sm:col-start-3 sm:gap-2">
+			<LanguageSwitcher />
+			<TechnicalToggle />
 		</div>
 	</header>
 
-	<!-- What "Demo ohne Chain" in the header means, and the real run it stands in for. -->
-	{#if budgetInfo.network === 'demo'}
-		<TechnicalExplanation step="demo" collapsible className="mb-6" />
+	<SectionTabs />
+
+	{#if !showModal && (error || $initializationStore.error)}
+		<!-- `error` is already a sentence; the store holds the stack's bare reason. -->
+		<ErrorAlert
+			error={error ||
+				$_('consent.errorStart', { values: { reason: $initializationStore.error ?? '' } })}
+			dismissible={true}
+		/>
 	{/if}
 
-	{#if view === 'auditor'}
+	{#if auditorOpen}
 		<AuditorView />
 	{/if}
 
-	<!-- Kept mounted while the auditor view is open: the network panel and the
-	     forms hold state that a remount would throw away. -->
-	<div hidden={view === 'auditor'}>
-		<P2PStatusNav initialization={$initializationStore} libp2p={$libp2pStore} peerId={myPeerId}>
-			<ManualConnectForm
-				compact
-				disabled={!$initializationStore.isInitialized}
-				on:connected={handleManualConnect}
-			/>
-			<ConnectedPeers compact bind:this={connectedPeersRef} libp2p={$libp2pStore} />
-			<div class="max-w-full min-w-0 space-y-3 overflow-hidden">
-				<PeerIdCard compact peerId={myPeerId} />
-				<OwnMultiaddrs libp2p={$libp2pStore} />
-			</div>
-			<svelte:fragment slot="shared-list">
-				{#if $initializationStore.isInitialized && activeMnemonic}
-					<SharedListDetails
-						embedded
-						mnemonic={activeMnemonic}
-						databaseAddress={$todoDBAddressStore}
-						activeList={$activeListStore}
-						on:change={() => {
-							selectedMnemonic = activeMnemonic;
-							showModal = true;
-						}}
-					/>
-				{/if}
-			</svelte:fragment>
-		</P2PStatusNav>
-
-		{#if !showModal && (error || $initializationStore.error)}
-			<!-- `error` is already a sentence; the store holds the stack's bare reason. -->
-			<ErrorAlert
-				error={error ||
-					$_('consent.errorStart', { values: { reason: $initializationStore.error ?? '' } })}
-				dismissible={true}
-			/>
-		{/if}
-
+	<!--
+		Every section stays mounted and is only hidden: the network panel and the
+		forms hold state that a remount would throw away, and the status panel
+		publishes what the header's dot and every todo row's replication proof read.
+	-->
+	<section
+		hidden={$currentSection !== 'aufgaben'}
+		aria-label={$_('sections.tab.tasks')}
+		data-testid="section-aufgaben"
+	>
 		{#if $initializationStore.isInitialized}
-			<NewPrivateListButton />
-			<ListSwitcher />
-			<OpenDatabaseForm />
-			<PermissionsPanel />
+			<ActiveListHeading mnemonic={activeMnemonic} />
 		{/if}
 
-		{#if showBalance}
-			<BalanceCard />
-		{/if}
-
-		<!-- Add TODO Form -->
 		<AddTodoForm
 			on:add={handleAddTodo}
 			disabled={!$initializationStore.isInitialized}
@@ -629,7 +609,6 @@
 
 		<BudgetNotices active={budgetsInList || showBalance} />
 
-		<!-- TODO List -->
 		<TodoList
 			todos={$todosStore}
 			currentIdentityId={$ownIdentityIdStore}
@@ -641,16 +620,159 @@
 			on:revokeDelegation={handleRevokeDelegation}
 			on:releaseBudget={handleReleaseBudget}
 		/>
-	</div>
+	</section>
+
+	<section
+		hidden={$currentSection !== 'listen'}
+		aria-label={$_('sections.tab.lists')}
+		data-testid="section-listen"
+	>
+		{#if $initializationStore.isInitialized}
+			<!-- The open list first: its address, and who may write to it. -->
+			{#if activeMnemonic}
+				<SharedListDetails
+					open
+					mnemonic={activeMnemonic}
+					databaseAddress={$todoDBAddressStore}
+					activeList={$activeListStore}
+					on:change={() => {
+						selectedMnemonic = activeMnemonic;
+						showModal = true;
+					}}
+				/>
+			{/if}
+			<PermissionsPanel />
+			<ListSwitcher />
+			<NewPrivateListButton />
+			<OpenDatabaseForm />
+		{:else}
+			<p class="rounded-lg border border-border bg-surface px-4 py-3 text-sm text-text shadow-sm">
+				{$_('sections.lists.waiting')}
+			</p>
+		{/if}
+	</section>
+
+	<section
+		hidden={$currentSection !== 'konto'}
+		aria-label={$_('sections.tab.account')}
+		data-testid="section-konto"
+	>
+		<div
+			class="mb-6 rounded-lg border border-border bg-surface px-6 py-4 shadow-sm"
+			data-testid="account-passkey"
+		>
+			<h2 class="text-sm font-medium text-faint">{$_('sections.account.passkey')}</h2>
+			{#if $ownDidStore}
+				<div class="mt-2 flex flex-wrap">
+					<DidBadge did={$ownDidStore} />
+				</div>
+				<p class="mt-2 text-xs text-faint">{$_('sections.account.passkeyHint')}</p>
+			{:else}
+				<p class="mt-1 text-sm text-text">{$_('sections.account.noPasskey')}</p>
+			{/if}
+		</div>
+
+		<!-- The balance appears where the storyboard has it: once a budget was paid
+		     out to this session. -->
+		{#if showBalance}
+			<BalanceCard />
+		{:else}
+			<div
+				class="mb-6 rounded-lg border border-border bg-surface px-6 py-4 shadow-sm"
+				data-testid="account-balance-waiting"
+			>
+				<h2 class="text-sm font-medium text-faint">{$_('budget.balance.heading')}</h2>
+				<p class="mt-1 text-sm text-text">{$_('sections.account.balanceWaiting')}</p>
+			</div>
+		{/if}
+
+		<div
+			class="mb-6 rounded-lg border border-border bg-surface px-6 py-4 shadow-sm"
+			data-testid="account-chain"
+		>
+			<h2 class="text-sm font-medium text-faint">{$_('sections.account.chain')}</h2>
+			<span
+				class="mt-2 inline-block rounded-md border px-2 py-1 text-xs font-medium {budgetInfo.network ===
+				'demo'
+					? 'border-data-400 bg-data-100 text-data-800 dark:border-data/40 dark:bg-data/10 dark:text-data'
+					: 'border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan/40 dark:bg-cyan/10 dark:text-cyan'}"
+				data-testid="budget-network"
+				data-network={budgetInfo.network}
+				>{budgetInfo.network === 'demo'
+					? $_('budget.network.demo')
+					: $_('budget.network.sepolia')}</span
+			>
+			<!-- What "Demo ohne Chain" means, and the real run it stands in for. -->
+			{#if budgetInfo.network === 'demo'}
+				<p class="mt-2 text-sm text-text">{$_('budget.network.demoTitle')}</p>
+				<TechnicalExplanation step="demo" collapsible className="mt-3" />
+			{/if}
+		</div>
+
+		<div
+			class="mb-6 rounded-lg border border-border bg-surface px-6 py-4 shadow-sm"
+			data-testid="account-auditor"
+		>
+			<h2 class="text-sm font-medium text-faint">{$_('sections.account.auditor')}</h2>
+			<p class="mt-1 text-sm text-text">{$_('sections.account.auditorHint')}</p>
+			<a
+				href="#pruefstelle"
+				data-testid="auditor-view-open"
+				class="mt-3 inline-block rounded-md border border-cyan-200 px-3 py-1.5 text-sm font-medium text-cyan-800 no-underline hover:bg-cyan-50 dark:border-cyan/40 dark:text-cyan dark:hover:bg-cyan/10"
+				>{$_('sections.account.auditorOpen')}</a
+			>
+		</div>
+	</section>
+
+	<section
+		hidden={$currentSection !== 'netzwerk'}
+		aria-label={$_('sections.tab.network')}
+		data-testid="section-netzwerk"
+	>
+		<P2PStatusNav initialization={$initializationStore} libp2p={$libp2pStore} peerId={myPeerId}>
+			<ManualConnectForm
+				compact
+				disabled={!$initializationStore.isInitialized}
+				on:connected={handleManualConnect}
+			/>
+			<ConnectedPeers compact bind:this={connectedPeersRef} libp2p={$libp2pStore} />
+			<div class="max-w-full min-w-0 space-y-3 overflow-hidden">
+				<PeerIdCard compact peerId={myPeerId} />
+				<OwnMultiaddrs libp2p={$libp2pStore} />
+			</div>
+		</P2PStatusNav>
+
+		<div
+			class="mb-6 rounded-lg border border-border bg-surface px-6 py-4 shadow-sm"
+			data-testid="app-settings"
+		>
+			<h2 class="text-sm font-medium text-faint">{$_('sections.network.app')}</h2>
+			<dl class="mt-2 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-6 gap-y-2 text-sm">
+				<dt class="text-text">{$_('sections.network.theme')}</dt>
+				<dd><ThemeToggle /></dd>
+				<dt class="text-text">{$_('sections.network.links')}</dt>
+				<dd><SocialIcons size="w-5 h-5" className="-ml-2" /></dd>
+				{#if $technicalView}
+					<dt class="text-text">{$_('sections.network.version')}</dt>
+					<dd>
+						<code class="font-mono text-xs break-all text-text" data-testid="app-version"
+							>{buildStamp}</code
+						>
+					</dd>
+				{/if}
+			</dl>
+		</div>
+	</section>
 </main>
 
 <!--
 	Floating Relay Button FAB.
 
 	Draggable, because it floats over the bottom-right corner, and on a phone
-	the balance card and the todo rows scroll underneath it. The key is passed
-	explicitly: the component stores nothing unless asked, and the key keeps
-	this chapter's `simpleTodo.` prefix.
+	the todo rows scroll underneath it. The key is passed explicitly: the
+	component stores nothing unless asked, and the key keeps this chapter's
+	`simpleTodo.` prefix. On a phone it starts above the tab bar
+	(relay-fab-position.js).
 
 	Shown in both views, as in the other chapters: the Relay Button belongs to
 	the app, not to the plumbing the simple view leaves out. The widget has no
@@ -662,6 +784,6 @@
 		manifestUrl="./rootfs-manifest.json"
 		showInstances={true}
 		draggable={true}
-		positionStorageKey="simpleTodo.relayFabPosition"
+		positionStorageKey={RELAY_FAB_POSITION_KEY}
 	/>
 {/if}

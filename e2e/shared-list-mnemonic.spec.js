@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { acceptNotice, consentModal, waitForConsent } from './consent.mjs';
+import { openSection } from './sections.mjs';
 import { pinTechnicalView } from './technical-view.mjs';
 
 const testUrl = '/';
@@ -50,19 +51,27 @@ test.describe('Spanish mnemonic shared todo lists', () => {
 			const [aliceDetails, bobDetails, isolatedDetails] = [alice, bob, isolated].map((page) =>
 				page.getByTestId('shared-list-details')
 			);
+			// escrow01: the open list's details are the lists tab's first card, and
+			// unfolded when the tab opens; the network details stay folded, in the
+			// network tab.
+			for (const page of [alice, bob, isolated]) await openSection(page, 'listen');
 			for (const details of [aliceDetails, bobDetails, isolatedDetails]) {
-				await expect(details).not.toHaveAttribute('open', '');
+				await expect(details).toHaveAttribute('open', '');
 				await expect(details).toBeVisible();
 				await expect(
-					details.locator('xpath=ancestor::nav[@data-testid="p2p-status-nav"]')
+					details.locator('xpath=ancestor::section[@data-testid="section-listen"]')
 				).toHaveCount(1);
 			}
 			await expect(alice.getByTestId('network-details')).not.toHaveAttribute('open', '');
-			await aliceDetails.getByText('Shared list', { exact: true }).click();
-			await bobDetails.getByText('Shared list', { exact: true }).focus();
-			await bob.keyboard.press('Enter');
 			await expect(aliceDetails.getByTestId('active-shared-list-name')).toHaveText(copiedMnemonic);
 			await expect(bobDetails.getByTestId('active-shared-list-name')).toHaveText(copiedMnemonic);
+			// The summary still folds them away, by pointer and by keyboard.
+			await aliceDetails.getByText('Shared list', { exact: true }).click();
+			// The summary is what takes focus; the label inside it cannot.
+			await bobDetails.locator('summary').focus();
+			await bob.keyboard.press('Enter');
+			await expect(aliceDetails).not.toHaveAttribute('open', '');
+			await expect(bobDetails).not.toHaveAttribute('open', '');
 
 			const [aliceDatabase, bobDatabase, isolatedDatabase] = await Promise.all([
 				getDatabaseDiagnostics(alice),
@@ -130,6 +139,7 @@ async function getDatabaseDiagnostics(page) {
 
 /** @param {import('@playwright/test').Page} page @param {string} text */
 async function addTodo(page, text) {
+	await openSection(page, 'aufgaben');
 	await page.getByPlaceholder('What needs to be done?').fill(text);
 	await page.getByRole('button', { name: 'Add TODO' }).click();
 	await expectTodo(page, text);
@@ -137,5 +147,6 @@ async function addTodo(page, text) {
 
 /** @param {import('@playwright/test').Page} page @param {string} text */
 async function expectTodo(page, text) {
+	await openSection(page, 'aufgaben');
 	await expect(page.getByText(text, { exact: true })).toBeVisible({ timeout });
 }

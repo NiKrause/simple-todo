@@ -7,9 +7,47 @@
 		"en": "English"
 	},
 	"header": {
-		"auditorView": "Auditor view",
 		"backToTodos": "Back to the todos",
 		"tagline": "A local-first peer-to-peer PWA"
+	},
+	"sections": {
+		"label": "Sections",
+		"tab": {
+			"tasks": "Todos",
+			"lists": "Lists",
+			"account": "Account",
+			"network": "Network"
+		},
+		"lists": {
+			"waiting": "Your lists appear here once the app has started."
+		},
+		"account": {
+			"passkey": "Your passkey",
+			"passkeyHint": "Others need this DID to let you write to their list, or to delegate a todo to you.",
+			"noPasskey": "This session was started without a passkey, so it has no DID.",
+			"balanceWaiting": "Your balance shows here once a budget from this list has been paid out to you.",
+			"chain": "Chain",
+			"auditor": "Auditor",
+			"auditorHint": "See the escrow records the way the auditor sees them.",
+			"auditorOpen": "Open the auditor view"
+		},
+		"network": {
+			"app": "App",
+			"theme": "Appearance",
+			"links": "Project",
+			"version": "Version"
+		},
+		"status": {
+			"starting": "Starting…",
+			"connecting": "Connecting…",
+			"relay": "Connected",
+			"direct": "Connected directly",
+			"failed": "Start failed",
+			"details": "Details in the Network tab."
+		},
+		"list": {
+			"switch": "Switch list"
+		}
 	},
 	"theme": {
 		"toLight": "Switch to light mode",

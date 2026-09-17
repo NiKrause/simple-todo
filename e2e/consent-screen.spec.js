@@ -9,6 +9,7 @@ import {
 	passConsent,
 	waitForConsent
 } from './consent.mjs';
+import { openSection } from './sections.mjs';
 
 const timeout = 30000;
 
@@ -272,27 +273,41 @@ test.describe('Consent screen', () => {
 
 			// The simple view: whether the app is ready, and which list is open.
 			await expect(page.getByTestId('p2p-status-nav')).toHaveAttribute('data-view', 'simple');
-			await expect(page.getByTestId('active-list-kind')).toHaveText('Geteilte Liste');
+			await expect(page.getByTestId('active-list-heading')).toContainText('Geteilte Liste');
 			await expect(page.getByTestId('p2p-status-step')).toHaveCount(0);
 			await expect(page.getByTestId('network-details')).toHaveCount(0);
 
+			await openSection(page, 'listen');
+			await expect(page.getByTestId('active-list-kind')).toHaveText('Geteilte Liste');
 			await page.getByTestId('new-list-name').fill('Prüfbericht');
 			await page.getByTestId('new-list-create').click();
 			await expect(page.getByTestId('permissions-panel')).toBeVisible({ timeout });
 			await expect(page.getByTestId('new-list-created')).toContainText('ist angelegt');
 			await expect(page.getByTestId('active-list-kind')).toHaveText('Private Liste');
 
-			const shown = await page.evaluate(() => document.body.innerText);
-			for (const english of [
-				'Create a private list',
-				'Open a shared list by address',
-				'Write permissions',
-				'Your lists',
-				'P2P network ready',
-				'Network details',
-				'A local-first peer-to-peer PWA'
-			]) {
-				expect(shown, english).not.toContain(english);
+			// Read tab by tab: `innerText` leaves out whatever is hidden, so reading
+			// the page once would only ever check the tab that happens to be open.
+			for (const section of /** @type {const} */ (['aufgaben', 'listen', 'konto', 'netzwerk'])) {
+				await openSection(page, section);
+				const shown = await page.evaluate(() => document.body.innerText);
+				for (const english of [
+					'Create a private list',
+					'Open a shared list by address',
+					'Write permissions',
+					'Your lists',
+					'Switch list',
+					'Your passkey',
+					'Open the auditor view',
+					'Appearance',
+					'P2P network ready',
+					'Network details',
+					'A local-first peer-to-peer PWA'
+				]) {
+					expect(shown, `${english} (${section})`).not.toContain(english);
+				}
+				for (const tab of ['Aufgaben', 'Listen', 'Konto', 'Netzwerk']) {
+					expect(shown, `tab ${tab} (${section})`).toContain(tab);
+				}
 			}
 
 			// One switch brings all of it back.
@@ -320,9 +335,11 @@ test.describe('Consent screen', () => {
 		await page.waitForTimeout(3000);
 		expect(await isConsentOpen(page)).toBe(false);
 
+		// The lists tab opens with the open list's details already unfolded.
+		await openSection(page, 'listen');
 		const sharedListDetails = page.getByTestId('shared-list-details');
 		await expect(sharedListDetails).toBeVisible({ timeout });
-		await sharedListDetails.getByText('Shared list', { exact: true }).click();
+		await expect(sharedListDetails).toHaveAttribute('open', '');
 		await expect(sharedListDetails.getByTestId('active-shared-list-name')).toHaveText(
 			savedMnemonic ?? ''
 		);

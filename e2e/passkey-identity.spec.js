@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { acceptNotice, consentModal, waitForConsent } from './consent.mjs';
+import { openSection } from './sections.mjs';
 
 // Chapter (passkey01): Alice and Bob each register a WebAuthn passkey in
 // their own browser context (CDP virtual authenticator), write todos into
@@ -131,12 +132,15 @@ async function fillConsentModal(page) {
 
 /** @param {import('@playwright/test').Page} page */
 async function expectAppReady(page) {
+	// A reload keeps the fragment, so the page may come back on another tab.
+	await openSection(page, 'aufgaben');
 	await expect(getTodoInput(page)).toBeVisible();
 	await expect(getTodoInput(page)).toBeEnabled({ timeout: collaborationTimeout });
 }
 
 /** @param {import('@playwright/test').Page} page */
 async function getOwnDid(page) {
+	await openSection(page, 'konto');
 	const badge = page.getByTestId('own-did-value');
 	await expect(badge).toBeVisible({ timeout: collaborationTimeout });
 	const did = await badge.getAttribute('data-did');
@@ -149,6 +153,7 @@ async function getOwnDid(page) {
  * @param {string} text
  */
 async function addTodo(page, text) {
+	await openSection(page, 'aufgaben');
 	await getTodoInput(page).fill(text);
 	await page.getByRole('button', { name: 'Add TODO' }).click();
 	await expect(page.getByText(text, { exact: true })).toBeVisible({
@@ -164,6 +169,7 @@ async function addTodo(page, text) {
  * @param {string} expectedDid
  */
 async function expectTodoWithAuthor(page, text, expectedDid) {
+	await openSection(page, 'aufgaben');
 	const row = page.locator('div.flex-1').filter({ has: page.getByText(text, { exact: true }) });
 	await expect(row.getByTestId('todo-author')).toHaveAttribute('data-author', expectedDid, {
 		timeout: collaborationTimeout

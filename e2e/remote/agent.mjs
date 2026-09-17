@@ -1,4 +1,5 @@
 import { passConsent } from '../consent.mjs';
+import { openSection } from '../sections.mjs';
 import { pinTechnicalView } from '../technical-view.mjs';
 
 const DEFAULT_TIMEOUT = 120_000;
@@ -22,8 +23,8 @@ export class TodoBrowserAgent {
 	async open(mnemonic) {
 		this.context = await this.browser.newContext();
 		// Not cosmetic: the relay select and the manual connect form sit in the
-		// network details, and the build stamp `diagnostics()` records is the
-		// header line's technical half. The simple view renders neither.
+		// network details, and the build stamp `diagnostics()` records is in the
+		// network tab's app card. The simple view renders neither.
 		await pinTechnicalView(this.context);
 		this.page = await this.context.newPage();
 		this.page.on('console', (message) => {
@@ -90,7 +91,8 @@ export class TodoBrowserAgent {
 				multiaddrs: diagnostics?.getMultiaddrs?.() ?? [],
 				connections: diagnostics?.getConnections?.() ?? [],
 				pubsub: diagnostics?.getPubsubState?.() ?? null,
-				appStamp: document.querySelector('header p')?.textContent?.trim() ?? null,
+				appStamp:
+					document.querySelector('[data-testid="app-version"]')?.textContent?.trim() ?? null,
 				userAgent: navigator.userAgent
 			};
 		});
@@ -162,6 +164,8 @@ export class TodoBrowserAgent {
 	}
 
 	async connectToMultiaddr(address) {
+		// escrow01: the network details are in the network tab.
+		await openSection(this.page, 'netzwerk');
 		const networkDetails = this.page.getByTestId('network-details');
 		if ((await networkDetails.getAttribute('open')) === null) {
 			await networkDetails.getByText('Network details', { exact: true }).click();
@@ -199,6 +203,7 @@ export class TodoBrowserAgent {
 	async createTodo(text, { attempts = 3, attemptTimeout = 40_000 } = {}) {
 		let lastError;
 		for (let attempt = 1; attempt <= attempts; attempt += 1) {
+			await openSection(this.page, 'aufgaben');
 			await this.todoInput().waitFor({ state: 'visible', timeout: attemptTimeout });
 			await this.todoInput().fill(text);
 			await this.page.getByRole('button', { name: 'Add TODO' }).click();
@@ -219,6 +224,7 @@ export class TodoBrowserAgent {
 	}
 
 	async waitForTodo(text, timeout = this.timeout) {
+		await openSection(this.page, 'aufgaben');
 		await this.page.getByText(text, { exact: true }).waitFor({ state: 'visible', timeout });
 	}
 

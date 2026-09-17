@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { passConsent } from './consent.mjs';
+import { openSection } from './sections.mjs';
 
 // Chapter (acl01): a list is owner-only until the owner grants another DID
 // write access. Both directions are exercised — Alice-owner and Bob-owner —
@@ -75,6 +76,7 @@ async function runGrantScenario(browser, { ownerName, guestName }) {
 
 /** @param {import('@playwright/test').Page} page */
 async function createPrivateList(page) {
+	await openSection(page, 'listen');
 	await page.getByTestId('new-list-create').click();
 	// The permissions panel only renders for access-controlled lists.
 	await expect(page.getByTestId('permissions-panel')).toBeVisible({ timeout });
@@ -110,6 +112,7 @@ async function openReadyAppWithNewPasskey(page, { label }) {
 
 /** @param {import('@playwright/test').Page} page */
 async function getOwnDid(page) {
+	await openSection(page, 'konto');
 	const badge = page.getByTestId('own-did-value');
 	await expect(badge).toBeVisible({ timeout });
 	const did = await badge.getAttribute('data-did');
@@ -119,8 +122,8 @@ async function getOwnDid(page) {
 
 /** @param {import('@playwright/test').Page} page */
 async function getActiveDatabaseAddress(page) {
-	// The address lives in a collapsible nav panel (hidden by default), so read
-	// its text content directly rather than requiring visibility.
+	// The address lives in the lists tab, which need not be open, so read its
+	// text content directly rather than requiring visibility.
 	const el = page.getByTestId('active-database-address');
 	await expect
 		.poll(async () => ((await el.textContent()) ?? '').trim(), { timeout })
@@ -133,6 +136,7 @@ async function getActiveDatabaseAddress(page) {
  * @param {string} address
  */
 async function openListByAddress(page, address) {
+	await openSection(page, 'listen');
 	await page.getByTestId('open-db-address-input').fill(address);
 	await page.getByTestId('open-db-button').click();
 	const el = page.getByTestId('active-database-address');
@@ -144,6 +148,7 @@ async function openListByAddress(page, address) {
  * @param {string} did
  */
 async function grantWriteAccess(page, did) {
+	await openSection(page, 'listen');
 	await page.getByTestId('permission-did-input').fill(did);
 	await page.getByTestId('permission-add').click();
 	await expect(page.locator(`[data-testid="permission-entry"][data-did="${did}"]`)).toBeVisible({
@@ -156,6 +161,7 @@ async function grantWriteAccess(page, did) {
  * @param {string} text
  */
 async function addTodoOk(page, text) {
+	await openSection(page, 'aufgaben');
 	await todoInput(page).fill(text);
 	await page.getByRole('button', { name: 'Add TODO' }).click();
 	await expect(page.getByText(text, { exact: true })).toBeVisible({ timeout });
@@ -167,6 +173,7 @@ async function addTodoOk(page, text) {
  * @param {string} text
  */
 async function addTodoExpectDenied(page, text) {
+	await openSection(page, 'aufgaben');
 	await todoInput(page).fill(text);
 	await page.getByRole('button', { name: 'Add TODO' }).click();
 	await expect(page.getByText(/no write permission|write access/i)).toBeVisible({ timeout });
@@ -177,6 +184,7 @@ async function addTodoExpectDenied(page, text) {
  * @param {string} text
  */
 async function expectTodo(page, text) {
+	await openSection(page, 'aufgaben');
 	await expect(page.getByText(text, { exact: true })).toBeVisible({ timeout });
 }
 
@@ -185,6 +193,7 @@ async function expectTodo(page, text) {
  * @param {string} text
  */
 async function expectNoTodo(page, text) {
+	await openSection(page, 'aufgaben');
 	// Give replication a moment, then assert absence.
 	await page.waitForTimeout(3000);
 	await expect(page.getByText(text, { exact: true })).toHaveCount(0);

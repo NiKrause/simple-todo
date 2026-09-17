@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { passConsent } from './consent.mjs';
+import { openSection } from './sections.mjs';
 import { pinTechnicalView } from './technical-view.mjs';
 
 const testUrl = '/';
@@ -101,6 +102,7 @@ async function openReadyApp(page) {
 
 /** @param {import('@playwright/test').Page} page */
 async function openNetworkDetails(page) {
+	await openSection(page, 'netzwerk');
 	const networkDetails = page.getByTestId('network-details');
 	if ((await networkDetails.getAttribute('open')) === null) {
 		await networkDetails.getByText('Network details', { exact: true }).click();
