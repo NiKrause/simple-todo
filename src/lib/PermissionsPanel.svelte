@@ -6,7 +6,10 @@
 	import { onDestroy } from 'svelte';
 	import { _ } from '$lib/i18n/index.js';
 	import { todoDBStore } from './db-actions.js';
-	import { ownDidStore } from './p2p.js';
+	// From p2p-stores.js, not p2p.js: this panel loads with the page, and a
+	// static import of p2p.js pulls libp2p and gossipsub into the bundle the
+	// consent dialog waits for, even though the page loads p2p.js lazily.
+	import { ownDidStore } from './p2p-stores.js';
 
 	/** @type {string[]} */
 	let writeDids = [];
