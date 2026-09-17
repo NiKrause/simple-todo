@@ -19,6 +19,7 @@ import {
 } from '@orbitdb/core';
 import { OrbitDBWebAuthnIdentityProviderFunction } from '@le-space/orbitdb-identity-provider-webauthn-did';
 import { registerDelegatedAccessController } from './delegated-access.js';
+import { withSyncErrorHandling } from './database-sync-errors.js';
 import * as dagCbor from '@ipld/dag-cbor';
 import * as dagJson from '@ipld/dag-json';
 import * as json from 'multiformats/codecs/json';
@@ -328,7 +329,9 @@ async function createOrbitDBInstance(heliaNode) {
 	passkeyCredentialStore.set(activePasskeyCredential);
 	if (!activePasskeyCredential) {
 		ownDidStore.set(null);
-		return createOrbitDB({ ipfs: heliaNode, id: getOrCreateOrbitDBIdentityId() });
+		return withSyncErrorHandling(
+			await createOrbitDB({ ipfs: heliaNode, id: getOrCreateOrbitDBIdentityId() })
+		);
 	}
 
 	// Register the provider type once so Identities can verify webauthn
@@ -360,7 +363,7 @@ async function createOrbitDBInstance(heliaNode) {
 	});
 	ownDidStore.set(identity.id);
 	console.log(`✅ Passkey identity ready: ${identity.id}`);
-	return createOrbitDB({ ipfs: heliaNode, identities, identity });
+	return withSyncErrorHandling(await createOrbitDB({ ipfs: heliaNode, identities, identity }));
 }
 
 /**
