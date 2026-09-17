@@ -1,0 +1,184 @@
+name: Escrow01 Preview
+
+permissions:
+  contents: read
+  actions: write
+
+on:
+  push:
+    branches: [escrow01]
+  workflow_dispatch:
+    inputs:
+      relay_bootstrap_addr:
+        description: Optional comma-separated production relay multiaddresses
+        required: false
+        default: ''
+      domain:
+        description: Preview custom domain
+        required: false
+        default: escrow01.le-space.de
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Static and instant, and it runs before the browsers: a preview origin
+      # written down by hand costs a second here instead of a confusing run.
+      - name: No preview origin is written down by hand
+        run: pnpm run check:preview-origin
+
+      # The budget rules against a fake chain, a lagging node and a lock mined
+      # without an escrow included; the passkey key read back out of a DID; the
+      # explanations, section for section the same in German and English; and
+      # the delegation rules this chapter is built on.
+      - name: Unit tests (budgets, explanations, delegation rules)
+        run: pnpm run test:unit
+
+      # Nothing in this job reaches Sepolia. The e2e build has no
+      # `VITE_BUDGET_SERVICE`, so budgets use the in-memory fake: a push spends
+      # no sponsored gas and waits on no public RPC.
+      #
+      # `sections.spec.js` is this chapter's page: the todos first, the lists,
+      # the account and the network one tab away, the auditor view still at its
+      # own address, and a phone's tab bar clear of the relay button. The rest
+      # is what the tabs must not break, and each of those specs had to follow
+      # them: delegation01's per-todo delegation, acl01's DID write permissions,
+      # the lists and the consent screen. The same set as tests.yml, in one run
+      # so the app is built once instead of six times.
+      - name: Browser specs (tabs, delegation, write permissions, lists, consent)
+        run: >-
+          pnpm exec playwright test
+          e2e/sections.spec.js
+          e2e/delegation.spec.js
+          e2e/acl-permissions.spec.js
+          e2e/consent-screen.spec.js
+          e2e/list-registry.spec.js
+          e2e/private-list-visibility.spec.js
+          --project=chromium
+
+  build-and-deploy:
+    needs: e2e
+    runs-on: ubuntu-latest
+    outputs:
+      ipfs_cid: ${{ steps.publish.outputs.ipfs_cid }}
+      ipfs_cid_v0: ${{ steps.publish.outputs.ipfs_cid_v0 }}
+      item_hash: ${{ steps.publish.outputs.item_hash }}
+      store_processed: ${{ steps.publish.outputs.store_processed }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Resolve production bootstrap snapshot
+        env:
+          RELAY_BOOTSTRAP_OVERRIDE: ${{ inputs.relay_bootstrap_addr || '' }}
+        run: node scripts/resolve-aleph-bootstrap.mjs
+      # Budgets stay the in-memory fake unless the repository says otherwise.
+      # The repository variable `VITE_BUDGET_SERVICE=zama` publishes the Sepolia
+      # mode. It needs the variable `VITE_BUNDLER_URL` and the secret
+      # `VITE_BUNDLER_AUTH_HEADER`, or the page warns and keeps the fake; the
+      # variable `VITE_OPENFORT_POLICY_ID` names the sponsorship that pays, and
+      # `VITE_SEPOLIA_RPC_URL` is optional (.env.example says the same).
+      #
+      # The header is a secret only to keep it out of logs. Every `VITE_` value
+      # ships inside the published page, where anyone who opens it can read it.
+      # That is why the key must be the publishable `pk_` one (the page refuses
+      # `sk_`), and why the Openfort policy should be narrowed to this chapter's
+      # calls before the variable is set. The build receives the Openfort values
+      # only when the variable says `zama`, so a key stored ahead of time does
+      # not ride along in a page that has no use for it.
+      - name: Build escrow01 preview
+        env:
+          VITE_NODE_ENV: production
+          VITE_APP_BRANCH: escrow01
+          VITE_BUDGET_SERVICE: ${{ vars.VITE_BUDGET_SERVICE }}
+          VITE_BUNDLER_URL: ${{ vars.VITE_BUDGET_SERVICE == 'zama' && vars.VITE_BUNDLER_URL || '' }}
+          VITE_BUNDLER_AUTH_HEADER: ${{ vars.VITE_BUDGET_SERVICE == 'zama' && secrets.VITE_BUNDLER_AUTH_HEADER || '' }}
+          VITE_OPENFORT_POLICY_ID: ${{ vars.VITE_BUDGET_SERVICE == 'zama' && vars.VITE_OPENFORT_POLICY_ID || '' }}
+          VITE_SEPOLIA_RPC_URL: ${{ vars.VITE_BUDGET_SERVICE == 'zama' && vars.VITE_SEPOLIA_RPC_URL || '' }}
+        run: pnpm build
+      - name: Install isolated Aleph deploy tooling
+        run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.22 --ignore-scripts
+      - name: Publish preview to Aleph IPFS
+        id: publish
+        env:
+          ALEPH_VM_MODE: site-publish
+          ALEPH_SITE_DIRECTORY: ${{ github.workspace }}/build
+          ALEPH_SITE_PIN: 'true'
+          ALEPH_SITE_NAME: simple-todo-escrow01
+          ALEPH_SITE_CHANNEL: ALEPH-CLOUDSOLUTIONS
+          ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
+        run: |
+          for attempt in 1 2 3; do
+            if node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep $((attempt * 15))
+          done
+
+  link-domain:
+    needs: build-and-deploy
+    if: needs.build-and-deploy.outputs.item_hash != '' && needs.build-and-deploy.outputs.store_processed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24.x'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: npm install --prefix /tmp/le-space-deployer @le-space/node@0.6.22 --ignore-scripts
+      - name: Link escrow01 preview domain
+        env:
+          ALEPH_VM_MODE: site-domain-link
+          ALEPH_SITE_ITEM_HASH: ${{ needs.build-and-deploy.outputs.item_hash }}
+          ALEPH_SITE_IPFS_CID: ${{ needs.build-and-deploy.outputs.ipfs_cid }}
+          ALEPH_SITE_IPFS_CID_V0: ${{ needs.build-and-deploy.outputs.ipfs_cid_v0 }}
+          ALEPH_SITE_DOMAIN: ${{ inputs.domain || 'escrow01.le-space.de' }}
+          ALEPH_SITE_DOMAIN_CATCH_ALL_PATH: /index.html
+          ALEPH_PRIVATE_KEY: ${{ secrets.ALEPH_PRIVATE_KEY }}
+        run: node --input-type=module -e "import('/tmp/le-space-deployer/node_modules/@le-space/node/index.js').then((m) => m.runSiteMode())"
+
+  # Dispatched as a separate run rather than called with `uses:`, as on
+  # delegation01: replication provisions an ephemeral Aleph VM and takes far
+  # longer than the deploy, so gating the preview on it would leave the chapter
+  # undeployed for the duration of a test that is about the deployed site.
+  #
+  # The URL follows the `domain` input, so dispatching this workflow with a
+  # custom domain tests the site that was actually linked instead of the
+  # default one.
+  start-remote-replication:
+    needs: link-domain
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start remote replication against the preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_URL: https://${{ inputs.domain || 'escrow01.le-space.de' }}
+        run: >-
+          gh workflow run remote-replication.yml
+          --repo "${{ github.repository }}"
+          --ref escrow01
+          -f app_url="${APP_URL}"
+          -f provider=aleph
