@@ -39,6 +39,10 @@ const buildDate = new Date().toISOString().split('T')[0] + ' ' + new Date().toLo
 const appBranch = process.env.VITE_APP_BRANCH || process.env.GITHUB_REF_NAME || 'local';
 
 export default defineConfig({
+	// Module workers: the passkey provider's standalone keystore worker, which the
+	// Sepolia wallet code pulls in, imports other modules, and Rollup cannot
+	// split an IIFE worker (Vite's default) into chunks.
+	worker: { format: 'es' },
 	test: {
 		include: ['src/**/*.spec.js'],
 		browser: {

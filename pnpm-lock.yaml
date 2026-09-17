@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.4
+  '@le-space/orbitdb-identity-provider-webauthn-did': file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz
   orbitdb-relay>@orbitdb/core: 4.0.0
   react: 19.2.6
   react-dom: 19.2.6
@@ -36,19 +36,22 @@ importers:
         version: 11.0.0
       '@le-space/aleph-bootstrap':
         specifier: 0.9.6
-        version: 0.9.6(typescript@5.9.2)
+        version: 0.9.6(typescript@5.9.2)(zod@4.6.5)
       '@le-space/libp2p-webrtc-qr':
         specifier: 0.13.1
         version: 0.13.1(@multiformats/multiaddr@13.0.3)(libp2p@3.3.6)
       '@le-space/orbitdb-access-controller-delegated-todo':
         specifier: 0.1.0
-        version: 0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.5.4(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)
+        version: 0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)
       '@le-space/orbitdb-identity-provider-webauthn-did':
-        specifier: 0.5.4
-        version: 0.5.4(@orbitdb/core@4.0.0)
+        specifier: file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz
+        version: file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz(@orbitdb/core@4.0.0)
+      '@le-space/passkey-wallet':
+        specifier: file:vendor/le-space-passkey-wallet-0.0.0-cde6878.tgz
+        version: file:vendor/le-space-passkey-wallet-0.0.0-cde6878.tgz(@le-space/orbitdb-identity-provider-webauthn-did@file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz(@orbitdb/core@4.0.0))(viem@2.56.7(typescript@5.9.2)(zod@4.6.5))
       '@le-space/ui':
         specifier: 0.9.6
-        version: 0.9.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(svelte@5.37.2)(typescript@5.9.2)
+        version: 0.9.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(svelte@5.37.2)(typescript@5.9.2)(zod@4.6.5)
       '@libp2p/autonat':
         specifier: ^3.0.24
         version: 3.0.24
@@ -91,6 +94,9 @@ importers:
       '@orbitdb/core':
         specifier: ^4.0.0
         version: 4.0.0
+      '@zama-fhe/sdk':
+        specifier: 3.6.0
+        version: 3.6.0(ethers@6.17.0)(typescript@5.9.2)(viem@2.56.7(typescript@5.9.2)(zod@4.6.5))
       blockstore-level:
         specifier: ^4.0.1
         version: 4.0.1
@@ -142,13 +148,13 @@ importers:
         version: 9.32.0
       '@le-space/core':
         specifier: 0.9.6
-        version: 0.9.6(typescript@5.9.2)
+        version: 0.9.6(typescript@5.9.2)(zod@4.6.5)
       '@le-space/node':
         specifier: 0.9.6
-        version: 0.9.6(react-native@0.80.2(@babel/core@7.29.7)(react@19.2.6))(typescript@5.9.2)
+        version: 0.9.6(react-native@0.80.2(@babel/core@7.29.7)(react@19.2.6))(typescript@5.9.2)(zod@4.6.5)
       '@le-space/playwright':
         specifier: 0.9.6
-        version: 0.9.6(@playwright/test@1.61.1)(typescript@5.9.2)
+        version: 0.9.6(@playwright/test@1.61.1)(typescript@5.9.2)(zod@4.6.5)
       '@playwright/test':
         specifier: 1.61.1
         version: 1.61.1
@@ -216,8 +222,8 @@ importers:
         specifier: ^5.0.0
         version: 5.9.2
       viem:
-        specifier: 2.53.1
-        version: 2.53.1(typescript@5.9.2)
+        specifier: ^2.56.5
+        version: 2.56.7(typescript@5.9.2)(zod@4.6.5)
       vite:
         specifier: ^7.0.4
         version: 7.0.6(@types/node@26.1.1)(jiti@2.5.1)(lightningcss@1.30.1)(terser@5.49.0)(yaml@2.9.0)
@@ -925,6 +931,21 @@ packages:
     resolution: {integrity: sha512-Ul5l+lHEcw3L5+k8POx6r74mxEYKG5kOb6Xpy2gCRW6zweT6TEhAf8vhxGgjhqrd/VO/Dirhsb+1hNpD1ue9hw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
+  '@fhevm/sdk@0.13.2':
+    resolution: {integrity: sha512-M1ZUKdRJedxRa57bVeQ7jrzVP6hKAXjS8WabvMNJKBui7C2ZXDsvoyb7qpLqYib85obA+OQTwcPZV/oxWfciWA==}
+    engines: {node: '>=22.0'}
+    peerDependencies:
+      ethers: '>=6.8.0'
+      typescript: '>=5.0.4'
+      viem: '>=2'
+    peerDependenciesMeta:
+      ethers:
+        optional: true
+      typescript:
+        optional: true
+      viem:
+        optional: true
+
   '@formatjs/ecma402-abstract@2.3.6':
     resolution: {integrity: sha512-HJnTFeRM2kVFVr5gr5kH1XP6K0JcJtE7Lzvtr3FS/so5f1kpsqqqxy5JF+FRaO6H2qmcMfAUIox7AJteieRtVw==}
 
@@ -1159,15 +1180,25 @@ packages:
 
   '@le-space/orbitdb-access-controller-delegated-todo@0.1.0':
     resolution: {integrity: sha512-IYqHNFWlwKWRXYXsxbw2pIdwRVe//YP1Y6VWmMkkl/BulOyDAkiV3Xz+CZRVAbyVscVPm5tQtjxb7fdqaLznKg==}
+    version: 0.1.0
     peerDependencies:
-      '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.4
+      '@le-space/orbitdb-identity-provider-webauthn-did': file:/private/tmp/claude-501/-Users-nandi-Projects-simple-todo/c1c89ea1-dd63-4114-b4c8-e82db22a9edf/scratchpad/wt-escrow01-chain/vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz
       '@orbitdb/core': ^3.0.0
 
-  '@le-space/orbitdb-identity-provider-webauthn-did@0.5.4':
-    resolution: {integrity: sha512-iFq0CgvQLqd8vUHTlZ8bnurcsdDRzGcegazZ6J1ALdVmq0QJ84DiBVFyzYox0ObLzf0plYfyIwyYXgX6Vg7abg==}
+  '@le-space/orbitdb-identity-provider-webauthn-did@file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz':
+    resolution: {integrity: sha512-oEHPwGtnO/S55ViGxIY4/BPHuNRGfVgHpILt+HMp9k/7C0fRPC19IOKOxbsh3hEUjYIP2mG7ZnIysvTIzjhcAQ==, tarball: file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz}
+    version: 0.5.5-p256.8366ed8
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@orbitdb/core': ^4.0.0
+
+  '@le-space/passkey-wallet@file:vendor/le-space-passkey-wallet-0.0.0-cde6878.tgz':
+    resolution: {integrity: sha512-o1zvW6WZHzRcHr7OyajH0BT/C+B9Jck0kZS/j4DZc/SQlcoDhqOoki6j6SdIRIR52e+9jDbOnC1qEskgfMW8eg==, tarball: file:vendor/le-space-passkey-wallet-0.0.0-cde6878.tgz}
+    version: 0.0.0-cde6878
+    engines: {node: '>=20.0.0'}
+    peerDependencies:
+      '@le-space/orbitdb-identity-provider-webauthn-did': file:/private/tmp/claude-501/-Users-nandi-Projects-simple-todo/c1c89ea1-dd63-4114-b4c8-e82db22a9edf/scratchpad/wt-escrow01-chain/vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz
+      viem: ^2.56.5
 
   '@le-space/playwright@0.9.6':
     resolution: {integrity: sha512-Lb0lh87DOvvSVrZlEjW11Lnzkf85Ch67tT23LRWpRBiZcOHNN0FkHx0bcYzCsEZ02Bn6aztcLTDhK5sJ0clGbQ==}
@@ -1436,6 +1467,10 @@ packages:
     resolution: {integrity: sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw==}
     engines: {node: ^14.21.3 || >=16}
 
+  '@noble/curves@2.0.1':
+    resolution: {integrity: sha512-vs1Az2OOTBiP4q0pwjW5aF0xp9n4MxVrmkFBxc6EKZc6ddYx5gaZiAsZoq0uRRXWbi3AT/sBqn05eRPtn1JCPw==}
+    engines: {node: '>= 20.19.0'}
+
   '@noble/curves@2.2.0':
     resolution: {integrity: sha512-T/BoHgFXirb0ENSPBquzX0rcjXeM6Lo892a2jlYJkqk83LqZx0l1Of7DzlKJ6jkpvMrkHSnAcgb5JegL8SeIkQ==}
     engines: {node: '>= 20.19.0'}
@@ -1453,6 +1488,10 @@ packages:
   '@noble/hashes@1.8.0':
     resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
     engines: {node: ^14.21.3 || >=16}
+
+  '@noble/hashes@2.0.1':
+    resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
+    engines: {node: '>= 20.19.0'}
 
   '@noble/hashes@2.2.0':
     resolution: {integrity: sha512-IYqDGiTXab6FniAgnSdZwgWbomxpy9FtYvLKs7wCUs2a8RkITG+DFGO1DM9cr+E3/RgADRpFjrKVaJ1z6sjtEg==}
@@ -2023,6 +2062,21 @@ packages:
 
   '@vitest/utils@3.2.4':
     resolution: {integrity: sha512-fB2V0JFrQSMsCo9HiSq3Ezpdv4iYaXRG1Sx8edX3MwxfyNn83mKiGzOcH+Fkxt4MHxr3y42fQi1oeAInqgX2QA==}
+
+  '@zama-fhe/sdk@3.6.0':
+    resolution: {integrity: sha512-z7EiQQBdffJvPD04S0AK9u4B1FOOzFhXTOe8bvibXbC0z7M+oi3nfhntNKUw8Z+HouD8EIuEDlqQ/wXMIYwxCA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@tanstack/query-core': '>=5'
+      ethers: '>=6'
+      viem: '>=2'
+    peerDependenciesMeta:
+      '@tanstack/query-core':
+        optional: true
+      ethers:
+        optional: true
+      viem:
+        optional: true
 
   abitype@1.2.3:
     resolution: {integrity: sha512-Ofer5QUnuUdTFsBRwARMoWKOH1ND5ehwYhJ3OJ/BQO+StkwQjHw0XyVh4vDttzHB7QOFhPHa/o413PJ82gU/Tg==}
@@ -4154,8 +4208,8 @@ packages:
   os-browserify@0.3.0:
     resolution: {integrity: sha512-gjcpUc3clBf9+210TRaDWbf+rZZZEshZ+DlXMRCeAjp0xhTrnQsKHypIy1J3d5hKdUzj69t708EHtU8P6bUn0A==}
 
-  ox@0.14.29:
-    resolution: {integrity: sha512-M5j87Ec4V99MQdRct/g09eWXW60g6zhHTUs1lr4deUtrPDnezBdCJTgKd7pxqTpSZBFveV0ALi9jMMuT1qKyNg==}
+  ox@0.14.45:
+    resolution: {integrity: sha512-jpsQ+p0JZh9mKCxxzxz0d5qFHZZg2/O9xW18IpEC/dNXXPVqmDJ0c//9RMz0CILkbSGPA42+cbU0fC/ghwJ03w==}
     peerDependencies:
       typescript: '>=5.4.0'
     peerDependenciesMeta:
@@ -5170,8 +5224,8 @@ packages:
   varint@6.0.0:
     resolution: {integrity: sha512-cXEIW6cfr15lFv563k4GuVuW/fiwjknytD37jIOLSdSWuOI6WnO/oKwmP2FQTU2l01LP8/M5TSAJpzUaGe3uWg==}
 
-  viem@2.53.1:
-    resolution: {integrity: sha512-FhfJ/SW73CVosiyVLmIMVgKDRKYV1AGCLzZoHYvmNayyVff63Qi1ocPCk59LqC/cNw244RbBJjHnmxqXkE7NpA==}
+  viem@2.56.7:
+    resolution: {integrity: sha512-8YXhttIOKikDnTLj4byvGQmF43Gi0FtEfxUWd6OqSJiuz9bxNYNGmzlS8ZaNiYSKUEfs5vmNprvwPIki9Lk4YA==}
     peerDependencies:
       typescript: '>=5.0.4'
     peerDependenciesMeta:
@@ -5286,6 +5340,9 @@ packages:
   walker@1.0.8:
     resolution: {integrity: sha512-ts/8E8l5b7kY0vlWLewOkDXMmPdLcVV4GmOQLyxuSswIJsweeFZtAsMF7k1Nszz+TYBQrlYRmzOnr398y1JemQ==}
 
+  wasm-feature-detect@1.9.0:
+    resolution: {integrity: sha512-zonE+xlIIYtxPy++L24ow0hAD8CICb4+FgPyROd3buyXIqsJvUEDkBgfCCoXOd1Hu3DUr0GOfnPIdcGV+YpNaA==}
+
   weald@1.1.3:
     resolution: {integrity: sha512-vMWtNbYuPb58NeG2+0sKA0Een4VMDwzf+3oHqh68buWRSOMUBlUeRb11LhV28czV+DUpJHRykifijZDuS9bInA==}
 
@@ -5376,18 +5433,6 @@ packages:
       utf-8-validate:
         optional: true
 
-  ws@8.20.1:
-    resolution: {integrity: sha512-It4dO0K5v//JtTXuPkfEOaI3uUN87iYPnqo/ZzqCoG3g8uhA66QUMs/SrM0YK7/NAu+r4LMh/9dq2A7k+rHs+w==}
-    engines: {node: '>=10.0.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: '>=5.0.2'
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
-
   ws@8.21.0:
     resolution: {integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==}
     engines: {node: '>=10.0.0'}
@@ -5446,6 +5491,9 @@ packages:
 
   zimmerframe@1.1.2:
     resolution: {integrity: sha512-rAbqEGa8ovJy4pyBxZM70hg4pE6gDgaQ0Sl9M3enG3I0d6H4XSAM3GeNGLKnsBpuijUow064sf7ww1nutC5/3w==}
+
+  zod@4.6.5:
+    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
 
 snapshots:
 
@@ -6059,6 +6107,16 @@ snapshots:
       '@eslint/core': 0.15.1
       levn: 0.4.1
 
+  '@fhevm/sdk@0.13.2(ethers@6.17.0)(typescript@5.9.2)(viem@2.56.7(typescript@5.9.2)(zod@4.6.5))':
+    dependencies:
+      '@noble/curves': 2.0.1
+      '@noble/hashes': 2.0.1
+      wasm-feature-detect: 1.9.0
+    optionalDependencies:
+      ethers: 6.17.0
+      typescript: 5.9.2
+      viem: 2.56.7(typescript@5.9.2)(zod@4.6.5)
+
   '@formatjs/ecma402-abstract@2.3.6':
     dependencies:
       '@formatjs/fast-memoize': 2.2.7
@@ -6632,10 +6690,10 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@le-space/aleph-bootstrap@0.9.6(typescript@5.9.2)':
+  '@le-space/aleph-bootstrap@0.9.6(typescript@5.9.2)(zod@4.6.5)':
     dependencies:
       '@libp2p/bootstrap': 11.0.47
-      viem: 2.53.1(typescript@5.9.2)
+      viem: 2.56.7(typescript@5.9.2)(zod@4.6.5)
     transitivePeerDependencies:
       - bufferutil
       - typescript
@@ -6644,9 +6702,9 @@ snapshots:
 
   '@le-space/browser@0.9.6': {}
 
-  '@le-space/core@0.9.6(typescript@5.9.2)':
+  '@le-space/core@0.9.6(typescript@5.9.2)(zod@4.6.5)':
     dependencies:
-      '@le-space/aleph-bootstrap': 0.9.6(typescript@5.9.2)
+      '@le-space/aleph-bootstrap': 0.9.6(typescript@5.9.2)(zod@4.6.5)
       '@le-space/shared-types': 0.9.6
     transitivePeerDependencies:
       - bufferutil
@@ -6698,7 +6756,7 @@ snapshots:
       uint8arraylist: 3.0.2
       uint8arrays: 6.1.1
 
-  '@le-space/node@0.9.6(react-native@0.80.2(@babel/core@7.29.7)(react@19.2.6))(typescript@5.9.2)':
+  '@le-space/node@0.9.6(react-native@0.80.2(@babel/core@7.29.7)(react@19.2.6))(typescript@5.9.2)(zod@4.6.5)':
     dependencies:
       '@chainsafe/libp2p-noise': 16.1.5
       '@chainsafe/libp2p-quic': 1.1.8
@@ -6708,7 +6766,7 @@ snapshots:
       '@helia/unixfs': 7.2.1
       '@helia/utils': 2.5.2
       '@ipld/car': 5.4.6
-      '@le-space/core': 0.9.6(typescript@5.9.2)
+      '@le-space/core': 0.9.6(typescript@5.9.2)(zod@4.6.5)
       '@le-space/libp2p-bootstrap': '@libp2p/bootstrap@12.0.27'
       '@le-space/libp2p-identify': '@libp2p/identify@4.1.10'
       '@le-space/libp2p-kad-dht': '@libp2p/kad-dht@16.4.0'
@@ -6747,12 +6805,12 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@le-space/orbitdb-access-controller-delegated-todo@0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.5.4(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)':
+  '@le-space/orbitdb-access-controller-delegated-todo@0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)':
     dependencies:
-      '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.4(@orbitdb/core@4.0.0)
+      '@le-space/orbitdb-identity-provider-webauthn-did': file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz(@orbitdb/core@4.0.0)
       '@orbitdb/core': 4.0.0
 
-  '@le-space/orbitdb-identity-provider-webauthn-did@0.5.4(@orbitdb/core@4.0.0)':
+  '@le-space/orbitdb-identity-provider-webauthn-did@file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz(@orbitdb/core@4.0.0)':
     dependencies:
       '@ipld/dag-cbor': 10.0.1
       '@ipld/dag-ucan': 3.4.5
@@ -6769,10 +6827,15 @@ snapshots:
       iso-webauthn-varsig: '@le-space/iso-webauthn-varsig@0.3.0'
       multiformats: 14.0.5
 
-  '@le-space/playwright@0.9.6(@playwright/test@1.61.1)(typescript@5.9.2)':
+  '@le-space/passkey-wallet@file:vendor/le-space-passkey-wallet-0.0.0-cde6878.tgz(@le-space/orbitdb-identity-provider-webauthn-did@file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz(@orbitdb/core@4.0.0))(viem@2.56.7(typescript@5.9.2)(zod@4.6.5))':
     dependencies:
-      '@le-space/aleph-bootstrap': 0.9.6(typescript@5.9.2)
-      '@le-space/core': 0.9.6(typescript@5.9.2)
+      '@le-space/orbitdb-identity-provider-webauthn-did': file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz(@orbitdb/core@4.0.0)
+      viem: 2.56.7(typescript@5.9.2)(zod@4.6.5)
+
+  '@le-space/playwright@0.9.6(@playwright/test@1.61.1)(typescript@5.9.2)(zod@4.6.5)':
+    dependencies:
+      '@le-space/aleph-bootstrap': 0.9.6(typescript@5.9.2)(zod@4.6.5)
+      '@le-space/core': 0.9.6(typescript@5.9.2)(zod@4.6.5)
       '@playwright/test': 1.61.1
     transitivePeerDependencies:
       - bufferutil
@@ -6807,14 +6870,14 @@ snapshots:
       multiformats: 13.4.2
       one-webcrypto: 1.0.3
 
-  '@le-space/ui@0.9.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(svelte@5.37.2)(typescript@5.9.2)':
+  '@le-space/ui@0.9.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(svelte@5.37.2)(typescript@5.9.2)(zod@4.6.5)':
     dependencies:
       '@le-space/browser': 0.9.6
-      '@le-space/core': 0.9.6(typescript@5.9.2)
+      '@le-space/core': 0.9.6(typescript@5.9.2)(zod@4.6.5)
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
       svelte: 5.37.2
-      viem: 2.53.1(typescript@5.9.2)
+      viem: 2.56.7(typescript@5.9.2)(zod@4.6.5)
     transitivePeerDependencies:
       - bufferutil
       - typescript
@@ -7312,7 +7375,7 @@ snapshots:
       it-all: 3.0.11
       main-event: 1.0.4
       mortice: 3.3.1
-      multiformats: 14.0.4
+      multiformats: 14.0.5
       protons-runtime: 7.0.0
       uint8arraylist: 3.0.2
       uint8arrays: 6.1.1
@@ -7700,6 +7763,10 @@ snapshots:
     dependencies:
       '@noble/hashes': 1.8.0
 
+  '@noble/curves@2.0.1':
+    dependencies:
+      '@noble/hashes': 2.0.1
+
   '@noble/curves@2.2.0':
     dependencies:
       '@noble/hashes': 2.2.0
@@ -7711,6 +7778,8 @@ snapshots:
   '@noble/hashes@1.3.2': {}
 
   '@noble/hashes@1.8.0': {}
+
+  '@noble/hashes@2.0.1': {}
 
   '@noble/hashes@2.2.0': {}
 
@@ -8367,9 +8436,20 @@ snapshots:
       loupe: 3.2.0
       tinyrainbow: 2.0.0
 
-  abitype@1.2.3(typescript@5.9.2):
+  '@zama-fhe/sdk@3.6.0(ethers@6.17.0)(typescript@5.9.2)(viem@2.56.7(typescript@5.9.2)(zod@4.6.5))':
+    dependencies:
+      '@fhevm/sdk': 0.13.2(ethers@6.17.0)(typescript@5.9.2)(viem@2.56.7(typescript@5.9.2)(zod@4.6.5))
+      zod: 4.6.5
+    optionalDependencies:
+      ethers: 6.17.0
+      viem: 2.56.7(typescript@5.9.2)(zod@4.6.5)
+    transitivePeerDependencies:
+      - typescript
+
+  abitype@1.2.3(typescript@5.9.2)(zod@4.6.5):
     optionalDependencies:
       typescript: 5.9.2
+      zod: 4.6.5
 
   abort-controller@3.0.0:
     dependencies:
@@ -10073,9 +10153,9 @@ snapshots:
 
   isomorphic-timers-promises@1.0.1: {}
 
-  isows@1.0.7(ws@8.20.1):
+  isows@1.0.7(ws@8.21.0):
     dependencies:
-      ws: 8.20.1
+      ws: 8.21.0
 
   istanbul-lib-coverage@3.2.2: {}
 
@@ -11036,8 +11116,8 @@ snapshots:
       '@ipld/dag-cbor': 10.0.1
       '@ipld/dag-json': 11.0.0
       '@ipshipyard/libp2p-auto-tls': 1.0.0
-      '@le-space/orbitdb-access-controller-delegated-todo': 0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@0.5.4(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)
-      '@le-space/orbitdb-identity-provider-webauthn-did': 0.5.4(@orbitdb/core@4.0.0)
+      '@le-space/orbitdb-access-controller-delegated-todo': 0.1.0(@le-space/orbitdb-identity-provider-webauthn-did@file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz(@orbitdb/core@4.0.0))(@orbitdb/core@4.0.0)
+      '@le-space/orbitdb-identity-provider-webauthn-did': file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz(@orbitdb/core@4.0.0)
       '@libp2p/autonat': 3.0.24
       '@libp2p/bootstrap': 12.0.27
       '@libp2p/circuit-relay-v2': 4.2.9
@@ -11081,7 +11161,7 @@ snapshots:
 
   os-browserify@0.3.0: {}
 
-  ox@0.14.29(typescript@5.9.2):
+  ox@0.14.45(typescript@5.9.2)(zod@4.6.5):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
       '@noble/ciphers': 1.3.0
@@ -11089,7 +11169,7 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/bip32': 1.7.0
       '@scure/bip39': 1.6.0
-      abitype: 1.2.3(typescript@5.9.2)
+      abitype: 1.2.3(typescript@5.9.2)(zod@4.6.5)
       eventemitter3: 5.0.1
     optionalDependencies:
       typescript: 5.9.2
@@ -12126,16 +12206,16 @@ snapshots:
 
   varint@6.0.0: {}
 
-  viem@2.53.1(typescript@5.9.2):
+  viem@2.56.7(typescript@5.9.2)(zod@4.6.5):
     dependencies:
       '@noble/curves': 1.9.1
       '@noble/hashes': 1.8.0
       '@scure/bip32': 1.7.0
       '@scure/bip39': 1.6.0
-      abitype: 1.2.3(typescript@5.9.2)
-      isows: 1.0.7(ws@8.20.1)
-      ox: 0.14.29(typescript@5.9.2)
-      ws: 8.20.1
+      abitype: 1.2.3(typescript@5.9.2)(zod@4.6.5)
+      isows: 1.0.7(ws@8.21.0)
+      ox: 0.14.45(typescript@5.9.2)(zod@4.6.5)
+      ws: 8.21.0
     optionalDependencies:
       typescript: 5.9.2
     transitivePeerDependencies:
@@ -12258,6 +12338,8 @@ snapshots:
     dependencies:
       makeerror: 1.0.12
 
+  wasm-feature-detect@1.9.0: {}
+
   weald@1.1.3:
     dependencies:
       ms: 4.0.0-nightly.202508271359
@@ -12330,8 +12412,6 @@ snapshots:
 
   ws@8.18.3: {}
 
-  ws@8.20.1: {}
-
   ws@8.21.0: {}
 
   xml2js@0.6.2:
@@ -12369,3 +12449,5 @@ snapshots:
   yocto-queue@0.1.0: {}
 
   zimmerframe@1.1.2: {}
+
+  zod@4.6.5: {}

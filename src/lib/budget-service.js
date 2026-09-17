@@ -2,12 +2,13 @@
  * The budget service (escrow01): every budget operation goes through this
  * interface, so the chain can be swapped in without touching a component.
  *
- * Today there is one implementation, an in-memory fake
- * (`budget-service-fake.js`). The real one — Zama's confidential token and
- * `ConfidentialTodoEscrow` (contracts/), signed through a Calibur account the
- * passkey controls — implements the same shape. Until it exists,
- * `VITE_BUDGET_SERVICE=zama` warns and still gets the fake, and the header says
- * "demo without a chain" so nobody mistakes it for money.
+ * Two implementations: an in-memory fake (`budget-service-fake.js`), the
+ * default, and Sepolia (`budget-service-zama.js`) — Zama's confidential token
+ * and `ConfidentialTodoEscrow` (contracts/), signed through a Calibur account
+ * the passkey controls. `VITE_BUDGET_SERVICE=zama` picks Sepolia when
+ * `.env.local` names Openfort's bundler; without it the page warns and keeps
+ * the fake, and the account tab says "demo without a chain" so nobody mistakes
+ * it for money.
  *
  * Who "I" am is not a parameter: a service acts for the session's identity
  * (`identity()`), the way a wallet signs for its own account. Every operation
@@ -84,6 +85,15 @@
  */
 
 import { createFakeBudgetService } from './budget-service-fake.js';
+import {
+	AUDITOR_ADDRESS,
+	CHAIN_ID,
+	ESCROW_ADDRESS,
+	TOKEN_ADDRESS,
+	TOKEN_DECIMALS,
+	TOKEN_SYMBOL,
+	readChainEndpoints
+} from './chain/config.js';
 
 /**
  * @param {unknown} value
@@ -94,19 +104,101 @@ export function budgetServiceKind(value) {
 }
 
 /**
+ * @typedef {{
+ *   env: Record<string, string | undefined>
+ *   credential: () => any
+ *   orbitdb: () => any
+ *   prompt: (action: string, run: (hooks: { onPrompt: () => void, onSigned: () => void }) => Promise<any>) => Promise<any>
+ *   onAccount: (status: { phase: 'none' | 'creating' | 'ready' | 'failed', address: string | null, error: string | null }) => void
+ * }} ZamaOptions
+ */
+
+/**
  * @param {{
  *   kind?: unknown
  *   identity: () => string | null | undefined
  *   confirm: (action: string) => Promise<boolean>
  *   fake?: Omit<Parameters<typeof createFakeBudgetService>[0], 'identity' | 'confirm'>
+ *   zama?: ZamaOptions
  * }} options
- * @returns {ReturnType<typeof createFakeBudgetService>}
+ * @returns {BudgetService & { prepareAccount?: () => Promise<void>, demo?: any }}
  */
-export function createBudgetService({ kind, identity, confirm, fake = {} }) {
+export function createBudgetService({ kind, identity, confirm, fake = {}, zama }) {
 	if (budgetServiceKind(kind) === 'zama') {
+		const endpoints = zama ? readChainEndpoints(zama.env) : null;
+		if (zama && endpoints?.ok) {
+			return createLazyZamaService({ identity, endpoints: endpoints.endpoints, ...zama });
+		}
 		console.warn(
-			'VITE_BUDGET_SERVICE=zama, but this build has no Zama implementation yet: budgets use the in-memory fake.'
+			`VITE_BUDGET_SERVICE=zama, but Sepolia is not configured (${
+				endpoints && !endpoints.ok ? endpoints.reason : 'no chain options'
+			}): budgets use the in-memory fake.`
 		);
 	}
 	return createFakeBudgetService({ ...fake, identity, confirm });
+}
+
+/**
+ * The Sepolia service, loaded on first use. Its info is known without loading
+ * anything, so the page can say "Sepolia" before viem, Zama's SDK and the
+ * wallet code arrive.
+ *
+ * @param {ZamaOptions & { identity: () => string | null | undefined, endpoints: import('./chain/config.js').ChainEndpoints }} options
+ * @returns {BudgetService & { prepareAccount: () => Promise<void> }}
+ */
+function createLazyZamaService({ identity, endpoints, credential, orbitdb, prompt, onAccount }) {
+	/** @type {Promise<any> | null} */
+	let loading = null;
+	function load() {
+		loading ??= (async () => {
+			const [{ createZamaBudgetService }, { createSepoliaChain }, { createAccountDirectory }] =
+				await Promise.all([
+					import('./budget-service-zama.js'),
+					import('./chain/sepolia-chain.js'),
+					import('./chain/account-directory.js')
+				]);
+			return createZamaBudgetService({
+				identity,
+				credential,
+				chain: createSepoliaChain({ endpoints }),
+				directory: createAccountDirectory(orbitdb),
+				prompt,
+				onAccount
+			});
+		})();
+		loading.catch(() => {
+			loading = null;
+		});
+		return loading;
+	}
+	/**
+	 * @param {string} method
+	 * @returns {(...args: any[]) => Promise<any>}
+	 */
+	const call =
+		(method) =>
+		async (...args) =>
+			(await load())[method](...args);
+
+	return {
+		info: {
+			kind: 'zama',
+			network: 'sepolia',
+			chainId: CHAIN_ID,
+			confidential: true,
+			requiresPasskey: true,
+			token: { symbol: TOKEN_SYMBOL, decimals: TOKEN_DECIMALS, address: TOKEN_ADDRESS },
+			escrow: ESCROW_ADDRESS,
+			auditor: AUDITOR_ADDRESS
+		},
+		createTodoRef: call('createTodoRef'),
+		lock: call('lock'),
+		release: call('release'),
+		decryptAmount: call('decryptAmount'),
+		balance: call('balance'),
+		listEscrowsForAuditor: call('listEscrowsForAuditor'),
+		readKeyStatus: call('readKeyStatus'),
+		renewReadKey: call('renewReadKey'),
+		prepareAccount: call('prepareAccount')
+	};
 }

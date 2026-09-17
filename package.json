@@ -52,7 +52,7 @@
 		"svelte-check": "^4.0.0",
 		"tailwindcss": "^4.0.0",
 		"typescript": "^5.0.0",
-		"viem": "2.53.1",
+		"viem": "^2.56.5",
 		"vite": "^7.0.4",
 		"vitest": "^3.2.3",
 		"vitest-browser-svelte": "^0.1.0",
@@ -60,7 +60,7 @@
 	},
 	"pnpm": {
 		"overrides": {
-			"@le-space/orbitdb-identity-provider-webauthn-did": "0.5.4",
+			"@le-space/orbitdb-identity-provider-webauthn-did": "file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz",
 			"orbitdb-relay>@orbitdb/core": "4.0.0",
 			"react": "19.2.6",
 			"react-dom": "19.2.6",
@@ -69,7 +69,7 @@
 		},
 		"peerDependencyRules": {
 			"allowedVersions": {
-				"@le-space/orbitdb-access-controller-delegated-todo>@le-space/orbitdb-identity-provider-webauthn-did": "0.5.4",
+				"@le-space/orbitdb-access-controller-delegated-todo>@le-space/orbitdb-identity-provider-webauthn-did": "0.5.5-p256.8366ed8",
 				"@le-space/orbitdb-access-controller-delegated-todo>@orbitdb/core": "4.0.0"
 			}
 		},
@@ -88,7 +88,8 @@
 		"@le-space/aleph-bootstrap": "0.9.6",
 		"@le-space/libp2p-webrtc-qr": "0.13.1",
 		"@le-space/orbitdb-access-controller-delegated-todo": "0.1.0",
-		"@le-space/orbitdb-identity-provider-webauthn-did": "0.5.4",
+		"@le-space/orbitdb-identity-provider-webauthn-did": "file:vendor/le-space-orbitdb-identity-provider-webauthn-did-0.5.5-p256.8366ed8.tgz",
+		"@le-space/passkey-wallet": "file:vendor/le-space-passkey-wallet-0.0.0-cde6878.tgz",
 		"@le-space/ui": "0.9.6",
 		"@libp2p/autonat": "^3.0.24",
 		"@libp2p/bootstrap": "^12.0.27",
@@ -104,6 +105,7 @@
 		"@libp2p/websockets": "^10.1.17",
 		"@multiformats/multiaddr": "^13.0.3",
 		"@orbitdb/core": "^4.0.0",
+		"@zama-fhe/sdk": "3.6.0",
 		"blockstore-level": "^4.0.1",
 		"buffer": "^6.0.3",
 		"datastore-level": "^13.0.1",

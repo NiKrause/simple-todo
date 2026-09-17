@@ -143,11 +143,18 @@
 							<td class="py-3 pr-2" title={row.beneficiary.did ?? row.beneficiary.account ?? ''}
 								>{partyName(row.beneficiary)}</td
 							>
-							<td class="py-3 pr-2 text-right font-semibold text-heading tabular-nums"
-								>{formatAmount(row.amount, {
-									decimals: budgetInfo.token.decimals,
-									locale: $locale ?? 'en'
-								})}
+							<!-- On Sepolia only the auditor fixed in the contract can decrypt; any other
+							     session sees the escrows, not their amounts. -->
+							<td
+								class="py-3 pr-2 text-right font-semibold text-heading tabular-nums"
+								title={row.amount === null ? $_('budget.chip.hidden') : undefined}
+								data-testid="auditor-amount"
+								>{row.amount === null
+									? '•••'
+									: formatAmount(row.amount, {
+											decimals: budgetInfo.token.decimals,
+											locale: $locale ?? 'en'
+										})}
 								{budgetInfo.token.symbol}</td
 							>
 							<td

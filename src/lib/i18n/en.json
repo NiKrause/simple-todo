@@ -29,7 +29,14 @@
 			"chain": "Chain",
 			"auditor": "Auditor",
 			"auditorHint": "See the escrow records the way the auditor sees them.",
-			"auditorOpen": "Open the auditor view"
+			"auditorOpen": "Open the auditor view",
+			"chainAccount": "Account on Sepolia",
+			"accountCreating": "Being set up. Openfort pays the fee; no passkey confirmation is needed for this.",
+			"accountHint": "Your passkey is this account's admin key. Its first lock adds 1,000.00 test cUSDT.",
+			"accountFailed": "Setting it up failed: {reason}",
+			"accountRetry": "Try again",
+			"viewOnEtherscan": "View on Etherscan",
+			"balanceAfterAccount": "Your balance shows here once your account is set up."
 		},
 		"network": {
 			"app": "App",
@@ -212,6 +219,7 @@
 			"underfundedTitle": "Budget not funded.",
 			"insufficient": "Your confidential balance was not enough. The lock still went through: the fee was paid, and an encrypted 0 was transferred.",
 			"lockFailed": "Locking did not go through. Check the details and try again.",
+			"noAccount": "The delegate has no account for budgets yet. Once they have opened the app with their passkey, the budget can be locked.",
 			"releaseFailedTitle": "Budget not released.",
 			"releaseFailed": "The amount stays locked. Try again.",
 			"decrypting": "Decrypting the amount. This takes a few seconds.",

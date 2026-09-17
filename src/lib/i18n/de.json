@@ -29,7 +29,14 @@
 			"chain": "Chain",
 			"auditor": "Prüfstelle",
 			"auditorHint": "Die Treuhand-Vorgänge so ansehen, wie die Prüfstelle sie sieht.",
-			"auditorOpen": "Prüfansicht öffnen"
+			"auditorOpen": "Prüfansicht öffnen",
+			"chainAccount": "Konto auf Sepolia",
+			"accountCreating": "Wird eingerichtet. Openfort zahlt die Gebühr, eine Passkey-Bestätigung ist dafür nicht nötig.",
+			"accountHint": "Ihr Passkey ist der Admin-Schlüssel dieses Kontos. Mit dem ersten Sperren kommen 1.000,00 Test-cUSDT darauf.",
+			"accountFailed": "Die Einrichtung ist fehlgeschlagen: {reason}",
+			"accountRetry": "Erneut versuchen",
+			"viewOnEtherscan": "Auf Etherscan ansehen",
+			"balanceAfterAccount": "Ihr Guthaben erscheint hier, sobald Ihr Konto eingerichtet ist."
 		},
 		"network": {
 			"app": "App",
@@ -212,6 +219,7 @@
 			"underfundedTitle": "Budget nicht gedeckt.",
 			"insufficient": "Ihr vertrauliches Guthaben reichte nicht. Die Sperre ging trotzdem durch: Die Gebühr ist bezahlt, und überwiesen wurde eine verschlüsselte 0.",
 			"lockFailed": "Das Sperren ist nicht gelungen. Prüfen Sie die Angaben und versuchen Sie es erneut.",
+			"noAccount": "Die delegierte Person hat noch kein Konto für Budgets. Sie muss die App einmal mit ihrem Passkey öffnen, danach lässt sich das Budget sperren.",
 			"releaseFailedTitle": "Budget nicht freigegeben.",
 			"releaseFailed": "Der Betrag bleibt gesperrt. Versuchen Sie es erneut.",
 			"decrypting": "Betrag wird entschlüsselt. Das dauert einige Sekunden.",

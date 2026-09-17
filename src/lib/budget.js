@@ -42,6 +42,8 @@ export const BUDGET_ERROR_CODES = /** @type {const} */ ([
 	'not-allowed',
 	'invalid-amount',
 	'invalid-beneficiary',
+	// escrow01 on Sepolia: the delegate's DID has published no account yet.
+	'beneficiary-without-account',
 	'invalid-deadline',
 	'unavailable',
 	'unknown'

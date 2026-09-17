@@ -1,5 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
+	import { derived } from 'svelte/store';
 	import { _, locale } from '$lib/i18n/index.js';
 	import { peerIdStore, initializationStore, ownDidStore } from '$lib/p2p-stores.js';
 	import PasskeyOnboarding from '$lib/PasskeyOnboarding.svelte';
@@ -18,6 +19,8 @@
 		budgetInfo,
 		readAmount,
 		refreshBalance,
+		accountStatusStore,
+		prepareBudgetAccount,
 		releaseTodoBudget,
 		watchPayouts
 	} from '$lib/budget-store.js';
@@ -71,6 +74,7 @@
 	import NetworkStatusDot from '$lib/NetworkStatusDot.svelte';
 	import ActiveListHeading from '$lib/ActiveListHeading.svelte';
 	import { AUDITOR_SECTION, currentSection } from '$lib/sections.js';
+	import { etherscanAddress } from '$lib/chain/config.js';
 	import {
 		RELAY_FAB_POSITION_KEY,
 		placeRelayButtonForThisScreen
@@ -359,9 +363,27 @@
 			6000
 		);
 		void refreshBalance();
+		// On Sepolia the public node that answers can still be a block behind the
+		// payout and hand back the old balance; a block later it has caught up.
+		if (budgetInfo.kind === 'zama') setTimeout(() => void refreshBalance(), 15_000);
 	}
 
 	onMount(() => watchPayouts((todo) => void announcePayout(todo)));
+
+	// On Sepolia a passkey session gets its account in the background, once per
+	// DID: one sponsored user operation, no prompt.
+	onMount(() => {
+		if (budgetInfo.kind !== 'zama') return;
+		/** @type {string | null} */
+		let preparedFor = null;
+		return derived([initializationStore, ownDidStore], ([$initialization, $did]) =>
+			$initialization.isInitialized ? $did : null
+		).subscribe((did) => {
+			if (!did || did === preparedFor) return;
+			preparedFor = did;
+			void prepareBudgetAccount();
+		});
+	});
 
 	/*
 		escrow01's sections: the todos first, the lists, the account and the
@@ -394,13 +416,17 @@
 	$: budgetEnabled = delegationEnabled && (!budgetInfo.requiresPasskey || Boolean($ownDidStore));
 	$: budgetsInList = $todosStore.some((todo) => todo.budget && todo.budget.status !== 'none');
 	// The balance appears where the storyboard has it: once a budget was paid
-	// out to this session.
+	// out to this session. On Sepolia the account holds real test money from its
+	// first lock, so it shows as soon as the account is there.
 	$: showBalance =
-		Boolean($ownIdentityIdStore) &&
-		$todosStore.some(
-			(todo) =>
-				todo.budget?.status === 'released' && todo.delegation?.delegateDid === $ownIdentityIdStore
-		);
+		budgetInfo.kind === 'zama'
+			? $accountStatusStore.phase === 'ready'
+			: Boolean($ownIdentityIdStore) &&
+				$todosStore.some(
+					(todo) =>
+						todo.budget?.status === 'released' &&
+						todo.delegation?.delegateDid === $ownIdentityIdStore
+				);
 
 	/**
 	 * @param {TodoActionEvent} event
@@ -672,6 +698,52 @@
 			{/if}
 		</div>
 
+		{#if budgetInfo.kind === 'zama' && $ownDidStore}
+			<div
+				class="mb-6 rounded-lg border border-border bg-surface px-6 py-4 shadow-sm"
+				data-testid="account-chain-account"
+				data-phase={$accountStatusStore.phase}
+			>
+				<h2 class="text-sm font-medium text-faint">{$_('sections.account.chainAccount')}</h2>
+				{#if $accountStatusStore.phase === 'ready' && $accountStatusStore.address}
+					<p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+						<code
+							class="font-mono text-xs break-all text-heading"
+							data-testid="chain-account-address">{$accountStatusStore.address}</code
+						>
+						<a
+							href={etherscanAddress($accountStatusStore.address)}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="text-xs font-medium text-cyan-800 underline-offset-2 hover:underline dark:text-cyan"
+							>{$_('sections.account.viewOnEtherscan')}</a
+						>
+					</p>
+					<p class="mt-2 text-xs text-faint">{$_('sections.account.accountHint')}</p>
+				{:else if $accountStatusStore.phase === 'failed'}
+					<p class="mt-1 text-sm text-danger-700 dark:text-danger" role="alert">
+						{$_('sections.account.accountFailed', {
+							values: { reason: $accountStatusStore.error ?? '' }
+						})}
+					</p>
+					<button
+						type="button"
+						on:click={() => void prepareBudgetAccount()}
+						class="mt-3 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-text hover:text-heading"
+						data-testid="chain-account-retry">{$_('sections.account.accountRetry')}</button
+					>
+				{:else}
+					<p class="mt-1 flex items-center gap-2 text-sm text-text">
+						<span
+							class="inline-block h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-border border-t-cyan-700 dark:border-t-cyan"
+							aria-hidden="true"
+						></span>
+						{$_('sections.account.accountCreating')}
+					</p>
+				{/if}
+			</div>
+		{/if}
+
 		<!-- The balance appears where the storyboard has it: once a budget was paid
 		     out to this session. -->
 		{#if showBalance}
@@ -682,7 +754,13 @@
 				data-testid="account-balance-waiting"
 			>
 				<h2 class="text-sm font-medium text-faint">{$_('budget.balance.heading')}</h2>
-				<p class="mt-1 text-sm text-text">{$_('sections.account.balanceWaiting')}</p>
+				<p class="mt-1 text-sm text-text">
+					{$_(
+						budgetInfo.kind === 'zama'
+							? 'sections.account.balanceAfterAccount'
+							: 'sections.account.balanceWaiting'
+					)}
+				</p>
 			</div>
 		{/if}
 

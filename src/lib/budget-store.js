@@ -13,11 +13,13 @@ import { derived, get, readable, writable } from 'svelte/store';
 import { budgetErrorCode, canReleaseBudget, isWellFormedBudget, paidOutSince } from './budget.js';
 import { finishLock, prepareLock, releaseBudgetOf } from './budget-flow.js';
 import { createBudgetService } from './budget-service.js';
-import { confirmDelegatedWrite } from './delegated-write-auth.js';
+import { confirmDelegatedWrite, withPasskeyPrompt } from './delegated-write-auth.js';
+import { passkeyCredentialStore } from './p2p-stores.js';
 import { translate } from './i18n/index.js';
 import {
 	addTodo,
 	createTodoKey,
+	orbitdbStore,
 	ownIdentityIdStore,
 	setTodoBudget,
 	todosStore
@@ -43,6 +45,19 @@ const HIDDEN = { state: 'hidden', units: null };
 /** @type {AmountState} */
 const EXPIRED = { state: 'expired', units: null };
 
+/**
+ * The session's account on the chain, for the account tab: none until a
+ * passkey session starts, then being created (one sponsored user operation,
+ * no prompt), ready or failed. Stays `none` with the fake.
+ */
+export const accountStatusStore = writable(
+	/** @type {{ phase: 'none' | 'creating' | 'ready' | 'failed', address: string | null, error: string | null }} */ ({
+		phase: 'none',
+		address: null,
+		error: null
+	})
+);
+
 export const budgetService = createBudgetService({
 	kind: import.meta.env.VITE_BUDGET_SERVICE,
 	identity: () => get(ownIdentityIdStore),
@@ -50,10 +65,35 @@ export const budgetService = createBudgetService({
 	confirm: (action) => confirmDelegatedWrite(action),
 	// Roughly what a transaction and a decryption take, so the states between
 	// are visible rather than a flicker.
-	fake: { delayMs: 1200, decryptDelayMs: 900 }
+	fake: { delayMs: 1200, decryptDelayMs: 900 },
+	zama: {
+		env: import.meta.env,
+		credential: () => get(passkeyCredentialStore),
+		orbitdb: () => get(orbitdbStore),
+		// On Sepolia the passkey signs the user operation itself; the badge shows
+		// that prompt instead of a separate confirmation.
+		prompt: (action, run) => withPasskeyPrompt(action, run),
+		onAccount: (status) => accountStatusStore.set(status)
+	}
 });
 
 export const budgetInfo = budgetService.info;
+
+/**
+ * Create or find this passkey session's account in the background (Sepolia
+ * only). Safe to call on every start: an account this browser knows is only
+ * published again.
+ */
+export async function prepareBudgetAccount() {
+	if (!budgetService.prepareAccount) return;
+	try {
+		await budgetService.prepareAccount();
+		void refreshReadKey();
+		void refreshBalance();
+	} catch (error) {
+		console.warn('The budget account could not be prepared:', error);
+	}
+}
 
 // ---------------------------------------------------------------------------
 // Amounts

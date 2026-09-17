@@ -91,3 +91,38 @@ export async function confirmDelegatedWrite(actionName) {
 		return false;
 	}
 }
+
+/**
+ * Show the passkey prompt of an operation that signs with the passkey itself
+ * (escrow01 on Sepolia: every lock, release and read-key renewal is a user
+ * operation the passkey signs). `run` calls `onPrompt` right before the
+ * WebAuthn request and `onSigned` once the signature is there; sending and
+ * mining come after that and are not the prompt's.
+ *
+ * @template T
+ * @param {string} actionName
+ * @param {(hooks: { onPrompt: () => void, onSigned: () => void }) => Promise<T>} run
+ * @returns {Promise<T>}
+ */
+export async function withPasskeyPrompt(actionName, run) {
+	let signed = false;
+	try {
+		return await run({
+			onPrompt: () =>
+				setState('awaiting', actionName, 'Confirm your passkey to sign this operation'),
+			onSigned: () => {
+				signed = true;
+				setState('success', actionName, 'Signed with the passkey');
+			}
+		});
+	} catch (error) {
+		if (!signed) {
+			setState(
+				'error',
+				actionName,
+				error instanceof Error ? error.message : 'Passkey confirmation failed'
+			);
+		}
+		throw error;
+	}
+}
