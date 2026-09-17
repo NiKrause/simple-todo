@@ -34,17 +34,20 @@ the escrow half of [de2do](https://github.com/NiKrause/de2do).
 - **The app's budgets are not on the chain yet.** Adding a delegated todo can lock a budget, the owner
   releases it once the delegate is done, the delegate is told about the payout, and an auditor view
   lists the escrows with their amounts. All of this runs against an in-memory fake that encrypts
-  nothing and forgets its escrows on reload; the header says "Demo without a chain". The Zama service
-  with a passkey wallet is planned.
+  nothing and forgets its escrows on reload; the Account tab says "Demo without a chain". The Zama
+  service with a passkey wallet is planned.
 - **OrbitDB stores no amounts.** A todo's `budget` field holds status, token, escrow, `todoRef`,
   transaction hashes and the last error. The chain is the source of truth for what is locked.
+- **The page opens on the todos.** Lists, account and network are tabs, at the foot of a phone's
+  screen and under the header elsewhere. The URL fragment names the tab, so `#listen`, `#konto`,
+  `#netzwerk` and the auditor view's `#pruefstelle` link straight to one.
 
 ### Try it
 
 1. The app: on branch `escrow01`, `pnpm install` and `pnpm dev`. Create a passkey, create a private
-   list, and add a todo delegated to another DID with a budget. Tick it as the delegate, release it as
-   the owner, and open **Auditor view** in the header. With the fake, amounts are readable only in the
-   browser tab that locked them.
+   list in the **Lists** tab, and add a todo delegated to another DID with a budget. Tick it as the
+   delegate, release it as the owner, and open the auditor view from the **Account** tab. With the fake,
+   amounts are readable only in the browser tab that locked them.
 2. The contract: `cd contracts && npm ci && npm test` runs 16 tests in FHEVM mock mode.
    `npm run smoke:sepolia:dry` checks the Sepolia deployment through Zama's relayer and needs only an
    RPC URL ([runbook](contracts/README.md#sepolia-runbook)).
@@ -237,8 +240,8 @@ This chapter replaces that with an opt-in **passkey-backed identity**:
   always to `localStorage` as fallback; recovery tries `largeBlob` first.
   This flow currently lives here — upstreaming it into the provider package
   is an open TODO.
-- **Visible identity**: your DID appears in the header (shortened, with a
-  copy button), and every todo shows its author resolved from
+- **Visible identity**: your DID appears in the header (in `escrow01`, in
+  the Account tab; shortened, with a copy button), and every todo shows its author resolved from
   `entry.identity` — the field OrbitDB signs itself, so it cannot be faked
   by writing a different name into the todo payload.
 - **Access control is unchanged** (`write: ['*']`): this chapter is only
@@ -306,11 +309,11 @@ This branch extends the basic `main` tutorial with a three-word Spanish shared-l
 You need three passkeys — three browsers, or three profiles of one:
 
 1. In browser A (Alice), pick **Create a passkey** during onboarding, click
-   **Create private list**, type a todo, tick **Delegate this todo to
-   another DID** and paste browser B's **Passkey DID** (its header badge).
+   **Create private list** (Lists tab), type a todo, tick **Delegate this todo to
+   another DID** and paste browser B's **Passkey DID** (its Account tab).
    Add it, then copy the `/orbitdb/…` address.
 2. In browsers B (Bob) and C (Mallory), each with its own passkey, paste the
-   address into **Open a shared list by address**. Both see the todo and
+   address into **Open a shared list by address** (Lists tab). Both see the todo and
    both are refused when adding one. Only B's checkbox is enabled.
 3. In B, tick the todo: the passkey prompt appears, the header shows
    *Delegated write signed*, and A's row updates. Click **Rename** on the
@@ -328,13 +331,13 @@ The mnemonic list above stays public. To exercise access control, create a
 **private list** and share it by address:
 
 1. In browser A (owner), pick **Create a passkey** during onboarding, then
-   click **Create private list**. Add a todo and copy the shown
+   click **Create private list** (Lists tab). Add a todo and copy the shown
    `/orbitdb/…` address.
 2. In browser B (guest), create a *different* passkey, paste the address into
-   **Open a shared list by address**, and open it. You see the owner's todo,
+   **Open a shared list by address** (Lists tab), and open it. You see the owner's todo,
    but adding one is **denied** with a visible error.
-3. In browser A, copy browser B's **Passkey DID** (its header badge) into the
-   **Write permissions** panel and click **Add DID**.
+3. In browser A, copy browser B's **Passkey DID** (its Account tab) into the
+   **Write permissions** panel (Lists tab) and click **Add DID**.
 4. In browser B, add the todo again → it succeeds and both browsers converge.
    Owner and guest roles are symmetric — try it the other way around too.
 

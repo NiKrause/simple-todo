@@ -2,7 +2,7 @@
 
 Ablauf für die Vorführung vor Fachleuten einer Bank. Gezeigt wird eine delegierte Aufgabe mit einem
 Budget, dessen Betrag vertraulich bleibt. Jede Szene hat einen einfachen Satz für alle und einen
-Punkt für Fachleute. Stand: 2026-09-16. Für den Termin gilt diese deutsche Fassung; eine englische
+Punkt für Fachleute. Stand: 2026-09-17. Für den Termin gilt diese deutsche Fassung; eine englische
 steht in [demo.md](demo.md). Die technischen Einzelheiten stehen in
 [escrow.de.md](escrow.de.md), [zama-confidential-transactions.de.md](zama-confidential-transactions.de.md),
 [smoke-test.de.md](smoke-test.de.md) und [security.de.md](security.de.md).
@@ -12,13 +12,13 @@ als offene Fragen an die Fachleute der Bank.
 
 ## Was heute echt ist und was nicht
 
-| Teil                                          | Stand am 2026-09-16                                                                                                       | Was sich zeigen lässt                                            |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Treuhand-Vertrag                              | auf Sepolia bereitgestellt und verifiziert: `0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`                                  | Quelltext und Transaktionen auf Etherscan                        |
-| Echte vertrauliche Transaktionen              | Smoke-Test vom 2026-09-16: Sperre, Entschlüsselung als Ersteller und als Begünstigter, ungedeckte Sperre, Freigabe        | die Etherscan-Seiten in [Szene 8](#szene-8--was-die-chain-zeigt) |
-| Budget in der App                             | Attrappe im Arbeitsspeicher des Browsers; nichts wird verschlüsselt, nichts gesendet. Der Header zeigt „Demo ohne Chain“. | Ablauf, Texte, Zustände und Fehlerfälle des Drehbuchs            |
-| Passkey-Wallet                                | nicht integriert                                                                                                          | nur das Konzept                                                  |
-| Szene 8 des Drehbuchs („Was die Chain zeigt“) | nicht in der App                                                                                                          | Etherscan statt der App                                          |
+| Teil                                          | Stand am 2026-09-16                                                                                                            | Was sich zeigen lässt                                            |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| Treuhand-Vertrag                              | auf Sepolia bereitgestellt und verifiziert: `0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`                                       | Quelltext und Transaktionen auf Etherscan                        |
+| Echte vertrauliche Transaktionen              | Smoke-Test vom 2026-09-16: Sperre, Entschlüsselung als Ersteller und als Begünstigter, ungedeckte Sperre, Freigabe             | die Etherscan-Seiten in [Szene 8](#szene-8--was-die-chain-zeigt) |
+| Budget in der App                             | Attrappe im Arbeitsspeicher des Browsers; nichts wird verschlüsselt, nichts gesendet. Der Tab „Konto“ zeigt „Demo ohne Chain“. | Ablauf, Texte, Zustände und Fehlerfälle des Drehbuchs            |
+| Passkey-Wallet                                | nicht integriert                                                                                                               | nur das Konzept                                                  |
+| Szene 8 des Drehbuchs („Was die Chain zeigt“) | nicht in der App                                                                                                               | Etherscan statt der App                                          |
 
 Aussagen, die heute nicht stimmen würden:
 
@@ -65,6 +65,9 @@ Alle Befehle im Verzeichnis `contracts/`.
 
 - Laptop am Beamer. Ein Browser mit zwei Profilen nebeneinander: links „Alice“ (legt die Aufgabe an
   und sperrt das Budget), rechts „Bob“ (Delegierter). Jedes Profil hat seinen eigenen Passkey.
+- Die App öffnet mit den Aufgaben der offenen Liste. Listen, Konto und Netzwerk sind Tabs: am Laptop
+  unter der Kopfzeile, auf dem Handy am unteren Rand. In der Kopfzeile bleiben die Flaggen,
+  „Technisch“ und ein Punkt mit dem Verbindungsstatus, der zum Tab „Netzwerk“ führt.
 - Im Profil „Alice“ zusätzlich die Etherscan-Tabs und die Entwicklerkonsole für die Hebel der
   Attrappe (Szene 7 und 9).
 - Während der Vorführung keines der Profile neu laden: Die Attrappe hält ihre Treuhand-Vorgänge nur
@@ -95,10 +98,12 @@ eingebaut. Die Einschränkungen des geplanten Kontos stehen in
 
 ### Szene 2 · Aufgabe mit Budget
 
-**Zeigen.** Alice legt eine private Liste an („Prüfbericht Q3“), fügt die Aufgabe
-„Datenschutz-Audit der Kontoeröffnung“ hinzu, delegiert sie an Bobs DID (aus dem Header von Bobs
-Profil kopiert), setzt optional eine Frist und trägt als Budget 500,00 cUSDT ein. Unter dem Budget-Feld
-steht der Hinweis zur Verschlüsselung und darunter, dass die Vorführung ohne Chain läuft.
+**Zeigen.** Alice legt im Tab „Listen“ eine private Liste an („Prüfbericht Q3“) und wechselt zurück
+zu „Aufgaben“. Sie schreibt die Aufgabe „Datenschutz-Audit der Kontoeröffnung“ in die Zeile, klappt
+mit „An eine andere DID delegieren“ die weiteren Felder auf und delegiert die Aufgabe an Bobs DID (in
+Bobs Profil im Tab „Konto“ kopiert). Sie setzt optional eine Frist und trägt als Budget 500,00 cUSDT
+ein. Unter dem Budget-Feld steht der Hinweis zur Verschlüsselung und darunter, dass die Vorführung
+ohne Chain läuft. Nach dem Anlegen klappt das Formular wieder zu, und die Aufgabe steht darunter.
 
 **Einfach.** „Alice gibt Bob eine Aufgabe und legt 500 vertrauliche Dollar dafür zurück.“
 
@@ -125,8 +130,9 @@ Passkey-Schritt hinausgehen, wie der App-Text sagt, gehört zur geplanten Wallet
 
 ### Szene 4 · Bob erledigt
 
-**Zeigen.** Bob öffnet die Liste über ihre Adresse, sieht die Aufgabe als „Von … an Sie delegiert“
-(mit Alices gekürzter DID) und hakt sie ab. Sein Passkey fragt nach, der Header meldet „Änderung
+**Zeigen.** Bob öffnet die Liste im Tab „Listen“ über ihre Adresse (bei Alice im selben Tab zu
+kopieren), wechselt zu „Aufgaben“, sieht die Aufgabe als „Von … an Sie delegiert“ (mit Alices
+gekürzter DID) und hakt sie ab. Sein Passkey fragt nach, der Header meldet „Änderung
 unterschrieben“. Bei Alice erscheint die Aufgabe als erledigt.
 
 **Einfach.** „Bob sieht, dass Geld für ihn gesperrt ist, und meldet die Aufgabe als erledigt. Den
@@ -155,8 +161,8 @@ zurückholen. Beispiel aus dem Smoke-Test: Freigabe in Block 11717348, 412.902 G
 
 ### Szene 6 · Eingang bei Bob
 
-**Zeigen.** Bob erhält eine Meldung über die Auszahlung, und die Karte „Vertrauliches Guthaben“
-erscheint. Mit der Attrappe lautet die Meldung „Budget von … ausgezahlt“ ohne Betrag, und die Karte
+**Zeigen.** Bob erhält eine Meldung über die Auszahlung, und im Tab „Konto“ erscheint die Karte
+„Vertrauliches Guthaben“; vorher steht dort, dass das Guthaben nach einer Auszahlung erscheint. Mit der Attrappe lautet die Meldung „Budget von … ausgezahlt“ ohne Betrag, und die Karte
 meldet, dass dieser Browser das Guthaben nicht lesen kann.
 
 **Einfach.** „Bob hat das Geld. Sein Kontostand ist auf der Chain verschlüsselt; entschlüsselt wird er
@@ -168,7 +174,8 @@ und der Token-Vertrag.
 
 ### Szene 7 · Prüfstelle
 
-**Zeigen.** Im Header „Prüfansicht“ wählen (oder die Seite mit `#pruefstelle` öffnen). Für mehr
+**Zeigen.** Im Tab „Konto“ unter „Prüfstelle“ auf „Prüfansicht öffnen“ tippen (oder die Seite mit
+`#pruefstelle` öffnen); „Zurück zu den Aufgaben“ in der Kopfzeile führt zurück. Für mehr
 Zeilen vorher in der Konsole von Alices Profil `simpleTodoBudgetDemo.seedExamples()` ausführen; das
 fügt Beispielvorgänge hinzu (Alice an Bob 500,00 ausgezahlt, Alice an Carol 1.200,00 gesperrt, Dave an
 Bob 80,00 gesperrt).
@@ -334,15 +341,16 @@ Repository (Branch `escrow01`):
 - [`src/lib/budget-service-fake.js`](../src/lib/budget-service-fake.js): Startguthaben 64-70, Sperre
   175-236, Prüfansicht 287-307, Hebel `expireReadKey` und `seedExamples` 324-355.
 - [`src/lib/budget-store.js`](../src/lib/budget-store.js) 386-400 (`simpleTodoBudgetDemo` in der
-  Konsole), [`src/routes/+page.svelte`](../src/routes/+page.svelte) 352-362 (`#pruefstelle`) und 466-484
-  (Einwilligungsdialog),
-  [`src/lib/AddTodoForm.svelte`](../src/lib/AddTodoForm.svelte) 196-200 (Hinweis unter dem Budget-Feld),
+  Konsole), [`src/routes/+page.svelte`](../src/routes/+page.svelte) 366-374 (`#pruefstelle`), 495-512
+  (Einwilligungsdialog) und 712-724 (Prüfstelle im Tab „Konto“),
+  [`src/lib/sections.js`](../src/lib/sections.js) 23-41 (Tabs und Adress-Fragment),
+  [`src/lib/AddTodoForm.svelte`](../src/lib/AddTodoForm.svelte) 218-223 (Hinweis unter dem Budget-Feld),
   [`src/lib/OnePasskeyIntro.svelte`](../src/lib/OnePasskeyIntro.svelte) 18-33 („Ein Passkey für alles“,
   „Was gespeichert wird“).
 - [`src/lib/i18n/de.json`](../src/lib/i18n/de.json) und [`src/lib/i18n/en.json`](../src/lib/i18n/en.json):
   Schlüssel `onboarding.storedBudgetsDemo`,
   `budget.network.demo`, `budget.demoNotice`, `budget.form.hint`, `budget.chip.hidden`,
-  `budget.notice.*`, `budget.auditor.*`, `budget.toast.receivedHidden`, `header.auditorView`.
+  `budget.notice.*`, `budget.auditor.*`, `budget.toast.receivedHidden`, `sections.account.auditorOpen`.
 - [`contracts/src/ConfidentialTodoEscrow.sol`](../contracts/src/ConfidentialTodoEscrow.sol),
   [`contracts/README.md`](../contracts/README.md) (Runbook, Smoke-Test, Kosten, Troubleshooting).
 - Drehbuch „Treuhand-Demo Drehbuch“, Stand 2026-09-16, Szenen 1 bis 9.

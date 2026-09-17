@@ -2,7 +2,7 @@
 
 Script for the presentation to a bank's experts. It shows a delegated todo with a budget whose amount
 stays confidential. Every scene has a simple sentence for everyone and a point for experts. State:
-2026-09-16. The German version, [demo.de.md](demo.de.md), is the one used in the meeting. Technical
+2026-09-17. The German version, [demo.de.md](demo.de.md), is the one used in the meeting. Technical
 details are in [escrow.md](escrow.md), [zama-confidential-transactions.md](zama-confidential-transactions.md),
 [smoke-test.md](smoke-test.md) and [security.md](security.md).
 
@@ -11,13 +11,13 @@ questions for the bank's own experts.
 
 ## What is real today and what is not
 
-| Part                                              | State on 2026-09-16                                                                                                                | What can be shown                                                |
-| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| Escrow contract                                   | deployed and verified on Sepolia: `0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`                                                     | source and transactions on Etherscan                             |
-| Real confidential transactions                    | smoke test of 2026-09-16: lock, decryption as creator and as beneficiary, underfunded lock, release                                | the Etherscan pages in [scene 8](#scene-8--what-the-chain-shows) |
-| Budget in the app                                 | in-memory fake in the browser; nothing is encrypted, nothing is sent. The header shows "Demo ohne Chain" ("Demo without a chain"). | flow, wording, states and error cases of the storyboard          |
-| Passkey wallet                                    | not integrated                                                                                                                     | the concept only                                                 |
-| Scene 8 of the storyboard ("Was die Chain zeigt") | not in the app                                                                                                                     | Etherscan instead of the app                                     |
+| Part                                              | State on 2026-09-16                                                                                                                                 | What can be shown                                                |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Escrow contract                                   | deployed and verified on Sepolia: `0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`                                                                      | source and transactions on Etherscan                             |
+| Real confidential transactions                    | smoke test of 2026-09-16: lock, decryption as creator and as beneficiary, underfunded lock, release                                                 | the Etherscan pages in [scene 8](#scene-8--what-the-chain-shows) |
+| Budget in the app                                 | in-memory fake in the browser; nothing is encrypted, nothing is sent. The "Konto" ("Account") tab shows "Demo ohne Chain" ("Demo without a chain"). | flow, wording, states and error cases of the storyboard          |
+| Passkey wallet                                    | not integrated                                                                                                                                      | the concept only                                                 |
+| Scene 8 of the storyboard ("Was die Chain zeigt") | not in the app                                                                                                                                      | Etherscan instead of the app                                     |
 
 Statements that would not be true today:
 
@@ -63,6 +63,9 @@ All commands in the `contracts/` directory.
 
 - Laptop at the projector. One browser with two profiles side by side: on the left "Alice" (creates
   the todo and locks the budget), on the right "Bob" (the delegate). Each profile has its own passkey.
+- The app opens on the open list's todos. Lists, account and network are tabs: under the header on
+  the laptop, at the bottom of the screen on a phone. The header keeps the flags, "Technisch"
+  ("Technical") and a dot with the connection state that leads to the "Netzwerk" ("Network") tab.
 - In Alice's profile, also the Etherscan tabs and the developer console for the fake's levers (scenes
   7 and 9).
 - Do not reload either profile during the presentation: the fake keeps its escrows only in the tab's
@@ -91,10 +94,13 @@ of the planned account are in [security.md](security.md#passkey-wallet).
 
 ### Scene 2 · Todo with a budget
 
-**Show.** Alice creates a private list ("Prüfbericht Q3"), adds the todo "Datenschutz-Audit der
-Kontoeröffnung", delegates it to Bob's DID (copied from the header of Bob's profile), optionally sets
-a deadline and enters a budget of 500,00 cUSDT. Below the budget field is the note about encryption,
-and under it the notice that the demo runs without a chain.
+**Show.** Alice creates a private list ("Prüfbericht Q3") in the "Listen" ("Lists") tab and goes
+back to "Aufgaben" ("Todos"). She types the todo "Datenschutz-Audit der Kontoeröffnung" into the line,
+unfolds the other fields with "An eine andere DID delegieren" ("Delegate this todo to another DID")
+and delegates it to Bob's DID (copied in Bob's profile, "Konto" tab). She optionally sets a deadline
+and enters a budget of 500,00 cUSDT. Below the budget field is the note about encryption, and under
+it the notice that the demo runs without a chain. Once the todo is added, the form folds up again and
+the todo is below it.
 
 **Simple.** "Alice gives Bob a task and sets 500 confidential dollars aside for it."
 
@@ -122,8 +128,9 @@ single passkey step, as the app's text says, is part of the planned wallet.
 
 ### Scene 4 · Bob is done
 
-**Show.** Bob opens the list by its address, sees the todo as "Von … an Sie delegiert" ("delegated to
-you by …", with Alice's shortened DID) and ticks it. His passkey asks, the header reports "Änderung
+**Show.** Bob opens the list by its address in the "Listen" tab (Alice copies it from the same tab),
+goes to "Aufgaben", sees the todo as "Von … an Sie delegiert" ("delegated to you by …", with Alice's
+shortened DID) and ticks it. His passkey asks, the header reports "Änderung
 unterschrieben" ("Delegated write signed"). In Alice's profile the todo appears as completed.
 
 **Simple.** "Bob sees that money is locked for him and reports the task as done. He reads the amount
@@ -153,7 +160,8 @@ from the smoke test: release in block 11717348, 412,902 gas
 ### Scene 6 · Bob receives the payout
 
 **Show.** Bob gets a notification about the payout, and the card "Vertrauliches Guthaben"
-("Confidential balance") appears. With the fake the notification reads "Budget von … ausgezahlt"
+("Confidential balance") appears in the "Konto" tab; before that, the tab says the balance shows once
+a budget is paid out. With the fake the notification reads "Budget von … ausgezahlt"
 ("Budget from … paid out") without an amount, and the card says that this browser cannot read the
 balance.
 
@@ -165,7 +173,9 @@ persistent permissions on it.
 
 ### Scene 7 · Auditor
 
-**Show.** Choose "Prüfansicht" ("Auditor view") in the header (or open the page with `#pruefstelle`).
+**Show.** In the "Konto" tab, under "Prüfstelle" ("Auditor"), tap "Prüfansicht öffnen" ("Open the
+auditor view"), or open the page with `#pruefstelle`; "Zurück zu den Aufgaben" in the header leads
+back.
 For more rows, first run `simpleTodoBudgetDemo.seedExamples()` in the console of Alice's profile; it
 adds example escrows (Alice to Bob 500,00 paid out, Alice to Carol 1.200,00 locked, Dave to Bob 80,00
 locked).
@@ -323,14 +333,15 @@ Repository (branch `escrow01`):
 - [`src/lib/budget-service-fake.js`](../src/lib/budget-service-fake.js): starting balance 64-70, lock
   175-236, auditor list 287-307, levers `expireReadKey` and `seedExamples` 324-355.
 - [`src/lib/budget-store.js`](../src/lib/budget-store.js) 386-400 (`simpleTodoBudgetDemo` in the
-  console), [`src/routes/+page.svelte`](../src/routes/+page.svelte) 352-362 (`#pruefstelle`) and 466-484
-  (consent dialog), [`src/lib/AddTodoForm.svelte`](../src/lib/AddTodoForm.svelte) 196-200 (note below
-  the budget field), [`src/lib/OnePasskeyIntro.svelte`](../src/lib/OnePasskeyIntro.svelte) 18-33 ("Ein
+  console), [`src/routes/+page.svelte`](../src/routes/+page.svelte) 366-374 (`#pruefstelle`), 495-512
+  (consent dialog) and 712-724 (auditor card in the "Konto" tab),
+  [`src/lib/sections.js`](../src/lib/sections.js) 23-41 (tabs and the URL fragment),
+  [`src/lib/AddTodoForm.svelte`](../src/lib/AddTodoForm.svelte) 218-223 (note below the budget field), [`src/lib/OnePasskeyIntro.svelte`](../src/lib/OnePasskeyIntro.svelte) 18-33 ("Ein
   Passkey für alles", "Was gespeichert wird").
 - [`src/lib/i18n/de.json`](../src/lib/i18n/de.json) and [`src/lib/i18n/en.json`](../src/lib/i18n/en.json):
   keys `onboarding.storedBudgetsDemo`, `budget.network.demo`, `budget.demoNotice`, `budget.form.hint`,
   `budget.chip.hidden`, `budget.notice.*`, `budget.auditor.*`, `budget.toast.receivedHidden`,
-  `header.auditorView`.
+  `sections.account.auditorOpen`.
 - [`contracts/src/ConfidentialTodoEscrow.sol`](../contracts/src/ConfidentialTodoEscrow.sol),
   [`contracts/README.md`](../contracts/README.md) (runbook, smoke test, cost, troubleshooting).
 - Storyboard "Treuhand-Demo Drehbuch", state 2026-09-16, scenes 1 to 9.
