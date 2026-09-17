@@ -363,7 +363,7 @@ with its own permit, and returned 1.0 cUSDTMock both times.
 ### Delegated user decryption: simple
 
 An account can let another key read its encrypted values for a while, without handing over its own
-key. This is how a passkey account is meant to read amounts in this app.
+key. This is how a passkey account reads amounts in this app.
 
 ### Delegated user decryption: technical
 
@@ -372,9 +372,18 @@ transaction; delegations are per contract. The delegate then signs a permit of t
 `DelegatedUserDecryptRequestVerification`, which adds `address delegatorAddress` after
 `contractAddresses`, and the SDK sends it to `POST {relayer}/v2/delegated-user-decrypt`. Before the
 request, `@fhevm/sdk` checks `ACL.isHandleDelegatedForUserDecryption(delegator, delegate, contract,
-handle)` and `@zama-fhe/sdk` reads `getUserDecryptionDelegationExpirationDate`. `@zama-fhe/sdk`
-refuses expiration dates less than one hour ahead. The app's design (a session key delegated per
-contract, see [contracts/README.md](../contracts/README.md#who-can-decrypt)) is not implemented yet.
+handle)` and `@zama-fhe/sdk` reads `getUserDecryptionDelegationExpirationDate` and stops at an expired
+delegation. `@zama-fhe/sdk` does not create a new delegation that expires less than one hour ahead.
+
+Behind the relayer, the Gateway's `Decryption` contract takes the request as
+`delegatedUserDecryptionRequest`: it checks the contracts, the validity window, that the delegator is
+none of the contracts, and the delegate's EIP-712 signature, and emits the same `UserDecryptionRequest`
+as for a user decryption, with the delegate's address. The KMS connectors take the delegator from the
+calldata and check `isHandleDelegatedForUserDecryption` on the host chain; the answers go through
+`userDecryptionResponse`.
+
+The app reads amounts this way: a passkey's Calibur account delegates to a session key in the browser,
+once per contract, for 24 hours ([passkey-account.md](passkey-account.md#reading-technical)).
 
 ## Public decryption
 
@@ -531,8 +540,8 @@ configurable number of extra shares for a configurable time and returns all it h
 configurations in the pull request use a threshold of 9, two extra shares and 5 seconds. Which
 release and which settings Sepolia's relayer runs cannot be read from the chain.
 
-For this chapter, v0.13 means a passkey smart account cannot sign a decryption permit itself; the
-planned workaround is a delegated ECDSA session key (see [security.md](security.md#passkey-wallet)).
+For this chapter, v0.13 means a passkey smart account cannot sign a decryption permit itself; the app
+works around that with a delegated ECDSA session key (see [security.md](security.md#passkey-wallet)).
 Moving to v0.14 is on the redeploy checklist in [contracts/README.md](../contracts/README.md#redeploy-checklist).
 
 ## Trust assumptions
@@ -671,10 +680,13 @@ zama-ai/fhevm at tag v0.13.5 (`https://github.com/zama-ai/fhevm/blob/v0.13.5/<pa
 - `host-contracts/contracts/ACLEvents.sol`, `host-contracts/contracts/FHEEvents.sol`: event
   signatures.
 - `gateway-contracts/contracts/Decryption.sol`: limits 127-137, public decryption request 311-361,
-  `userDecryptionRequest` 441-526, user decryption response 635-709, "ACL checks are performed by the
+  `userDecryptionRequest` 441-526, `delegatedUserDecryptionRequest` 531-628, user decryption response
+  635-709, "ACL checks are performed by the
   KMS" 724, handle checks 1123-1164, validity checks 1170-1192.
-- `kms-connector/crates/kms-worker/src/core/event_processor/decryption.rs`: ACL reads 80-113
-  (public), 191-219 (delegated), 221-248 (user).
+- `kms-connector/crates/kms-worker/src/core/event_processor/decryption.rs`: delegator from the
+  calldata 127-131, ACL reads 80-113 (public), 191-219 (delegated), 221-248 (user).
+- `@zama-fhe/sdk` 3.6.0, sources in its source maps: `src/services/delegation-service.ts` (at least
+  one hour when creating 80-84, `assertDelegationActive` 283-307).
 
 zama-ai/fhevm pull requests: [#3481](https://github.com/zama-ai/fhevm/pull/3481) (relayer returns all
 user-decrypt shares), [#2624](https://github.com/zama-ai/fhevm/pull/2624),

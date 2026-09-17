@@ -11,8 +11,9 @@ is in [security.md](security.md), and a real run on Sepolia, transaction by tran
 State on 2026-09-16: the contract is deployed on Sepolia at
 [`0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`](https://sepolia.etherscan.io/address/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429)
 (block 11716748) and its source is verified on Etherscan, Sourcify and Blockscout. The app's budget
-screens do not use it yet: they run against an in-memory fake
-([`src/lib/budget-service-fake.js`](../src/lib/budget-service-fake.js)).
+screens lock and release on it since 2026-09-17 when built with `VITE_BUDGET_SERVICE=zama`, from a
+passkey account ([passkey-account.md](passkey-account.md)); without that setting they run against an
+in-memory fake ([`src/lib/budget-service-fake.js`](../src/lib/budget-service-fake.js)).
 
 Every section has a simple explanation and a technical one.
 
@@ -32,7 +33,7 @@ Every section has a simple explanation and a technical one.
 
 | Role        | Simple                                                              | Technical                                                                                                                                                                                                                                                                                                                                                                   |
 | ----------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Creator     | Owns the todo, puts the money in, decides when it is paid out.      | The `msg.sender` of `lock`. Escrows are stored as `_escrows[creator][todoRef]`, so only the creator can `release` or `refund` (the lookup uses `msg.sender`).                                                                                                                                                                                                               |
+| Creator     | Owns the todo, puts the money in, decides when it is paid out.      | The `msg.sender` of `lock`, in the app the passkey's Calibur account. Escrows are stored as `_escrows[creator][todoRef]`, so only the creator can `release` or `refund` (the lookup uses `msg.sender`).                                                                                                                                                                     |
 | Beneficiary | The person the todo is delegated to; receives the money on release. | An address passed to `lock`. It must not be `address(0)` or the escrow itself; the contract does not forbid the creator's own address, the app does. The beneficiary has no function to call and no on-chain claim.                                                                                                                                                         |
 | Auditor     | Can read every amount locked in this escrow, but cannot move money. | An address fixed in the constructor (`immutable`). `lock` grants it persistent ACL access to each stored amount. It cannot move funds; like the creator and the beneficiary, it can make a stored amount public through the token's `requestDiscloseEncryptedAmount`. Changing it means deploying a new escrow. In the Sepolia deployment it is the deployer's own address. |
 | Token       | The confidential money itself.                                      | One ERC-7984 token, fixed in the constructor and checked through ERC-165. On Sepolia: Zama's cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491`.                                                                                                                                                                                                                        |
@@ -54,6 +55,8 @@ Before the call, on the client:
 
 1. The creator already holds the amount in the confidential token. Wrapping the public token right
    before locking would reveal the amount (see [What wrap and unwrap reveal](#wrap-and-unwrap-technical)).
+   The app wraps 1,000.00 test cUSDT in the same user operation as the first lock; that reveals an
+   upper bound, not the amount ([Locking from the passkey account](passkey-account.md#locking-technical)).
 2. The creator makes the escrow an operator of their balance: `token.setOperator(escrow, until)`. The
    token stores `until` as a timestamp; `isOperator(holder, spender)` is true while
    `block.timestamp <= until`.
@@ -156,11 +159,11 @@ computes from the todo and a random value, so the todo's own ID does not lead to
 documentation recommends `keccak256(abi.encode(todoId, salt))` with 32 random bytes of salt kept with
 the todo and shared with the beneficiary. Implementations in this repository:
 
-| Where                      | Computation                                                       | Salt kept? |
-| -------------------------- | ----------------------------------------------------------------- | ---------- |
-| Hardhat tests              | `keccak256(abi.encode(string todoId, bytes32 salt))`              | no         |
-| Smoke test                 | `keccak256(abi.encode(string "smoke-<unix time>", bytes32 salt))` | no         |
-| App fake (`createTodoRef`) | `sha256("<todoKey>:<64 hex chars of random bytes>")`              | no         |
+| Where                                   | Computation                                                       | Salt kept? |
+| --------------------------------------- | ----------------------------------------------------------------- | ---------- |
+| Hardhat tests                           | `keccak256(abi.encode(string todoId, bytes32 salt))`              | no         |
+| Smoke test                              | `keccak256(abi.encode(string "smoke-<unix time>", bytes32 salt))` | no         |
+| App (`createTodoRef`, fake and Sepolia) | `sha256("<todoKey>:<64 hex chars of random bytes>")`              | no         |
 
 The app writes the `todoRef` itself into the todo's `budget` field in OrbitDB, so the beneficiary
 finds the escrow through the todo, not through the salt. Two consequences:
@@ -268,7 +271,9 @@ for this documentation ends before the decryption of that amount, so this page d
 decrypted to 0 on Sepolia; in the Hardhat mock it does.
 
 In the app, the budget service interface specifies that `lock` throws `insufficient-balance` with
-`details.lockTx` when the transfer went through as an encrypted 0, and the fake does so. The todo's
+`details.lockTx` when the transfer went through as an encrypted 0. The fake does so, and the Sepolia
+service does it by reading the escrow at the receipt's block after every lock, waiting two blocks and
+decrypting the stored amount ([`budget-service-zama.js`](../src/lib/budget-service-zama.js)). The todo's
 budget then goes to `failed` and keeps the mined `lockTx` ([`lockFailed`](../src/lib/budget.js)).
 
 ## What the app stores in OrbitDB
@@ -305,9 +310,9 @@ The chain stays the source of truth for three reasons:
 - Only `escrowOf(creator, todoRef)` and the token's balances say what is locked and who holds what,
   and only decryption says how much.
 
-The fake shows the limits of the current build: its escrows live in one tab's memory, so a reload,
-or the delegate's own browser, finds the todo's `budget` but no escrow (`escrow-not-found`, the
-amount shows as unreadable).
+The fake shows why: its escrows live in one tab's memory, so a reload, or the delegate's own browser,
+finds the todo's `budget` but no escrow (`escrow-not-found`, the amount shows as unreadable). On
+Sepolia every party reads the escrow from the chain and decrypts the amount in their own browser.
 
 ## What is public and what is encrypted
 
@@ -346,12 +351,13 @@ Repository (branch `escrow01`):
 - [`contracts/scripts/smoke-sepolia.ts`](../contracts/scripts/smoke-sepolia.ts): `todoRef` 406-410,
   lock 573-601.
 - [`contracts/README.md`](../contracts/README.md): "Who can decrypt" and "What stays public".
-- [`src/lib/budget.js`](../src/lib/budget.js): `Budget` 52-65, `isWellFormedBudget` 107-130,
-  `startLock` 143-170, `lockFailed` 182-196.
-- [`src/lib/budget-service.js`](../src/lib/budget-service.js) 1-84,
+- [`src/lib/budget.js`](../src/lib/budget.js): `Budget` 54-67, `isWellFormedBudget` 109-132,
+  `startLock` 145-172, `lockFailed` 184-198.
+- [`src/lib/budget-service.js`](../src/lib/budget-service.js) 1-85,
   [`src/lib/budget-service-fake.js`](../src/lib/budget-service-fake.js) 1-18 and 171-236,
+  [`src/lib/budget-service-zama.js`](../src/lib/budget-service-zama.js) (`createTodoRef`, `lock`),
   [`src/lib/budget-flow.js`](../src/lib/budget-flow.js), [`src/lib/budget-store.js`](../src/lib/budget-store.js)
-  1-10 and 57-75, [`src/lib/db-actions.js`](../src/lib/db-actions.js) 944-958.
+  1-10 and 97-115, [`src/lib/db-actions.js`](../src/lib/db-actions.js) 944-958.
 
 Libraries (`contracts/node_modules`):
 

@@ -2,14 +2,16 @@
 
 Für Sicherheits- und Kryptographie-Gutachter des Kapitels `escrow01`. Das Dokument legt dar, was die
 Treuhand schützt, was sie offenlegt, wem sie vertraut und was nicht gelöst ist. Die Fakten haben den
-Stand 2026-09-16 und sind am Ende belegt; Punkte, die sich nicht verifizieren ließen, sind als solche
+Stand 2026-09-16, die zur Passkey-Wallet den Stand 2026-09-17, und sind am Ende belegt; Punkte, die sich nicht verifizieren ließen, sind als solche
 gekennzeichnet. Die Mechanik beschreiben [escrow.de.md](escrow.de.md) und
 [zama-confidential-transactions.de.md](zama-confidential-transactions.de.md); der nachverfolgte Lauf
 steht in [smoke-test.de.md](smoke-test.de.md).
 
 Status: eine Demonstration im Testnetz. `ConfidentialTodoEscrow` ist auf Sepolia deployt und
-verifiziert und wurde nicht auditiert. Die Budget-Ansichten der App laufen gegen eine Attrappe im
-Arbeitsspeicher, die nichts verschlüsselt. Die unten beschriebene Passkey-Wallet ist nicht integriert.
+verifiziert und wurde nicht auditiert. Mit `VITE_BUDGET_SERVICE=zama` gebaut, sperrt, liest und gibt
+die App Budgets auf Sepolia aus einem Passkey-Konto frei, das Gas sponsert Openfort
+([passkey-account.de.md](passkey-account.de.md)); ohne diese Einstellung laufen die Budget-Ansichten
+gegen eine Attrappe im Arbeitsspeicher, die nichts verschlüsselt.
 
 - [Bedrohungsmodell](#bedrohungsmodell-einfach)
 - [Was sichtbar wird](#was-sichtbar-wird-einfach)
@@ -19,7 +21,7 @@ Arbeitsspeicher, die nichts verschlüsselt. Die unten beschriebene Passkey-Walle
 - [Input-Proofs und Wiederverwendung](#wiederverwendung-einfach)
 - [Eigenschaften der Treuhand selbst](#eigenschaften-der-treuhand-einfach)
 - [Grenzen](#grenzen-einfach)
-- [Passkey-Wallet (geplant, nicht integriert)](#passkey-wallet)
+- [Passkey-Wallet](#passkey-wallet)
 - [Offene Punkte](#offene-punkte)
 
 ## Bedrohungsmodell
@@ -55,6 +57,7 @@ Angreifer und was sie können:
 | Owner (Eigentümer) des Tokens (Protocol DAO) | ein Upgrade von cUSDTMock durchführen, Observer hinzufügen, die entschlüsseln können, Adressen blockieren, einen Pauser ernennen | durch Code ist nichts ausgeschlossen; siehe [Der Token](#token-technisch)                                                                                   |
 | Zama-Betreiber                               | siehe Abschnitt [Vertrauensannahmen](#vertrauen-technisch)                                                                       |                                                                                                                                                             |
 | Kompromittierter Browser oder Schlüssel      | alles lesen, was dieser Schlüssel entschlüsseln darf; als dieses Konto signieren                                                 | Beträge lesen, für die er keine ACL-Berechtigung hat                                                                                                        |
+| Wer den Openfort-Schlüssel der Seite hat     | jede UserOperation auf Sepolia nach der Regel des Projekts sponsern lassen                                                       | für ein Konto signieren, Mittel bewegen, Beträge lesen                                                                                                      |
 
 Ersteller, Begünstigter und Prüfstelle können einen gesperrten Betrag außerdem jeweils über den Token
 öffentlich machen (siehe [Der Token](#token-technisch)).
@@ -313,24 +316,28 @@ demnächst abgelöst wird. Es ist eine Demonstration, kein Produkt.
 - **Mock gegenüber Sepolia.** Der Hardhat-Mock verwendet Host-Verträge 0.10.0: Eine Delegation muss
   mindestens eine Stunde in der Zukunft ablaufen und kann die Wildcard nicht verwenden, und HCU-Limits
   vergleichen mit `>=`, wo HCULimit auf Sepolia `>` verwendet.
-- **Die App** spricht noch nicht mit der Chain, hat keine Rückzahlung und keine Zuordnung von einer
-  DID zu einem Konto.
+- **Die App** hat keine Schaltfläche für die Rückzahlung. Ihr Sepolia-Dienst ordnet einer DID ein
+  Konto über ein OrbitDB-Verzeichnis zu, in das nur diese DID schreiben kann, und prüft zusätzlich,
+  dass der Passkey der DID dort Admin ist ([Kontozuordnung](passkey-account.de.md#kontozuordnung-technisch)).
 
 ## Passkey-Wallet
 
-Nicht integriert. [`src/lib/budget-service.js`](../src/lib/budget-service.js) beschreibt die geplante
-Implementierung: Zamas Token und die Treuhand, signiert über ein Calibur-Konto, das der Passkey
-kontrolliert. Die folgenden Fakten betreffen Calibur v1.0.0 (Uniswap, Tag `v1.0.0`) und Zama v0.13,
-nicht Code in diesem Repository.
+Seit dem 2026-09-17 eingebaut, hinter `VITE_BUDGET_SERVICE=zama`
+([`src/lib/budget-service-zama.js`](../src/lib/budget-service-zama.js),
+[`src/lib/chain/`](../src/lib/chain)): Zamas Token und die Treuhand, signiert über ein Calibur-Konto,
+das der Passkey kontrolliert. Wie das Schritt für Schritt abläuft, steht in
+[passkey-account.de.md](passkey-account.de.md). Die folgenden Fakten betreffen Calibur v1.0.0
+(Uniswap, Tag `v1.0.0`), Zama v0.13 und das, was die App damit macht.
 
 ### Passkey-Wallet: einfach
 
-Der Plan ist, dass ein Passkey auf dem Gerät das Konto kontrolliert, das das Geld hält. Zwei
-Eigenschaften des gewählten Kontovertrags sind von Bedeutung: Der gewöhnliche Schlüssel, der das Konto
-erstellt hat, bleibt für immer ein allmächtiger Generalschlüssel, und die Chain prüft nicht, ob die
-Person tatsächlich mit Fingerabdruck oder Gesicht bestätigt hat. Zum Lesen von Beträgen wird außerdem
-ein zusätzlicher, temporärer Schlüssel nötig sein, weil Zamas aktuelle Version keine Signaturen
-solcher Konten annehmen kann.
+Ein Passkey auf dem Gerät kontrolliert das Konto, das das Geld hält. Zwei Eigenschaften des gewählten
+Kontovertrags sind von Bedeutung: Der gewöhnliche Schlüssel, der das Konto erstellt hat, bleibt für
+immer ein allmächtiger Generalschlüssel, und die Chain prüft nicht, ob die Person tatsächlich mit
+Fingerabdruck oder Gesicht bestätigt hat. Zum Lesen von Beträgen braucht der Browser außerdem einen
+zusätzlichen, temporären Schlüssel, weil Zamas aktuelle Version keine Signaturen solcher Konten
+annehmen kann; die App hält ihn bis zu 24 Stunden unverschlüsselt. Ein Konto, dessen Passkey verloren
+ist, kann niemand wiederherstellen, und der Schlüssel, der das Gas bezahlt, ist in der Seite lesbar.
 
 ### Passkey-Wallet: technisch
 
@@ -344,12 +351,15 @@ solcher Konten annehmen kann.
   EIP-7702 weiterhin Transaktionen senden und neue Delegationszuweisungen signieren, er behält die
   Kontrolle über das Konto also auch bei einer geänderten Delegation. Das Löschen des
   Setup-Schlüssels nach dem Onboarding ist der einzige Schutz, und es lässt sich on-chain nicht
-  nachweisen.
+  nachweisen. Die App erzeugt ihn im Arbeitsspeicher, nutzt ihn für eine gesponserte UserOperation
+  und verwirft jeden Verweis, sobald der Passkey eingetragen ist (`discard()`); das Konto hält nichts,
+  bis der Passkey die erste Sperre signiert.
 - **Nutzerverifikation (UV) wird on-chain nicht erzwungen.** `KeyLib.verify` prüft
   `WebAuthnP256`-Schlüssel mit `WebAuthn.verify({ ..., requireUV: false, ... })`. Ob der Authenticator
   den Nutzer verifiziert hat (PIN, Biometrie), erzwingt nur der Client-Code, der die Assertion
-  anfordert. Die eingebundene Bibliothek webauthn-sol verlangt das Flag für Nutzerpräsenz (UP) und
-  prüft on-chain weder den Origin noch den `rpIdHash`.
+  anfordert; die App fordert `userVerification: 'required'` an. Die eingebundene Bibliothek
+  webauthn-sol verlangt das Flag für Nutzerpräsenz (UP) und prüft on-chain weder den Origin noch den
+  `rpIdHash`.
 - **Andere Schlüssel als der Root-Key signieren ERC-1271-Nachrichten nur in ERC-7739-Form.** Caliburs
   `isValidSignature` leitet rohe Signaturen an den Root-Key weiter und erwartet für jeden anderen
   Schlüssel den ERC-7739-Ablauf TypedDataSign oder NestedPersonalSign; auch der Root-Key kann diesen
@@ -357,15 +367,29 @@ solcher Konten annehmen kann.
 - **Zama v0.13 akzeptiert nur ECDSA-Permits.** `@fhevm/sdk` 0.13.2 verlangt 65 Byte lange Signaturen
   und vergleicht die per Recovery ermittelte Adresse; der `Decryption`-Vertrag des Gateways revertiert
   mit `InvalidUserSignature`, es sei denn, der ECDSA-Signierer ist der Nutzer. Ein Passkey-Konto kann
-  kein Entschlüsselungs-Permit signieren. Der geplante Workaround ist ein secp256k1-Sitzungsschlüssel,
-  den das Konto mit `ACL.delegateForUserDecryption(sessionKey, contract, expiry)` autorisiert, einmal
-  pro Vertrag (Token und Treuhand). Das Event `DelegatedForUserDecryption` macht die Verknüpfung
-  zwischen Konto und Sitzungsschlüssel öffentlich, und der Sitzungsschlüssel kann bis zum Ablauf oder
-  zu einem Widerruf alles lesen, was das Konto in diesen Verträgen lesen darf.
+  kein Entschlüsselungs-Permit signieren. Der Workaround der App ist ein secp256k1-Sitzungsschlüssel,
+  der Leseschlüssel, den das Konto mit `ACL.delegateForUserDecryption(sessionKey, contract, expiry)`
+  autorisiert, einmal pro Vertrag (Token und Treuhand), für 24 Stunden: im Stapel der Einrichtung und
+  bei jeder Erneuerung mit einem neuen Schlüssel. Der Schlüssel liegt im Klartext in `localStorage` des
+  Browsers. Das Event `DelegatedForUserDecryption` macht die Verknüpfung zwischen Konto und
+  Sitzungsschlüssel öffentlich, und der Sitzungsschlüssel kann bis zum Ablauf oder zu einem Widerruf
+  alles lesen, was das Konto in diesen Verträgen lesen darf.
 - **v0.14** ergänzt für seine neue, vereinheitlichte Anfrage eine ERC-1271-Verifikation im
   KMS-Connector (`ecrecover` bei einer 65 Byte langen Signatur, andernfalls ein gasbegrenzter Aufruf
   von `isValidSignature`). Ob eine Calibur-Passkey-Signatur in ERC-7739-Form diese Prüfung besteht,
   wurde nicht verifiziert.
+- **Sponsoring.** Der publishable Openfort-Schlüssel ist Teil der Seite. Die Openfort-Regel dahinter,
+  `ply_1b76dd29-2f48-4835-ad5f-4cd8aa2db3d8`, nimmt `sponsorEvmTransaction` auf Chain 11155111 an, ohne
+  Einschränkung auf Verträge oder Funktionen. Wer den Schlüssel aus der Seite liest, kann beliebige
+  UserOperations auf Sepolia sponsern lassen, bis das Guthaben des Projekts aufgebraucht ist; für ein
+  Konto signieren kann der Schlüssel nicht. Einen geheimen `sk_`-Schlüssel in der Konfiguration lehnt
+  die App ab (`readChainEndpoints`).
+- **Keine Wiederherstellung.** Außer dem verworfenen Root-Key ist der Passkey der einzige Schlüssel
+  des Kontos. Ein synchronisierter Passkey erreicht weitere Geräte; ein verlorener nimmt das Konto mit.
+- **Calibur v1.1.0.** Uniswap hat am 2026-07-02 v1.1.0 unter einer neuen Adresse veröffentlicht und
+  führt seitdem nur diese Version. Unter anderem dürfen dort nur Admin-Schlüssel den EntryPoint
+  aufrufen. Die App nutzt v1.0.0, in der ihr einziger Schlüssel außer dem Root-Key ein Admin ist
+  ([Was Calibur ist](passkey-account.de.md#calibur-technisch)).
 
 ## Offene Punkte
 
@@ -380,16 +404,19 @@ solcher Konten annehmen kann.
    Blockliste des zugrunde liegenden Tokens die Blacklist von USDT ab (`getBlackListStatus`).
 3. Metadaten: `todoRef`, DID des Delegierten und Budget-Status sind in der unverschlüsselten
    OrbitDB-Liste lesbar, und Entschlüsselungsanfragen sind auf der Gateway-Chain öffentlich.
-4. Die App nutzt die Chain noch nicht: kein Zama-Budget-Service, keine Rückzahlung, keine Zuordnung
-   von DID zu Konto.
+4. Die App hat keine Schaltfläche für die Rückzahlung, und ihr Sepolia-Modus hängt an zwei
+   unveröffentlichten Paketen, die als Tarballs beiliegen.
 5. Passkey-Wallet: dauerhafter Root-Key, keine Nutzerverifikation on-chain, öffentliche Verknüpfung
-   zwischen Konto und Sitzungsschlüssel.
+   zwischen Konto und Sitzungsschlüssel, der Sitzungsschlüssel im Klartext in `localStorage`, keine
+   Wiederherstellung, Calibur v1.0.0 statt v1.1.0.
 6. Mainnet-Reife: ein einziger Coprozessor-Signierer für die Input-Attestierung im Mainnet,
    API-Schlüssel und Gebühren des Relayers, Migration auf v0.14, kein Audit.
 7. Verfügbarkeit der Entschlüsselung: Die Anteils-Einstellungen des Relayers nach #3481 auf Sepolia
    sind unbekannt; es gibt kein dokumentiertes SLA.
 8. Kein Audit der Treuhand; die Tests laufen gegen einen Mock, dessen Host-Verträge älter sind als die
    von Sepolia.
+9. Sponsoring: Die Openfort-Regel sponsert jede UserOperation auf Sepolia für jeden, der den
+   publishable Schlüssel der Seite hat; sie gehört auf die Verträge der Demo beschränkt und gedeckelt.
 
 ## Quellen
 
@@ -405,6 +432,13 @@ Repository (Branch `escrow01`):
 - [`src/lib/budget-service.js`](../src/lib/budget-service.js) 1-18,
   [`src/lib/budget.js`](../src/lib/budget.js) 1-16, [`src/lib/i18n/en.json`](../src/lib/i18n/en.json)
   (`budget.notice.insufficient`).
+- [`src/lib/budget-service-zama.js`](../src/lib/budget-service-zama.js) (`ensureAccount`, `accountOf`,
+  `renewReadKey`), [`src/lib/chain/sepolia-chain.js`](../src/lib/chain/sepolia-chain.js)
+  (`createAccount`, `isPasskeyAccount`), [`src/lib/chain/config.js`](../src/lib/chain/config.js)
+  (`readChainEndpoints`), [`src/lib/chain/account-store.js`](../src/lib/chain/account-store.js); die
+  Passkey-Wallet mit ihren Belegen in [passkey-account.de.md](passkey-account.de.md#quellen).
+  Openfort-Regel `ply_1b76dd29-2f48-4835-ad5f-4cd8aa2db3d8`, am 2026-09-17 über die Openfort-CLI
+  gelesen.
 
 cUSDTMock-Implementierung auf Sourcify
 (<https://sourcify.dev/server/v2/contract/11155111/0xAe37b998d453E1FaBE85DD46cf04295ca4A3af04?fields=sources>):
@@ -432,7 +466,9 @@ Calibur v1.0.0 (<https://github.com/Uniswap/calibur/tree/v1.0.0>): `src/librarie
 35-42, 58-77; `src/KeyManagement.sol` 21-46, 84-89; `src/Calibur.sol` 132-174. webauthn-sol im von
 Calibur v1.0.0 eingebundenen Commit (`619f20ab0f074fef41066ee4ab24849a913263b2`): `src/WebAuthn.sol`
 77-88 (Origin und `rpIdHash` ungeprüft), 133 (Nutzerpräsenz), 139 (Nutzerverifikation nur auf
-Verlangen). EIP-7702: <https://eips.ethereum.org/EIPS/eip-7702>.
+Verlangen). EIP-7702: <https://eips.ethereum.org/EIPS/eip-7702>. Calibur v1.1.0: Release vom
+2026-07-02 und <https://github.com/Uniswap/calibur/compare/v1.0.0...v1.1.0> (`src/Calibur.sol`,
+`_process`).
 
 Chain, gelesen am 2026-09-16: cUSDTMock `owner()`, `observers()`, `pauser()`,
 `getUnderlyingDenyListSelector()`, Implementierungs-Slot; cUSDT im Mainnet `owner()`, `observers()`,

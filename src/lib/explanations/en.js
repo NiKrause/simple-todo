@@ -40,6 +40,16 @@ export default {
 				sources: ['escrow.lock', 'zama.input', 'security.properties']
 			},
 			{
+				heading: 'From the passkey account',
+				points: [
+					'In the app the lock is one user operation: the passkey signs its hash, Openfort submits it to EntryPoint v0.8 and pays the gas, Calibur checks the P-256 signature and runs the calls as one batch.',
+					'The batch is `setOperator` and `lock`; on the first lock `mint`, `approve` and `wrap` of 1,000.00 test cUSDT come first. If one call fails, `revertOnFailure` undoes them all.',
+					'Creator and proof user is the Calibur account, since it is the `msg.sender` of `lock`. Afterwards the app reads the escrow at the receipt’s block and decrypts the amount to catch an underfunded lock.',
+					'Measured on 2026-09-17: 54 s from the click to “locked”, 1,164,214 gas, 42 events.'
+				],
+				sources: ['account.locking', 'account.signing', 'account.measured']
+			},
+			{
 				heading: 'What Etherscan shows',
 				points: [
 					'Sender, escrow, `todoRef`, beneficiary and deadline; the input handle and the full proof; all 21 events decoded, with every handle and every permitted account (`Allowed`).',
@@ -53,46 +63,46 @@ export default {
 	},
 
 	locked: {
-		title: 'Reading a locked amount: user decryption',
+		title: 'Reading a locked amount: delegated user decryption',
 		sections: [
 			{
 				heading: 'Handle, key pair and permit',
 				points: [
 					'The app reads the handle with `eth_call`: `escrowOf(creator, todoRef)` returns beneficiary, deadline, status and the amount handle to anyone.',
 					'The browser generates an ML-KEM-512 transport key pair in the TKMS WASM.',
-					'The reader’s wallet signs an EIP-712 permit, `UserDecryptRequestVerification`, over the transport public key, the contracts and a validity window (at most 365 days; `@zama-fhe/sdk` uses 30 days by default).',
-					'Before any request the SDK checks `ACL.persistAllowed(handle, reader)` and `ACL.persistAllowed(handle, escrow)`.'
+					'The browser’s read key signs an EIP-712 permit, `DelegatedUserDecryptRequestVerification`, over the transport public key, the contracts, the account as delegator and a validity window. Reading does not ask the passkey.',
+					'Before the request the SDK checks `ACL.isHandleDelegatedForUserDecryption(account, readKey, escrow, handle)`: account and escrow need persistent access to the handle, and the delegation to the read key must be active.'
 				],
-				sources: ['zama.userDecryption', 'escrow.states', 'smoke.check']
+				sources: ['zama.delegated', 'zama.acl', 'account.reading', 'escrow.states']
 			},
 			{
 				heading: 'Relayer and Gateway',
 				points: [
-					'`POST /v2/user-decrypt` goes to Zama’s relayer, which sends `userDecryptionRequest` to the Gateway’s `Decryption` contract in its own transaction.',
-					'The Gateway checks the permit’s signature and validity window, not the ACL.',
-					'The request itself is public: the Gateway chain’s `UserDecryptionRequest` event names the handles, the user address and the transport public key. The relayer also sees the client’s IP address.',
-					'On Sepolia, reading leaves no transaction at all.'
+					'`POST /v2/delegated-user-decrypt` goes to Zama’s relayer, which calls `delegatedUserDecryptionRequest` on the Gateway’s `Decryption` contract; that contract checks the read key’s signature.',
+					'The Gateway does not check the ACL; the KMS connectors do, on Sepolia.',
+					'The request is public: the Gateway chain’s `UserDecryptionRequest` event names the handles, the read key’s address and the transport public key, and the calldata names the account too. The relayer also sees the client’s IP address.',
+					'On Sepolia, reading leaves no transaction; the delegation to the read key was one, at setup.'
 				],
-				sources: ['zama.userDecryption', 'security.leaks', 'smoke.etherscan']
+				sources: ['account.reading', 'zama.relayer', 'security.leaks']
 			},
 			{
 				heading: 'KMS threshold',
 				points: [
-					'Each KMS node checks `ACL.isAllowed` for the reader and the escrow on Sepolia and answers with its share, signcrypted to the transport key.',
-					'Once the user decryption threshold is met, the Gateway emits `UserDecryptionResponseThresholdReached` (Sepolia’s ProtocolConfig records 9 of 13); the relayer returns the shares.',
-					'The relayer only passes on shares encrypted to the reader’s key: no single key holder, and not the relayer, sees the value.',
+					'Each KMS connector takes the delegator from the request’s calldata and checks `isHandleDelegatedForUserDecryption` on Sepolia; the node answers with its share, signcrypted to the transport key.',
+					'The answers go through `userDecryptionResponse` as for any user decryption; Sepolia’s ProtocolConfig records 9 of 13 for it, and the relayer returns the shares.',
+					'The relayer only passes on shares encrypted to the transport key: no single key holder, and not the relayer, sees the value.',
 					'Zama’s whitepaper tolerates collusions of up to 4 of the 13 KMS operators; 5 or more colluding are outside that guarantee and could decrypt any ciphertext.'
 				],
-				sources: ['zama.userDecryption', 'zama.relayer', 'zama.trust', 'smoke.check']
+				sources: ['zama.userDecryption', 'zama.acl', 'zama.relayer', 'zama.trust']
 			},
 			{
 				heading: 'Reconstruction in the browser',
 				points: [
 					'The SDK verifies every response signature against the KMS signers.',
 					'The TKMS WASM decrypts the shares with the ML-KEM private key and reconstructs the value; it needs at least 5 matching responses (threshold 4 for 13 signers, plus one).',
-					'Smoke test of 2026-09-16: 2.8 s for the creator and 2.3 s for the beneficiary, each with its own permit; both read 1.0 cUSDTMock.'
+					'On 2026-09-17 Bob saw the locked amount in the app 4 s after Alice’s lock showed; in the smoke test of 2026-09-16, without delegation, reading took 2.3 s and 2.8 s.'
 				],
-				sources: ['zama.userDecryption', 'smoke.check']
+				sources: ['zama.userDecryption', 'account.measured', 'smoke.check']
 			}
 		]
 	},
@@ -231,9 +241,10 @@ export default {
 				heading: 'What still leaks',
 				points: [
 					'Wrapping USDT into cUSDT and unwrapping are public, amount included: the smoke test’s wrap shows 1.0 in the calldata, as an ERC-20 transfer, in `TrivialEncrypt` and in `Wrap`.',
-					'A wrap of X shortly before a lock by the same address suggests a locked amount of at most X.'
+					'A wrap of X shortly before a lock by the same address suggests a locked amount of at most X.',
+					'In the app the first lock wraps 1,000.00 in the same user operation: so it is publicly visible that the locked amount is at most 1,000.00.'
 				],
-				sources: ['escrow.wrap', 'security.leaks'],
+				sources: ['escrow.wrap', 'security.leaks', 'account.locking'],
 				links: [{ evidence: 'wrap', label: 'Wrap of 2026-09-16 on Etherscan' }]
 			}
 		]
@@ -276,9 +287,9 @@ export default {
 				heading: 'In this deployment',
 				points: [
 					'The Sepolia auditor `0xd81Ad65e…4621` is the deployer and the smoke test’s creator: a test account whose key the runbook keeps unencrypted in a configuration file on a development machine.',
-					'The fake’s auditor view answers any identity; the real service is meant to answer only the registered auditor.'
+					'On Sepolia the auditor view lists the `Locked` events for any identity; it decrypts amounts only when the own account is the registered auditor and shows “•••” otherwise. The fake shows any identity the amounts of its tab.'
 				],
-				sources: ['security.auditor', 'demo.scene7']
+				sources: ['security.auditor', 'demo.scene7', 'account.reading']
 			}
 		]
 	},
@@ -290,34 +301,35 @@ export default {
 				heading: 'Why a second key',
 				points: [
 					'Zama v0.13 accepts only ECDSA permits (65-byte signatures), so a passkey account cannot sign a decryption permit itself.',
-					'The planned workaround is a secp256k1 session key that the account authorizes once per contract, for the token and for the escrow.'
+					'So the browser holds a secp256k1 read key that the account authorizes once per contract, for the token and for the escrow; it sits in plain text in `localStorage`.'
 				],
-				sources: ['security.passkeyWallet', 'zama.versions']
+				sources: ['security.passkeyWallet', 'zama.versions', 'account.reading']
 			},
 			{
 				heading: 'The delegation',
 				points: [
-					'The account calls `ACL.delegateForUserDecryption(sessionKey, contract, expirationDate)` in a transaction; delegations are per contract.',
-					'The session key signs a `DelegatedUserDecryptRequestVerification` permit, which the SDK sends to `POST /v2/delegated-user-decrypt`.',
-					'Before the request `@fhevm/sdk` checks `isHandleDelegatedForUserDecryption`, and `@zama-fhe/sdk` reads the expiration date: it refuses one less than an hour ahead.'
+					'The account calls `ACL.delegateForUserDecryption(readKey, contract, expirationDate)`, at setup in the same batch as `register`; delegations are per contract.',
+					'The read key signs a `DelegatedUserDecryptRequestVerification` permit, which the SDK sends to `POST /v2/delegated-user-decrypt`.',
+					'Before the request `@fhevm/sdk` checks `isHandleDelegatedForUserDecryption`, and `@zama-fhe/sdk` reads the expiration date and stops at an expired delegation; it does not create a new one that runs for less than an hour.'
 				],
-				sources: ['zama.delegated', 'security.passkeyWallet']
+				sources: ['zama.delegated', 'account.setup', 'security.passkeyWallet']
 			},
 			{
 				heading: 'Expiry, and what is public',
 				points: [
-					'Until the expiry or a revocation, the session key can read everything the account may read in those contracts.',
-					'The `DelegatedForUserDecryption` event makes the link between account and session key public.',
-					'Each (delegator, delegate, contract) can be delegated or revoked once per block.'
+					'Until the expiry or a revocation, the read key can read everything the account may read in those contracts.',
+					'The `DelegatedForUserDecryption` event makes the link between account and read key public.',
+					'Each (delegator, delegate, contract) can be delegated or revoked once per block; the app therefore uses a new read key for every renewal.'
 				],
-				sources: ['security.passkeyWallet', 'zama.acl']
+				sources: ['security.passkeyWallet', 'zama.acl', 'account.reading']
 			},
 			{
-				heading: 'State of this chapter',
+				heading: 'In this app',
 				points: [
-					'Not implemented yet. The fake only simulates the expiry: `simpleTodoBudgetDemo.expireReadKey()` in the console.'
+					'On Sepolia the read key holds for 24 hours. “Renew with passkey” sends one user operation with two new delegations to a new read key: one passkey step.',
+					'The fake simulates the expiry: `simpleTodoBudgetDemo.expireReadKey()` in the console.'
 				],
-				sources: ['zama.delegated', 'demo.scene9']
+				sources: ['account.reading', 'demo.scene9']
 			}
 		]
 	},
@@ -328,26 +340,26 @@ export default {
 			{
 				heading: 'What was not sent',
 				points: [
-					'A lock is two calls on Sepolia: `setOperator` on the token and `lock` on the escrow. A release is `release(todoRef)`.',
-					'Reading is planned through a delegation, `ACL.delegateForUserDecryption`, which is a transaction as well.',
-					'Budget actions ask for the passkey first. A cancelled prompt leaves no signature, and nothing unsigned is sent.'
+					'A lock is one user operation with `setOperator` on the token and `lock` on the escrow, preceded on the first lock by `mint`, `approve` and `wrap`. A release is one user operation with `release(todoRef)`.',
+					'By then the browser has already had the encrypted amount and its proof checked through Zama’s relayer; nothing reaches Sepolia without a signature.',
+					'The app prepares the user operation with Openfort (gas values, paymaster data) and then asks the passkey. A cancelled prompt leaves no signature, and without a signature the app does not send the operation.'
 				],
-				sources: ['escrow.lock', 'smoke.fullRun', 'zama.delegated', 'demo.scene1']
+				sources: ['account.locking', 'account.signing', 'escrow.lock']
 			},
 			{
-				heading: 'Reading needs a signature too',
+				heading: 'Reading needs no passkey',
 				points: [
-					'Every user decryption needs an EIP-712 permit signed by the reader’s key; the request to the relayer carries that signature.'
+					'Every user decryption needs an EIP-712 permit. In the app the read key signs it, which the account enabled for 24 hours at setup; a cancelled passkey prompt changes nothing about that.'
 				],
-				sources: ['zama.userDecryption']
+				sources: ['zama.userDecryption', 'account.reading']
 			},
 			{
 				heading: 'What the chain does not check',
 				points: [
-					'In the planned passkey account (Calibur), user verification is not enforced on chain: PIN or biometrics are enforced only by the client code that requests the assertion.',
-					'That wallet is planned, not integrated. The fake sends nothing in any case.'
+					'Calibur v1.0.0 checks passkey signatures with `requireUV: false`: only the app requires PIN or biometrics (`userVerification: "required"`).',
+					'The fake sends nothing in any case.'
 				],
-				sources: ['security.passkeyWallet', 'demo.real']
+				sources: ['account.signing', 'security.passkeyWallet', 'demo.real']
 			}
 		]
 	},
@@ -379,9 +391,17 @@ export default {
 				points: [
 					'Escrow `0x6Ee3Fa9d…3429`, deployed in block 11716748, source verified on Etherscan, Sourcify and Blockscout.',
 					'Smoke test of 2026-09-16: mint, approve and wrap test dollars, operator approval, lock, decryption as creator and as beneficiary, underfunded lock, release.',
-					'Its seven transactions used 2,269,800 gas. Encryption and decryption left no transaction on Sepolia.'
+					'Its seven transactions used 2,269,800 gas. Encryption and decryption left no transaction on Sepolia.',
+					'With `VITE_BUDGET_SERVICE=zama` and Openfort access this flow runs in the app itself: a Calibur account per passkey, lock and release as sponsored user operations, reading through a read key.'
 				],
-				sources: ['escrow.title', 'demo.real', 'smoke.fullRun', 'smoke.cost', 'smoke.etherscan'],
+				sources: [
+					'escrow.title',
+					'demo.real',
+					'smoke.fullRun',
+					'smoke.cost',
+					'smoke.etherscan',
+					'account.setup'
+				],
 				links: [
 					{ evidence: 'escrow', label: 'Escrow contract, verified source' },
 					{ evidence: 'wrap', label: 'Wrap' },

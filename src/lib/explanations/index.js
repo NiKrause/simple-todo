@@ -189,6 +189,19 @@ export const DOC_SECTIONS = /** @type {const} */ ({
 		en: 'Passkey wallet: technical',
 		de: 'Passkey-Wallet: technisch'
 	},
+	'account.setup': { doc: 'passkey-account', en: 'Setup: technical', de: 'Einrichtung: technisch' },
+	'account.signing': {
+		doc: 'passkey-account',
+		en: 'Signing: technical',
+		de: 'Signieren: technisch'
+	},
+	'account.locking': { doc: 'passkey-account', en: 'Locking: technical', de: 'Sperren: technisch' },
+	'account.reading': { doc: 'passkey-account', en: 'Reading: technical', de: 'Lesen: technisch' },
+	'account.measured': {
+		doc: 'passkey-account',
+		en: 'Measured on 2026-09-17',
+		de: 'Gemessen am 2026-09-17'
+	},
 	'demo.real': {
 		doc: 'demo',
 		en: 'What is real today and what is not',

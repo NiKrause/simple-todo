@@ -31,11 +31,14 @@ the escrow half of [de2do](https://github.com/NiKrause/de2do).
   [`0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`](https://sepolia.etherscan.io/address/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429#code)
   and verified on Etherscan, Sourcify and Blockscout. A smoke test locked, decrypted and released a
   real amount there on 2026-09-16.
-- **The app's budgets are not on the chain yet.** Adding a delegated todo can lock a budget, the owner
-  releases it once the delegate is done, the delegate is told about the payout, and an auditor view
-  lists the escrows with their amounts. All of this runs against an in-memory fake that encrypts
-  nothing and forgets its escrows on reload; the Account tab says "Demo without a chain". The Zama
-  service with a passkey wallet is planned.
+- **One passkey pays, on Sepolia.** Adding a delegated todo can lock a budget, the owner releases it
+  once the delegate is done, the delegate is told about the payout, and an auditor view lists the
+  escrows. Built with `VITE_BUDGET_SERVICE=zama` and an Openfort key, each passkey gets a Calibur
+  account (EIP-7702) in the background; a lock or a release is one user operation the passkey signs,
+  with gas sponsored by Openfort, and amounts are encrypted and decrypted in the browser. A run on
+  2026-09-17 did all of it between two browsers ([docs/passkey-account.md](docs/passkey-account.md)).
+- **Without that configuration, a fake.** It encrypts nothing and forgets its escrows on reload; the
+  Account tab says "Demo without a chain". The tests run against it.
 - **OrbitDB stores no amounts.** A todo's `budget` field holds status, token, escrow, `todoRef`,
   transaction hashes and the last error. The chain is the source of truth for what is locked.
 - **The page opens on the todos.** Lists, account and network are tabs, at the foot of a phone's
@@ -48,13 +51,18 @@ the escrow half of [de2do](https://github.com/NiKrause/de2do).
    list in the **Lists** tab, and add a todo delegated to another DID with a budget. Tick it as the
    delegate, release it as the owner, and open the auditor view from the **Account** tab. With the fake,
    amounts are readable only in the browser tab that locked them.
-2. The contract: `cd contracts && npm ci && npm test` runs 16 tests in FHEVM mock mode.
+2. On Sepolia: put the settings from [Configuration](docs/passkey-account.md#configuration) into
+   `.env.local` and start again. The **Account** tab shows each person's account once it is set up;
+   the delegate needs one before a budget can be locked for them.
+3. The contract: `cd contracts && npm ci && npm test` runs 16 tests in FHEVM mock mode.
    `npm run smoke:sepolia:dry` checks the Sepolia deployment through Zama's relayer and needs only an
    RPC URL ([runbook](contracts/README.md#sepolia-runbook)).
 
 ### Read more
 
 - [docs/escrow.md](docs/escrow.md): roles, lifecycle, `todoRef`, what is public and what is encrypted
+- [docs/passkey-account.md](docs/passkey-account.md): the passkey's account (Calibur), gas sponsoring,
+  and where amounts are encrypted and decrypted, with sequence diagrams
 - [docs/zama-confidential-transactions.md](docs/zama-confidential-transactions.md): Zama's protocol as
   used here, from handles to threshold decryption
 - [docs/smoke-test.md](docs/smoke-test.md): the Sepolia run of 2026-09-16, step by step

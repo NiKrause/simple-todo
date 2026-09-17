@@ -11,8 +11,10 @@ Sepolia, Transaktion für Transaktion, steht in [smoke-test.de.md](smoke-test.de
 Stand am 2026-09-16: Der Vertrag ist auf Sepolia unter
 [`0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429`](https://sepolia.etherscan.io/address/0x6Ee3Fa9d3aEdaAD189F5DeA9d859605c9D743429)
 (Block 11716748) bereitgestellt, und sein Quellcode ist auf Etherscan, Sourcify und Blockscout
-verifiziert. Die Budget-Ansichten der App nutzen ihn noch nicht; sie laufen gegen eine Attrappe im
-Arbeitsspeicher ([`src/lib/budget-service-fake.js`](../src/lib/budget-service-fake.js)).
+verifiziert. Mit `VITE_BUDGET_SERVICE=zama` sperrt die App seit dem 2026-09-17 auf diesem Vertrag und
+gibt dort frei, aus einem Passkey-Konto ([passkey-account.de.md](passkey-account.de.md)); ohne diese
+Einstellung laufen die Budget-Ansichten gegen eine Attrappe im Arbeitsspeicher
+([`src/lib/budget-service-fake.js`](../src/lib/budget-service-fake.js)).
 
 Jeder Abschnitt hat eine einfache Erklärung und eine technische.
 
@@ -32,7 +34,7 @@ Jeder Abschnitt hat eine einfache Erklärung und eine technische.
 
 | Rolle        | Einfach                                                                           | Technisch                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | ------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ersteller    | Besitzt die Aufgabe, zahlt das Geld ein und entscheidet, wann es ausgezahlt wird. | Der `msg.sender` von `lock`. Treuhand-Vorgänge werden als `_escrows[creator][todoRef]` gespeichert, daher kann nur der Ersteller `release` oder `refund` ausführen (das Nachschlagen verwendet `msg.sender`).                                                                                                                                                                                                                               |
+| Ersteller    | Besitzt die Aufgabe, zahlt das Geld ein und entscheidet, wann es ausgezahlt wird. | Der `msg.sender` von `lock`, in der App das Calibur-Konto des Passkeys. Treuhand-Vorgänge werden als `_escrows[creator][todoRef]` gespeichert, daher kann nur der Ersteller `release` oder `refund` ausführen (das Nachschlagen verwendet `msg.sender`).                                                                                                                                                                                    |
 | Begünstigter | Die Person, an die die Aufgabe delegiert ist; erhält das Geld bei der Freigabe.   | Eine an `lock` übergebene Adresse. Sie darf weder `address(0)` noch die Treuhand selbst sein; der Vertrag verbietet die eigene Adresse des Erstellers nicht, die App schon. Der Begünstigte hat keine Funktion, die er aufrufen könnte, und keinen Anspruch on-chain.                                                                                                                                                                       |
 | Prüfstelle   | Kann jeden in dieser Treuhand gesperrten Betrag lesen, aber kein Geld bewegen.    | Eine im Konstruktor festgelegte Adresse (`immutable`). `lock` gewährt ihr dauerhaften ACL-Zugriff auf jeden gespeicherten Betrag. Sie kann keine Mittel bewegen; wie Ersteller und Begünstigter kann sie einen gespeicherten Betrag über `requestDiscloseEncryptedAmount` des Tokens öffentlich machen. Sie zu ändern bedeutet, eine neue Treuhand bereitzustellen. In der Sepolia-Bereitstellung ist sie die eigene Adresse des Deployers. |
 | Token        | Das vertrauliche Geld selbst.                                                     | Ein ERC-7984-Token, im Konstruktor festgelegt und über ERC-165 geprüft. Auf Sepolia: Zamas cUSDTMock `0x4E7B06D78965594eB5EF5414c357ca21E1554491`.                                                                                                                                                                                                                                                                                          |
@@ -55,7 +57,9 @@ Vor dem Aufruf, auf dem Client:
 
 1. Der Ersteller hält den Betrag bereits im vertraulichen Token. Den öffentlichen Token unmittelbar
    vor dem Sperren zu verpacken, würde den Betrag verraten (siehe
-   [Was Verpacken und Entpacken verraten](#verpacken-und-entpacken-technisch)).
+   [Was Verpacken und Entpacken verraten](#verpacken-und-entpacken-technisch)). Die App verpackt bei
+   der ersten Sperre 1.000,00 Test-cUSDT in derselben UserOperation; das verrät eine Obergrenze, nicht
+   den Betrag ([Sperren aus dem Passkey-Konto](passkey-account.de.md#sperren-technisch)).
 2. Der Ersteller macht die Treuhand zum Operator seines Guthabens: `token.setOperator(escrow, until)`.
    Der Token speichert `until` als Zeitstempel; `isOperator(holder, spender)` ist wahr, solange
    `block.timestamp <= until` gilt.
@@ -166,11 +170,11 @@ ist. Die Dokumentation des Vertrags empfiehlt `keccak256(abi.encode(todoId, salt
 Bytes Salt, die bei der Aufgabe aufbewahrt und mit dem Begünstigten geteilt werden. Implementierungen
 in diesem Repository:
 
-| Ort                            | Berechnung                                                        | Salt aufbewahrt? |
-| ------------------------------ | ----------------------------------------------------------------- | ---------------- |
-| Hardhat-Tests                  | `keccak256(abi.encode(string todoId, bytes32 salt))`              | nein             |
-| Smoke-Test                     | `keccak256(abi.encode(string "smoke-<unix time>", bytes32 salt))` | nein             |
-| App-Attrappe (`createTodoRef`) | `sha256("<todoKey>:<64 hex chars of random bytes>")`              | nein             |
+| Ort                                         | Berechnung                                                        | Salt aufbewahrt? |
+| ------------------------------------------- | ----------------------------------------------------------------- | ---------------- |
+| Hardhat-Tests                               | `keccak256(abi.encode(string todoId, bytes32 salt))`              | nein             |
+| Smoke-Test                                  | `keccak256(abi.encode(string "smoke-<unix time>", bytes32 salt))` | nein             |
+| App (`createTodoRef`, Attrappe und Sepolia) | `sha256("<todoKey>:<64 hex chars of random bytes>")`              | nein             |
 
 Die App schreibt den `todoRef` selbst in das Feld `budget` der Aufgabe in OrbitDB, sodass der
 Begünstigte den Treuhand-Vorgang über die Aufgabe findet, nicht über das Salt. Zwei Folgen:
@@ -287,9 +291,11 @@ behauptet diese Seite nicht, dass er auf Sepolia zu 0 entschlüsselt wurde; im H
 der Fall.
 
 In der App legt die Schnittstelle des Budget-Service fest, dass `lock` `insufficient-balance` mit
-`details.lockTx` wirft, wenn die Überweisung als verschlüsselte 0 durchging, und die Attrappe tut
-das. Das Budget der Aufgabe wechselt dann zu `failed` und behält die in einen Block aufgenommene
-`lockTx` ([`lockFailed`](../src/lib/budget.js)).
+`details.lockTx` wirft, wenn die Überweisung als verschlüsselte 0 durchging. Die Attrappe tut das,
+und der Sepolia-Dienst liest dafür nach jeder Sperre den Vorgang am Block der Quittung, wartet zwei
+Blöcke und entschlüsselt den gespeicherten Betrag
+([`budget-service-zama.js`](../src/lib/budget-service-zama.js)). Das Budget der Aufgabe wechselt dann
+zu `failed` und behält die in einen Block aufgenommene `lockTx` ([`lockFailed`](../src/lib/budget.js)).
 
 ## Was die App in OrbitDB speichert
 
@@ -327,10 +333,10 @@ Die Chain bleibt aus drei Gründen die maßgebliche Quelle:
 - Nur `escrowOf(creator, todoRef)` und die Guthaben des Tokens sagen, was gesperrt ist und wer was
   hält, und nur die Entschlüsselung sagt, wie viel.
 
-Die Attrappe zeigt die Grenzen des aktuellen Builds: Die Treuhand-Vorgänge darin leben im
-Arbeitsspeicher eines einzigen Tabs, daher findet ein Neuladen, oder der eigene Browser des
-Delegierten, das `budget` der Aufgabe, aber keinen Treuhand-Vorgang (`escrow-not-found`, der Betrag
-erscheint als nicht lesbar).
+Die Attrappe zeigt, warum: Ihre Treuhand-Vorgänge leben im Arbeitsspeicher eines einzigen Tabs, daher
+findet ein Neuladen, oder der eigene Browser des Delegierten, das `budget` der Aufgabe, aber keinen
+Treuhand-Vorgang (`escrow-not-found`, der Betrag erscheint als nicht lesbar). Auf Sepolia liest jeder
+Beteiligte den Vorgang von der Chain und entschlüsselt den Betrag im eigenen Browser.
 
 ## Was öffentlich ist und was verschlüsselt
 
@@ -369,12 +375,13 @@ Repository (Branch `escrow01`):
 - [`contracts/scripts/smoke-sepolia.ts`](../contracts/scripts/smoke-sepolia.ts): `todoRef` 406-410,
   Sperre 573-601.
 - [`contracts/README.md`](../contracts/README.md): "Who can decrypt" und "What stays public".
-- [`src/lib/budget.js`](../src/lib/budget.js): `Budget` 52-65, `isWellFormedBudget` 107-130,
-  `startLock` 143-170, `lockFailed` 182-196.
-- [`src/lib/budget-service.js`](../src/lib/budget-service.js) 1-84,
+- [`src/lib/budget.js`](../src/lib/budget.js): `Budget` 54-67, `isWellFormedBudget` 109-132,
+  `startLock` 145-172, `lockFailed` 184-198.
+- [`src/lib/budget-service.js`](../src/lib/budget-service.js) 1-85,
   [`src/lib/budget-service-fake.js`](../src/lib/budget-service-fake.js) 1-18 und 171-236,
+  [`src/lib/budget-service-zama.js`](../src/lib/budget-service-zama.js) (`createTodoRef`, `lock`),
   [`src/lib/budget-flow.js`](../src/lib/budget-flow.js), [`src/lib/budget-store.js`](../src/lib/budget-store.js)
-  1-10 und 57-75, [`src/lib/db-actions.js`](../src/lib/db-actions.js) 944-958.
+  1-10 und 97-115, [`src/lib/db-actions.js`](../src/lib/db-actions.js) 944-958.
 
 Bibliotheken (`contracts/node_modules`):
 

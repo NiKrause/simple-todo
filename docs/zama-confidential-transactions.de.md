@@ -393,8 +393,7 @@ jeweils mit eigenem Permit, und lieferte beide Male 1,0 cUSDTMock.
 ### Delegierte Nutzer-Entschlüsselung: einfach
 
 Ein Konto kann einen anderen Schlüssel eine Zeit lang seine verschlüsselten Werte lesen lassen, ohne
-seinen eigenen Schlüssel herauszugeben. Auf diesem Weg soll ein Passkey-Konto in dieser App Beträge
-lesen.
+seinen eigenen Schlüssel herauszugeben. Auf diesem Weg liest ein Passkey-Konto in dieser App Beträge.
 
 ### Delegierte Nutzer-Entschlüsselung: technisch
 
@@ -405,10 +404,21 @@ pro Vertrag. Der Delegierte signiert dann ein Permit vom Typ
 `address delegatorAddress` ergänzt, und das SDK sendet es an
 `POST {relayer}/v2/delegated-user-decrypt`. Vor der Anfrage prüft `@fhevm/sdk`
 `ACL.isHandleDelegatedForUserDecryption(delegator, delegate, contract, handle)`, und `@zama-fhe/sdk`
-liest `getUserDecryptionDelegationExpirationDate`. `@zama-fhe/sdk` lehnt Ablaufdaten ab, die weniger
-als eine Stunde in der Zukunft liegen. Das Design der App (ein pro Vertrag delegierter
-Sitzungsschlüssel, siehe [contracts/README.md](../contracts/README.md#who-can-decrypt)) ist noch
-nicht umgesetzt.
+liest `getUserDecryptionDelegationExpirationDate` und bricht bei einer abgelaufenen Delegation ab.
+Eine neue Delegation, die weniger als eine Stunde in der Zukunft abläuft, legt `@zama-fhe/sdk` nicht
+an.
+
+Hinter dem Relayer nimmt der Vertrag `Decryption` des Gateways die Anfrage mit
+`delegatedUserDecryptionRequest` an: Er prüft die Verträge, das Gültigkeitsfenster, dass der
+Delegierende keiner der Verträge ist, und die EIP-712-Signatur des Delegierten, und emittiert dasselbe
+`UserDecryptionRequest` wie bei einer Nutzer-Entschlüsselung, mit der Adresse des Delegierten. Die
+KMS-Connectoren lesen den Delegierenden aus der Calldata und prüfen
+`isHandleDelegatedForUserDecryption` auf der Host-Chain; die Antworten laufen über
+`userDecryptionResponse`.
+
+Die App liest Beträge so: Das Calibur-Konto eines Passkeys delegiert an einen Sitzungsschlüssel im
+Browser, einmal pro Vertrag, für 24 Stunden
+([passkey-account.de.md](passkey-account.de.md#lesen-technisch)).
 
 ## Öffentliche Entschlüsselung
 
@@ -586,7 +596,7 @@ zwei zusätzliche Anteile und 5 Sekunden. Welches Release und welche Einstellung
 Sepolia verwendet, lässt sich nicht von der Chain ablesen.
 
 Für dieses Kapitel bedeutet v0.13, dass ein Passkey-Smart-Account ein Entschlüsselungs-Permit nicht
-selbst signieren kann; der geplante Ausweg ist ein delegierter ECDSA-Sitzungsschlüssel (siehe
+selbst signieren kann; die App nutzt als Ausweg einen delegierten ECDSA-Sitzungsschlüssel (siehe
 [security.de.md](security.de.md#passkey-wallet)). Der Umstieg auf v0.14 steht auf der
 Redeploy-Checkliste in [contracts/README.md](../contracts/README.md#redeploy-checklist).
 
@@ -734,11 +744,13 @@ zama-ai/fhevm im Git-Tag v0.13.5 (`https://github.com/zama-ai/fhevm/blob/v0.13.5
 - `host-contracts/contracts/ACLEvents.sol`, `host-contracts/contracts/FHEEvents.sol`:
   Event-Signaturen.
 - `gateway-contracts/contracts/Decryption.sol`: Limits 127-137, Anfrage zur öffentlichen
-  Entschlüsselung 311-361, `userDecryptionRequest` 441-526, Antwort zur Nutzer-Entschlüsselung
-  635-709, „ACL checks are performed by the KMS“ 724, Handle-Prüfungen 1123-1164,
+  Entschlüsselung 311-361, `userDecryptionRequest` 441-526, `delegatedUserDecryptionRequest`
+  531-628, Antwort zur Nutzer-Entschlüsselung 635-709, „ACL checks are performed by the KMS“ 724, Handle-Prüfungen 1123-1164,
   Gültigkeitsprüfungen 1170-1192.
-- `kms-connector/crates/kms-worker/src/core/event_processor/decryption.rs`: ACL-Lesezugriffe 80-113
-  (öffentlich), 191-219 (delegiert), 221-248 (Nutzer).
+- `kms-connector/crates/kms-worker/src/core/event_processor/decryption.rs`: Delegierender aus der
+  Calldata 127-131, ACL-Lesezugriffe 80-113 (öffentlich), 191-219 (delegiert), 221-248 (Nutzer).
+- `@zama-fhe/sdk` 3.6.0, Quelltext in den Source Maps: `src/services/delegation-service.ts`
+  (mindestens eine Stunde beim Anlegen 80-84, `assertDelegationActive` 283-307).
 
 Pull Requests in zama-ai/fhevm: [#3481](https://github.com/zama-ai/fhevm/pull/3481) (Relayer gibt alle
 Anteile der Nutzer-Entschlüsselung zurück), [#2624](https://github.com/zama-ai/fhevm/pull/2624),
